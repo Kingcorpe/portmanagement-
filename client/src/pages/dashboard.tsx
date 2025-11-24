@@ -1,45 +1,70 @@
+import { useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { isUnauthorizedError } from "@/lib/authUtils";
 import { MetricCard } from "@/components/metric-card";
 import { PortfolioChart } from "@/components/portfolio-chart";
 import { AlertCard, Alert } from "@/components/alert-card";
 import { PositionsTable, Position } from "@/components/positions-table";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Users, Bell, TrendingUp } from "lucide-react";
+import { DollarSign, Users, Bell, TrendingUp, Upload, UserPlus, FileText, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState } from "react";
+import type { Household, Alert as AlertType } from "@shared/schema";
 
 export default function Dashboard() {
-  //todo: remove mock functionality
-  const [alerts, setAlerts] = useState<Alert[]>([
-    {
-      id: "1",
-      symbol: "BTC/USD",
-      signal: "BUY",
-      price: 45230,
-      timestamp: "2 minutes ago",
-      message: "Strong bullish reversal pattern detected on 4H chart",
-      status: "pending"
-    },
-    {
-      id: "2",
-      symbol: "ETH/USD",
-      signal: "SELL",
-      price: 2845,
-      timestamp: "15 minutes ago",
-      message: "Resistance level reached with bearish divergence",
-      status: "pending"
-    },
-    {
-      id: "3",
-      symbol: "SPY",
-      signal: "BUY",
-      price: 465,
-      timestamp: "1 hour ago",
-      message: "Breaking above key resistance with volume",
-      status: "executed"
-    },
-  ]);
+  const { toast } = useToast();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
-  //todo: remove mock functionality
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      toast({
+        title: "Unauthorized",
+        description: "You are logged out. Logging in again...",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 500);
+      return;
+    }
+  }, [isAuthenticated, authLoading, toast]);
+
+  // Fetch households for metrics
+  const { data: households, isLoading: householdsLoading } = useQuery<Household[]>({
+    queryKey: ["/api/households"],
+    enabled: isAuthenticated,
+  });
+
+  // Fetch alerts
+  const { data: alerts = [], isLoading: alertsLoading } = useQuery<AlertType[]>({
+    queryKey: ["/api/alerts"],
+    enabled: isAuthenticated,
+    retry: (failureCount, error) => {
+      if (isUnauthorizedError(error as Error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return false;
+      }
+      return failureCount < 3;
+    },
+  });
+
+  // Calculate metrics from real data
+  const totalHouseholds = households?.length || 0;
+  const pendingAlerts = alerts.filter(a => a.status === "pending").length;
+  
+  // Mock data for now (will be calculated from actual holdings later)
+  const totalAUM = 12400000; // CAD
+  const totalPerformance = 8.5; // %
+  
   const chartData = [
     { date: "Jan", value: 8500000 },
     { date: "Feb", value: 9200000 },
@@ -49,136 +74,131 @@ export default function Dashboard() {
     { date: "Jun", value: 12400000 },
   ];
 
-  //todo: remove mock functionality
-  const positions: Position[] = [
-    {
-      id: "1",
-      symbol: "BTC/USD",
-      quantity: 2.5,
-      entryPrice: 42000,
-      currentPrice: 45230,
-      pnl: 8075,
-      pnlPercent: 7.69
-    },
-    {
-      id: "2",
-      symbol: "ETH/USD",
-      quantity: 15,
-      entryPrice: 2900,
-      currentPrice: 2845,
-      pnl: -825,
-      pnlPercent: -1.90
-    },
-    {
-      id: "3",
-      symbol: "SPY",
-      quantity: 100,
-      entryPrice: 450,
-      currentPrice: 465,
-      pnl: 1500,
-      pnlPercent: 3.33
-    },
-  ];
+  const positions: Position[] = [];
+
+  // Convert backend alerts to component format
+  const recentAlerts: Alert[] = alerts
+    .filter(a => a.status === "pending")
+    .slice(0, 3)
+    .map(a => ({
+      id: a.id,
+      symbol: a.symbol,
+      signal: a.signal,
+      price: parseFloat(a.price),
+      timestamp: new Date(a.createdAt!).toLocaleString(),
+      message: a.message || "",
+      status: a.status
+    }));
 
   const handleExecuteAlert = (id: string) => {
     console.log('Execute alert:', id);
-    setAlerts(alerts.map(alert => 
-      alert.id === id ? { ...alert, status: "executed" as const } : alert
-    ));
   };
 
   const handleDismissAlert = (id: string) => {
     console.log('Dismiss alert:', id);
-    setAlerts(alerts.map(alert => 
-      alert.id === id ? { ...alert, status: "dismissed" as const } : alert
-    ));
   };
+
+  if (authLoading || householdsLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="text-lg">Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold" data-testid="text-page-title">Dashboard</h1>
-        <p className="text-muted-foreground">Overview of your portfolio management platform</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold" data-testid="text-dashboard-title">Dashboard</h1>
+          <p className="text-muted-foreground">Overview of your portfolio management</p>
+        </div>
       </div>
 
-      <Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <MetricCard
+          title="Total AUM (CAD)"
+          value={`$${(totalAUM / 1000000).toFixed(2)}M`}
+          change={totalPerformance}
+          icon={DollarSign}
+          testId="card-total-aum"
+        />
+        <MetricCard
+          title="Households"
+          value={totalHouseholds.toString()}
+          icon={Users}
+          testId="card-households"
+        />
+        <MetricCard
+          title="Pending Alerts"
+          value={pendingAlerts.toString()}
+          icon={Bell}
+          testId="card-pending-alerts"
+        />
+        <MetricCard
+          title="Performance (YTD)"
+          value={`+${totalPerformance}%`}
+          change={totalPerformance}
+          icon={TrendingUp}
+          testId="card-performance"
+        />
+      </div>
+
+      <Card data-testid="card-quick-actions">
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <Button className="w-full" data-testid="button-import-holdings" onClick={() => console.log('Import holdings')}>
-              <TrendingUp className="h-4 w-4 mr-2" />
-              Import Holdings
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <Button variant="outline" className="justify-start gap-2 h-auto py-3" data-testid="button-import-holdings">
+              <Upload className="h-4 w-4" />
+              <span>Import Holdings</span>
             </Button>
-            <Button className="w-full" variant="outline" data-testid="button-add-household" onClick={() => console.log('Add household')}>
-              <Users className="h-4 w-4 mr-2" />
-              Add Household
+            <Button variant="outline" className="justify-start gap-2 h-auto py-3" data-testid="button-add-household">
+              <UserPlus className="h-4 w-4" />
+              <span>Add Household</span>
             </Button>
-            <Button className="w-full" variant="outline" data-testid="button-record-trade" onClick={() => console.log('Record trade')}>
-              <DollarSign className="h-4 w-4 mr-2" />
-              Record Trade
+            <Button variant="outline" className="justify-start gap-2 h-auto py-3" data-testid="button-record-trade">
+              <FileText className="h-4 w-4" />
+              <span>Record Trade</span>
             </Button>
-            <Button className="w-full" variant="outline" data-testid="button-view-alerts" onClick={() => console.log('View all alerts')}>
-              <Bell className="h-4 w-4 mr-2" />
-              View All Alerts
+            <Button variant="outline" className="justify-start gap-2 h-auto py-3" data-testid="button-view-alerts">
+              <Eye className="h-4 w-4" />
+              <span>View Alerts</span>
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          title="Total AUM"
-          value="CA$12.4M"
-          change={8.2}
-          icon={DollarSign}
-          testId="metric-aum"
-        />
-        <MetricCard
-          title="Active Clients"
-          value="47"
-          change={4.1}
-          icon={Users}
-          testId="metric-clients"
-        />
-        <MetricCard
-          title="Pending Alerts"
-          value={alerts.filter(a => a.status === "pending").length.toString()}
-          icon={Bell}
-          testId="metric-alerts"
-        />
-        <MetricCard
-          title="Today's P&L"
-          value="CA$24,580"
-          change={-2.3}
-          icon={TrendingUp}
-          testId="metric-pnl"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <PortfolioChart data={chartData} />
-        </div>
-        <Card>
+      <div className="grid gap-6 md:grid-cols-2">
+        <PortfolioChart data={chartData} />
+        
+        <Card data-testid="card-recent-alerts">
           <CardHeader>
             <CardTitle>Recent Alerts</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {alerts.slice(0, 3).map((alert) => (
-              <AlertCard
-                key={alert.id}
-                alert={alert}
-                onExecute={handleExecuteAlert}
-                onDismiss={handleDismissAlert}
-              />
-            ))}
+            {recentAlerts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No pending alerts</p>
+            ) : (
+              recentAlerts.map(alert => (
+                <AlertCard
+                  key={alert.id}
+                  alert={alert}
+                  onExecute={handleExecuteAlert}
+                  onDismiss={handleDismissAlert}
+                />
+              ))
+            )}
           </CardContent>
         </Card>
       </div>
 
-      <PositionsTable positions={positions} />
+      {positions.length > 0 && (
+        <PositionsTable positions={positions} />
+      )}
     </div>
   );
 }
