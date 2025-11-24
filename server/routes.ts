@@ -15,6 +15,8 @@ import {
   insertAlertSchema,
   insertTradeSchema,
   updateHouseholdSchema,
+  updateIndividualSchema,
+  updateCorporationSchema,
   updateIndividualAccountSchema,
   updateCorporateAccountSchema,
   updateJointAccountSchema,
@@ -77,6 +79,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/households/:id/full', isAuthenticated, async (req, res) => {
+    try {
+      const household = await storage.getHouseholdWithDetails(req.params.id);
+      if (!household) {
+        return res.status(404).json({ message: "Household not found" });
+      }
+      res.json(household);
+    } catch (error) {
+      console.error("Error fetching household details:", error);
+      res.status(500).json({ message: "Failed to fetch household details" });
+    }
+  });
+
   app.patch('/api/households/:id', isAuthenticated, async (req, res) => {
     try {
       const parsed = updateHouseholdSchema.parse(req.body);
@@ -126,6 +141,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/individuals/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertIndividualSchema.partial().parse(req.body);
+      const individual = await storage.updateIndividual(req.params.id, parsed);
+      res.json(individual);
+    } catch (error: any) {
+      console.error("Error updating individual:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update individual" });
+    }
+  });
+
+  app.delete('/api/individuals/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteIndividual(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting individual:", error);
+      res.status(500).json({ message: "Failed to delete individual" });
+    }
+  });
+
   // Corporation routes
   app.get('/api/households/:householdId/corporations', isAuthenticated, async (req, res) => {
     try {
@@ -148,6 +187,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create corporation" });
+    }
+  });
+
+  app.patch('/api/corporations/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertCorporationSchema.partial().parse(req.body);
+      const corporation = await storage.updateCorporation(req.params.id, parsed);
+      res.json(corporation);
+    } catch (error: any) {
+      console.error("Error updating corporation:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update corporation" });
+    }
+  });
+
+  app.delete('/api/corporations/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteCorporation(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting corporation:", error);
+      res.status(500).json({ message: "Failed to delete corporation" });
     }
   });
 
@@ -176,6 +239,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/individual-accounts/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = updateIndividualAccountSchema.parse(req.body);
+      const account = await storage.updateIndividualAccount(req.params.id, parsed);
+      res.json(account);
+    } catch (error: any) {
+      console.error("Error updating individual account:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update individual account" });
+    }
+  });
+
+  app.delete('/api/individual-accounts/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteIndividualAccount(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting individual account:", error);
+      res.status(500).json({ message: "Failed to delete individual account" });
+    }
+  });
+
   // Corporate account routes
   app.get('/api/corporations/:corporationId/accounts', isAuthenticated, async (req, res) => {
     try {
@@ -201,6 +288,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/corporate-accounts/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = updateCorporateAccountSchema.parse(req.body);
+      const account = await storage.updateCorporateAccount(req.params.id, parsed);
+      res.json(account);
+    } catch (error: any) {
+      console.error("Error updating corporate account:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update corporate account" });
+    }
+  });
+
+  app.delete('/api/corporate-accounts/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteCorporateAccount(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting corporate account:", error);
+      res.status(500).json({ message: "Failed to delete corporate account" });
+    }
+  });
+
   // Joint account routes
   app.get('/api/households/:householdId/joint-accounts', isAuthenticated, async (req, res) => {
     try {
@@ -223,6 +334,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create joint account" });
+    }
+  });
+
+  app.patch('/api/joint-accounts/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = updateJointAccountSchema.parse(req.body);
+      const jointAccount = await storage.updateJointAccount(req.params.id, parsed);
+      res.json(jointAccount);
+    } catch (error: any) {
+      console.error("Error updating joint account:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update joint account" });
+    }
+  });
+
+  app.delete('/api/joint-accounts/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteJointAccount(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting joint account:", error);
+      res.status(500).json({ message: "Failed to delete joint account" });
     }
   });
 

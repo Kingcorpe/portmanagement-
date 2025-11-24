@@ -4,9 +4,11 @@
 A secure investment portfolio management system for Canadian client accounts (individuals and corporations) with TradingView alert integration. Built for financial advisors to manage household-based client portfolios with multiple Canadian account types.
 
 ## Current Status
-**Backend Complete** - Database schema, authentication, and API routes fully implemented with comprehensive validation.
+**Backend Complete** - Full CRUD API with all routes implemented, tested, and validated.
 
-**Frontend** - In progress (basic UI prototypes exist, needs integration with backend)
+**Frontend Authentication** - Replit Auth integrated with protected routes, landing page, and error handling.
+
+**Frontend Data Integration** - In progress (connecting household management UI to real API)
 
 ## Architecture
 
@@ -72,22 +74,39 @@ Households
 - `GET /api/households` - List all households
 - `POST /api/households` - Create household
 - `GET /api/households/:id` - Get household details
+- `GET /api/households/:id/full` - **Get complete household with all nested data (individuals, corporations, accounts)**
 - `PATCH /api/households/:id` - Update household
 - `DELETE /api/households/:id` - Delete household
 
-### Individuals & Corporations
+### Individuals
 - `GET /api/households/:householdId/individuals` - List individuals in household
 - `POST /api/individuals` - Create individual
+- `PATCH /api/individuals/:id` - Update individual
+- `DELETE /api/individuals/:id` - Delete individual
+
+### Corporations
 - `GET /api/households/:householdId/corporations` - List corporations in household
 - `POST /api/corporations` - Create corporation
+- `PATCH /api/corporations/:id` - Update corporation
+- `DELETE /api/corporations/:id` - Delete corporation
 
-### Accounts
+### Individual Accounts
 - `GET /api/individuals/:individualId/accounts` - List individual accounts
 - `POST /api/individual-accounts` - Create individual account
+- `PATCH /api/individual-accounts/:id` - Update individual account
+- `DELETE /api/individual-accounts/:id` - Delete individual account
+
+### Corporate Accounts
 - `GET /api/corporations/:corporationId/accounts` - List corporate accounts
 - `POST /api/corporate-accounts` - Create corporate account
+- `PATCH /api/corporate-accounts/:id` - Update corporate account
+- `DELETE /api/corporate-accounts/:id` - Delete corporate account
+
+### Joint Accounts
 - `GET /api/households/:householdId/joint-accounts` - List joint accounts
 - `POST /api/joint-accounts` - Create joint account
+- `PATCH /api/joint-accounts/:id` - Update joint account
+- `DELETE /api/joint-accounts/:id` - Delete joint account
 
 ### Joint Account Ownership
 - `GET /api/joint-accounts/:jointAccountId/owners` - List account owners
@@ -161,15 +180,26 @@ Monetary field validation:
 - `npm run db:push` - Sync database schema
 - `npm run db:push -- --force` - Force sync (for major schema changes)
 
+## Recent Changes (Nov 24, 2025)
+
+### API Enhancements
+1. **Full CRUD Operations**: Added PATCH and DELETE routes for individuals, corporations, and all account types
+2. **Comprehensive Household Endpoint**: New `/api/households/:id/full` returns complete nested data structure
+3. **Complete API Coverage**: All entities now support full create, read, update, delete operations
+
+### Frontend Authentication
+1. **Replit Auth Integration**: Complete authentication system with session management
+2. **Auth Guards**: Protected routes redirect to landing page when not authenticated
+3. **Error Handling**: Comprehensive unauthorized error handling across all API calls
+4. **Landing Page**: Professional landing page for logged-out users
+5. **Navigation**: Authenticated users see sidebar navigation with Dashboard, Households, and Alerts
+
 ## Next Steps
 
-### Immediate (Frontend Integration)
-1. Create `client/src/hooks/useAuth.ts` - Authentication hook
-2. Create `client/src/lib/authUtils.ts` - Auth utility functions
-3. Add auth guards to protected pages (Dashboard, Households, Alerts)
-4. Implement unauthorized error handling (page-level and endpoint-level)
-5. Create landing page for logged-out users
-6. Update routing to show landing vs. authenticated views
+### In Progress
+1. Connect Households page to real API data
+2. Implement household creation/editing UI
+3. Build account management interface
 
 ### Core Features
 1. Household management UI

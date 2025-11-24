@@ -46,6 +46,7 @@ export interface IStorage {
   createHousehold(household: InsertHousehold): Promise<Household>;
   getHousehold(id: string): Promise<Household | undefined>;
   getAllHouseholds(): Promise<Household[]>;
+  getHouseholdWithDetails(id: string): Promise<any>;
   updateHousehold(id: string, household: Partial<InsertHousehold>): Promise<Household>;
   deleteHousehold(id: string): Promise<void>;
 
@@ -147,6 +148,67 @@ export class DatabaseStorage implements IStorage {
 
   async getAllHouseholds(): Promise<Household[]> {
     return await db.select().from(households).orderBy(desc(households.createdAt));
+  }
+
+  async getHouseholdWithDetails(id: string): Promise<any> {
+    const household = await this.getHousehold(id);
+    if (!household) {
+      return null;
+    }
+
+    // Fetch all individuals for this household
+    const individualsData = await this.getIndividualsByHousehold(id);
+    
+    // Fetch accounts for each individual
+    const individualsWithAccounts = await Promise.all(
+      individualsData.map(async (individual) => {
+        const accounts = await this.getIndividualAccountsByIndividual(individual.id);
+        return {
+          ...individual,
+          accounts
+        };
+      })
+    );
+
+    // Fetch all corporations for this household
+    const corporationsData = await this.getCorporationsByHousehold(id);
+    
+    // Fetch accounts for each corporation
+    const corporationsWithAccounts = await Promise.all(
+      corporationsData.map(async (corporation) => {
+        const accounts = await this.getCorporateAccountsByCorporation(corporation.id);
+        return {
+          ...corporation,
+          accounts
+        };
+      })
+    );
+
+    // Fetch all joint accounts for this household
+    const jointAccountsData = await this.getJointAccountsByHousehold(id);
+    
+    // Fetch full owner details for each joint account
+    const jointAccountsWithOwners = await Promise.all(
+      jointAccountsData.map(async (jointAccount) => {
+        const owners = await this.getJointAccountOwners(jointAccount.id);
+        return {
+          ...jointAccount,
+          owners: owners.map(owner => ({
+            id: owner.id,
+            name: owner.name,
+            initials: owner.initials,
+            email: owner.email
+          }))
+        };
+      })
+    );
+
+    return {
+      ...household,
+      individuals: individualsWithAccounts,
+      corporations: corporationsWithAccounts,
+      jointAccounts: jointAccountsWithOwners
+    };
   }
 
   async updateHousehold(id: string, householdData: Partial<InsertHousehold>): Promise<Household> {
