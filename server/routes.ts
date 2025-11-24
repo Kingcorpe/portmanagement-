@@ -516,6 +516,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/positions/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deletePosition(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting position:", error);
+      res.status(500).json({ message: "Failed to delete position" });
+    }
+  });
+
   // Trade routes
   app.get('/api/trades', isAuthenticated, async (req, res) => {
     try {

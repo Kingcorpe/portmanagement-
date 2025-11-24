@@ -2,8 +2,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { TrendingUp, TrendingDown, ChevronDown, ChevronRight, Users } from "lucide-react";
+import { TrendingUp, TrendingDown, ChevronDown, ChevronRight, Users, Eye } from "lucide-react";
 import { useState } from "react";
+import { Link } from "wouter";
 import {
   Collapsible,
   CollapsibleContent,
@@ -151,6 +152,11 @@ export function HouseholdCard({ household, onClick }: HouseholdCardProps) {
                           <span className={`font-mono tabular-nums text-xs ${accountPositive ? 'text-chart-2' : 'text-destructive'} min-w-[60px] text-right`}>
                             {accountPositive ? '+' : ''}{account.performance.toFixed(2)}%
                           </span>
+                          <Link href={`/accounts/individual/${account.id}`}>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-view-positions-${account.id}`}>
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          </Link>
                         </div>
                       </div>
                     );
@@ -187,6 +193,11 @@ export function HouseholdCard({ household, onClick }: HouseholdCardProps) {
                           <span className={`font-mono tabular-nums text-xs ${accountPositive ? 'text-chart-2' : 'text-destructive'} min-w-[60px] text-right`}>
                             {accountPositive ? '+' : ''}{account.performance.toFixed(2)}%
                           </span>
+                          <Link href={`/accounts/corporate/${account.id}`}>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-view-positions-${account.id}`}>
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          </Link>
                         </div>
                       </div>
                     );
@@ -220,6 +231,11 @@ export function HouseholdCard({ household, onClick }: HouseholdCardProps) {
                           <span className={`font-mono tabular-nums text-xs ${accountPositive ? 'text-chart-2' : 'text-destructive'} min-w-[60px] text-right`}>
                             {accountPositive ? '+' : ''}{account.performance.toFixed(2)}%
                           </span>
+                          <Link href={`/accounts/joint/${account.id}`}>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-view-positions-${account.id}`}>
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          </Link>
                         </div>
                       </div>
                     );

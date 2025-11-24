@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Dashboard from "@/pages/dashboard";
 import Households from "@/pages/households";
 import Alerts from "@/pages/alerts";
+import AccountDetails from "@/pages/account-details";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
@@ -24,6 +25,7 @@ function Router() {
         <>
           <Route path="/" component={Dashboard} />
           <Route path="/households" component={Households} />
+          <Route path="/accounts/:accountType/:accountId" component={AccountDetails} />
           <Route path="/alerts" component={Alerts} />
         </>
       )}
