@@ -36,6 +36,7 @@ export default function HouseholdCardExample() {
           initials: "JC",
           accounts: [
             { id: "acc-7", type: "cash", balance: 280000, performance: 4.2 },
+            { id: "acc-7b", type: "ipp", balance: 145000, performance: 6.8 },
           ]
         }
       ],

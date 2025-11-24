@@ -43,6 +43,7 @@ export default function Households() {
           initials: "JC",
           accounts: [
             { id: "acc-7", type: "cash", balance: 280000, performance: 4.2 },
+            { id: "acc-7b", type: "ipp", balance: 145000, performance: 6.8 },
           ]
         }
       ],
@@ -125,6 +126,7 @@ export default function Households() {
           initials: "CT",
           accounts: [
             { id: "acc-17", type: "cash", balance: 1200000, performance: -3.1 },
+            { id: "acc-17b", type: "ipp", balance: 320000, performance: 5.2 },
           ]
         }
       ],
