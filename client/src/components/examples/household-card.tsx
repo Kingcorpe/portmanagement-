@@ -16,6 +16,7 @@ export default function HouseholdCardExample() {
             { id: "acc-1", type: "tfsa", balance: 95000, performance: 12.3 },
             { id: "acc-2", type: "rrsp", balance: 285000, performance: 8.1 },
             { id: "acc-3", type: "cash", balance: 45000, performance: 2.5 },
+            { id: "acc-1b", type: "fhsa", balance: 15000, performance: 9.5 },
           ]
         },
         {

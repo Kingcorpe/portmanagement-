@@ -10,7 +10,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
-export type AccountType = "cash" | "tfsa" | "rrsp" | "lira" | "liff" | "rif" | "joint-cash" | "resp" | "ipp";
+export type AccountType = "cash" | "tfsa" | "fhsa" | "rrsp" | "lira" | "liff" | "rif" | "joint-cash" | "resp" | "ipp";
 
 export interface Account {
   id: string;
@@ -59,6 +59,7 @@ interface HouseholdCardProps {
 const accountTypeLabels: Record<AccountType, string> = {
   "cash": "Cash",
   "tfsa": "TFSA",
+  "fhsa": "FHSA",
   "rrsp": "RRSP",
   "lira": "LIRA",
   "liff": "LIFF",
