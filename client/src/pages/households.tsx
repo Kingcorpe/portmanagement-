@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search } from "lucide-react";
 import { useState } from "react";
-import type { Household as HouseholdType } from "@shared/schema";
+import type { HouseholdWithDetails } from "@shared/schema";
 
 export default function Households() {
   const { toast } = useToast();
@@ -30,9 +30,9 @@ export default function Households() {
     }
   }, [isAuthenticated, authLoading, toast]);
 
-  // Fetch households
-  const { data: householdsData = [], isLoading } = useQuery<HouseholdType[]>({
-    queryKey: ["/api/households"],
+  // Fetch households with full details
+  const { data: householdsData = [], isLoading } = useQuery<HouseholdWithDetails[]>({
+    queryKey: ["/api/households/full"],
     enabled: isAuthenticated,
     retry: (failureCount, error) => {
       if (isUnauthorizedError(error as Error)) {
@@ -50,19 +50,84 @@ export default function Households() {
     },
   });
 
-  // Transform backend data to component format
-  // For now, using mock data structure until we fetch full household details with accounts
-  const mockHouseholds: Household[] = householdsData.map(h => ({
-    id: h.id,
-    name: h.name,
-    totalValue: 0, // TODO: Calculate from accounts
-    totalPerformance: 0, // TODO: Calculate from accounts
-    individuals: [], // TODO: Fetch from API
-    corporations: [], // TODO: Fetch from API
-    jointAccounts: [] // TODO: Fetch from API
-  }));
+  // Transform backend data to component format and calculate totals
+  const households: Household[] = householdsData.map(h => {
+    // Transform individuals with accounts - data is already numeric from Drizzle
+    const individuals = h.individuals.map((individual) => ({
+      id: individual.id,
+      name: individual.name,
+      initials: individual.initials,
+      accounts: individual.accounts.map((account) => ({
+        id: account.id,
+        type: account.type,
+        balance: Number(account.balance) || 0,
+        performance: Number(account.performance) || 0,
+      }))
+    }));
 
-  const filteredHouseholds = mockHouseholds.filter(household =>
+    // Transform corporations with accounts
+    const corporations = h.corporations.map((corporation) => ({
+      id: corporation.id,
+      name: corporation.name,
+      initials: corporation.initials,
+      accounts: corporation.accounts.map((account) => ({
+        id: account.id,
+        type: account.type,
+        balance: Number(account.balance) || 0,
+        performance: Number(account.performance) || 0,
+      }))
+    }));
+
+    // Transform joint accounts - convert snake_case to hyphenated format for UI
+    const jointAccounts = h.jointAccounts.map((account) => ({
+      id: account.id,
+      type: account.type.replace(/_/g, '-') as "joint-cash" | "resp",
+      balance: Number(account.balance) || 0,
+      performance: Number(account.performance) || 0,
+      owners: account.owners.map((owner) => owner.name)
+    }));
+
+    // Calculate total value across all accounts
+    const individualTotal = individuals.reduce((sum, individual) => 
+      sum + individual.accounts.reduce((accSum, acc) => accSum + acc.balance, 0), 0
+    );
+    const corporateTotal = corporations.reduce((sum, corp) => 
+      sum + corp.accounts.reduce((accSum, acc) => accSum + acc.balance, 0), 0
+    );
+    const jointTotal = jointAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+    const totalValue = individualTotal + corporateTotal + jointTotal;
+
+    // Calculate weighted average performance (performance is stored as decimal percentage, e.g., 5.25 for 5.25%)
+    // Convert percentage to fraction by dividing by 100, then multiply by balance
+    const individualWeightedPerf = individuals.reduce((sum, individual) => 
+      sum + individual.accounts.reduce((accSum, acc) => 
+        accSum + (acc.balance * (acc.performance / 100)), 0
+      ), 0
+    );
+    const corporateWeightedPerf = corporations.reduce((sum, corp) => 
+      sum + corp.accounts.reduce((accSum, acc) => 
+        accSum + (acc.balance * (acc.performance / 100)), 0
+      ), 0
+    );
+    const jointWeightedPerf = jointAccounts.reduce((sum, acc) => 
+      sum + (acc.balance * (acc.performance / 100)), 0
+    );
+    const totalPerformance = totalValue > 0 
+      ? ((individualWeightedPerf + corporateWeightedPerf + jointWeightedPerf) / totalValue) * 100
+      : 0;
+
+    return {
+      id: h.id,
+      name: h.name,
+      individuals,
+      corporations,
+      jointAccounts,
+      totalValue,
+      totalPerformance
+    };
+  });
+
+  const filteredHouseholds = households.filter(household =>
     household.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 

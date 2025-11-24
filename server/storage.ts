@@ -33,9 +33,10 @@ import {
   type InsertAlert,
   type Trade,
   type InsertTrade,
+  type HouseholdWithDetails,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -46,7 +47,8 @@ export interface IStorage {
   createHousehold(household: InsertHousehold): Promise<Household>;
   getHousehold(id: string): Promise<Household | undefined>;
   getAllHouseholds(): Promise<Household[]>;
-  getHouseholdWithDetails(id: string): Promise<any>;
+  getAllHouseholdsWithDetails(): Promise<HouseholdWithDetails[]>;
+  getHouseholdWithDetails(id: string): Promise<HouseholdWithDetails | null>;
   updateHousehold(id: string, household: Partial<InsertHousehold>): Promise<Household>;
   deleteHousehold(id: string): Promise<void>;
 
@@ -150,7 +152,121 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(households).orderBy(desc(households.createdAt));
   }
 
-  async getHouseholdWithDetails(id: string): Promise<any> {
+  async getAllHouseholdsWithDetails(): Promise<HouseholdWithDetails[]> {
+    // Fetch all households
+    const allHouseholds = await this.getAllHouseholds();
+    
+    if (allHouseholds.length === 0) {
+      return [];
+    }
+
+    const householdIds = allHouseholds.map(h => h.id);
+
+    // Batch fetch all individuals for all households
+    const allIndividuals = await db
+      .select()
+      .from(individuals)
+      .where(inArray(individuals.householdId, householdIds));
+
+    const individualIds = allIndividuals.map(i => i.id);
+
+    // Batch fetch all individual accounts
+    const allIndividualAccounts = individualIds.length > 0
+      ? await db
+          .select()
+          .from(individualAccounts)
+          .where(inArray(individualAccounts.individualId, individualIds))
+      : [];
+
+    // Batch fetch all corporations
+    const allCorporations = await db
+      .select()
+      .from(corporations)
+      .where(inArray(corporations.householdId, householdIds));
+
+    const corporationIds = allCorporations.map(c => c.id);
+
+    // Batch fetch all corporate accounts
+    const allCorporateAccounts = corporationIds.length > 0
+      ? await db
+          .select()
+          .from(corporateAccounts)
+          .where(inArray(corporateAccounts.corporationId, corporationIds))
+      : [];
+
+    // Batch fetch all joint accounts
+    const allJointAccounts = await db
+      .select()
+      .from(jointAccounts)
+      .where(inArray(jointAccounts.householdId, householdIds));
+
+    const jointAccountIds = allJointAccounts.map(ja => ja.id);
+
+    // Batch fetch all joint account ownerships
+    const allOwnerships = jointAccountIds.length > 0
+      ? await db
+          .select({
+            jointAccountId: jointAccountOwnership.jointAccountId,
+            individualId: jointAccountOwnership.individualId,
+            individual: individuals
+          })
+          .from(jointAccountOwnership)
+          .innerJoin(individuals, eq(jointAccountOwnership.individualId, individuals.id))
+          .where(inArray(jointAccountOwnership.jointAccountId, jointAccountIds))
+      : [];
+
+    // Group data by household
+    return allHouseholds.map(household => {
+      // Get individuals for this household
+      const householdIndividuals = allIndividuals.filter(i => i.householdId === household.id);
+      
+      const individualsWithAccounts = householdIndividuals.map(individual => {
+        const accounts = allIndividualAccounts.filter(a => a.individualId === individual.id);
+        return {
+          ...individual,
+          accounts
+        };
+      });
+
+      // Get corporations for this household
+      const householdCorporations = allCorporations.filter(c => c.householdId === household.id);
+      
+      const corporationsWithAccounts = householdCorporations.map(corporation => {
+        const accounts = allCorporateAccounts.filter(a => a.corporationId === corporation.id);
+        return {
+          ...corporation,
+          accounts
+        };
+      });
+
+      // Get joint accounts for this household
+      const householdJointAccounts = allJointAccounts.filter(ja => ja.householdId === household.id);
+      
+      const jointAccountsWithOwners = householdJointAccounts.map(jointAccount => {
+        const owners = allOwnerships
+          .filter(o => o.jointAccountId === jointAccount.id)
+          .map(o => ({
+            id: o.individual.id,
+            name: o.individual.name,
+            initials: o.individual.initials,
+            email: o.individual.email
+          }));
+        return {
+          ...jointAccount,
+          owners
+        };
+      });
+
+      return {
+        ...household,
+        individuals: individualsWithAccounts,
+        corporations: corporationsWithAccounts,
+        jointAccounts: jointAccountsWithOwners
+      };
+    });
+  }
+
+  async getHouseholdWithDetails(id: string): Promise<HouseholdWithDetails | null> {
     const household = await this.getHousehold(id);
     if (!household) {
       return null;

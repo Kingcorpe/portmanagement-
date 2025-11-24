@@ -52,6 +52,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/households/full', isAuthenticated, async (req, res) => {
+    try {
+      const households = await storage.getAllHouseholdsWithDetails();
+      res.json(households);
+    } catch (error) {
+      console.error("Error fetching household details:", error);
+      res.status(500).json({ message: "Failed to fetch household details" });
+    }
+  });
+
   app.post('/api/households', isAuthenticated, async (req, res) => {
     try {
       const parsed = insertHouseholdSchema.parse(req.body);

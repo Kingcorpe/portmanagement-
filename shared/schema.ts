@@ -408,3 +408,29 @@ export type Alert = typeof alerts.$inferSelect;
 
 export type InsertTrade = z.infer<typeof insertTradeSchema>;
 export type Trade = typeof trades.$inferSelect;
+
+// Nested household detail types
+export type IndividualOwnerInfo = {
+  id: string;
+  name: string;
+  initials: string;
+  email: string | null;
+};
+
+export type IndividualWithAccounts = Individual & {
+  accounts: IndividualAccount[];
+};
+
+export type CorporationWithAccounts = Corporation & {
+  accounts: CorporateAccount[];
+};
+
+export type JointAccountWithOwners = JointAccount & {
+  owners: IndividualOwnerInfo[];
+};
+
+export type HouseholdWithDetails = Household & {
+  individuals: IndividualWithAccounts[];
+  corporations: CorporationWithAccounts[];
+  jointAccounts: JointAccountWithOwners[];
+};
