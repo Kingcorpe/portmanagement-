@@ -2,6 +2,7 @@ import { MetricCard } from "@/components/metric-card";
 import { PortfolioChart } from "@/components/portfolio-chart";
 import { AlertCard, Alert } from "@/components/alert-card";
 import { PositionsTable, Position } from "@/components/positions-table";
+import { Button } from "@/components/ui/button";
 import { DollarSign, Users, Bell, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
@@ -99,6 +100,32 @@ export default function Dashboard() {
         <h1 className="text-3xl font-semibold" data-testid="text-page-title">Dashboard</h1>
         <p className="text-muted-foreground">Overview of your portfolio management platform</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <Button className="w-full" data-testid="button-import-holdings" onClick={() => console.log('Import holdings')}>
+              <TrendingUp className="h-4 w-4 mr-2" />
+              Import Holdings
+            </Button>
+            <Button className="w-full" variant="outline" data-testid="button-add-household" onClick={() => console.log('Add household')}>
+              <Users className="h-4 w-4 mr-2" />
+              Add Household
+            </Button>
+            <Button className="w-full" variant="outline" data-testid="button-record-trade" onClick={() => console.log('Record trade')}>
+              <DollarSign className="h-4 w-4 mr-2" />
+              Record Trade
+            </Button>
+            <Button className="w-full" variant="outline" data-testid="button-view-alerts" onClick={() => console.log('View all alerts')}>
+              <Bell className="h-4 w-4 mr-2" />
+              View All Alerts
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
