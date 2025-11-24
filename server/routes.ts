@@ -1,15 +1,394 @@
+// Based on blueprint:javascript_log_in_with_replit
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
+import {
+  insertHouseholdSchema,
+  insertIndividualSchema,
+  insertCorporationSchema,
+  insertIndividualAccountSchema,
+  insertCorporateAccountSchema,
+  insertJointAccountSchema,
+  insertJointAccountOwnershipSchema,
+  insertPositionSchema,
+  insertAlertSchema,
+  insertTradeSchema,
+  updateHouseholdSchema,
+  updateIndividualAccountSchema,
+  updateCorporateAccountSchema,
+  updateJointAccountSchema,
+  updatePositionSchema,
+  updateAlertSchema,
+  tradingViewWebhookSchema,
+} from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  // Set up authentication middleware
+  await setupAuth(app);
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Household routes
+  app.get('/api/households', isAuthenticated, async (req, res) => {
+    try {
+      const households = await storage.getAllHouseholds();
+      res.json(households);
+    } catch (error) {
+      console.error("Error fetching households:", error);
+      res.status(500).json({ message: "Failed to fetch households" });
+    }
+  });
+
+  app.post('/api/households', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertHouseholdSchema.parse(req.body);
+      const household = await storage.createHousehold(parsed);
+      res.json(household);
+    } catch (error: any) {
+      console.error("Error creating household:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create household" });
+    }
+  });
+
+  app.get('/api/households/:id', isAuthenticated, async (req, res) => {
+    try {
+      const household = await storage.getHousehold(req.params.id);
+      if (!household) {
+        return res.status(404).json({ message: "Household not found" });
+      }
+      res.json(household);
+    } catch (error) {
+      console.error("Error fetching household:", error);
+      res.status(500).json({ message: "Failed to fetch household" });
+    }
+  });
+
+  app.patch('/api/households/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = updateHouseholdSchema.parse(req.body);
+      const household = await storage.updateHousehold(req.params.id, parsed);
+      res.json(household);
+    } catch (error: any) {
+      console.error("Error updating household:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update household" });
+    }
+  });
+
+  app.delete('/api/households/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteHousehold(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting household:", error);
+      res.status(500).json({ message: "Failed to delete household" });
+    }
+  });
+
+  // Individual routes
+  app.get('/api/households/:householdId/individuals', isAuthenticated, async (req, res) => {
+    try {
+      const individuals = await storage.getIndividualsByHousehold(req.params.householdId);
+      res.json(individuals);
+    } catch (error) {
+      console.error("Error fetching individuals:", error);
+      res.status(500).json({ message: "Failed to fetch individuals" });
+    }
+  });
+
+  app.post('/api/individuals', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertIndividualSchema.parse(req.body);
+      const individual = await storage.createIndividual(parsed);
+      res.json(individual);
+    } catch (error: any) {
+      console.error("Error creating individual:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create individual" });
+    }
+  });
+
+  // Corporation routes
+  app.get('/api/households/:householdId/corporations', isAuthenticated, async (req, res) => {
+    try {
+      const corporations = await storage.getCorporationsByHousehold(req.params.householdId);
+      res.json(corporations);
+    } catch (error) {
+      console.error("Error fetching corporations:", error);
+      res.status(500).json({ message: "Failed to fetch corporations" });
+    }
+  });
+
+  app.post('/api/corporations', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertCorporationSchema.parse(req.body);
+      const corporation = await storage.createCorporation(parsed);
+      res.json(corporation);
+    } catch (error: any) {
+      console.error("Error creating corporation:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create corporation" });
+    }
+  });
+
+  // Individual account routes
+  app.get('/api/individuals/:individualId/accounts', isAuthenticated, async (req, res) => {
+    try {
+      const accounts = await storage.getIndividualAccountsByIndividual(req.params.individualId);
+      res.json(accounts);
+    } catch (error) {
+      console.error("Error fetching individual accounts:", error);
+      res.status(500).json({ message: "Failed to fetch accounts" });
+    }
+  });
+
+  app.post('/api/individual-accounts', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertIndividualAccountSchema.parse(req.body);
+      const account = await storage.createIndividualAccount(parsed);
+      res.json(account);
+    } catch (error: any) {
+      console.error("Error creating individual account:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create individual account" });
+    }
+  });
+
+  // Corporate account routes
+  app.get('/api/corporations/:corporationId/accounts', isAuthenticated, async (req, res) => {
+    try {
+      const accounts = await storage.getCorporateAccountsByCorporation(req.params.corporationId);
+      res.json(accounts);
+    } catch (error) {
+      console.error("Error fetching corporate accounts:", error);
+      res.status(500).json({ message: "Failed to fetch accounts" });
+    }
+  });
+
+  app.post('/api/corporate-accounts', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertCorporateAccountSchema.parse(req.body);
+      const account = await storage.createCorporateAccount(parsed);
+      res.json(account);
+    } catch (error: any) {
+      console.error("Error creating corporate account:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create corporate account" });
+    }
+  });
+
+  // Joint account routes
+  app.get('/api/households/:householdId/joint-accounts', isAuthenticated, async (req, res) => {
+    try {
+      const jointAccounts = await storage.getJointAccountsByHousehold(req.params.householdId);
+      res.json(jointAccounts);
+    } catch (error) {
+      console.error("Error fetching joint accounts:", error);
+      res.status(500).json({ message: "Failed to fetch joint accounts" });
+    }
+  });
+
+  app.post('/api/joint-accounts', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertJointAccountSchema.parse(req.body);
+      const jointAccount = await storage.createJointAccount(parsed);
+      res.json(jointAccount);
+    } catch (error: any) {
+      console.error("Error creating joint account:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create joint account" });
+    }
+  });
+
+  // Joint account ownership routes
+  app.get('/api/joint-accounts/:jointAccountId/owners', isAuthenticated, async (req, res) => {
+    try {
+      const owners = await storage.getJointAccountOwners(req.params.jointAccountId);
+      res.json(owners);
+    } catch (error) {
+      console.error("Error fetching joint account owners:", error);
+      res.status(500).json({ message: "Failed to fetch owners" });
+    }
+  });
+
+  app.post('/api/joint-account-ownership', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertJointAccountOwnershipSchema.parse(req.body);
+      const ownership = await storage.addJointAccountOwner(parsed);
+      res.json(ownership);
+    } catch (error: any) {
+      console.error("Error adding joint account owner:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to add joint account owner" });
+    }
+  });
+
+  // Alert routes
+  app.get('/api/alerts', isAuthenticated, async (req, res) => {
+    try {
+      const status = req.query.status as "pending" | "executed" | "dismissed" | undefined;
+      const alerts = status
+        ? await storage.getAlertsByStatus(status)
+        : await storage.getAllAlerts();
+      res.json(alerts);
+    } catch (error) {
+      console.error("Error fetching alerts:", error);
+      res.status(500).json({ message: "Failed to fetch alerts" });
+    }
+  });
+
+  app.patch('/api/alerts/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = updateAlertSchema.parse(req.body);
+      const alert = await storage.updateAlert(req.params.id, parsed);
+      res.json(alert);
+    } catch (error: any) {
+      console.error("Error updating alert:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update alert" });
+    }
+  });
+
+  // TradingView webhook endpoint (no auth required - validate with secret later)
+  app.post('/api/webhooks/tradingview', async (req, res) => {
+    try {
+      console.log('TradingView webhook received:', req.body);
+      
+      // Validate webhook payload
+      const parsed = tradingViewWebhookSchema.parse(req.body);
+      
+      const alert = await storage.createAlert({
+        symbol: parsed.symbol,
+        signal: parsed.signal,
+        price: parsed.price.toString(),
+        message: parsed.message || '',
+        webhookData: req.body,
+      });
+      
+      res.json({ success: true, alertId: alert.id });
+    } catch (error: any) {
+      console.error("Error processing TradingView webhook:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid webhook data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to process webhook" });
+    }
+  });
+
+  // Position routes
+  app.get('/api/individual-accounts/:accountId/positions', isAuthenticated, async (req, res) => {
+    try {
+      const positions = await storage.getPositionsByIndividualAccount(req.params.accountId);
+      res.json(positions);
+    } catch (error) {
+      console.error("Error fetching positions:", error);
+      res.status(500).json({ message: "Failed to fetch positions" });
+    }
+  });
+
+  app.get('/api/corporate-accounts/:accountId/positions', isAuthenticated, async (req, res) => {
+    try {
+      const positions = await storage.getPositionsByCorporateAccount(req.params.accountId);
+      res.json(positions);
+    } catch (error) {
+      console.error("Error fetching positions:", error);
+      res.status(500).json({ message: "Failed to fetch positions" });
+    }
+  });
+
+  app.get('/api/joint-accounts/:accountId/positions', isAuthenticated, async (req, res) => {
+    try {
+      const positions = await storage.getPositionsByJointAccount(req.params.accountId);
+      res.json(positions);
+    } catch (error) {
+      console.error("Error fetching positions:", error);
+      res.status(500).json({ message: "Failed to fetch positions" });
+    }
+  });
+
+  app.post('/api/positions', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertPositionSchema.parse(req.body);
+      const position = await storage.createPosition(parsed);
+      res.json(position);
+    } catch (error: any) {
+      console.error("Error creating position:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create position" });
+    }
+  });
+
+  app.patch('/api/positions/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = updatePositionSchema.parse(req.body);
+      const position = await storage.updatePosition(req.params.id, parsed);
+      res.json(position);
+    } catch (error: any) {
+      console.error("Error updating position:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update position" });
+    }
+  });
+
+  // Trade routes
+  app.get('/api/trades', isAuthenticated, async (req, res) => {
+    try {
+      const trades = await storage.getAllTrades();
+      res.json(trades);
+    } catch (error) {
+      console.error("Error fetching trades:", error);
+      res.status(500).json({ message: "Failed to fetch trades" });
+    }
+  });
+
+  app.post('/api/trades', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertTradeSchema.parse(req.body);
+      const trade = await storage.createTrade(parsed);
+      res.json(trade);
+    } catch (error: any) {
+      console.error("Error creating trade:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create trade" });
+    }
+  });
 
   const httpServer = createServer(app);
-
   return httpServer;
 }
