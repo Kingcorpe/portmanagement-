@@ -424,10 +424,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // TradingView webhook endpoint (no auth required - validate with secret later)
+  // TradingView webhook endpoint - validates secret for security
   app.post('/api/webhooks/tradingview', async (req, res) => {
     try {
-      console.log('TradingView webhook received:', req.body);
+      // Validate webhook secret if configured
+      const webhookSecret = process.env.TRADINGVIEW_WEBHOOK_SECRET;
+      if (webhookSecret) {
+        const providedSecret = req.headers['x-webhook-secret'] || req.body.secret;
+        if (providedSecret !== webhookSecret) {
+          return res.status(401).json({ message: "Unauthorized: Invalid webhook secret" });
+        }
+      }
       
       // Validate webhook payload
       const parsed = tradingViewWebhookSchema.parse(req.body);

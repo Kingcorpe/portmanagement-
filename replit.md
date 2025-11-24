@@ -146,13 +146,20 @@ Monetary field validation:
 ### Webhook Endpoint
 `POST /api/webhooks/tradingview`
 
+### Security
+- **Webhook Secret**: Optional but recommended for production
+- Set `TRADINGVIEW_WEBHOOK_SECRET` environment variable
+- Send secret via `X-Webhook-Secret` header or `secret` field in body
+- Returns 401 Unauthorized if secret is configured but not provided or invalid
+
 ### Expected Payload
 ```json
 {
   "symbol": "AAPL",
   "signal": "BUY",  // or "SELL"
   "price": 150.25,
-  "message": "Optional message"
+  "message": "Optional message",
+  "secret": "your-webhook-secret"  // Optional: if using body-based secret
 }
 ```
 
@@ -161,6 +168,7 @@ Monetary field validation:
 - Signal: must be "BUY" or "SELL"
 - Price: required, positive number
 - Message: optional string
+- Secret: optional, validates against `TRADINGVIEW_WEBHOOK_SECRET` if configured
 
 ## Security Features
 - Replit Auth with OIDC (supports Google, GitHub, X, Apple, email/password)
@@ -174,6 +182,7 @@ Monetary field validation:
 - `SESSION_SECRET` - Session encryption key (auto-provided by Replit)
 - `ISSUER_URL` - OIDC issuer URL (defaults to Replit)
 - `REPL_ID` - Replit application ID
+- `TRADINGVIEW_WEBHOOK_SECRET` - Optional webhook secret for TradingView alerts (recommended for production)
 
 ## Development Commands
 - `npm run dev` - Start development server (Express + Vite)
