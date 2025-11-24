@@ -43,7 +43,7 @@ export function AlertCard({ alert, onExecute, onDismiss }: AlertCardProps) {
                   {alert.signal}
                 </Badge>
                 <Badge variant="outline" className="text-xs">
-                  ${alert.price.toLocaleString()}
+                  CA${alert.price.toLocaleString()}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground">{alert.message}</p>

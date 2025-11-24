@@ -103,7 +103,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Total AUM"
-          value="$12.4M"
+          value="CA$12.4M"
           change={8.2}
           icon={DollarSign}
           testId="metric-aum"
@@ -123,7 +123,7 @@ export default function Dashboard() {
         />
         <MetricCard
           title="Today's P&L"
-          value="$24,580"
+          value="CA$24,580"
           change={-2.3}
           icon={TrendingUp}
           testId="metric-pnl"

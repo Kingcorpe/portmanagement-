@@ -15,15 +15,17 @@ export default function Clients() {
       email: "sarah.j@example.com",
       portfolioValue: 485000,
       performance: 12.4,
-      initials: "SJ"
+      initials: "SJ",
+      accountType: "individual"
     },
     {
       id: "2",
-      name: "Michael Chen",
-      email: "m.chen@example.com",
+      name: "Maple Consulting Corp.",
+      email: "admin@mapleconsult.ca",
       portfolioValue: 720000,
       performance: -3.2,
-      initials: "MC"
+      initials: "MC",
+      accountType: "corporate"
     },
     {
       id: "3",
@@ -31,15 +33,17 @@ export default function Clients() {
       email: "e.rodriguez@example.com",
       portfolioValue: 320000,
       performance: 8.7,
-      initials: "ER"
+      initials: "ER",
+      accountType: "individual"
     },
     {
       id: "4",
-      name: "David Kim",
-      email: "david.kim@example.com",
+      name: "Northern Tech Inc.",
+      email: "finance@northerntech.ca",
       portfolioValue: 1200000,
       performance: 15.2,
-      initials: "DK"
+      initials: "NT",
+      accountType: "corporate"
     },
     {
       id: "5",
@@ -47,15 +51,17 @@ export default function Clients() {
       email: "j.martinez@example.com",
       portfolioValue: 580000,
       performance: 5.8,
-      initials: "JM"
+      initials: "JM",
+      accountType: "individual"
     },
     {
       id: "6",
-      name: "Robert Taylor",
-      email: "r.taylor@example.com",
+      name: "Pacific Holdings Ltd.",
+      email: "contact@pacifichold.ca",
       portfolioValue: 950000,
       performance: -1.5,
-      initials: "RT"
+      initials: "PH",
+      accountType: "corporate"
     },
   ];
 

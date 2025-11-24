@@ -30,7 +30,7 @@ export function PortfolioChart({ data, title = "Portfolio Performance" }: Portfo
             <YAxis
               className="text-xs font-mono"
               tick={{ fill: "hsl(var(--muted-foreground))" }}
-              tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+              tickFormatter={(value) => `CA$${(value / 1000).toFixed(0)}k`}
             />
             <Tooltip
               contentStyle={{
@@ -39,7 +39,7 @@ export function PortfolioChart({ data, title = "Portfolio Performance" }: Portfo
                 borderRadius: "var(--radius)",
               }}
               labelStyle={{ color: "hsl(var(--popover-foreground))" }}
-              formatter={(value: number) => [`$${value.toLocaleString()}`, "Value"]}
+              formatter={(value: number) => [`CA$${value.toLocaleString()}`, "Value"]}
             />
             <Area
               type="monotone"

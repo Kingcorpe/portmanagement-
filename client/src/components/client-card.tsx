@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, MoreVertical } from "lucide-react";
 import {
   DropdownMenu,
@@ -16,6 +17,7 @@ export interface Client {
   portfolioValue: number;
   performance: number;
   initials: string;
+  accountType: "individual" | "corporate";
 }
 
 interface ClientCardProps {
@@ -39,13 +41,18 @@ export function ClientCard({ client, onClick }: ClientCardProps) {
               <AvatarFallback>{client.initials}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold truncate" data-testid={`text-client-name-${client.id}`}>
-                {client.name}
-              </h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-semibold truncate" data-testid={`text-client-name-${client.id}`}>
+                  {client.name}
+                </h3>
+                <Badge variant="outline" className="text-xs" data-testid={`badge-account-type-${client.id}`}>
+                  {client.accountType === "corporate" ? "Corporate" : "Individual"}
+                </Badge>
+              </div>
               <p className="text-sm text-muted-foreground truncate">{client.email}</p>
               <div className="mt-2 space-y-1">
                 <div className="text-lg font-bold font-mono tabular-nums" data-testid={`text-client-value-${client.id}`}>
-                  ${client.portfolioValue.toLocaleString()}
+                  CA${client.portfolioValue.toLocaleString()}
                 </div>
                 <div className={`flex items-center gap-1 text-xs font-medium ${isPositive ? 'text-chart-2' : 'text-destructive'}`}>
                   {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}

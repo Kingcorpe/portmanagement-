@@ -8,15 +8,17 @@ export default function ClientCardExample() {
       email: "sarah.j@example.com",
       portfolioValue: 485000,
       performance: 12.4,
-      initials: "SJ"
+      initials: "SJ",
+      accountType: "individual"
     },
     {
       id: "2",
-      name: "Michael Chen",
-      email: "m.chen@example.com",
+      name: "Chen Technology Inc.",
+      email: "admin@chentech.ca",
       portfolioValue: 720000,
       performance: -3.2,
-      initials: "MC"
+      initials: "CT",
+      accountType: "corporate"
     },
   ];
 

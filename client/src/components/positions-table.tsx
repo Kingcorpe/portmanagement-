@@ -52,13 +52,13 @@ export function PositionsTable({ positions }: PositionsTableProps) {
                     {position.quantity.toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
-                    ${position.entryPrice.toLocaleString()}
+                    CA${position.entryPrice.toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right font-mono tabular-nums">
-                    ${position.currentPrice.toLocaleString()}
+                    CA${position.currentPrice.toLocaleString()}
                   </TableCell>
                   <TableCell className={`text-right font-mono tabular-nums font-medium ${isProfit ? 'text-chart-2' : 'text-destructive'}`} data-testid={`text-pnl-${position.id}`}>
-                    {isProfit ? '+' : ''}${position.pnl.toLocaleString()}
+                    {isProfit ? '+' : ''}CA${position.pnl.toLocaleString()}
                   </TableCell>
                   <TableCell className={`text-right font-mono tabular-nums font-medium ${isProfit ? 'text-chart-2' : 'text-destructive'}`}>
                     {isProfit ? '+' : ''}{position.pnlPercent.toFixed(2)}%
