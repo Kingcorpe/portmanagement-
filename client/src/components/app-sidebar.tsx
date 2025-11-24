@@ -19,8 +19,8 @@ const menuItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Clients",
-    url: "/clients",
+    title: "Households",
+    url: "/households",
     icon: Users,
   },
   {
