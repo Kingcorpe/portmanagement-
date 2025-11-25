@@ -670,3 +670,46 @@ export type HouseholdWithDetails = Household & {
   corporations: CorporationWithAccounts[];
   jointAccounts: JointAccountWithOwners[];
 };
+
+// Library document category enum
+export const libraryDocumentCategoryEnum = pgEnum("library_document_category", [
+  "reports",
+  "strategies",
+]);
+
+// Library documents table (PDF storage metadata)
+export const libraryDocuments = pgTable("library_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  category: libraryDocumentCategoryEnum("category").notNull(),
+  objectPath: text("object_path").notNull(), // Path in object storage
+  fileSize: decimal("file_size", { precision: 15, scale: 0 }), // Size in bytes
+  mimeType: varchar("mime_type", { length: 100 }).default("application/pdf"),
+  uploadedBy: varchar("uploaded_by").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const libraryDocumentsRelations = relations(libraryDocuments, ({ one }) => ({
+  uploader: one(users, {
+    fields: [libraryDocuments.uploadedBy],
+    references: [users.id],
+  }),
+}));
+
+// Library documents insert schema
+export const insertLibraryDocumentSchema = createInsertSchema(libraryDocuments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  fileSize: true,
+}).extend({
+  fileSize: z.coerce.number().nonnegative().optional().transform(val => val?.toString()),
+});
+
+export const updateLibraryDocumentSchema = insertLibraryDocumentSchema.partial();
+
+// Library document types
+export type InsertLibraryDocument = z.infer<typeof insertLibraryDocumentSchema>;
+export type LibraryDocument = typeof libraryDocuments.$inferSelect;
