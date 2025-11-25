@@ -7,7 +7,7 @@ import { MetricCard } from "@/components/metric-card";
 import { AlertCard, Alert } from "@/components/alert-card";
 import { PositionsTable, Position } from "@/components/positions-table";
 import { Button } from "@/components/ui/button";
-import { Users, Bell, Upload, UserPlus, FileText, Eye } from "lucide-react";
+import { Users, Bell, Upload, UserPlus, Briefcase, BookOpen } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
 import type { Household, Alert as AlertType } from "@shared/schema";
@@ -135,14 +135,18 @@ export default function Dashboard() {
                 <span>Add Household</span>
               </Button>
             </Link>
-            <Button variant="outline" className="justify-start gap-2 h-auto py-3" data-testid="button-record-trade">
-              <FileText className="h-4 w-4" />
-              <span>Record Trade</span>
-            </Button>
-            <Button variant="outline" className="justify-start gap-2 h-auto py-3" data-testid="button-view-alerts">
-              <Eye className="h-4 w-4" />
-              <span>View Alerts</span>
-            </Button>
+            <Link href="/model-portfolios">
+              <Button variant="outline" className="justify-start gap-2 h-auto py-3 w-full" data-testid="button-model-portfolios">
+                <Briefcase className="h-4 w-4" />
+                <span>Model Portfolios</span>
+              </Button>
+            </Link>
+            <Link href="/library/reports">
+              <Button variant="outline" className="justify-start gap-2 h-auto py-3 w-full" data-testid="button-library">
+                <BookOpen className="h-4 w-4" />
+                <span>Library</span>
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
