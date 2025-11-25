@@ -191,6 +191,53 @@ export default function Households() {
     },
   });
 
+  // Delete household mutation
+  const deleteHouseholdMutation = useMutation({
+    mutationFn: async (householdId: string) => {
+      return await apiRequest("DELETE", `/api/households/${householdId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
+      toast({
+        title: "Success",
+        description: "Household deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete household",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete account mutation
+  const deleteAccountMutation = useMutation({
+    mutationFn: async ({ accountId, accountType }: { accountId: string; accountType: "individual" | "corporate" | "joint" }) => {
+      const endpoint = accountType === "individual" 
+        ? `/api/individual-accounts/${accountId}`
+        : accountType === "corporate"
+        ? `/api/corporate-accounts/${accountId}`
+        : `/api/joint-accounts/${accountId}`;
+      return await apiRequest("DELETE", endpoint);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
+      toast({
+        title: "Success",
+        description: "Account deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete account",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: InsertHousehold) => {
     createMutation.mutate(data);
   };
@@ -214,6 +261,14 @@ export default function Households() {
 
   const handleAddJointAccount = (householdId: string) => {
     setDialogState({ type: "joint-account", householdId, individualId: null, corporationId: null });
+  };
+
+  const handleDeleteHousehold = (householdId: string) => {
+    deleteHouseholdMutation.mutate(householdId);
+  };
+
+  const handleDeleteAccount = (accountId: string, accountType: "individual" | "corporate" | "joint") => {
+    deleteAccountMutation.mutate({ accountId, accountType });
   };
 
   const handleCloseDialog = () => {
@@ -311,6 +366,8 @@ export default function Households() {
               onAddCorporation={handleAddCorporation}
               onAddAccount={handleAddAccount}
               onAddJointAccount={handleAddJointAccount}
+              onDeleteHousehold={handleDeleteHousehold}
+              onDeleteAccount={handleDeleteAccount}
             />
           ))}
         </div>
