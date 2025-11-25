@@ -860,6 +860,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Inline target allocation - sets target % for a ticker, auto-adds to Universal Holdings if needed
+  app.post('/api/accounts/:accountType/:accountId/inline-target-allocation', isAuthenticated, async (req, res) => {
+    try {
+      const { accountType, accountId } = req.params;
+      const { ticker, targetPercentage } = req.body;
+      
+      if (!ticker || targetPercentage === undefined || targetPercentage === null) {
+        return res.status(400).json({ message: "Ticker and targetPercentage are required" });
+      }
+      
+      if (!['individual', 'corporate', 'joint'].includes(accountType)) {
+        return res.status(400).json({ message: "Invalid account type" });
+      }
+      
+      const targetPct = parseFloat(targetPercentage);
+      if (isNaN(targetPct) || targetPct < 0 || targetPct > 100) {
+        return res.status(400).json({ message: "Target percentage must be between 0 and 100" });
+      }
+      
+      // Check if ticker exists in Universal Holdings
+      let holding = await storage.getUniversalHoldingByTicker(ticker.toUpperCase());
+      
+      // If not, auto-add to Universal Holdings with "auto_added" category
+      if (!holding) {
+        holding = await storage.createUniversalHolding({
+          ticker: ticker.toUpperCase(),
+          name: `${ticker.toUpperCase()} (Auto-added)`,
+          category: "auto_added",
+          riskLevel: "medium",
+          dividendRate: "0",
+          dividendPayout: "none",
+          price: "0",
+          description: "Automatically added from holdings table. Please update details.",
+        });
+      }
+      
+      // Get existing allocations for this account to check if ticker already has an allocation
+      let existingAllocations;
+      switch (accountType) {
+        case 'individual':
+          existingAllocations = await storage.getAccountTargetAllocationsByIndividualAccount(accountId);
+          break;
+        case 'corporate':
+          existingAllocations = await storage.getAccountTargetAllocationsByCorporateAccount(accountId);
+          break;
+        case 'joint':
+          existingAllocations = await storage.getAccountTargetAllocationsByJointAccount(accountId);
+          break;
+      }
+      
+      const existingAllocation = existingAllocations?.find(a => a.universalHoldingId === holding!.id);
+      
+      let allocation;
+      if (targetPct === 0) {
+        // If target is 0, delete the allocation if it exists
+        if (existingAllocation) {
+          await storage.deleteAccountTargetAllocation(existingAllocation.id);
+          return res.json({ 
+            success: true, 
+            action: 'deleted',
+            message: 'Target allocation removed' 
+          });
+        } else {
+          return res.json({ 
+            success: true, 
+            action: 'none',
+            message: 'No allocation to remove' 
+          });
+        }
+      } else if (existingAllocation) {
+        // Update existing allocation
+        allocation = await storage.updateAccountTargetAllocation(existingAllocation.id, {
+          targetPercentage: targetPct.toString(),
+        });
+      } else {
+        // Create new allocation
+        allocation = await storage.createAccountTargetAllocation({
+          universalHoldingId: holding.id,
+          targetPercentage: targetPct.toString(),
+          individualAccountId: accountType === 'individual' ? accountId : null,
+          corporateAccountId: accountType === 'corporate' ? accountId : null,
+          jointAccountId: accountType === 'joint' ? accountId : null,
+        });
+      }
+      
+      res.json({
+        success: true,
+        action: existingAllocation ? 'updated' : 'created',
+        allocation,
+        holdingAutoAdded: !existingAllocation && holding.category === 'auto_added',
+      });
+    } catch (error: any) {
+      console.error("Error setting inline target allocation:", error);
+      res.status(500).json({ message: "Failed to set target allocation", error: error.message });
+    }
+  });
+
   // Copy allocations from a model portfolio to an account
   app.post('/api/accounts/:accountType/:accountId/copy-from-portfolio/:portfolioId', isAuthenticated, async (req, res) => {
     try {
