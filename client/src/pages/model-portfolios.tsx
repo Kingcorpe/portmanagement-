@@ -384,10 +384,14 @@ export default function ModelPortfolios() {
   });
 
   const onHoldingSubmit = (data: HoldingFormData) => {
+    const normalizedData = {
+      ...data,
+      ticker: data.ticker.toUpperCase(),
+    };
     if (editingHolding) {
-      updateHoldingMutation.mutate({ id: editingHolding.id, data });
+      updateHoldingMutation.mutate({ id: editingHolding.id, data: normalizedData });
     } else {
-      createHoldingMutation.mutate(data);
+      createHoldingMutation.mutate(normalizedData);
     }
   };
 
