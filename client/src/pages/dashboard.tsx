@@ -110,6 +110,7 @@ export default function Dashboard() {
           value={totalHouseholds.toString()}
           icon={Users}
           testId="card-households"
+          href="/households"
         />
         <MetricCard
           title="Pending Alerts"

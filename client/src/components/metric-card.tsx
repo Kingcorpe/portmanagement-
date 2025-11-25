@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, LucideIcon } from "lucide-react";
+import { Link } from "wouter";
 
 interface MetricCardProps {
   title: string;
@@ -7,13 +8,14 @@ interface MetricCardProps {
   change?: number;
   icon: LucideIcon;
   testId?: string;
+  href?: string;
 }
 
-export function MetricCard({ title, value, change, icon: Icon, testId }: MetricCardProps) {
+export function MetricCard({ title, value, change, icon: Icon, testId, href }: MetricCardProps) {
   const isPositive = change !== undefined && change >= 0;
 
-  return (
-    <Card data-testid={testId}>
+  const cardContent = (
+    <Card data-testid={testId} className={href ? "hover-elevate cursor-pointer transition-colors" : ""}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
         <div className="text-sm font-medium text-muted-foreground">{title}</div>
         <Icon className="h-4 w-4 text-muted-foreground" />
@@ -33,4 +35,10 @@ export function MetricCard({ title, value, change, icon: Icon, testId }: MetricC
       </CardContent>
     </Card>
   );
+
+  if (href) {
+    return <Link href={href}>{cardContent}</Link>;
+  }
+
+  return cardContent;
 }
