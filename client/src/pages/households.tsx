@@ -476,9 +476,11 @@ export default function Households() {
     setDialogState({ type: null, householdId: null, individualId: null, corporationId: null });
   };
 
-  const filteredHouseholds = households.filter(household =>
-    household.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredHouseholds = households
+    .filter(household =>
+      household.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   if (authLoading || isLoading) {
     return (
