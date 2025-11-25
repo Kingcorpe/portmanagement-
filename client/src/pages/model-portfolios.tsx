@@ -51,7 +51,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2 } from "lucide-react";
+import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -122,6 +122,8 @@ export default function ModelPortfolios() {
   const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);
   const [allocationTarget, setAllocationTarget] = useState<{ type: "planned" | "freelance"; portfolioId: string } | null>(null);
   const [isLookingUpTicker, setIsLookingUpTicker] = useState(false);
+  const [holdingsSortColumn, setHoldingsSortColumn] = useState<"ticker" | "name" | "riskLevel" | "price" | "dividendRate">("ticker");
+  const [holdingsSortDirection, setHoldingsSortDirection] = useState<"asc" | "desc">("asc");
 
   const holdingForm = useForm<HoldingFormData>({
     resolver: zodResolver(holdingFormSchema),
@@ -418,10 +420,60 @@ export default function ModelPortfolios() {
     setIsAllocationDialogOpen(true);
   };
 
-  const filteredHoldings = holdings.filter(
-    (h) => h.ticker.toLowerCase().includes(searchQuery.toLowerCase()) || 
-           h.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const riskLevelOrder = { low: 1, low_medium: 2, medium: 3, medium_high: 4, high: 5 };
+
+  const handleHoldingsSort = (column: typeof holdingsSortColumn) => {
+    if (holdingsSortColumn === column) {
+      setHoldingsSortDirection(holdingsSortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setHoldingsSortColumn(column);
+      setHoldingsSortDirection("asc");
+    }
+  };
+
+  const SortableHeader = ({ column, children }: { column: typeof holdingsSortColumn; children: React.ReactNode }) => (
+    <TableHead 
+      className="cursor-pointer hover-elevate select-none" 
+      onClick={() => handleHoldingsSort(column)}
+      data-testid={`sort-${column}`}
+    >
+      <div className="flex items-center gap-1">
+        {children}
+        {holdingsSortColumn === column ? (
+          holdingsSortDirection === "asc" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+        ) : (
+          <ArrowUpDown className="h-4 w-4 opacity-30" />
+        )}
+      </div>
+    </TableHead>
   );
+
+  const filteredHoldings = holdings
+    .filter(
+      (h) => h.ticker.toLowerCase().includes(searchQuery.toLowerCase()) || 
+             h.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => {
+      let comparison = 0;
+      switch (holdingsSortColumn) {
+        case "ticker":
+          comparison = a.ticker.localeCompare(b.ticker);
+          break;
+        case "name":
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case "riskLevel":
+          comparison = riskLevelOrder[a.riskLevel] - riskLevelOrder[b.riskLevel];
+          break;
+        case "price":
+          comparison = Number(a.price) - Number(b.price);
+          break;
+        case "dividendRate":
+          comparison = Number(a.dividendRate) - Number(b.dividendRate);
+          break;
+      }
+      return holdingsSortDirection === "asc" ? comparison : -comparison;
+    });
 
   const filteredPlannedPortfolios = plannedPortfolios.filter(
     (p) => p.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -649,11 +701,11 @@ export default function ModelPortfolios() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Ticker</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Risk</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
-                    <TableHead className="text-right">Dividend</TableHead>
+                    <SortableHeader column="ticker">Ticker</SortableHeader>
+                    <SortableHeader column="name">Name</SortableHeader>
+                    <SortableHeader column="riskLevel">Risk</SortableHeader>
+                    <SortableHeader column="price">Price</SortableHeader>
+                    <SortableHeader column="dividendRate">Dividend</SortableHeader>
                     <TableHead>Payout</TableHead>
                     <TableHead className="w-[100px]"></TableHead>
                   </TableRow>
