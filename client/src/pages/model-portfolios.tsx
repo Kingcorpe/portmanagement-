@@ -963,7 +963,7 @@ export default function ModelPortfolios() {
                         {portfolio.description && <CardDescription>{portfolio.description}</CardDescription>}
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant={totalAllocation === 100 ? "default" : "secondary"}>
+                        <Badge variant={totalAllocation === 100 ? "default" : "destructive"}>
                           <Percent className="h-3 w-3 mr-1" />
                           {totalAllocation.toFixed(1)}% Allocated
                         </Badge>
@@ -1116,7 +1116,7 @@ export default function ModelPortfolios() {
                         {portfolio.description && <CardDescription>{portfolio.description}</CardDescription>}
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant={totalAllocation === 100 ? "default" : "secondary"}>
+                        <Badge variant={totalAllocation === 100 ? "default" : "destructive"}>
                           <Percent className="h-3 w-3 mr-1" />
                           {totalAllocation.toFixed(1)}% Allocated
                         </Badge>
