@@ -710,6 +710,8 @@ export default function ModelPortfolios() {
             <SelectItem value="single_etf">Single ETFs</SelectItem>
             <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
             <SelectItem value="security">Securities</SelectItem>
+            <SelectItem value="auto_added">Auto Added</SelectItem>
+            <SelectItem value="misc">Misc.</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -817,6 +819,7 @@ export default function ModelPortfolios() {
                               <SelectItem value="single_etf">Single ETFs</SelectItem>
                               <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
                               <SelectItem value="security">Securities</SelectItem>
+                              <SelectItem value="misc">Misc.</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
