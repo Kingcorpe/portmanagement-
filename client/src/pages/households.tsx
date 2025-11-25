@@ -7,7 +7,7 @@ import { HouseholdCard, Household, HouseholdCategory, householdCategoryLabels, h
 import { HouseholdManagementDialogs } from "@/components/household-management-dialogs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, LayoutList, LayoutGrid } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -43,6 +43,7 @@ export default function Households() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "grouped">("list");
 
   // Dialog state for household management
   const [dialogState, setDialogState] = useState<{
@@ -539,15 +540,39 @@ export default function Households() {
         </Dialog>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search households..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-          data-testid="input-search-households"
-        />
+      <div className="flex gap-2 items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search households..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+            data-testid="input-search-households"
+          />
+        </div>
+        <div className="flex border rounded-md">
+          <Button
+            variant={viewMode === "list" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("list")}
+            className="rounded-r-none"
+            data-testid="button-view-list"
+          >
+            <LayoutList className="h-4 w-4 mr-1" />
+            List
+          </Button>
+          <Button
+            variant={viewMode === "grouped" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("grouped")}
+            className="rounded-l-none"
+            data-testid="button-view-grouped"
+          >
+            <LayoutGrid className="h-4 w-4 mr-1" />
+            By Category
+          </Button>
+        </div>
       </div>
 
       {filteredHouseholds.length === 0 ? (
@@ -556,7 +581,7 @@ export default function Households() {
             {searchQuery ? "No households found matching your search" : "No households yet. Click 'Add Household' to get started."}
           </p>
         </div>
-      ) : (
+      ) : viewMode === "list" ? (
         <div className="grid gap-6">
           {filteredHouseholds.map(household => (
             <HouseholdCard 
@@ -577,6 +602,55 @@ export default function Households() {
               onEditJointAccount={handleEditJointAccount}
             />
           ))}
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {/* Group households by category */}
+          {(["evergreen", "anchor", "pulse", "emerging_pulse", "emerging_anchor", null] as (HouseholdCategory | null)[]).map(category => {
+            const categoryHouseholds = filteredHouseholds.filter(h => h.category === category);
+            if (categoryHouseholds.length === 0) return null;
+            
+            return (
+              <div key={category || "uncategorized"} className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-semibold">
+                    {category ? householdCategoryLabels[category] : "Uncategorized"}
+                  </h2>
+                  {category && (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${householdCategoryColors[category]}`}>
+                      {categoryHouseholds.length} {categoryHouseholds.length === 1 ? "household" : "households"}
+                    </span>
+                  )}
+                  {!category && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                      {categoryHouseholds.length} {categoryHouseholds.length === 1 ? "household" : "households"}
+                    </span>
+                  )}
+                </div>
+                <div className="grid gap-4">
+                  {categoryHouseholds.map(household => (
+                    <HouseholdCard 
+                      key={household.id} 
+                      household={household}
+                      onAddIndividual={handleAddIndividual}
+                      onAddCorporation={handleAddCorporation}
+                      onAddAccount={handleAddAccount}
+                      onAddJointAccount={handleAddJointAccount}
+                      onEditHousehold={handleEditHousehold}
+                      onEditCategory={(householdId, currentCategory) => setEditingCategory({ householdId, currentCategory })}
+                      onDeleteHousehold={handleDeleteHousehold}
+                      onDeleteAccount={handleDeleteAccount}
+                      onEditIndividual={handleEditIndividual}
+                      onDeleteIndividual={handleDeleteIndividual}
+                      onEditCorporation={handleEditCorporation}
+                      onDeleteCorporation={handleDeleteCorporation}
+                      onEditJointAccount={handleEditJointAccount}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
