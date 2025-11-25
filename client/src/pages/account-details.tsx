@@ -25,14 +25,34 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Badge } from "@/components/ui/badge";
 import { insertPositionSchema, type InsertPosition, type Position } from "@shared/schema";
 import type { z } from "zod";
 
 type PositionFormData = z.infer<typeof insertPositionSchema>;
+
+interface PortfolioComparisonItem {
+  ticker: string;
+  name: string;
+  targetPercentage: number;
+  actualPercentage: number;
+  variance: number;
+  actualValue: number;
+  targetValue: number;
+  quantity: number;
+  status: 'over' | 'under' | 'on-target' | 'unexpected';
+}
+
+interface PortfolioComparisonData {
+  hasModelPortfolio: boolean;
+  modelPortfolio: { id: string; name: string; description: string | null } | null;
+  comparison: PortfolioComparisonItem[];
+  totalActualValue: number;
+}
 
 export default function AccountDetails() {
   const { toast } = useToast();
@@ -91,6 +111,16 @@ export default function AccountDetails() {
       }
       return failureCount < 3;
     },
+  });
+
+  // Fetch portfolio comparison data
+  const comparisonEndpoint = accountType && accountId 
+    ? `/api/accounts/${accountType}/${accountId}/portfolio-comparison` 
+    : null;
+
+  const { data: comparisonData, isLoading: comparisonLoading } = useQuery<PortfolioComparisonData>({
+    queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'],
+    enabled: isAuthenticated && !!comparisonEndpoint,
   });
 
   const form = useForm<PositionFormData>({
@@ -385,6 +415,120 @@ export default function AccountDetails() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Portfolio Comparison Section */}
+      {comparisonData?.hasModelPortfolio && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Portfolio Comparison
+              <Badge variant="outline" data-testid="badge-model-portfolio">
+                {comparisonData.modelPortfolio?.name}
+              </Badge>
+            </CardTitle>
+            <CardDescription>
+              Actual holdings vs. target allocations from model portfolio
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {comparisonLoading ? (
+              <p className="text-muted-foreground text-center py-4">Loading comparison...</p>
+            ) : comparisonData.comparison.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">
+                No allocations defined in the model portfolio or no positions yet.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ticker</TableHead>
+                    <TableHead>Security</TableHead>
+                    <TableHead className="text-right">Target %</TableHead>
+                    <TableHead className="text-right">Actual %</TableHead>
+                    <TableHead className="text-right">Variance</TableHead>
+                    <TableHead className="text-right">Target Value</TableHead>
+                    <TableHead className="text-right">Actual Value</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {comparisonData.comparison.map((item) => (
+                    <TableRow key={item.ticker} data-testid={`row-comparison-${item.ticker}`}>
+                      <TableCell className="font-medium" data-testid={`text-ticker-${item.ticker}`}>
+                        {item.ticker}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm" data-testid={`text-name-${item.ticker}`}>
+                        {item.name}
+                      </TableCell>
+                      <TableCell className="text-right" data-testid={`text-target-pct-${item.ticker}`}>
+                        {item.targetPercentage.toFixed(2)}%
+                      </TableCell>
+                      <TableCell className="text-right" data-testid={`text-actual-pct-${item.ticker}`}>
+                        {item.actualPercentage.toFixed(2)}%
+                      </TableCell>
+                      <TableCell 
+                        className={`text-right font-medium ${
+                          item.variance > 0 ? 'text-green-600 dark:text-green-400' : 
+                          item.variance < 0 ? 'text-red-600 dark:text-red-400' : ''
+                        }`}
+                        data-testid={`text-variance-${item.ticker}`}
+                      >
+                        {item.variance > 0 ? '+' : ''}{item.variance.toFixed(2)}%
+                      </TableCell>
+                      <TableCell className="text-right" data-testid={`text-target-value-${item.ticker}`}>
+                        ${item.targetValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right" data-testid={`text-actual-value-${item.ticker}`}>
+                        ${item.actualValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-center" data-testid={`badge-status-${item.ticker}`}>
+                        {item.status === 'over' && (
+                          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                            <TrendingUp className="h-3 w-3 mr-1" />
+                            Over
+                          </Badge>
+                        )}
+                        {item.status === 'under' && (
+                          <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                            <TrendingDown className="h-3 w-3 mr-1" />
+                            Under
+                          </Badge>
+                        )}
+                        {item.status === 'on-target' && (
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            <Minus className="h-3 w-3 mr-1" />
+                            On Target
+                          </Badge>
+                        )}
+                        {item.status === 'unexpected' && (
+                          <Badge variant="destructive">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            Not in Model
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Show message if no model portfolio assigned */}
+      {!comparisonLoading && comparisonData && !comparisonData.hasModelPortfolio && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Portfolio Comparison</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground text-center py-4">
+              No model portfolio assigned to this account. Assign a model portfolio when creating or editing the account to see comparison data.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
