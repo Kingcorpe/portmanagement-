@@ -432,6 +432,7 @@ export const tradesRelations = relations(trades, ({ one }) => ({
 // Zod schemas for validation
 export const insertHouseholdSchema = createInsertSchema(households).pick({
   name: true,
+  category: true,
 });
 
 export const insertIndividualSchema = createInsertSchema(individuals).pick({
