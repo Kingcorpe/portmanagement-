@@ -481,10 +481,30 @@ export default function AccountDetails() {
       const tickerIndex = header.findIndex(h => h.includes('ticker') || h.includes('symbol'));
       const quantityIndex = header.findIndex(h => h.includes('quantity') || h.includes('qty'));
       const avgCostIndex = header.findIndex(h => h.includes('average cost') || h.includes('avg cost') || h.includes('cost'));
-      const marketPriceIndex = header.findIndex(h => h.includes('market price') || h.includes('market') || h.includes('current'));
+      
+      // Look for per-share market price first, then market value (total)
+      // "market price" could mean per-share OR total value depending on the source
+      let marketPriceIndex = header.findIndex(h => 
+        (h.includes('market price') || h.includes('current price') || h.includes('price/share')) && 
+        !h.includes('value')
+      );
+      
+      // If no specific price column, look for market value (we'll calculate per-share from it)
+      const marketValueIndex = header.findIndex(h => 
+        h.includes('market value') || h.includes('market val') || h.includes('mkt value') || h.includes('mkt val')
+      );
+      
+      // Fall back to generic "market" column if nothing specific found
+      if (marketPriceIndex === -1 && marketValueIndex === -1) {
+        marketPriceIndex = header.findIndex(h => h.includes('market') || h.includes('current'));
+      }
+      
+      // Determine which column to use for pricing
+      const useMarketValue = marketPriceIndex === -1 && marketValueIndex !== -1;
+      const priceColumnIndex = useMarketValue ? marketValueIndex : marketPriceIndex;
 
-      if (tickerIndex === -1 || quantityIndex === -1 || avgCostIndex === -1 || marketPriceIndex === -1) {
-        throw new Error("File must contain columns: ticker symbol, quantity, average cost, and market price");
+      if (tickerIndex === -1 || quantityIndex === -1 || avgCostIndex === -1 || priceColumnIndex === -1) {
+        throw new Error("File must contain columns: ticker symbol, quantity, average cost, and market price (or market value)");
       }
 
       // Parse data rows
@@ -516,7 +536,16 @@ export default function AccountDetails() {
         } else {
           symbol = rawSymbol.toUpperCase();
           entryPrice = parseFloat(String(values[avgCostIndex]).replace(/,/g, ''));
-          currentPrice = parseFloat(String(values[marketPriceIndex]).replace(/,/g, ''));
+          const rawMarketPrice = parseFloat(String(values[priceColumnIndex]).replace(/,/g, ''));
+          
+          // If using market value column OR if the "price" seems too high (likely total value)
+          // Calculate per-share price by dividing by quantity
+          if (useMarketValue || (quantity > 0 && rawMarketPrice > entryPrice * 10 && rawMarketPrice > 1000)) {
+            // This is likely a market value (total), calculate per-share price
+            currentPrice = quantity > 0 ? rawMarketPrice / quantity : rawMarketPrice;
+          } else {
+            currentPrice = rawMarketPrice;
+          }
         }
 
         if (symbol && !isNaN(quantity) && !isNaN(entryPrice) && !isNaN(currentPrice)) {
