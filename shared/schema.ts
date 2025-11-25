@@ -219,7 +219,7 @@ export const positionsRelations = relations(positions, ({ one }) => ({
 }));
 
 // Risk level enum for Universal Holdings
-export const riskLevelEnum = pgEnum("risk_level", ["low", "medium", "high"]);
+export const riskLevelEnum = pgEnum("risk_level", ["low", "low_medium", "medium", "medium_high", "high"]);
 
 // Dividend payout frequency enum
 export const dividendPayoutEnum = pgEnum("dividend_payout", ["monthly", "quarterly", "semi_annual", "annual", "none"]);

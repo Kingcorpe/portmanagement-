@@ -63,14 +63,18 @@ import type {
 } from "@shared/schema";
 
 const riskLevelLabels: Record<string, string> = {
-  low: "Low Risk",
-  medium: "Medium Risk",
-  high: "High Risk",
+  low: "Low",
+  low_medium: "Low-Medium",
+  medium: "Medium",
+  medium_high: "Medium-High",
+  high: "High",
 };
 
 const riskLevelColors: Record<string, string> = {
   low: "bg-chart-2 text-white",
+  low_medium: "bg-emerald-500 text-white",
   medium: "bg-yellow-500 text-white",
+  medium_high: "bg-orange-500 text-white",
   high: "bg-destructive text-destructive-foreground",
 };
 
@@ -85,7 +89,7 @@ const dividendPayoutLabels: Record<string, string> = {
 const holdingFormSchema = z.object({
   ticker: z.string().min(1, "Ticker is required").max(20),
   name: z.string().min(1, "Name is required"),
-  riskLevel: z.enum(["low", "medium", "high"]),
+  riskLevel: z.enum(["low", "low_medium", "medium", "medium_high", "high"]),
   dividendRate: z.coerce.number().nonnegative().default(0),
   dividendPayout: z.enum(["monthly", "quarterly", "semi_annual", "annual", "none"]),
   price: z.coerce.number().positive("Price must be positive"),
@@ -487,7 +491,9 @@ export default function ModelPortfolios() {
                               </FormControl>
                               <SelectContent>
                                 <SelectItem value="low">Low</SelectItem>
+                                <SelectItem value="low_medium">Low-Medium</SelectItem>
                                 <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="medium_high">Medium-High</SelectItem>
                                 <SelectItem value="high">High</SelectItem>
                               </SelectContent>
                             </Select>
