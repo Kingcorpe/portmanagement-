@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { TrendingUp, TrendingDown, ChevronDown, ChevronRight, Users, Eye, Plus, UserPlus, Building2, Trash2 } from "lucide-react";
+import { TrendingUp, TrendingDown, ChevronDown, ChevronRight, Users, Eye, Plus, UserPlus, Building2, Trash2, Edit } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -68,6 +68,10 @@ interface HouseholdCardProps {
   onAddJointAccount?: (householdId: string) => void;
   onDeleteHousehold?: (householdId: string) => void;
   onDeleteAccount?: (accountId: string, accountType: "individual" | "corporate" | "joint") => void;
+  onEditIndividual?: (id: string, currentName: string) => void;
+  onDeleteIndividual?: (id: string) => void;
+  onEditCorporation?: (id: string, currentName: string) => void;
+  onDeleteCorporation?: (id: string) => void;
 }
 
 const accountTypeLabels: Record<AccountType, string> = {
@@ -91,7 +95,11 @@ export function HouseholdCard({
   onAddAccount,
   onAddJointAccount,
   onDeleteHousehold,
-  onDeleteAccount
+  onDeleteAccount,
+  onEditIndividual,
+  onDeleteIndividual,
+  onEditCorporation,
+  onDeleteCorporation
 }: HouseholdCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const isPositive = household.totalPerformance >= 0;
@@ -218,14 +226,61 @@ export function HouseholdCard({
 
             {household.individuals.map((individual) => (
               <div key={individual.id} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-6 w-6">
-                    <AvatarFallback className="text-xs">{individual.name.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium text-sm" data-testid={`text-individual-name-${individual.id}`}>
-                    {individual.name}
-                  </span>
-                  <Badge variant="outline" className="text-xs">Individual</Badge>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarFallback className="text-xs">{individual.name.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <span className="font-medium text-sm" data-testid={`text-individual-name-${individual.id}`}>
+                      {individual.name}
+                    </span>
+                    <Badge variant="outline" className="text-xs">Individual</Badge>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {onEditIndividual && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => onEditIndividual(individual.id, individual.name)}
+                        data-testid={`button-edit-individual-${individual.id}`}
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {onDeleteIndividual && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            data-testid={`button-delete-individual-${individual.id}`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Individual</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "{individual.name}"? This will permanently remove all accounts and positions associated with this individual. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => onDeleteIndividual(individual.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              data-testid={`button-confirm-delete-individual-${individual.id}`}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </div>
                 <div className="ml-8 space-y-1">
                   {onAddAccount && individual.accounts.length === 0 && (
@@ -313,14 +368,61 @@ export function HouseholdCard({
 
             {household.corporations.map((corporation) => (
               <div key={corporation.id} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-6 w-6">
-                    <AvatarFallback className="text-xs">{corporation.name.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium text-sm" data-testid={`text-corporation-name-${corporation.id}`}>
-                    {corporation.name}
-                  </span>
-                  <Badge variant="outline" className="text-xs">Corporate</Badge>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarFallback className="text-xs">{corporation.name.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <span className="font-medium text-sm" data-testid={`text-corporation-name-${corporation.id}`}>
+                      {corporation.name}
+                    </span>
+                    <Badge variant="outline" className="text-xs">Corporate</Badge>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {onEditCorporation && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => onEditCorporation(corporation.id, corporation.name)}
+                        data-testid={`button-edit-corporation-${corporation.id}`}
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {onDeleteCorporation && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            data-testid={`button-delete-corporation-${corporation.id}`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Corporation</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "{corporation.name}"? This will permanently remove all accounts and positions associated with this corporation. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => onDeleteCorporation(corporation.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              data-testid={`button-confirm-delete-corporation-${corporation.id}`}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </div>
                 <div className="ml-8 space-y-1">
                   {onAddAccount && corporation.accounts.length === 0 && (

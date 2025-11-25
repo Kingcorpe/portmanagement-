@@ -50,6 +50,13 @@ export default function Households() {
     corporationId: null,
   });
 
+  // State for editing individuals/corporations
+  const [editingEntity, setEditingEntity] = useState<{
+    type: "individual" | "corporation";
+    id: string;
+    name: string;
+  } | null>(null);
+
   // Form for creating households
   const form = useForm<InsertHousehold>({
     resolver: zodResolver(insertHouseholdSchema),
@@ -271,6 +278,108 @@ export default function Households() {
     deleteAccountMutation.mutate({ accountId, accountType });
   };
 
+  // Delete individual mutation
+  const deleteIndividualMutation = useMutation({
+    mutationFn: async (individualId: string) => {
+      return await apiRequest("DELETE", `/api/individuals/${individualId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
+      toast({
+        title: "Success",
+        description: "Individual deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete individual",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete corporation mutation
+  const deleteCorporationMutation = useMutation({
+    mutationFn: async (corporationId: string) => {
+      return await apiRequest("DELETE", `/api/corporations/${corporationId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
+      toast({
+        title: "Success",
+        description: "Corporation deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete corporation",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update individual mutation
+  const updateIndividualMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      return await apiRequest("PATCH", `/api/individuals/${id}`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
+      toast({
+        title: "Success",
+        description: "Individual updated successfully",
+      });
+      setEditingEntity(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update individual",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update corporation mutation
+  const updateCorporationMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      return await apiRequest("PATCH", `/api/corporations/${id}`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
+      toast({
+        title: "Success",
+        description: "Corporation updated successfully",
+      });
+      setEditingEntity(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update corporation",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditIndividual = (id: string, currentName: string) => {
+    setEditingEntity({ type: "individual", id, name: currentName });
+  };
+
+  const handleDeleteIndividual = (id: string) => {
+    deleteIndividualMutation.mutate(id);
+  };
+
+  const handleEditCorporation = (id: string, currentName: string) => {
+    setEditingEntity({ type: "corporation", id, name: currentName });
+  };
+
+  const handleDeleteCorporation = (id: string) => {
+    deleteCorporationMutation.mutate(id);
+  };
+
   const handleCloseDialog = () => {
     setDialogState({ type: null, householdId: null, individualId: null, corporationId: null });
   };
@@ -368,6 +477,10 @@ export default function Households() {
               onAddJointAccount={handleAddJointAccount}
               onDeleteHousehold={handleDeleteHousehold}
               onDeleteAccount={handleDeleteAccount}
+              onEditIndividual={handleEditIndividual}
+              onDeleteIndividual={handleDeleteIndividual}
+              onEditCorporation={handleEditCorporation}
+              onDeleteCorporation={handleDeleteCorporation}
             />
           ))}
         </div>
@@ -380,6 +493,57 @@ export default function Households() {
         dialogType={dialogState.type}
         onClose={handleCloseDialog}
       />
+
+      {/* Edit Individual/Corporation Dialog */}
+      <Dialog open={editingEntity !== null} onOpenChange={(open) => !open && setEditingEntity(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingEntity?.type === "individual" ? "Edit Individual" : "Edit Corporation"}
+            </DialogTitle>
+            <DialogDescription>
+              Update the name of this {editingEntity?.type === "individual" ? "individual" : "corporation"}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Name</label>
+              <Input
+                value={editingEntity?.name || ""}
+                onChange={(e) => setEditingEntity(prev => prev ? { ...prev, name: e.target.value } : null)}
+                placeholder={editingEntity?.type === "individual" ? "Individual name" : "Corporation name"}
+                data-testid="input-edit-entity-name"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setEditingEntity(null)}
+                data-testid="button-cancel-edit"
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="button" 
+                onClick={() => {
+                  if (editingEntity) {
+                    if (editingEntity.type === "individual") {
+                      updateIndividualMutation.mutate({ id: editingEntity.id, name: editingEntity.name });
+                    } else {
+                      updateCorporationMutation.mutate({ id: editingEntity.id, name: editingEntity.name });
+                    }
+                  }
+                }}
+                disabled={updateIndividualMutation.isPending || updateCorporationMutation.isPending}
+                data-testid="button-save-edit"
+              >
+                {updateIndividualMutation.isPending || updateCorporationMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
