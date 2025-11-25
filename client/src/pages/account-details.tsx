@@ -73,7 +73,7 @@ interface PortfolioComparisonData {
 export default function AccountDetails() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const [, params] = useRoute("/accounts/:accountType/:accountId");
+  const [, params] = useRoute("/account/:accountType/:accountId");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
   const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);

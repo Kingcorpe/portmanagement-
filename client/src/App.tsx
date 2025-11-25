@@ -15,25 +15,36 @@ import AccountDetails from "@/pages/account-details";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
-function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
-
+function AuthenticatedRoutes() {
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : (
-        <>
-          <Route path="/" component={Dashboard} />
-          <Route path="/households" component={Households} />
-          <Route path="/model-portfolios" component={ModelPortfolios} />
-          <Route path="/accounts/:accountType/:accountId" component={AccountDetails} />
-          <Route path="/alerts" component={Alerts} />
-        </>
-      )}
+      <Route path="/" component={Dashboard} />
+      <Route path="/households" component={Households} />
+      <Route path="/model-portfolios" component={ModelPortfolios} />
+      <Route path="/account/:accountType/:accountId" component={AccountDetails} />
+      <Route path="/alerts" component={Alerts} />
       <Route component={NotFound} />
     </Switch>
   );
+}
+
+function Router() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <Switch>
+        <Route path="/" component={Landing} />
+        <Route component={Landing} />
+      </Switch>
+    );
+  }
+
+  return <AuthenticatedRoutes />;
 }
 
 function AppContent() {
