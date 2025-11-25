@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -15,6 +15,8 @@ import {
   type InsertIndividualAccount,
   type InsertCorporateAccount,
   type InsertJointAccount,
+  type Individual,
+  type Corporation,
 } from "@shared/schema";
 import {
   Dialog,
@@ -58,6 +60,19 @@ export function HouseholdManagementDialogs({
 }: HouseholdManagementDialogsProps) {
   const { toast } = useToast();
 
+  // Optional account type selection when creating individual or corporation
+  const [individualAccountType, setIndividualAccountType] = useState<string>("none");
+  const [corporateAccountType, setCorporateAccountType] = useState<string>("none");
+
+  // Reset account type selections when dialog closes
+  useEffect(() => {
+    if (dialogType !== "individual") {
+      setIndividualAccountType("none");
+    }
+    if (dialogType !== "corporation") {
+      setCorporateAccountType("none");
+    }
+  }, [dialogType]);
 
   // Individual form
   const individualForm = useForm<InsertIndividual>({
@@ -151,12 +166,29 @@ export function HouseholdManagementDialogs({
 
   // Mutations
   const createIndividualMutation = useMutation({
-    mutationFn: async (data: InsertIndividual) => await apiRequest("POST", "/api/individuals", data),
+    mutationFn: async (data: InsertIndividual) => {
+      const response = await apiRequest("POST", "/api/individuals", data);
+      const individual = await response.json() as Individual;
+      
+      // If account type is selected, create the account
+      if (individualAccountType && individualAccountType !== "none") {
+        await apiRequest("POST", "/api/individual-accounts", {
+          individualId: individual.id,
+          type: individualAccountType,
+        });
+      }
+      
+      return individual;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
-      toast({ title: "Success", description: "Individual created successfully" });
+      const message = individualAccountType !== "none" 
+        ? "Individual and account created successfully" 
+        : "Individual created successfully";
+      toast({ title: "Success", description: message });
       onClose();
       individualForm.reset();
+      setIndividualAccountType("none");
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message || "Failed to create individual", variant: "destructive" });
@@ -164,12 +196,29 @@ export function HouseholdManagementDialogs({
   });
 
   const createCorporationMutation = useMutation({
-    mutationFn: async (data: InsertCorporation) => await apiRequest("POST", "/api/corporations", data),
+    mutationFn: async (data: InsertCorporation) => {
+      const response = await apiRequest("POST", "/api/corporations", data);
+      const corporation = await response.json() as Corporation;
+      
+      // If account type is selected, create the account
+      if (corporateAccountType && corporateAccountType !== "none") {
+        await apiRequest("POST", "/api/corporate-accounts", {
+          corporationId: corporation.id,
+          type: corporateAccountType,
+        });
+      }
+      
+      return corporation;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
-      toast({ title: "Success", description: "Corporation created successfully" });
+      const message = corporateAccountType !== "none" 
+        ? "Corporation and account created successfully" 
+        : "Corporation created successfully";
+      toast({ title: "Success", description: message });
       onClose();
       corporationForm.reset();
+      setCorporateAccountType("none");
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message || "Failed to create corporation", variant: "destructive" });
@@ -222,7 +271,7 @@ export function HouseholdManagementDialogs({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Individual</DialogTitle>
-            <DialogDescription>Add a new individual to this household.</DialogDescription>
+            <DialogDescription>Add a new individual to this household with an optional account.</DialogDescription>
           </DialogHeader>
           <Form {...individualForm}>
             <form onSubmit={individualForm.handleSubmit((data) => createIndividualMutation.mutate(data))} className="space-y-4">
@@ -239,12 +288,31 @@ export function HouseholdManagementDialogs({
                   </FormItem>
                 )}
               />
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Account Type (Optional)</label>
+                <Select value={individualAccountType} onValueChange={setIndividualAccountType}>
+                  <SelectTrigger data-testid="select-individual-account-type">
+                    <SelectValue placeholder="No account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No account</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="tfsa">TFSA</SelectItem>
+                    <SelectItem value="fhsa">FHSA</SelectItem>
+                    <SelectItem value="rrsp">RRSP</SelectItem>
+                    <SelectItem value="lira">LIRA</SelectItem>
+                    <SelectItem value="liff">LIFF</SelectItem>
+                    <SelectItem value="rif">RIF</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Optionally create an account for this individual at the same time.</p>
+              </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
                 </Button>
                 <Button type="submit" data-testid="button-submit" disabled={createIndividualMutation.isPending}>
-                  {createIndividualMutation.isPending ? "Creating..." : "Create Individual"}
+                  {createIndividualMutation.isPending ? "Creating..." : individualAccountType !== "none" ? "Create Individual & Account" : "Create Individual"}
                 </Button>
               </div>
             </form>
@@ -257,7 +325,7 @@ export function HouseholdManagementDialogs({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Corporation</DialogTitle>
-            <DialogDescription>Add a new corporation to this household.</DialogDescription>
+            <DialogDescription>Add a new corporation to this household with an optional account.</DialogDescription>
           </DialogHeader>
           <Form {...corporationForm}>
             <form onSubmit={corporationForm.handleSubmit((data) => createCorporationMutation.mutate(data))} className="space-y-4">
@@ -274,12 +342,26 @@ export function HouseholdManagementDialogs({
                   </FormItem>
                 )}
               />
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Account Type (Optional)</label>
+                <Select value={corporateAccountType} onValueChange={setCorporateAccountType}>
+                  <SelectTrigger data-testid="select-corporate-account-type">
+                    <SelectValue placeholder="No account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No account</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="ipp">IPP (Individual Pension Plan)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Optionally create an account for this corporation at the same time.</p>
+              </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
                 </Button>
                 <Button type="submit" data-testid="button-submit" disabled={createCorporationMutation.isPending}>
-                  {createCorporationMutation.isPending ? "Creating..." : "Create Corporation"}
+                  {createCorporationMutation.isPending ? "Creating..." : corporateAccountType !== "none" ? "Create Corporation & Account" : "Create Corporation"}
                 </Button>
               </div>
             </form>
