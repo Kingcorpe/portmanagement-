@@ -65,6 +65,7 @@ interface HouseholdCardProps {
   onAddCorporation?: (householdId: string) => void;
   onAddAccount?: (entityId: string, entityType: "individual" | "corporate") => void;
   onAddJointAccount?: (householdId: string) => void;
+  onEditHousehold?: (householdId: string, currentName: string) => void;
   onDeleteHousehold?: (householdId: string) => void;
   onDeleteAccount?: (accountId: string, accountType: "individual" | "corporate" | "joint") => void;
   onEditIndividual?: (id: string, currentName: string) => void;
@@ -129,6 +130,7 @@ export function HouseholdCard({
   onAddCorporation,
   onAddAccount,
   onAddJointAccount,
+  onEditHousehold,
   onDeleteHousehold,
   onDeleteAccount,
   onEditIndividual,
@@ -181,6 +183,17 @@ export function HouseholdCard({
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {onEditHousehold && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-muted-foreground"
+                  onClick={() => onEditHousehold(household.id, household.name)}
+                  data-testid={`button-edit-household-${household.id}`}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
               {onDeleteHousehold && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>

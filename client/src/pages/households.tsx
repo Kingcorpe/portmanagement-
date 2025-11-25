@@ -50,9 +50,9 @@ export default function Households() {
     corporationId: null,
   });
 
-  // State for editing individuals/corporations
+  // State for editing individuals/corporations/households
   const [editingEntity, setEditingEntity] = useState<{
-    type: "individual" | "corporation";
+    type: "individual" | "corporation" | "household";
     id: string;
     name: string;
   } | null>(null);
@@ -364,6 +364,32 @@ export default function Households() {
     },
   });
 
+  // Update household mutation
+  const updateHouseholdMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      return await apiRequest("PATCH", `/api/households/${id}`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
+      toast({
+        title: "Success",
+        description: "Household updated successfully",
+      });
+      setEditingEntity(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update household",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditHousehold = (id: string, currentName: string) => {
+    setEditingEntity({ type: "household", id, name: currentName });
+  };
+
   const handleEditIndividual = (id: string, currentName: string) => {
     setEditingEntity({ type: "individual", id, name: currentName });
   };
@@ -475,6 +501,7 @@ export default function Households() {
               onAddCorporation={handleAddCorporation}
               onAddAccount={handleAddAccount}
               onAddJointAccount={handleAddJointAccount}
+              onEditHousehold={handleEditHousehold}
               onDeleteHousehold={handleDeleteHousehold}
               onDeleteAccount={handleDeleteAccount}
               onEditIndividual={handleEditIndividual}
@@ -494,15 +521,17 @@ export default function Households() {
         onClose={handleCloseDialog}
       />
 
-      {/* Edit Individual/Corporation Dialog */}
+      {/* Edit Individual/Corporation/Household Dialog */}
       <Dialog open={editingEntity !== null} onOpenChange={(open) => !open && setEditingEntity(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingEntity?.type === "individual" ? "Edit Individual" : "Edit Corporation"}
+              {editingEntity?.type === "individual" ? "Edit Individual" : 
+               editingEntity?.type === "corporation" ? "Edit Corporation" : "Edit Household"}
             </DialogTitle>
             <DialogDescription>
-              Update the name of this {editingEntity?.type === "individual" ? "individual" : "corporation"}.
+              Update the name of this {editingEntity?.type === "individual" ? "individual" : 
+               editingEntity?.type === "corporation" ? "corporation" : "household"}.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -511,7 +540,8 @@ export default function Households() {
               <Input
                 value={editingEntity?.name || ""}
                 onChange={(e) => setEditingEntity(prev => prev ? { ...prev, name: e.target.value } : null)}
-                placeholder={editingEntity?.type === "individual" ? "Individual name" : "Corporation name"}
+                placeholder={editingEntity?.type === "individual" ? "Individual name" : 
+                  editingEntity?.type === "corporation" ? "Corporation name" : "Household name"}
                 data-testid="input-edit-entity-name"
               />
             </div>
@@ -530,15 +560,17 @@ export default function Households() {
                   if (editingEntity) {
                     if (editingEntity.type === "individual") {
                       updateIndividualMutation.mutate({ id: editingEntity.id, name: editingEntity.name });
-                    } else {
+                    } else if (editingEntity.type === "corporation") {
                       updateCorporationMutation.mutate({ id: editingEntity.id, name: editingEntity.name });
+                    } else {
+                      updateHouseholdMutation.mutate({ id: editingEntity.id, name: editingEntity.name });
                     }
                   }
                 }}
-                disabled={updateIndividualMutation.isPending || updateCorporationMutation.isPending}
+                disabled={updateIndividualMutation.isPending || updateCorporationMutation.isPending || updateHouseholdMutation.isPending}
                 data-testid="button-save-edit"
               >
-                {updateIndividualMutation.isPending || updateCorporationMutation.isPending ? "Saving..." : "Save Changes"}
+                {updateIndividualMutation.isPending || updateCorporationMutation.isPending || updateHouseholdMutation.isPending ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </div>
