@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, TrendingUp, Settings, LogOut, Briefcase } from "lucide-react";
+import { LayoutDashboard, Users, Bell, TrendingUp, Settings, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -8,9 +8,14 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link, useLocation } from "wouter";
+import { useState } from "react";
 
 const menuItems = [
   {
@@ -28,6 +33,22 @@ const menuItems = [
     url: "/model-portfolios",
     icon: Briefcase,
   },
+];
+
+const librarySubItems = [
+  {
+    title: "Example Reports",
+    url: "/library/reports",
+    icon: FileText,
+  },
+  {
+    title: "Key Strategies",
+    url: "/library/strategies",
+    icon: Target,
+  },
+];
+
+const bottomMenuItems = [
   {
     title: "Alerts",
     url: "/alerts",
@@ -47,6 +68,9 @@ const menuItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const [libraryOpen, setLibraryOpen] = useState(location.startsWith("/library"));
+
+  const isLibraryActive = location.startsWith("/library");
 
   return (
     <Sidebar>
@@ -58,6 +82,45 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
+                    <Link href={item.url}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+
+              {/* Library with sub-items */}
+              <Collapsible open={libraryOpen} onOpenChange={setLibraryOpen} className="group/collapsible">
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton isActive={isLibraryActive} data-testid="link-library">
+                      <BookOpen />
+                      <span>Library</span>
+                      <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {librarySubItems.map((subItem) => (
+                        <SidebarMenuSubItem key={subItem.title}>
+                          <SidebarMenuSubButton asChild isActive={location === subItem.url} data-testid={`link-${subItem.title.toLowerCase().replace(/\s+/g, '-')}`}>
+                            <Link href={subItem.url}>
+                              <subItem.icon className="h-4 w-4" />
+                              <span>{subItem.title}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
+
+              {/* Bottom menu items (Alerts, Trades, Settings) */}
+              {bottomMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url} data-testid={`link-${item.title.toLowerCase()}`}>
                     <Link href={item.url}>

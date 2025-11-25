@@ -12,6 +12,8 @@ import Households from "@/pages/households";
 import ModelPortfolios from "@/pages/model-portfolios";
 import Alerts from "@/pages/alerts";
 import AccountDetails from "@/pages/account-details";
+import LibraryReports from "@/pages/library-reports";
+import LibraryStrategies from "@/pages/library-strategies";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
@@ -22,6 +24,8 @@ function AuthenticatedRoutes() {
       <Route path="/households" component={Households} />
       <Route path="/model-portfolios" component={ModelPortfolios} />
       <Route path="/account/:accountType/:accountId" component={AccountDetails} />
+      <Route path="/library/reports" component={LibraryReports} />
+      <Route path="/library/strategies" component={LibraryStrategies} />
       <Route path="/alerts" component={Alerts} />
       <Route component={NotFound} />
     </Switch>
