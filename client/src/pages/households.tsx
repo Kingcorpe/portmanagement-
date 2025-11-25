@@ -76,6 +76,7 @@ export default function Households() {
     resolver: zodResolver(insertHouseholdSchema),
     defaultValues: {
       name: "",
+      category: undefined,
     },
   });
 
@@ -524,6 +525,34 @@ export default function Households() {
                       <FormControl>
                         <Input placeholder="Smith Family" data-testid="input-household-name" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="category"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Category (Optional)</FormLabel>
+                      <Select 
+                        onValueChange={(value) => field.onChange(value === "none" ? undefined : value)} 
+                        value={field.value || "none"}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-household-category">
+                            <SelectValue placeholder="Select a category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">No Category</SelectItem>
+                          <SelectItem value="evergreen">{householdCategoryLabels.evergreen}</SelectItem>
+                          <SelectItem value="anchor">{householdCategoryLabels.anchor}</SelectItem>
+                          <SelectItem value="pulse">{householdCategoryLabels.pulse}</SelectItem>
+                          <SelectItem value="emerging_pulse">{householdCategoryLabels.emerging_pulse}</SelectItem>
+                          <SelectItem value="emerging_anchor">{householdCategoryLabels.emerging_anchor}</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
