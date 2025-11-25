@@ -497,7 +497,7 @@ export default function AccountDetails() {
         positions,
         accountType,
         accountId
-      });
+      }) as unknown as { success: boolean; created: number; errors?: any[]; message: string };
 
       await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
 
