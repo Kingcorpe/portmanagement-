@@ -3,8 +3,8 @@ import Uppy from "@uppy/core";
 import Dashboard from "@uppy/dashboard";
 import AwsS3 from "@uppy/aws-s3";
 import { apiRequest } from "@/lib/queryClient";
-import "@uppy/core/dist/style.min.css";
-import "@uppy/dashboard/dist/style.min.css";
+import "@uppy/core/css/style.css";
+import "@uppy/dashboard/css/style.css";
 
 interface ObjectUploaderProps {
   allowedFileTypes?: string[];
@@ -84,8 +84,7 @@ export function ObjectUploader({
 
     uppyInstance.on("upload-success", (file, response) => {
       if (file && response.uploadURL) {
-        const objectPath = new URL(response.uploadURL).pathname;
-        onUploadComplete(objectPath, file.name || "uploaded-file");
+        onUploadComplete(response.uploadURL, file.name || "uploaded-file");
       }
     });
 
@@ -130,8 +129,8 @@ export function SimpleDocumentUploader({
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState("");
 
-  const handleUploadComplete = (path: string, name: string) => {
-    setObjectPath(path);
+  const handleUploadComplete = (uploadURL: string, name: string) => {
+    setObjectPath(uploadURL);
     setFileName(name);
     if (!title) {
       setTitle(name.replace(/\.[^/.]+$/, ""));

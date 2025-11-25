@@ -1751,14 +1751,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user?.claims?.sub;
       const objectStorageService = new ObjectStorageService();
       
-      // Normalize the object path from the upload URL
-      const objectPath = objectStorageService.normalizeObjectEntityPath(req.body.objectPath);
+      if (!req.body.objectPath) {
+        return res.status(400).json({ message: "objectPath is required" });
+      }
       
-      // Set ACL policy for the uploaded object
-      await objectStorageService.trySetObjectEntityAclPolicy(objectPath, {
+      // Set ACL policy and get normalized path
+      // visibility: "public" allows all authenticated users to read (owner can write)
+      // The /objects/ route still requires isAuthenticated, so only logged-in users can access
+      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(req.body.objectPath, {
         owner: userId,
-        visibility: "private", // Library documents are private to authenticated users
+        visibility: "public",
       });
+      
+      // Validate that the object path is properly normalized
+      if (!objectPath.startsWith("/objects/")) {
+        return res.status(400).json({ message: "Invalid object path" });
+      }
       
       const parsed = insertLibraryDocumentSchema.parse({
         ...req.body,
