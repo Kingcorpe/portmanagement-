@@ -101,7 +101,6 @@ export function HouseholdManagementDialogs({
     defaultValues: {
       individualId: "",
       type: "cash",
-      balance: "",
     },
   });
 
@@ -120,7 +119,6 @@ export function HouseholdManagementDialogs({
     defaultValues: {
       corporationId: "",
       type: "cash",
-      balance: "",
     },
   });
 
@@ -139,7 +137,6 @@ export function HouseholdManagementDialogs({
     defaultValues: {
       householdId: "",
       type: "joint_cash",
-      balance: "",
     },
   });
 
@@ -325,19 +322,6 @@ export function HouseholdManagementDialogs({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={individualAccountForm.control}
-                name="balance"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Balance (CAD)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" placeholder="50000.00" data-testid="input-balance" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
@@ -381,19 +365,6 @@ export function HouseholdManagementDialogs({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={corporateAccountForm.control}
-                name="balance"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Balance (CAD)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" placeholder="100000.00" data-testid="input-balance" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
@@ -433,19 +404,6 @@ export function HouseholdManagementDialogs({
                         <SelectItem value="resp">RESP</SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={jointAccountForm.control}
-                name="balance"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Balance (CAD)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.01" placeholder="75000.00" data-testid="input-balance" {...field} />
-                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
