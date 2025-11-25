@@ -1001,123 +1001,45 @@ export default function AccountDetails() {
         </CardContent>
       </Card>
 
-      {/* Portfolio Comparison Section */}
-      {comparisonData?.hasTargetAllocations && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Portfolio Comparison</CardTitle>
-            <CardDescription>
-              Actual holdings vs. target allocations
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {comparisonLoading ? (
-              <p className="text-muted-foreground text-center py-4">Loading comparison...</p>
-            ) : comparisonData.comparison.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">
-                No positions yet to compare against targets.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Ticker</TableHead>
-                    <TableHead>Security</TableHead>
-                    <TableHead className="text-right">Target %</TableHead>
-                    <TableHead className="text-right">Actual %</TableHead>
-                    <TableHead className="text-right">Variance</TableHead>
-                    <TableHead className="text-right">Target Value</TableHead>
-                    <TableHead className="text-right">Actual Value</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {comparisonData.comparison.map((item) => (
-                    <TableRow key={item.ticker} data-testid={`row-comparison-${item.ticker}`}>
-                      <TableCell className="font-medium" data-testid={`text-ticker-${item.ticker}`}>
-                        {item.ticker}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm" data-testid={`text-name-${item.ticker}`}>
-                        {item.name}
-                      </TableCell>
-                      <TableCell className="text-right" data-testid={`text-target-pct-${item.ticker}`}>
-                        {item.targetPercentage.toFixed(2)}%
-                      </TableCell>
-                      <TableCell className="text-right" data-testid={`text-actual-pct-${item.ticker}`}>
-                        {item.actualPercentage.toFixed(2)}%
-                      </TableCell>
-                      <TableCell 
-                        className={`text-right font-medium ${
-                          item.variance > 0 ? 'text-green-600 dark:text-green-400' : 
-                          item.variance < 0 ? 'text-red-600 dark:text-red-400' : ''
-                        }`}
-                        data-testid={`text-variance-${item.ticker}`}
-                      >
-                        {item.variance > 0 ? '+' : ''}{item.variance.toFixed(2)}%
-                      </TableCell>
-                      <TableCell className="text-right" data-testid={`text-target-value-${item.ticker}`}>
-                        ${item.targetValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell className="text-right" data-testid={`text-actual-value-${item.ticker}`}>
-                        ${item.actualValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell className="text-center" data-testid={`badge-status-${item.ticker}`}>
-                        {item.status === 'over' && (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                            <TrendingUp className="h-3 w-3 mr-1" />
-                            Over
-                          </Badge>
-                        )}
-                        {item.status === 'under' && (
-                          <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                            <TrendingDown className="h-3 w-3 mr-1" />
-                            Under
-                          </Badge>
-                        )}
-                        {item.status === 'on-target' && (
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            <Minus className="h-3 w-3 mr-1" />
-                            On Target
-                          </Badge>
-                        )}
-                        {item.status === 'unexpected' && (
-                          <Badge variant="destructive">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            Not in Target
-                          </Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Show message if no target allocations defined */}
-      {!comparisonLoading && comparisonData && !comparisonData.hasTargetAllocations && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Portfolio Comparison</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground text-center py-4">
-              No target allocations defined for this account. Add target allocations above to see comparison data.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
+      {/* Unified Holdings & Portfolio Comparison Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Positions</CardTitle>
+          <CardTitle>Holdings & Portfolio Analysis</CardTitle>
           <CardDescription>
-            All holdings in this account
+            All positions with target allocation comparison
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Summary Stats */}
+          {comparisonData?.hasTargetAllocations && comparisonData.comparison.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Portfolio Value</div>
+                <div className="font-semibold">${comparisonData.totalActualValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">On Target</div>
+                <div className="font-semibold text-blue-600 dark:text-blue-400">
+                  {comparisonData.comparison.filter(c => c.status === 'on-target').length}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Over/Under</div>
+                <div className="font-semibold">
+                  <span className="text-green-600 dark:text-green-400">{comparisonData.comparison.filter(c => c.status === 'over').length}</span>
+                  {' / '}
+                  <span className="text-red-600 dark:text-red-400">{comparisonData.comparison.filter(c => c.status === 'under').length}</span>
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Untracked</div>
+                <div className="font-semibold text-amber-600 dark:text-amber-400">
+                  {comparisonData.comparison.filter(c => c.status === 'unexpected').length}
+                </div>
+              </div>
+            </div>
+          )}
+
           {positions.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
               No positions yet. Click "Add Position" to get started.
@@ -1127,63 +1049,150 @@ export default function AccountDetails() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Symbol</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Avg Cost</TableHead>
-                  <TableHead className="text-right">Book Value</TableHead>
+                  <TableHead className="text-right">Qty</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Market Value</TableHead>
-                  <TableHead>Purchase Date</TableHead>
+                  {comparisonData?.hasTargetAllocations && (
+                    <>
+                      <TableHead className="text-right">Actual %</TableHead>
+                      <TableHead className="text-right">Target %</TableHead>
+                      <TableHead className="text-right">Variance</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                    </>
+                  )}
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {positions.map((position) => (
-                  <TableRow key={position.id} data-testid={`row-position-${position.id}`}>
-                    <TableCell className="font-medium" data-testid={`text-symbol-${position.id}`}>
-                      {position.symbol}
-                    </TableCell>
-                    <TableCell className="text-right" data-testid={`text-quantity-${position.id}`}>
-                      {Number(position.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell className="text-right" data-testid={`text-entry-price-${position.id}`}>
-                      ${Number(position.entryPrice).toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right" data-testid={`text-book-value-${position.id}`}>
-                      ${(Number(position.quantity) * Number(position.entryPrice)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell className="text-right" data-testid={`text-current-price-${position.id}`}>
-                      ${Number(position.currentPrice).toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right font-medium" data-testid={`text-market-value-${position.id}`}>
-                      ${(Number(position.quantity) * Number(position.currentPrice)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell data-testid={`text-purchase-date-${position.id}`}>
-                      {position.purchaseDate ? new Date(position.purchaseDate).toLocaleDateString('en-CA') : '-'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(position)}
-                          data-testid={`button-edit-${position.id}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(position.id)}
-                          data-testid={`button-delete-${position.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {positions.map((position) => {
+                  const comparison = comparisonData?.comparison.find(c => c.ticker === position.symbol);
+                  const marketValue = Number(position.quantity) * Number(position.currentPrice);
+                  
+                  return (
+                    <TableRow key={position.id} data-testid={`row-position-${position.id}`}>
+                      <TableCell data-testid={`text-symbol-${position.id}`}>
+                        <div className="font-medium">{position.symbol}</div>
+                        {comparison && (
+                          <div className="text-xs text-muted-foreground truncate max-w-[120px]">{comparison.name}</div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right" data-testid={`text-quantity-${position.id}`}>
+                        {Number(position.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right" data-testid={`text-current-price-${position.id}`}>
+                        ${Number(position.currentPrice).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium" data-testid={`text-market-value-${position.id}`}>
+                        ${marketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      {comparisonData?.hasTargetAllocations && (
+                        <>
+                          <TableCell className="text-right" data-testid={`text-actual-pct-${position.id}`}>
+                            {comparison ? `${comparison.actualPercentage.toFixed(1)}%` : '-'}
+                          </TableCell>
+                          <TableCell className="text-right" data-testid={`text-target-pct-${position.id}`}>
+                            {comparison && comparison.targetPercentage > 0 ? `${comparison.targetPercentage.toFixed(1)}%` : '-'}
+                          </TableCell>
+                          <TableCell 
+                            className={`text-right font-medium ${
+                              comparison && comparison.variance > 0 ? 'text-green-600 dark:text-green-400' : 
+                              comparison && comparison.variance < 0 ? 'text-red-600 dark:text-red-400' : ''
+                            }`}
+                            data-testid={`text-variance-${position.id}`}
+                          >
+                            {comparison ? (
+                              <>{comparison.variance > 0 ? '+' : ''}{comparison.variance.toFixed(1)}%</>
+                            ) : '-'}
+                          </TableCell>
+                          <TableCell className="text-center" data-testid={`badge-status-${position.id}`}>
+                            {comparison?.status === 'over' && (
+                              <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                <TrendingUp className="h-3 w-3 mr-1" />
+                                Over
+                              </Badge>
+                            )}
+                            {comparison?.status === 'under' && (
+                              <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                <TrendingDown className="h-3 w-3 mr-1" />
+                                Under
+                              </Badge>
+                            )}
+                            {comparison?.status === 'on-target' && (
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                <Minus className="h-3 w-3 mr-1" />
+                                On Target
+                              </Badge>
+                            )}
+                            {comparison?.status === 'unexpected' && (
+                              <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                                No Target
+                              </Badge>
+                            )}
+                            {!comparison && (
+                              <span className="text-muted-foreground text-xs">-</span>
+                            )}
+                          </TableCell>
+                        </>
+                      )}
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(position)}
+                            data-testid={`button-edit-${position.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(position.id)}
+                            data-testid={`button-delete-${position.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
+          )}
+
+          {/* Show positions that are in targets but not held */}
+          {comparisonData?.hasTargetAllocations && (
+            (() => {
+              const missingPositions = comparisonData.comparison.filter(
+                c => c.targetPercentage > 0 && c.actualPercentage === 0
+              );
+              if (missingPositions.length === 0) return null;
+              
+              return (
+                <div className="mt-4 p-3 border border-dashed rounded-lg">
+                  <div className="text-sm font-medium mb-2 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    Missing Positions (In Target but Not Held)
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {missingPositions.map((item) => (
+                      <Badge key={item.ticker} variant="outline" className="text-xs">
+                        {item.ticker}: {item.targetPercentage.toFixed(1)}%
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()
+          )}
+
+          {/* Hint to set up target allocations if none exist */}
+          {!comparisonData?.hasTargetAllocations && positions.length > 0 && (
+            <div className="p-3 bg-muted/50 rounded-lg text-center text-sm text-muted-foreground">
+              Set up target allocations above to see portfolio comparison analysis.
+            </div>
           )}
         </CardContent>
       </Card>
