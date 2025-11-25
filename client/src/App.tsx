@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/useAuth";
 import Dashboard from "@/pages/dashboard";
 import Households from "@/pages/households";
+import ModelPortfolios from "@/pages/model-portfolios";
 import Alerts from "@/pages/alerts";
 import AccountDetails from "@/pages/account-details";
 import Landing from "@/pages/landing";
@@ -25,6 +26,7 @@ function Router() {
         <>
           <Route path="/" component={Dashboard} />
           <Route path="/households" component={Households} />
+          <Route path="/model-portfolios" component={ModelPortfolios} />
           <Route path="/accounts/:accountType/:accountId" component={AccountDetails} />
           <Route path="/alerts" component={Alerts} />
         </>

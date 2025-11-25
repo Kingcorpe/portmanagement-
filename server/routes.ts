@@ -14,6 +14,11 @@ import {
   insertPositionSchema,
   insertAlertSchema,
   insertTradeSchema,
+  insertUniversalHoldingSchema,
+  insertPlannedPortfolioSchema,
+  insertPlannedPortfolioAllocationSchema,
+  insertFreelancePortfolioSchema,
+  insertFreelancePortfolioAllocationSchema,
   updateHouseholdSchema,
   updateIndividualSchema,
   updateCorporationSchema,
@@ -22,6 +27,11 @@ import {
   updateJointAccountSchema,
   updatePositionSchema,
   updateAlertSchema,
+  updateUniversalHoldingSchema,
+  updatePlannedPortfolioSchema,
+  updatePlannedPortfolioAllocationSchema,
+  updateFreelancePortfolioSchema,
+  updateFreelancePortfolioAllocationSchema,
   tradingViewWebhookSchema,
 } from "@shared/schema";
 
@@ -549,6 +559,270 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create trade" });
+    }
+  });
+
+  // Universal Holdings routes
+  app.get('/api/universal-holdings', isAuthenticated, async (req, res) => {
+    try {
+      const holdings = await storage.getAllUniversalHoldings();
+      res.json(holdings);
+    } catch (error) {
+      console.error("Error fetching universal holdings:", error);
+      res.status(500).json({ message: "Failed to fetch universal holdings" });
+    }
+  });
+
+  app.post('/api/universal-holdings', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertUniversalHoldingSchema.parse(req.body);
+      const holding = await storage.createUniversalHolding(parsed);
+      res.json(holding);
+    } catch (error: any) {
+      console.error("Error creating universal holding:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create universal holding" });
+    }
+  });
+
+  app.get('/api/universal-holdings/:id', isAuthenticated, async (req, res) => {
+    try {
+      const holding = await storage.getUniversalHolding(req.params.id);
+      if (!holding) {
+        return res.status(404).json({ message: "Universal holding not found" });
+      }
+      res.json(holding);
+    } catch (error) {
+      console.error("Error fetching universal holding:", error);
+      res.status(500).json({ message: "Failed to fetch universal holding" });
+    }
+  });
+
+  app.patch('/api/universal-holdings/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = updateUniversalHoldingSchema.parse(req.body);
+      const holding = await storage.updateUniversalHolding(req.params.id, parsed);
+      res.json(holding);
+    } catch (error: any) {
+      console.error("Error updating universal holding:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update universal holding" });
+    }
+  });
+
+  app.delete('/api/universal-holdings/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteUniversalHolding(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting universal holding:", error);
+      res.status(500).json({ message: "Failed to delete universal holding" });
+    }
+  });
+
+  // Planned Portfolio routes
+  app.get('/api/planned-portfolios', isAuthenticated, async (req, res) => {
+    try {
+      const portfolios = await storage.getAllPlannedPortfoliosWithAllocations();
+      res.json(portfolios);
+    } catch (error) {
+      console.error("Error fetching planned portfolios:", error);
+      res.status(500).json({ message: "Failed to fetch planned portfolios" });
+    }
+  });
+
+  app.post('/api/planned-portfolios', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertPlannedPortfolioSchema.parse(req.body);
+      const portfolio = await storage.createPlannedPortfolio(parsed);
+      res.json(portfolio);
+    } catch (error: any) {
+      console.error("Error creating planned portfolio:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create planned portfolio" });
+    }
+  });
+
+  app.get('/api/planned-portfolios/:id', isAuthenticated, async (req, res) => {
+    try {
+      const portfolio = await storage.getPlannedPortfolioWithAllocations(req.params.id);
+      if (!portfolio) {
+        return res.status(404).json({ message: "Planned portfolio not found" });
+      }
+      res.json(portfolio);
+    } catch (error) {
+      console.error("Error fetching planned portfolio:", error);
+      res.status(500).json({ message: "Failed to fetch planned portfolio" });
+    }
+  });
+
+  app.patch('/api/planned-portfolios/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = updatePlannedPortfolioSchema.parse(req.body);
+      const portfolio = await storage.updatePlannedPortfolio(req.params.id, parsed);
+      res.json(portfolio);
+    } catch (error: any) {
+      console.error("Error updating planned portfolio:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update planned portfolio" });
+    }
+  });
+
+  app.delete('/api/planned-portfolios/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deletePlannedPortfolio(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting planned portfolio:", error);
+      res.status(500).json({ message: "Failed to delete planned portfolio" });
+    }
+  });
+
+  // Planned Portfolio Allocation routes
+  app.post('/api/planned-portfolio-allocations', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertPlannedPortfolioAllocationSchema.parse(req.body);
+      const allocation = await storage.createPlannedPortfolioAllocation(parsed);
+      res.json(allocation);
+    } catch (error: any) {
+      console.error("Error creating planned portfolio allocation:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create planned portfolio allocation" });
+    }
+  });
+
+  app.patch('/api/planned-portfolio-allocations/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = updatePlannedPortfolioAllocationSchema.parse(req.body);
+      const allocation = await storage.updatePlannedPortfolioAllocation(req.params.id, parsed);
+      res.json(allocation);
+    } catch (error: any) {
+      console.error("Error updating planned portfolio allocation:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update planned portfolio allocation" });
+    }
+  });
+
+  app.delete('/api/planned-portfolio-allocations/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deletePlannedPortfolioAllocation(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting planned portfolio allocation:", error);
+      res.status(500).json({ message: "Failed to delete planned portfolio allocation" });
+    }
+  });
+
+  // Freelance Portfolio routes
+  app.get('/api/freelance-portfolios', isAuthenticated, async (req, res) => {
+    try {
+      const portfolios = await storage.getAllFreelancePortfoliosWithAllocations();
+      res.json(portfolios);
+    } catch (error) {
+      console.error("Error fetching freelance portfolios:", error);
+      res.status(500).json({ message: "Failed to fetch freelance portfolios" });
+    }
+  });
+
+  app.post('/api/freelance-portfolios', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertFreelancePortfolioSchema.parse(req.body);
+      const portfolio = await storage.createFreelancePortfolio(parsed);
+      res.json(portfolio);
+    } catch (error: any) {
+      console.error("Error creating freelance portfolio:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create freelance portfolio" });
+    }
+  });
+
+  app.get('/api/freelance-portfolios/:id', isAuthenticated, async (req, res) => {
+    try {
+      const portfolio = await storage.getFreelancePortfolioWithAllocations(req.params.id);
+      if (!portfolio) {
+        return res.status(404).json({ message: "Freelance portfolio not found" });
+      }
+      res.json(portfolio);
+    } catch (error) {
+      console.error("Error fetching freelance portfolio:", error);
+      res.status(500).json({ message: "Failed to fetch freelance portfolio" });
+    }
+  });
+
+  app.patch('/api/freelance-portfolios/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = updateFreelancePortfolioSchema.parse(req.body);
+      const portfolio = await storage.updateFreelancePortfolio(req.params.id, parsed);
+      res.json(portfolio);
+    } catch (error: any) {
+      console.error("Error updating freelance portfolio:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update freelance portfolio" });
+    }
+  });
+
+  app.delete('/api/freelance-portfolios/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteFreelancePortfolio(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting freelance portfolio:", error);
+      res.status(500).json({ message: "Failed to delete freelance portfolio" });
+    }
+  });
+
+  // Freelance Portfolio Allocation routes
+  app.post('/api/freelance-portfolio-allocations', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = insertFreelancePortfolioAllocationSchema.parse(req.body);
+      const allocation = await storage.createFreelancePortfolioAllocation(parsed);
+      res.json(allocation);
+    } catch (error: any) {
+      console.error("Error creating freelance portfolio allocation:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create freelance portfolio allocation" });
+    }
+  });
+
+  app.patch('/api/freelance-portfolio-allocations/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = updateFreelancePortfolioAllocationSchema.parse(req.body);
+      const allocation = await storage.updateFreelancePortfolioAllocation(req.params.id, parsed);
+      res.json(allocation);
+    } catch (error: any) {
+      console.error("Error updating freelance portfolio allocation:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update freelance portfolio allocation" });
+    }
+  });
+
+  app.delete('/api/freelance-portfolio-allocations/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteFreelancePortfolioAllocation(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting freelance portfolio allocation:", error);
+      res.status(500).json({ message: "Failed to delete freelance portfolio allocation" });
     }
   });
 

@@ -11,6 +11,11 @@ import {
   positions,
   alerts,
   trades,
+  universalHoldings,
+  plannedPortfolios,
+  plannedPortfolioAllocations,
+  freelancePortfolios,
+  freelancePortfolioAllocations,
   type User,
   type UpsertUser,
   type Household,
@@ -34,6 +39,18 @@ import {
   type Trade,
   type InsertTrade,
   type HouseholdWithDetails,
+  type UniversalHolding,
+  type InsertUniversalHolding,
+  type PlannedPortfolio,
+  type InsertPlannedPortfolio,
+  type PlannedPortfolioAllocation,
+  type InsertPlannedPortfolioAllocation,
+  type PlannedPortfolioWithAllocations,
+  type FreelancePortfolio,
+  type InsertFreelancePortfolio,
+  type FreelancePortfolioAllocation,
+  type InsertFreelancePortfolioAllocation,
+  type FreelancePortfolioWithAllocations,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, inArray } from "drizzle-orm";
@@ -116,6 +133,44 @@ export interface IStorage {
   createTrade(trade: InsertTrade): Promise<Trade>;
   getTrade(id: string): Promise<Trade | undefined>;
   getAllTrades(): Promise<Trade[]>;
+
+  // Universal Holdings operations
+  createUniversalHolding(holding: InsertUniversalHolding): Promise<UniversalHolding>;
+  getUniversalHolding(id: string): Promise<UniversalHolding | undefined>;
+  getUniversalHoldingByTicker(ticker: string): Promise<UniversalHolding | undefined>;
+  getAllUniversalHoldings(): Promise<UniversalHolding[]>;
+  updateUniversalHolding(id: string, holding: Partial<InsertUniversalHolding>): Promise<UniversalHolding>;
+  deleteUniversalHolding(id: string): Promise<void>;
+
+  // Planned Portfolio operations
+  createPlannedPortfolio(portfolio: InsertPlannedPortfolio): Promise<PlannedPortfolio>;
+  getPlannedPortfolio(id: string): Promise<PlannedPortfolio | undefined>;
+  getPlannedPortfolioWithAllocations(id: string): Promise<PlannedPortfolioWithAllocations | null>;
+  getAllPlannedPortfolios(): Promise<PlannedPortfolio[]>;
+  getAllPlannedPortfoliosWithAllocations(): Promise<PlannedPortfolioWithAllocations[]>;
+  updatePlannedPortfolio(id: string, portfolio: Partial<InsertPlannedPortfolio>): Promise<PlannedPortfolio>;
+  deletePlannedPortfolio(id: string): Promise<void>;
+
+  // Planned Portfolio Allocation operations
+  createPlannedPortfolioAllocation(allocation: InsertPlannedPortfolioAllocation): Promise<PlannedPortfolioAllocation>;
+  updatePlannedPortfolioAllocation(id: string, allocation: Partial<InsertPlannedPortfolioAllocation>): Promise<PlannedPortfolioAllocation>;
+  deletePlannedPortfolioAllocation(id: string): Promise<void>;
+  getPlannedPortfolioAllocations(portfolioId: string): Promise<PlannedPortfolioAllocation[]>;
+
+  // Freelance Portfolio operations
+  createFreelancePortfolio(portfolio: InsertFreelancePortfolio): Promise<FreelancePortfolio>;
+  getFreelancePortfolio(id: string): Promise<FreelancePortfolio | undefined>;
+  getFreelancePortfolioWithAllocations(id: string): Promise<FreelancePortfolioWithAllocations | null>;
+  getAllFreelancePortfolios(): Promise<FreelancePortfolio[]>;
+  getAllFreelancePortfoliosWithAllocations(): Promise<FreelancePortfolioWithAllocations[]>;
+  updateFreelancePortfolio(id: string, portfolio: Partial<InsertFreelancePortfolio>): Promise<FreelancePortfolio>;
+  deleteFreelancePortfolio(id: string): Promise<void>;
+
+  // Freelance Portfolio Allocation operations
+  createFreelancePortfolioAllocation(allocation: InsertFreelancePortfolioAllocation): Promise<FreelancePortfolioAllocation>;
+  updateFreelancePortfolioAllocation(id: string, allocation: Partial<InsertFreelancePortfolioAllocation>): Promise<FreelancePortfolioAllocation>;
+  deleteFreelancePortfolioAllocation(id: string): Promise<void>;
+  getFreelancePortfolioAllocations(portfolioId: string): Promise<FreelancePortfolioAllocation[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -665,6 +720,237 @@ export class DatabaseStorage implements IStorage {
 
   async getAllTrades(): Promise<Trade[]> {
     return await db.select().from(trades).orderBy(desc(trades.executedAt));
+  }
+
+  // Universal Holdings operations
+  async createUniversalHolding(holdingData: InsertUniversalHolding): Promise<UniversalHolding> {
+    const [holding] = await db.insert(universalHoldings).values(holdingData).returning();
+    return holding;
+  }
+
+  async getUniversalHolding(id: string): Promise<UniversalHolding | undefined> {
+    const [holding] = await db.select().from(universalHoldings).where(eq(universalHoldings.id, id));
+    return holding;
+  }
+
+  async getUniversalHoldingByTicker(ticker: string): Promise<UniversalHolding | undefined> {
+    const [holding] = await db.select().from(universalHoldings).where(eq(universalHoldings.ticker, ticker));
+    return holding;
+  }
+
+  async getAllUniversalHoldings(): Promise<UniversalHolding[]> {
+    return await db.select().from(universalHoldings).orderBy(universalHoldings.ticker);
+  }
+
+  async updateUniversalHolding(id: string, holdingData: Partial<InsertUniversalHolding>): Promise<UniversalHolding> {
+    const [holding] = await db
+      .update(universalHoldings)
+      .set({ ...holdingData, updatedAt: new Date() })
+      .where(eq(universalHoldings.id, id))
+      .returning();
+    return holding;
+  }
+
+  async deleteUniversalHolding(id: string): Promise<void> {
+    await db.delete(universalHoldings).where(eq(universalHoldings.id, id));
+  }
+
+  // Planned Portfolio operations
+  async createPlannedPortfolio(portfolioData: InsertPlannedPortfolio): Promise<PlannedPortfolio> {
+    const [portfolio] = await db.insert(plannedPortfolios).values(portfolioData).returning();
+    return portfolio;
+  }
+
+  async getPlannedPortfolio(id: string): Promise<PlannedPortfolio | undefined> {
+    const [portfolio] = await db.select().from(plannedPortfolios).where(eq(plannedPortfolios.id, id));
+    return portfolio;
+  }
+
+  async getPlannedPortfolioWithAllocations(id: string): Promise<PlannedPortfolioWithAllocations | null> {
+    const portfolio = await this.getPlannedPortfolio(id);
+    if (!portfolio) return null;
+
+    const allocations = await db
+      .select()
+      .from(plannedPortfolioAllocations)
+      .where(eq(plannedPortfolioAllocations.plannedPortfolioId, id));
+
+    const allocationsWithHoldings = await Promise.all(
+      allocations.map(async (allocation) => {
+        const holding = await this.getUniversalHolding(allocation.universalHoldingId);
+        return {
+          ...allocation,
+          holding: holding!,
+        };
+      })
+    );
+
+    return {
+      ...portfolio,
+      allocations: allocationsWithHoldings,
+    };
+  }
+
+  async getAllPlannedPortfolios(): Promise<PlannedPortfolio[]> {
+    return await db.select().from(plannedPortfolios).orderBy(plannedPortfolios.name);
+  }
+
+  async getAllPlannedPortfoliosWithAllocations(): Promise<PlannedPortfolioWithAllocations[]> {
+    const portfolios = await this.getAllPlannedPortfolios();
+    
+    const allAllocations = await db.select().from(plannedPortfolioAllocations);
+    const allHoldings = await this.getAllUniversalHoldings();
+    
+    const holdingsMap = new Map(allHoldings.map(h => [h.id, h]));
+
+    return portfolios.map(portfolio => {
+      const allocations = allAllocations
+        .filter(a => a.plannedPortfolioId === portfolio.id)
+        .map(allocation => ({
+          ...allocation,
+          holding: holdingsMap.get(allocation.universalHoldingId)!,
+        }));
+
+      return {
+        ...portfolio,
+        allocations,
+      };
+    });
+  }
+
+  async updatePlannedPortfolio(id: string, portfolioData: Partial<InsertPlannedPortfolio>): Promise<PlannedPortfolio> {
+    const [portfolio] = await db
+      .update(plannedPortfolios)
+      .set({ ...portfolioData, updatedAt: new Date() })
+      .where(eq(plannedPortfolios.id, id))
+      .returning();
+    return portfolio;
+  }
+
+  async deletePlannedPortfolio(id: string): Promise<void> {
+    await db.delete(plannedPortfolios).where(eq(plannedPortfolios.id, id));
+  }
+
+  // Planned Portfolio Allocation operations
+  async createPlannedPortfolioAllocation(allocationData: InsertPlannedPortfolioAllocation): Promise<PlannedPortfolioAllocation> {
+    const [allocation] = await db.insert(plannedPortfolioAllocations).values(allocationData).returning();
+    return allocation;
+  }
+
+  async updatePlannedPortfolioAllocation(id: string, allocationData: Partial<InsertPlannedPortfolioAllocation>): Promise<PlannedPortfolioAllocation> {
+    const [allocation] = await db
+      .update(plannedPortfolioAllocations)
+      .set(allocationData)
+      .where(eq(plannedPortfolioAllocations.id, id))
+      .returning();
+    return allocation;
+  }
+
+  async deletePlannedPortfolioAllocation(id: string): Promise<void> {
+    await db.delete(plannedPortfolioAllocations).where(eq(plannedPortfolioAllocations.id, id));
+  }
+
+  async getPlannedPortfolioAllocations(portfolioId: string): Promise<PlannedPortfolioAllocation[]> {
+    return await db.select().from(plannedPortfolioAllocations).where(eq(plannedPortfolioAllocations.plannedPortfolioId, portfolioId));
+  }
+
+  // Freelance Portfolio operations
+  async createFreelancePortfolio(portfolioData: InsertFreelancePortfolio): Promise<FreelancePortfolio> {
+    const [portfolio] = await db.insert(freelancePortfolios).values(portfolioData).returning();
+    return portfolio;
+  }
+
+  async getFreelancePortfolio(id: string): Promise<FreelancePortfolio | undefined> {
+    const [portfolio] = await db.select().from(freelancePortfolios).where(eq(freelancePortfolios.id, id));
+    return portfolio;
+  }
+
+  async getFreelancePortfolioWithAllocations(id: string): Promise<FreelancePortfolioWithAllocations | null> {
+    const portfolio = await this.getFreelancePortfolio(id);
+    if (!portfolio) return null;
+
+    const allocations = await db
+      .select()
+      .from(freelancePortfolioAllocations)
+      .where(eq(freelancePortfolioAllocations.freelancePortfolioId, id));
+
+    const allocationsWithHoldings = await Promise.all(
+      allocations.map(async (allocation) => {
+        const holding = await this.getUniversalHolding(allocation.universalHoldingId);
+        return {
+          ...allocation,
+          holding: holding!,
+        };
+      })
+    );
+
+    return {
+      ...portfolio,
+      allocations: allocationsWithHoldings,
+    };
+  }
+
+  async getAllFreelancePortfolios(): Promise<FreelancePortfolio[]> {
+    return await db.select().from(freelancePortfolios).orderBy(freelancePortfolios.name);
+  }
+
+  async getAllFreelancePortfoliosWithAllocations(): Promise<FreelancePortfolioWithAllocations[]> {
+    const portfolios = await this.getAllFreelancePortfolios();
+    
+    const allAllocations = await db.select().from(freelancePortfolioAllocations);
+    const allHoldings = await this.getAllUniversalHoldings();
+    
+    const holdingsMap = new Map(allHoldings.map(h => [h.id, h]));
+
+    return portfolios.map(portfolio => {
+      const allocations = allAllocations
+        .filter(a => a.freelancePortfolioId === portfolio.id)
+        .map(allocation => ({
+          ...allocation,
+          holding: holdingsMap.get(allocation.universalHoldingId)!,
+        }));
+
+      return {
+        ...portfolio,
+        allocations,
+      };
+    });
+  }
+
+  async updateFreelancePortfolio(id: string, portfolioData: Partial<InsertFreelancePortfolio>): Promise<FreelancePortfolio> {
+    const [portfolio] = await db
+      .update(freelancePortfolios)
+      .set({ ...portfolioData, updatedAt: new Date() })
+      .where(eq(freelancePortfolios.id, id))
+      .returning();
+    return portfolio;
+  }
+
+  async deleteFreelancePortfolio(id: string): Promise<void> {
+    await db.delete(freelancePortfolios).where(eq(freelancePortfolios.id, id));
+  }
+
+  // Freelance Portfolio Allocation operations
+  async createFreelancePortfolioAllocation(allocationData: InsertFreelancePortfolioAllocation): Promise<FreelancePortfolioAllocation> {
+    const [allocation] = await db.insert(freelancePortfolioAllocations).values(allocationData).returning();
+    return allocation;
+  }
+
+  async updateFreelancePortfolioAllocation(id: string, allocationData: Partial<InsertFreelancePortfolioAllocation>): Promise<FreelancePortfolioAllocation> {
+    const [allocation] = await db
+      .update(freelancePortfolioAllocations)
+      .set(allocationData)
+      .where(eq(freelancePortfolioAllocations.id, id))
+      .returning();
+    return allocation;
+  }
+
+  async deleteFreelancePortfolioAllocation(id: string): Promise<void> {
+    await db.delete(freelancePortfolioAllocations).where(eq(freelancePortfolioAllocations.id, id));
+  }
+
+  async getFreelancePortfolioAllocations(portfolioId: string): Promise<FreelancePortfolioAllocation[]> {
+    return await db.select().from(freelancePortfolioAllocations).where(eq(freelancePortfolioAllocations.freelancePortfolioId, portfolioId));
   }
 }
 

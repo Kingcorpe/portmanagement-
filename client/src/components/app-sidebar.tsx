@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, TrendingUp, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Bell, TrendingUp, Settings, LogOut, Briefcase } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -22,6 +22,11 @@ const menuItems = [
     title: "Households",
     url: "/households",
     icon: Users,
+  },
+  {
+    title: "Model Portfolios",
+    url: "/model-portfolios",
+    icon: Briefcase,
   },
   {
     title: "Alerts",

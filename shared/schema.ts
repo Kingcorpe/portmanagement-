@@ -218,6 +218,98 @@ export const positionsRelations = relations(positions, ({ one }) => ({
   }),
 }));
 
+// Risk level enum for Universal Holdings
+export const riskLevelEnum = pgEnum("risk_level", ["low", "medium", "high"]);
+
+// Dividend payout frequency enum
+export const dividendPayoutEnum = pgEnum("dividend_payout", ["monthly", "quarterly", "semi_annual", "annual", "none"]);
+
+// Universal Holdings table (ETF library)
+export const universalHoldings = pgTable("universal_holdings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticker: varchar("ticker", { length: 20 }).notNull().unique(),
+  name: text("name").notNull(),
+  riskLevel: riskLevelEnum("risk_level").notNull(),
+  dividendRate: decimal("dividend_rate", { precision: 8, scale: 4 }).default('0'), // as percentage
+  dividendPayout: dividendPayoutEnum("dividend_payout").notNull().default("none"),
+  price: decimal("price", { precision: 15, scale: 2 }).notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Planned Portfolios table (reusable templates)
+export const plannedPortfolios = pgTable("planned_portfolios", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const plannedPortfoliosRelations = relations(plannedPortfolios, ({ many }) => ({
+  allocations: many(plannedPortfolioAllocations),
+}));
+
+// Planned Portfolio Allocations (target percentages for each holding)
+export const plannedPortfolioAllocations = pgTable("planned_portfolio_allocations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  plannedPortfolioId: varchar("planned_portfolio_id").notNull().references(() => plannedPortfolios.id, { onDelete: 'cascade' }),
+  universalHoldingId: varchar("universal_holding_id").notNull().references(() => universalHoldings.id, { onDelete: 'cascade' }),
+  targetPercentage: decimal("target_percentage", { precision: 5, scale: 2 }).notNull(), // e.g., 25.00 for 25%
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const plannedPortfolioAllocationsRelations = relations(plannedPortfolioAllocations, ({ one }) => ({
+  portfolio: one(plannedPortfolios, {
+    fields: [plannedPortfolioAllocations.plannedPortfolioId],
+    references: [plannedPortfolios.id],
+  }),
+  holding: one(universalHoldings, {
+    fields: [plannedPortfolioAllocations.universalHoldingId],
+    references: [universalHoldings.id],
+  }),
+}));
+
+// Freelance Portfolios table (custom one-off portfolios)
+export const freelancePortfolios = pgTable("freelance_portfolios", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const freelancePortfoliosRelations = relations(freelancePortfolios, ({ many }) => ({
+  allocations: many(freelancePortfolioAllocations),
+}));
+
+// Freelance Portfolio Allocations
+export const freelancePortfolioAllocations = pgTable("freelance_portfolio_allocations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  freelancePortfolioId: varchar("freelance_portfolio_id").notNull().references(() => freelancePortfolios.id, { onDelete: 'cascade' }),
+  universalHoldingId: varchar("universal_holding_id").notNull().references(() => universalHoldings.id, { onDelete: 'cascade' }),
+  targetPercentage: decimal("target_percentage", { precision: 5, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const freelancePortfolioAllocationsRelations = relations(freelancePortfolioAllocations, ({ one }) => ({
+  portfolio: one(freelancePortfolios, {
+    fields: [freelancePortfolioAllocations.freelancePortfolioId],
+    references: [freelancePortfolios.id],
+  }),
+  holding: one(universalHoldings, {
+    fields: [freelancePortfolioAllocations.universalHoldingId],
+    references: [universalHoldings.id],
+  }),
+}));
+
+// Universal Holdings relations
+export const universalHoldingsRelations = relations(universalHoldings, ({ many }) => ({
+  plannedAllocations: many(plannedPortfolioAllocations),
+  freelanceAllocations: many(freelancePortfolioAllocations),
+}));
+
 // Alert signal enum
 export const alertSignalEnum = pgEnum("alert_signal", ["BUY", "SELL"]);
 
@@ -360,6 +452,50 @@ export const insertTradeSchema = createInsertSchema(trades).omit({
   price: z.coerce.number().positive().transform(val => val.toString()),
 });
 
+// Universal Holdings insert schema
+export const insertUniversalHoldingSchema = createInsertSchema(universalHoldings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  dividendRate: true,
+  price: true,
+}).extend({
+  dividendRate: z.coerce.number().nonnegative().default(0).transform(val => val.toString()),
+  price: z.coerce.number().positive().transform(val => val.toString()),
+});
+
+// Planned Portfolio insert schema
+export const insertPlannedPortfolioSchema = createInsertSchema(plannedPortfolios).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Planned Portfolio Allocation insert schema
+export const insertPlannedPortfolioAllocationSchema = createInsertSchema(plannedPortfolioAllocations).omit({
+  id: true,
+  createdAt: true,
+  targetPercentage: true,
+}).extend({
+  targetPercentage: z.coerce.number().positive().max(100).transform(val => val.toString()),
+});
+
+// Freelance Portfolio insert schema
+export const insertFreelancePortfolioSchema = createInsertSchema(freelancePortfolios).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Freelance Portfolio Allocation insert schema
+export const insertFreelancePortfolioAllocationSchema = createInsertSchema(freelancePortfolioAllocations).omit({
+  id: true,
+  createdAt: true,
+  targetPercentage: true,
+}).extend({
+  targetPercentage: z.coerce.number().positive().max(100).transform(val => val.toString()),
+});
+
 // Update schemas (partial versions of insert schemas)
 export const updateHouseholdSchema = insertHouseholdSchema.partial();
 export const updateIndividualSchema = insertIndividualSchema.partial();
@@ -369,6 +505,11 @@ export const updateCorporateAccountSchema = insertCorporateAccountSchema.partial
 export const updateJointAccountSchema = insertJointAccountSchema.partial();
 export const updatePositionSchema = insertPositionSchema.partial();
 export const updateAlertSchema = insertAlertSchema.partial();
+export const updateUniversalHoldingSchema = insertUniversalHoldingSchema.partial();
+export const updatePlannedPortfolioSchema = insertPlannedPortfolioSchema.partial();
+export const updatePlannedPortfolioAllocationSchema = insertPlannedPortfolioAllocationSchema.partial();
+export const updateFreelancePortfolioSchema = insertFreelancePortfolioSchema.partial();
+export const updateFreelancePortfolioAllocationSchema = insertFreelancePortfolioAllocationSchema.partial();
 
 // Webhook schema with validation
 export const tradingViewWebhookSchema = z.object({
@@ -408,6 +549,30 @@ export type Alert = typeof alerts.$inferSelect;
 
 export type InsertTrade = z.infer<typeof insertTradeSchema>;
 export type Trade = typeof trades.$inferSelect;
+
+export type InsertUniversalHolding = z.infer<typeof insertUniversalHoldingSchema>;
+export type UniversalHolding = typeof universalHoldings.$inferSelect;
+
+export type InsertPlannedPortfolio = z.infer<typeof insertPlannedPortfolioSchema>;
+export type PlannedPortfolio = typeof plannedPortfolios.$inferSelect;
+
+export type InsertPlannedPortfolioAllocation = z.infer<typeof insertPlannedPortfolioAllocationSchema>;
+export type PlannedPortfolioAllocation = typeof plannedPortfolioAllocations.$inferSelect;
+
+export type InsertFreelancePortfolio = z.infer<typeof insertFreelancePortfolioSchema>;
+export type FreelancePortfolio = typeof freelancePortfolios.$inferSelect;
+
+export type InsertFreelancePortfolioAllocation = z.infer<typeof insertFreelancePortfolioAllocationSchema>;
+export type FreelancePortfolioAllocation = typeof freelancePortfolioAllocations.$inferSelect;
+
+// Portfolio with allocations types
+export type PlannedPortfolioWithAllocations = PlannedPortfolio & {
+  allocations: (PlannedPortfolioAllocation & { holding: UniversalHolding })[];
+};
+
+export type FreelancePortfolioWithAllocations = FreelancePortfolio & {
+  allocations: (FreelancePortfolioAllocation & { holding: UniversalHolding })[];
+};
 
 // Nested household detail types
 export type IndividualOwnerInfo = {
