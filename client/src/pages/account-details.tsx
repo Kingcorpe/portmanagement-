@@ -1048,6 +1048,9 @@ export default function AccountDetails() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {comparisonData?.hasTargetAllocations && (
+                    <TableHead className="text-center">Status</TableHead>
+                  )}
                   <TableHead>Symbol</TableHead>
                   <TableHead className="text-right">Qty</TableHead>
                   <TableHead className="text-right">Price</TableHead>
@@ -1057,7 +1060,6 @@ export default function AccountDetails() {
                       <TableHead className="text-right">Actual %</TableHead>
                       <TableHead className="text-right">Target %</TableHead>
                       <TableHead className="text-right">Variance</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
                     </>
                   )}
                   <TableHead className="text-right">Actions</TableHead>
@@ -1070,6 +1072,37 @@ export default function AccountDetails() {
                   
                   return (
                     <TableRow key={position.id} data-testid={`row-position-${position.id}`}>
+                      {comparisonData?.hasTargetAllocations && (
+                        <TableCell className="text-center" data-testid={`badge-status-${position.id}`}>
+                          {comparison?.status === 'over' && (
+                            <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              <TrendingUp className="h-3 w-3 mr-1" />
+                              Over
+                            </Badge>
+                          )}
+                          {comparison?.status === 'under' && (
+                            <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                              <TrendingDown className="h-3 w-3 mr-1" />
+                              Under
+                            </Badge>
+                          )}
+                          {comparison?.status === 'on-target' && (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                              <Minus className="h-3 w-3 mr-1" />
+                              On Target
+                            </Badge>
+                          )}
+                          {comparison?.status === 'unexpected' && (
+                            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              No Target
+                            </Badge>
+                          )}
+                          {!comparison && (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell data-testid={`text-symbol-${position.id}`}>
                         <div className="font-medium">{position.symbol}</div>
                         {comparison && (
@@ -1103,35 +1136,6 @@ export default function AccountDetails() {
                             {comparison ? (
                               <>{comparison.variance > 0 ? '+' : ''}{comparison.variance.toFixed(1)}%</>
                             ) : '-'}
-                          </TableCell>
-                          <TableCell className="text-center" data-testid={`badge-status-${position.id}`}>
-                            {comparison?.status === 'over' && (
-                              <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                <TrendingUp className="h-3 w-3 mr-1" />
-                                Over
-                              </Badge>
-                            )}
-                            {comparison?.status === 'under' && (
-                              <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                <TrendingDown className="h-3 w-3 mr-1" />
-                                Under
-                              </Badge>
-                            )}
-                            {comparison?.status === 'on-target' && (
-                              <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                <Minus className="h-3 w-3 mr-1" />
-                                On Target
-                              </Badge>
-                            )}
-                            {comparison?.status === 'unexpected' && (
-                              <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                                <AlertTriangle className="h-3 w-3 mr-1" />
-                                No Target
-                              </Badge>
-                            )}
-                            {!comparison && (
-                              <span className="text-muted-foreground text-xs">-</span>
-                            )}
                           </TableCell>
                         </>
                       )}
