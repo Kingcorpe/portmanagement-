@@ -1393,9 +1393,17 @@ export default function AccountDetails() {
                       
                       {/* Variance, $ Change, Shares to Trade, Status (only when target allocations exist) */}
                       {comparisonData?.hasTargetAllocations && (() => {
-                        const changeNeeded = comparison ? comparison.targetValue - comparison.actualValue : 0;
                         const currentPrice = Number(position.currentPrice);
-                        const sharesToTrade = currentPrice > 0 ? changeNeeded / currentPrice : 0;
+                        const quantity = Number(position.quantity);
+                        
+                        // If no target or target is 0%, position should be liquidated (sell all)
+                        const hasTarget = comparison && comparison.targetPercentage > 0;
+                        const changeNeeded = hasTarget 
+                          ? comparison.targetValue - comparison.actualValue 
+                          : -marketValue; // Sell entire position value
+                        const sharesToTrade = hasTarget
+                          ? (currentPrice > 0 ? changeNeeded / currentPrice : 0)
+                          : -quantity; // Sell all shares
                         
                         return (
                           <>
@@ -1412,7 +1420,7 @@ export default function AccountDetails() {
                               ) : '-'}
                             </TableCell>
                             
-                            {/* $ Change */}
+                            {/* $ Change - show liquidation value for positions with no target */}
                             <TableCell 
                               className={`text-right font-medium ${
                                 changeNeeded > 0 ? 'text-green-600 dark:text-green-400' : 
@@ -1420,15 +1428,11 @@ export default function AccountDetails() {
                               }`}
                               data-testid={`text-change-needed-${position.id}`}
                             >
-                              {comparison && comparison.targetPercentage > 0 ? (
-                                <>
-                                  {changeNeeded > 0 ? '+' : ''}
-                                  ${changeNeeded.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                                </>
-                              ) : '-'}
+                              {changeNeeded > 0 ? '+' : ''}
+                              ${changeNeeded.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                             </TableCell>
                             
-                            {/* Shares to Trade */}
+                            {/* Shares to Trade - show full liquidation for positions with no target */}
                             <TableCell 
                               className={`text-right font-medium ${
                                 sharesToTrade > 0 ? 'text-green-600 dark:text-green-400' : 
@@ -1436,12 +1440,10 @@ export default function AccountDetails() {
                               }`}
                               data-testid={`text-shares-to-trade-${position.id}`}
                             >
-                              {comparison && comparison.targetPercentage > 0 ? (
-                                <div className="font-semibold">
-                                  {sharesToTrade > 0 ? 'Buy ' : sharesToTrade < 0 ? 'Sell ' : ''}
-                                  {Math.abs(sharesToTrade).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                                </div>
-                              ) : '-'}
+                              <div className="font-semibold">
+                                {sharesToTrade > 0 ? 'Buy ' : sharesToTrade < 0 ? 'Sell ' : ''}
+                                {Math.abs(sharesToTrade).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                              </div>
                             </TableCell>
                             
                             {/* Status */}
