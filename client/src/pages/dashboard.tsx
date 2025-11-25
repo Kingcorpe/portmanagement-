@@ -4,12 +4,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { MetricCard } from "@/components/metric-card";
-import { PortfolioChart } from "@/components/portfolio-chart";
 import { AlertCard, Alert } from "@/components/alert-card";
 import { PositionsTable, Position } from "@/components/positions-table";
 import { Button } from "@/components/ui/button";
 import { Users, Bell, Upload, UserPlus, FileText, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "wouter";
 import type { Household, Alert as AlertType } from "@shared/schema";
 
 export default function Dashboard() {
@@ -60,15 +60,6 @@ export default function Dashboard() {
   // Calculate metrics from real data
   const totalHouseholds = households?.length || 0;
   const pendingAlerts = alerts.filter(a => a.status === "pending").length;
-  
-  const chartData = [
-    { date: "Jan", value: 8500000 },
-    { date: "Feb", value: 9200000 },
-    { date: "Mar", value: 9800000 },
-    { date: "Apr", value: 10500000 },
-    { date: "May", value: 11200000 },
-    { date: "Jun", value: 12400000 },
-  ];
 
   const positions: Position[] = [];
 
@@ -138,10 +129,12 @@ export default function Dashboard() {
               <Upload className="h-4 w-4" />
               <span>Import Holdings</span>
             </Button>
-            <Button variant="outline" className="justify-start gap-2 h-auto py-3" data-testid="button-add-household">
-              <UserPlus className="h-4 w-4" />
-              <span>Add Household</span>
-            </Button>
+            <Link href="/households">
+              <Button variant="outline" className="justify-start gap-2 h-auto py-3 w-full" data-testid="button-add-household">
+                <UserPlus className="h-4 w-4" />
+                <span>Add Household</span>
+              </Button>
+            </Link>
             <Button variant="outline" className="justify-start gap-2 h-auto py-3" data-testid="button-record-trade">
               <FileText className="h-4 w-4" />
               <span>Record Trade</span>
@@ -154,29 +147,25 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <PortfolioChart data={chartData} />
-        
-        <Card data-testid="card-recent-alerts">
-          <CardHeader>
-            <CardTitle>Recent Alerts</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {recentAlerts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No pending alerts</p>
-            ) : (
-              recentAlerts.map(alert => (
-                <AlertCard
-                  key={alert.id}
-                  alert={alert}
-                  onExecute={handleExecuteAlert}
-                  onDismiss={handleDismissAlert}
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <Card data-testid="card-recent-alerts">
+        <CardHeader>
+          <CardTitle>Recent Alerts</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {recentAlerts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No pending alerts</p>
+          ) : (
+            recentAlerts.map(alert => (
+              <AlertCard
+                key={alert.id}
+                alert={alert}
+                onExecute={handleExecuteAlert}
+                onDismiss={handleDismissAlert}
+              />
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       {positions.length > 0 && (
         <PositionsTable positions={positions} />
