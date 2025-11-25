@@ -1021,28 +1021,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Copy allocations from a model portfolio to an account
+  // Copy allocations from a model portfolio (planned or freelance) to an account
   app.post('/api/accounts/:accountType/:accountId/copy-from-portfolio/:portfolioId', isAuthenticated, async (req, res) => {
     try {
       const { accountType, accountId, portfolioId } = req.params;
+      const { portfolioType } = req.query; // 'planned' or 'freelance'
       
       // Validate account type
       if (!['individual', 'corporate', 'joint'].includes(accountType)) {
         return res.status(400).json({ message: "Invalid account type" });
       }
       
-      // Get the model portfolio with allocations
-      const modelPortfolio = await storage.getPlannedPortfolioWithAllocations(portfolioId);
-      if (!modelPortfolio) {
-        return res.status(404).json({ message: "Model portfolio not found" });
+      // Get the portfolio with allocations - check both planned and freelance
+      let portfolio: { name: string; allocations: { universalHoldingId: string; targetPercentage: string }[] } | null = null;
+      
+      if (portfolioType === 'freelance') {
+        portfolio = await storage.getFreelancePortfolioWithAllocations(portfolioId);
+      } else {
+        // Default to planned portfolio, or check both if not specified
+        portfolio = await storage.getPlannedPortfolioWithAllocations(portfolioId);
+        if (!portfolio) {
+          portfolio = await storage.getFreelancePortfolioWithAllocations(portfolioId);
+        }
+      }
+      
+      if (!portfolio) {
+        return res.status(404).json({ message: "Portfolio not found" });
       }
       
       // Delete existing allocations for this account
       await storage.deleteAllAccountTargetAllocations(accountType as 'individual' | 'corporate' | 'joint', accountId);
       
-      // Copy allocations from model portfolio
+      // Copy allocations from portfolio
       const createdAllocations = [];
-      for (const allocation of modelPortfolio.allocations || []) {
+      for (const allocation of portfolio.allocations || []) {
         const newAllocation = await storage.createAccountTargetAllocation({
           universalHoldingId: allocation.universalHoldingId,
           targetPercentage: allocation.targetPercentage,
@@ -1055,7 +1067,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         success: true,
-        copiedFrom: modelPortfolio.name,
+        copiedFrom: portfolio.name,
         allocationsCount: createdAllocations.length
       });
     } catch (error) {

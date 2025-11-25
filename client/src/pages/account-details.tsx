@@ -47,6 +47,7 @@ import {
   type Position, 
   type UniversalHolding,
   type PlannedPortfolioWithAllocations,
+  type FreelancePortfolioWithAllocations,
   type AccountTargetAllocationWithHolding,
   type IndividualAccount,
   type CorporateAccount,
@@ -87,6 +88,7 @@ export default function AccountDetails() {
   const [editingAllocation, setEditingAllocation] = useState<AccountTargetAllocationWithHolding | null>(null);
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string>("");
+  const [selectedPortfolioType, setSelectedPortfolioType] = useState<"planned" | "freelance">("planned");
   const [isUploading, setIsUploading] = useState(false);
   const [editingInlineTarget, setEditingInlineTarget] = useState<string | null>(null);
   const [inlineTargetValue, setInlineTargetValue] = useState<string>("");
@@ -192,8 +194,14 @@ export default function AccountDetails() {
   });
 
   // Fetch model portfolios for copy feature
-  const { data: modelPortfolios = [] } = useQuery<PlannedPortfolioWithAllocations[]>({
+  const { data: plannedPortfolios = [] } = useQuery<PlannedPortfolioWithAllocations[]>({
     queryKey: ['/api/planned-portfolios'],
+    enabled: isAuthenticated,
+  });
+
+  // Fetch freelance portfolios for copy feature
+  const { data: freelancePortfolios = [] } = useQuery<FreelancePortfolioWithAllocations[]>({
+    queryKey: ['/api/freelance-portfolios'],
     enabled: isAuthenticated,
   });
 
@@ -389,8 +397,8 @@ export default function AccountDetails() {
   });
 
   const copyFromPortfolioMutation = useMutation({
-    mutationFn: async (portfolioId: string) => {
-      return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/copy-from-portfolio/${portfolioId}`);
+    mutationFn: async ({ portfolioId, portfolioType }: { portfolioId: string; portfolioType: "planned" | "freelance" }) => {
+      return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/copy-from-portfolio/${portfolioId}?portfolioType=${portfolioType}`);
     },
     onSuccess: async (data: any) => {
       await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
@@ -402,6 +410,7 @@ export default function AccountDetails() {
       });
       setIsCopyDialogOpen(false);
       setSelectedPortfolioId("");
+      setSelectedPortfolioType("planned");
     },
     onError: (error: Error) => {
       toast({
@@ -591,7 +600,10 @@ export default function AccountDetails() {
 
   const handleCopyFromPortfolio = () => {
     if (selectedPortfolioId) {
-      copyFromPortfolioMutation.mutate(selectedPortfolioId);
+      copyFromPortfolioMutation.mutate({ 
+        portfolioId: selectedPortfolioId, 
+        portfolioType: selectedPortfolioType 
+      });
     }
   };
 
@@ -890,7 +902,13 @@ export default function AccountDetails() {
               </CardDescription>
             </div>
             <div className="flex gap-2">
-              <Dialog open={isCopyDialogOpen} onOpenChange={setIsCopyDialogOpen}>
+              <Dialog open={isCopyDialogOpen} onOpenChange={(open) => {
+                setIsCopyDialogOpen(open);
+                if (!open) {
+                  setSelectedPortfolioId("");
+                  setSelectedPortfolioType("planned");
+                }
+              }}>
                 <DialogTrigger asChild>
                   <Button variant="outline" data-testid="button-copy-from-portfolio">
                     <Copy className="mr-2 h-4 w-4" />
@@ -905,16 +923,55 @@ export default function AccountDetails() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <Select value={selectedPortfolioId} onValueChange={setSelectedPortfolioId}>
+                    <Select 
+                      value={selectedPortfolioId ? `${selectedPortfolioType}:${selectedPortfolioId}` : ""} 
+                      onValueChange={(value) => {
+                        const [type, id] = value.split(':');
+                        setSelectedPortfolioType(type as "planned" | "freelance");
+                        setSelectedPortfolioId(id);
+                      }}
+                    >
                       <SelectTrigger data-testid="select-model-portfolio">
                         <SelectValue placeholder="Select a model portfolio" />
                       </SelectTrigger>
                       <SelectContent>
-                        {modelPortfolios.map((portfolio) => (
-                          <SelectItem key={portfolio.id} value={portfolio.id} data-testid={`option-portfolio-${portfolio.id}`}>
-                            {portfolio.name}
-                          </SelectItem>
-                        ))}
+                        {plannedPortfolios.length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                              Planned Portfolios
+                            </div>
+                            {plannedPortfolios.map((portfolio) => (
+                              <SelectItem 
+                                key={`planned-${portfolio.id}`} 
+                                value={`planned:${portfolio.id}`} 
+                                data-testid={`option-portfolio-planned-${portfolio.id}`}
+                              >
+                                {portfolio.name}
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                        {freelancePortfolios.length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-1">
+                              Freelance Portfolios
+                            </div>
+                            {freelancePortfolios.map((portfolio) => (
+                              <SelectItem 
+                                key={`freelance-${portfolio.id}`} 
+                                value={`freelance:${portfolio.id}`} 
+                                data-testid={`option-portfolio-freelance-${portfolio.id}`}
+                              >
+                                {portfolio.name}
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                        {plannedPortfolios.length === 0 && freelancePortfolios.length === 0 && (
+                          <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                            No portfolios available. Create one in Model Portfolios.
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                     <div className="flex justify-end gap-2">
