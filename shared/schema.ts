@@ -433,6 +433,10 @@ export const tradesRelations = relations(trades, ({ one }) => ({
 export const insertHouseholdSchema = createInsertSchema(households).pick({
   name: true,
   category: true,
+}).extend({
+  category: z.enum(["evergreen", "anchor", "pulse", "emerging_pulse", "emerging_anchor"], {
+    required_error: "Please select a category",
+  }),
 });
 
 export const insertIndividualSchema = createInsertSchema(individuals).pick({

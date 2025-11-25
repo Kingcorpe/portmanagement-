@@ -534,10 +534,10 @@ export default function Households() {
                   name="category"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category (Optional)</FormLabel>
+                      <FormLabel>Category</FormLabel>
                       <Select 
-                        onValueChange={(value) => field.onChange(value === "none" ? undefined : value)} 
-                        value={field.value || "none"}
+                        onValueChange={field.onChange} 
+                        value={field.value || ""}
                       >
                         <FormControl>
                           <SelectTrigger data-testid="select-household-category">
@@ -545,7 +545,6 @@ export default function Households() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="none">No Category</SelectItem>
                           <SelectItem value="evergreen">{householdCategoryLabels.evergreen}</SelectItem>
                           <SelectItem value="anchor">{householdCategoryLabels.anchor}</SelectItem>
                           <SelectItem value="pulse">{householdCategoryLabels.pulse}</SelectItem>
