@@ -478,14 +478,14 @@ export default function AccountDetails() {
       const header = rows[0].map(h => h.toLowerCase().trim());
       
       // Find column indices based on expected headers
-      const tickerIndex = header.findIndex(h => h.includes('ticker') || h.includes('symbol'));
+      const tickerIndex = header.findIndex(h => h.includes('ticker') || h.includes('symbol') || h === 'security symbol');
       const quantityIndex = header.findIndex(h => h.includes('quantity') || h.includes('qty'));
-      const avgCostIndex = header.findIndex(h => h.includes('average cost') || h.includes('avg cost') || h.includes('cost'));
+      const avgCostIndex = header.findIndex(h => h.includes('average cost') || h.includes('avg cost') || h.includes('book cost') || (h.includes('cost') && !h.includes('book')));
       
       // Look for per-share market price first, then market value (total)
       // "market price" could mean per-share OR total value depending on the source
       let marketPriceIndex = header.findIndex(h => 
-        (h.includes('market price') || h.includes('current price') || h.includes('price/share')) && 
+        (h.includes('market price') || h.includes('current price') || h.includes('price/share') || h === 'price') && 
         !h.includes('value')
       );
       
