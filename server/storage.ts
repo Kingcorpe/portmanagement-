@@ -17,6 +17,7 @@ import {
   freelancePortfolios,
   freelancePortfolioAllocations,
   accountTargetAllocations,
+  libraryDocuments,
   type User,
   type UpsertUser,
   type Household,
@@ -55,6 +56,8 @@ import {
   type AccountTargetAllocation,
   type InsertAccountTargetAllocation,
   type AccountTargetAllocationWithHolding,
+  type LibraryDocument,
+  type InsertLibraryDocument,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, inArray } from "drizzle-orm";
@@ -184,6 +187,14 @@ export interface IStorage {
   getAccountTargetAllocationsByCorporateAccount(accountId: string): Promise<AccountTargetAllocationWithHolding[]>;
   getAccountTargetAllocationsByJointAccount(accountId: string): Promise<AccountTargetAllocationWithHolding[]>;
   deleteAllAccountTargetAllocations(accountType: 'individual' | 'corporate' | 'joint', accountId: string): Promise<void>;
+
+  // Library document operations
+  createLibraryDocument(document: InsertLibraryDocument): Promise<LibraryDocument>;
+  getLibraryDocument(id: string): Promise<LibraryDocument | undefined>;
+  getAllLibraryDocuments(): Promise<LibraryDocument[]>;
+  getLibraryDocumentsByCategory(category: 'reports' | 'strategies'): Promise<LibraryDocument[]>;
+  updateLibraryDocument(id: string, document: Partial<InsertLibraryDocument>): Promise<LibraryDocument>;
+  deleteLibraryDocument(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1032,6 +1043,40 @@ export class DatabaseStorage implements IStorage {
     } else {
       await db.delete(accountTargetAllocations).where(eq(accountTargetAllocations.jointAccountId, accountId));
     }
+  }
+
+  // Library document operations
+  async createLibraryDocument(documentData: InsertLibraryDocument): Promise<LibraryDocument> {
+    const [document] = await db.insert(libraryDocuments).values(documentData).returning();
+    return document;
+  }
+
+  async getLibraryDocument(id: string): Promise<LibraryDocument | undefined> {
+    const [document] = await db.select().from(libraryDocuments).where(eq(libraryDocuments.id, id));
+    return document;
+  }
+
+  async getAllLibraryDocuments(): Promise<LibraryDocument[]> {
+    return await db.select().from(libraryDocuments).orderBy(desc(libraryDocuments.createdAt));
+  }
+
+  async getLibraryDocumentsByCategory(category: 'reports' | 'strategies'): Promise<LibraryDocument[]> {
+    return await db.select().from(libraryDocuments)
+      .where(eq(libraryDocuments.category, category))
+      .orderBy(desc(libraryDocuments.createdAt));
+  }
+
+  async updateLibraryDocument(id: string, documentData: Partial<InsertLibraryDocument>): Promise<LibraryDocument> {
+    const [document] = await db
+      .update(libraryDocuments)
+      .set({ ...documentData, updatedAt: new Date() })
+      .where(eq(libraryDocuments.id, id))
+      .returning();
+    return document;
+  }
+
+  async deleteLibraryDocument(id: string): Promise<void> {
+    await db.delete(libraryDocuments).where(eq(libraryDocuments.id, id));
   }
 }
 
