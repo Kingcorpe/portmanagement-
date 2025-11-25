@@ -1101,6 +1101,7 @@ export default function AccountDetails() {
                   {comparisonData?.hasTargetAllocations && (
                     <>
                       <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-right">Variance</TableHead>
                       <TableHead className="text-right">Actual %</TableHead>
                       <TableHead className="text-right">Target %</TableHead>
                     </>
@@ -1109,9 +1110,6 @@ export default function AccountDetails() {
                   <TableHead className="text-right">Qty</TableHead>
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Market Value</TableHead>
-                  {comparisonData?.hasTargetAllocations && (
-                    <TableHead className="text-right">Variance</TableHead>
-                  )}
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1153,6 +1151,17 @@ export default function AccountDetails() {
                               <span className="text-muted-foreground text-xs">-</span>
                             )}
                           </TableCell>
+                          <TableCell 
+                            className={`text-right font-medium ${
+                              comparison && comparison.variance > 0 ? 'text-green-600 dark:text-green-400' : 
+                              comparison && comparison.variance < 0 ? 'text-red-600 dark:text-red-400' : ''
+                            }`}
+                            data-testid={`text-variance-${position.id}`}
+                          >
+                            {comparison ? (
+                              <>{comparison.variance > 0 ? '+' : ''}{comparison.variance.toFixed(1)}%</>
+                            ) : '-'}
+                          </TableCell>
                           <TableCell className="text-right" data-testid={`text-actual-pct-${position.id}`}>
                             {comparison ? `${comparison.actualPercentage.toFixed(1)}%` : '-'}
                           </TableCell>
@@ -1181,19 +1190,6 @@ export default function AccountDetails() {
                       <TableCell className="text-right font-medium" data-testid={`text-market-value-${position.id}`}>
                         ${marketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
-                      {comparisonData?.hasTargetAllocations && (
-                        <TableCell 
-                          className={`text-right font-medium ${
-                            comparison && comparison.variance > 0 ? 'text-green-600 dark:text-green-400' : 
-                            comparison && comparison.variance < 0 ? 'text-red-600 dark:text-red-400' : ''
-                          }`}
-                          data-testid={`text-variance-${position.id}`}
-                        >
-                          {comparison ? (
-                            <>{comparison.variance > 0 ? '+' : ''}{comparison.variance.toFixed(1)}%</>
-                          ) : '-'}
-                        </TableCell>
-                      )}
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button
