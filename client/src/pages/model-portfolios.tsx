@@ -130,7 +130,7 @@ export default function ModelPortfolios() {
       name: "",
       riskLevel: "medium",
       dividendRate: 0,
-      dividendPayout: "none",
+      dividendPayout: "monthly",
       price: 0,
       description: "",
     },
