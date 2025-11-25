@@ -50,9 +50,9 @@ export default function Households() {
     corporationId: null,
   });
 
-  // State for editing individuals/corporations/households
+  // State for editing individuals/corporations/households/joint-accounts
   const [editingEntity, setEditingEntity] = useState<{
-    type: "individual" | "corporation" | "household";
+    type: "individual" | "corporation" | "household" | "joint-account";
     id: string;
     name: string;
   } | null>(null);
@@ -389,6 +389,28 @@ export default function Households() {
     },
   });
 
+  // Update joint account mutation
+  const updateJointAccountMutation = useMutation({
+    mutationFn: async ({ id, nickname }: { id: string; nickname: string | null }) => {
+      return await apiRequest("PATCH", `/api/joint-accounts/${id}`, { nickname: nickname || null });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
+      toast({
+        title: "Success",
+        description: "Joint account updated successfully",
+      });
+      setEditingEntity(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update joint account",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEditHousehold = (id: string, currentName: string) => {
     setEditingEntity({ type: "household", id, name: currentName });
   };
@@ -407,6 +429,10 @@ export default function Households() {
 
   const handleDeleteCorporation = (id: string) => {
     deleteCorporationMutation.mutate(id);
+  };
+
+  const handleEditJointAccount = (id: string, currentNickname: string | null) => {
+    setEditingEntity({ type: "joint-account", id, name: currentNickname || "" });
   };
 
   const handleCloseDialog = () => {
@@ -511,6 +537,7 @@ export default function Households() {
               onDeleteIndividual={handleDeleteIndividual}
               onEditCorporation={handleEditCorporation}
               onDeleteCorporation={handleDeleteCorporation}
+              onEditJointAccount={handleEditJointAccount}
             />
           ))}
         </div>
@@ -524,27 +551,33 @@ export default function Households() {
         onClose={handleCloseDialog}
       />
 
-      {/* Edit Individual/Corporation/Household Dialog */}
+      {/* Edit Individual/Corporation/Household/Joint Account Dialog */}
       <Dialog open={editingEntity !== null} onOpenChange={(open) => !open && setEditingEntity(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
               {editingEntity?.type === "individual" ? "Edit Individual" : 
-               editingEntity?.type === "corporation" ? "Edit Corporation" : "Edit Household"}
+               editingEntity?.type === "corporation" ? "Edit Corporation" : 
+               editingEntity?.type === "joint-account" ? "Edit Joint Account" : "Edit Household"}
             </DialogTitle>
             <DialogDescription>
-              Update the name of this {editingEntity?.type === "individual" ? "individual" : 
-               editingEntity?.type === "corporation" ? "corporation" : "household"}.
+              {editingEntity?.type === "joint-account" 
+                ? "Update the nickname for this joint account."
+                : `Update the name of this ${editingEntity?.type === "individual" ? "individual" : 
+                   editingEntity?.type === "corporation" ? "corporation" : "household"}.`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Name</label>
+              <label className="text-sm font-medium">
+                {editingEntity?.type === "joint-account" ? "Nickname" : "Name"}
+              </label>
               <Input
                 value={editingEntity?.name || ""}
                 onChange={(e) => setEditingEntity(prev => prev ? { ...prev, name: e.target.value } : null)}
                 placeholder={editingEntity?.type === "individual" ? "Individual name" : 
-                  editingEntity?.type === "corporation" ? "Corporation name" : "Household name"}
+                  editingEntity?.type === "corporation" ? "Corporation name" : 
+                  editingEntity?.type === "joint-account" ? "e.g., Kids Education Fund" : "Household name"}
                 data-testid="input-edit-entity-name"
               />
             </div>
@@ -565,15 +598,17 @@ export default function Households() {
                       updateIndividualMutation.mutate({ id: editingEntity.id, name: editingEntity.name });
                     } else if (editingEntity.type === "corporation") {
                       updateCorporationMutation.mutate({ id: editingEntity.id, name: editingEntity.name });
+                    } else if (editingEntity.type === "joint-account") {
+                      updateJointAccountMutation.mutate({ id: editingEntity.id, nickname: editingEntity.name || null });
                     } else {
                       updateHouseholdMutation.mutate({ id: editingEntity.id, name: editingEntity.name });
                     }
                   }
                 }}
-                disabled={updateIndividualMutation.isPending || updateCorporationMutation.isPending || updateHouseholdMutation.isPending}
+                disabled={updateIndividualMutation.isPending || updateCorporationMutation.isPending || updateHouseholdMutation.isPending || updateJointAccountMutation.isPending}
                 data-testid="button-save-edit"
               >
-                {updateIndividualMutation.isPending || updateCorporationMutation.isPending || updateHouseholdMutation.isPending ? "Saving..." : "Save Changes"}
+                {updateIndividualMutation.isPending || updateCorporationMutation.isPending || updateHouseholdMutation.isPending || updateJointAccountMutation.isPending ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </div>

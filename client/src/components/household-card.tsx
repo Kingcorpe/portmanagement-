@@ -74,6 +74,7 @@ interface HouseholdCardProps {
   onDeleteIndividual?: (id: string) => void;
   onEditCorporation?: (id: string, currentName: string) => void;
   onDeleteCorporation?: (id: string) => void;
+  onEditJointAccount?: (id: string, currentNickname: string | null) => void;
 }
 
 const accountTypeLabels: Record<string, string> = {
@@ -154,7 +155,8 @@ export function HouseholdCard({
   onEditIndividual,
   onDeleteIndividual,
   onEditCorporation,
-  onDeleteCorporation
+  onDeleteCorporation,
+  onEditJointAccount
 }: HouseholdCardProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -555,38 +557,51 @@ export function HouseholdCard({
                             CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         </Link>
-                        {onDeleteAccount && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                data-testid={`button-delete-account-${account.id}`}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Joint Account</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this {formatAccountDisplayName(account.type, account.nickname)} account? This will permanently remove all positions associated with this account. This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => onDeleteAccount(account.id, "joint")}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  data-testid={`button-confirm-delete-account-${account.id}`}
+                        <div className="flex items-center gap-1">
+                          {onEditJointAccount && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 text-muted-foreground"
+                              onClick={() => onEditJointAccount(account.id, account.nickname || null)}
+                              data-testid={`button-edit-joint-account-${account.id}`}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                          )}
+                          {onDeleteAccount && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                  data-testid={`button-delete-account-${account.id}`}
                                 >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Joint Account</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this {formatAccountDisplayName(account.type, account.nickname)} account? This will permanently remove all positions associated with this account. This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => onDeleteAccount(account.id, "joint")}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    data-testid={`button-confirm-delete-account-${account.id}`}
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
