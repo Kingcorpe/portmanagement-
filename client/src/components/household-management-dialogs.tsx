@@ -420,6 +420,15 @@ export function HouseholdManagementDialogs({
                         {...field} 
                         value={field.value ?? ""} 
                         onChange={(e) => field.onChange(e.target.value || undefined)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const accountType = individualAccountForm.getValues("type");
+                            if (accountType) {
+                              individualAccountForm.handleSubmit((data) => createIndividualAccountMutation.mutate(data))();
+                            }
+                          }
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -482,6 +491,15 @@ export function HouseholdManagementDialogs({
                         {...field} 
                         value={field.value ?? ""} 
                         onChange={(e) => field.onChange(e.target.value || undefined)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const accountType = corporateAccountForm.getValues("type");
+                            if (accountType) {
+                              corporateAccountForm.handleSubmit((data) => createCorporateAccountMutation.mutate(data))();
+                            }
+                          }
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -544,6 +562,15 @@ export function HouseholdManagementDialogs({
                         {...field} 
                         value={field.value ?? ""} 
                         onChange={(e) => field.onChange(e.target.value || undefined)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const accountType = jointAccountForm.getValues("type");
+                            if (accountType) {
+                              jointAccountForm.handleSubmit((data) => createJointAccountMutation.mutate(data))();
+                            }
+                          }
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
