@@ -1424,12 +1424,12 @@ export default function ModelPortfolios() {
                     <SortableHeader column="ticker">Ticker</SortableHeader>
                     <SortableHeader column="name">Name</SortableHeader>
                     <SortableHeader column="category">Category</SortableHeader>
-                    <SortableHeader column="riskLevel">Risk</SortableHeader>
                     <SortableHeader column="price">Price</SortableHeader>
                     {/* Hidden for future use: Dividend columns
                     <SortableHeader column="dividendRate">Dividend</SortableHeader>
                     <TableHead>Payout</TableHead>
                     */}
+                    <SortableHeader column="riskLevel">Risk</SortableHeader>
                     <TableHead className="w-[100px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1447,11 +1447,6 @@ export default function ModelPortfolios() {
                       <TableCell>
                         <Badge className={categoryColors[holding.category]}>
                           {categoryLabels[holding.category]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={riskLevelColors[holding.riskLevel]}>
-                          {riskLevelLabels[holding.riskLevel]}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -1472,6 +1467,11 @@ export default function ModelPortfolios() {
                         <Badge variant="outline">{dividendPayoutLabels[holding.dividendPayout]}</Badge>
                       </TableCell>
                       */}
+                      <TableCell>
+                        <Badge className={riskLevelColors[holding.riskLevel]}>
+                          {riskLevelLabels[holding.riskLevel]}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditHolding(holding)} data-testid={`button-edit-holding-${holding.id}`}>
