@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -62,55 +62,100 @@ export function HouseholdManagementDialogs({
   const individualForm = useForm<InsertIndividual>({
     resolver: zodResolver(insertIndividualSchema),
     defaultValues: {
-      householdId: householdId || "",
+      householdId: "",
       name: "",
       initials: "",
       email: "",
     },
   });
 
+  // Update form values when householdId changes and reset when dialog closes
+  useEffect(() => {
+    if (householdId && dialogType === "individual") {
+      individualForm.setValue("householdId", householdId);
+    } else if (dialogType !== "individual") {
+      individualForm.reset();
+    }
+  }, [householdId, dialogType, individualForm]);
+
   // Corporation form
   const corporationForm = useForm<InsertCorporation>({
     resolver: zodResolver(insertCorporationSchema),
     defaultValues: {
-      householdId: householdId || "",
+      householdId: "",
       name: "",
       initials: "",
     },
   });
 
+  // Update form values when householdId changes and reset when dialog closes
+  useEffect(() => {
+    if (householdId && dialogType === "corporation") {
+      corporationForm.setValue("householdId", householdId);
+    } else if (dialogType !== "corporation") {
+      corporationForm.reset();
+    }
+  }, [householdId, dialogType, corporationForm]);
+
   // Individual account form
   const individualAccountForm = useForm<InsertIndividualAccount>({
     resolver: zodResolver(insertIndividualAccountSchema),
     defaultValues: {
-      individualId: individualId || "",
+      individualId: "",
       type: "cash",
       balance: "",
       performance: "",
     },
   });
+
+  // Update form values when individualId changes and reset when dialog closes
+  useEffect(() => {
+    if (individualId && dialogType === "individual-account") {
+      individualAccountForm.setValue("individualId", individualId);
+    } else if (dialogType !== "individual-account") {
+      individualAccountForm.reset();
+    }
+  }, [individualId, dialogType, individualAccountForm]);
 
   // Corporate account form
   const corporateAccountForm = useForm<InsertCorporateAccount>({
     resolver: zodResolver(insertCorporateAccountSchema),
     defaultValues: {
-      corporationId: corporationId || "",
+      corporationId: "",
       type: "cash",
       balance: "",
       performance: "",
     },
   });
 
+  // Update form values when corporationId changes and reset when dialog closes
+  useEffect(() => {
+    if (corporationId && dialogType === "corporate-account") {
+      corporateAccountForm.setValue("corporationId", corporationId);
+    } else if (dialogType !== "corporate-account") {
+      corporateAccountForm.reset();
+    }
+  }, [corporationId, dialogType, corporateAccountForm]);
+
   // Joint account form
   const jointAccountForm = useForm<InsertJointAccount>({
     resolver: zodResolver(insertJointAccountSchema),
     defaultValues: {
-      householdId: householdId || "",
+      householdId: "",
       type: "joint_cash",
       balance: "",
       performance: "",
     },
   });
+
+  // Update form values when householdId changes and reset when dialog closes
+  useEffect(() => {
+    if (householdId && dialogType === "joint-account") {
+      jointAccountForm.setValue("householdId", householdId);
+    } else if (dialogType !== "joint-account") {
+      jointAccountForm.reset();
+    }
+  }, [householdId, dialogType, jointAccountForm]);
 
   // Mutations
   const createIndividualMutation = useMutation({
