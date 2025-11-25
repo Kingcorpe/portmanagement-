@@ -213,6 +213,7 @@ export const positions = pgTable("positions", {
   quantity: decimal("quantity", { precision: 15, scale: 4 }).notNull(),
   entryPrice: decimal("entry_price", { precision: 15, scale: 2 }).notNull(),
   currentPrice: decimal("current_price", { precision: 15, scale: 2 }).notNull(),
+  priceUpdatedAt: timestamp("price_updated_at"),
   purchaseDate: timestamp("purchase_date"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

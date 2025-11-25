@@ -606,6 +606,182 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Market price refresh routes using Yahoo Finance
+  app.post('/api/market-prices/quotes', isAuthenticated, async (req, res) => {
+    try {
+      const { symbols } = req.body;
+      
+      if (!Array.isArray(symbols) || symbols.length === 0) {
+        return res.status(400).json({ message: "No symbols provided" });
+      }
+
+      // Dynamically import yahoo-finance2
+      const yahooFinance = (await import('yahoo-finance2')).default;
+      
+      const results: Record<string, { price: number; currency: string; error?: string }> = {};
+      const errors: string[] = [];
+      
+      // Process symbols - normalize Canadian tickers
+      for (const rawSymbol of symbols) {
+        try {
+          // Skip cash positions
+          const upperSymbol = rawSymbol.toUpperCase().trim();
+          if (upperSymbol === 'CASH' || upperSymbol === 'CAD' || upperSymbol === 'USD' || 
+              upperSymbol.includes('CASH') || upperSymbol.includes('MONEY MARKET')) {
+            results[rawSymbol] = { price: 1, currency: 'CAD' };
+            continue;
+          }
+          
+          // Try the symbol as-is first, then with Canadian suffixes
+          let quote = null;
+          const symbolsToTry = [rawSymbol];
+          
+          // If no suffix, try adding Canadian exchange suffixes
+          if (!rawSymbol.includes('.')) {
+            symbolsToTry.push(`${rawSymbol}.TO`);  // TSX
+            symbolsToTry.push(`${rawSymbol}.V`);   // TSX Venture
+            symbolsToTry.push(`${rawSymbol}.CN`);  // CSE
+          }
+          
+          for (const symbol of symbolsToTry) {
+            try {
+              quote = await yahooFinance.quote(symbol);
+              if (quote && quote.regularMarketPrice) {
+                break;
+              }
+            } catch (e) {
+              // Try next suffix
+            }
+          }
+          
+          if (quote && quote.regularMarketPrice) {
+            results[rawSymbol] = {
+              price: quote.regularMarketPrice,
+              currency: quote.currency || 'CAD'
+            };
+          } else {
+            results[rawSymbol] = { price: 0, currency: 'CAD', error: 'Symbol not found' };
+            errors.push(rawSymbol);
+          }
+        } catch (error: any) {
+          results[rawSymbol] = { price: 0, currency: 'CAD', error: error.message };
+          errors.push(rawSymbol);
+        }
+      }
+      
+      res.json({ 
+        quotes: results, 
+        errors: errors.length > 0 ? errors : undefined,
+        message: `Fetched ${Object.keys(results).length - errors.length} of ${symbols.length} quotes`
+      });
+    } catch (error: any) {
+      console.error("Error fetching market quotes:", error);
+      res.status(500).json({ message: "Failed to fetch market quotes", error: error.message });
+    }
+  });
+
+  // Refresh prices for all positions in an account
+  app.post('/api/accounts/:accountType/:accountId/refresh-prices', isAuthenticated, async (req, res) => {
+    try {
+      const { accountType, accountId } = req.params;
+      
+      // Get all positions for the account
+      let positions;
+      switch (accountType) {
+        case 'individual':
+          positions = await storage.getPositionsByIndividualAccount(accountId);
+          break;
+        case 'corporate':
+          positions = await storage.getPositionsByCorporateAccount(accountId);
+          break;
+        case 'joint':
+          positions = await storage.getPositionsByJointAccount(accountId);
+          break;
+        default:
+          return res.status(400).json({ message: "Invalid account type" });
+      }
+      
+      if (!positions || positions.length === 0) {
+        return res.json({ success: true, updated: 0, message: "No positions to update" });
+      }
+      
+      // Get unique symbols
+      const symbols = [...new Set(positions.map(p => p.symbol))];
+      
+      // Dynamically import yahoo-finance2
+      const yahooFinance = (await import('yahoo-finance2')).default;
+      
+      const priceUpdates: Record<string, number> = {};
+      const errors: string[] = [];
+      
+      for (const rawSymbol of symbols) {
+        try {
+          const upperSymbol = rawSymbol.toUpperCase().trim();
+          
+          // Skip cash positions
+          if (upperSymbol === 'CASH' || upperSymbol === 'CAD' || upperSymbol === 'USD' || 
+              upperSymbol.includes('CASH') || upperSymbol.includes('MONEY MARKET')) {
+            priceUpdates[rawSymbol] = 1;
+            continue;
+          }
+          
+          // Try the symbol as-is first, then with Canadian suffixes
+          let quote = null;
+          const symbolsToTry = [rawSymbol];
+          
+          if (!rawSymbol.includes('.')) {
+            symbolsToTry.push(`${rawSymbol}.TO`);
+            symbolsToTry.push(`${rawSymbol}.V`);
+            symbolsToTry.push(`${rawSymbol}.CN`);
+          }
+          
+          for (const symbol of symbolsToTry) {
+            try {
+              quote = await yahooFinance.quote(symbol);
+              if (quote && quote.regularMarketPrice) {
+                break;
+              }
+            } catch (e) {
+              // Try next suffix
+            }
+          }
+          
+          if (quote && quote.regularMarketPrice) {
+            priceUpdates[rawSymbol] = quote.regularMarketPrice;
+          } else {
+            errors.push(rawSymbol);
+          }
+        } catch (error) {
+          errors.push(rawSymbol);
+        }
+      }
+      
+      // Update positions with new prices
+      const now = new Date();
+      let updatedCount = 0;
+      
+      for (const position of positions) {
+        if (priceUpdates[position.symbol] !== undefined) {
+          await storage.updatePosition(position.id, { 
+            currentPrice: priceUpdates[position.symbol].toString(),
+            priceUpdatedAt: now
+          });
+          updatedCount++;
+        }
+      }
+      
+      res.json({
+        success: true,
+        updated: updatedCount,
+        errors: errors.length > 0 ? errors : undefined,
+        message: `Updated ${updatedCount} positions${errors.length > 0 ? `, ${errors.length} symbols not found` : ''}`
+      });
+    } catch (error: any) {
+      console.error("Error refreshing prices:", error);
+      res.status(500).json({ message: "Failed to refresh prices", error: error.message });
+    }
+  });
+
   // Account Target Allocation routes
   app.get('/api/accounts/:accountType/:accountId/target-allocations', isAuthenticated, async (req, res) => {
     try {
