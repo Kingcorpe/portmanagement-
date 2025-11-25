@@ -8,7 +8,7 @@ import { PortfolioChart } from "@/components/portfolio-chart";
 import { AlertCard, Alert } from "@/components/alert-card";
 import { PositionsTable, Position } from "@/components/positions-table";
 import { Button } from "@/components/ui/button";
-import { DollarSign, Users, Bell, TrendingUp, Upload, UserPlus, FileText, Eye } from "lucide-react";
+import { Users, Bell, Upload, UserPlus, FileText, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Household, Alert as AlertType } from "@shared/schema";
 
@@ -60,10 +60,6 @@ export default function Dashboard() {
   // Calculate metrics from real data
   const totalHouseholds = households?.length || 0;
   const pendingAlerts = alerts.filter(a => a.status === "pending").length;
-  
-  // Mock data for now (will be calculated from actual holdings later)
-  const totalAUM = 12400000; // CAD
-  const totalPerformance = 8.5; // %
   
   const chartData = [
     { date: "Jan", value: 8500000 },
@@ -117,14 +113,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          title="Total AUM (CAD)"
-          value={`$${(totalAUM / 1000000).toFixed(2)}M`}
-          change={totalPerformance}
-          icon={DollarSign}
-          testId="card-total-aum"
-        />
+      <div className="grid gap-4 md:grid-cols-2">
         <MetricCard
           title="Households"
           value={totalHouseholds.toString()}
@@ -136,13 +125,6 @@ export default function Dashboard() {
           value={pendingAlerts.toString()}
           icon={Bell}
           testId="card-pending-alerts"
-        />
-        <MetricCard
-          title="Performance (YTD)"
-          value={`+${totalPerformance}%`}
-          change={totalPerformance}
-          icon={TrendingUp}
-          testId="card-performance"
         />
       </div>
 
