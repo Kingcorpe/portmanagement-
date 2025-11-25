@@ -1304,21 +1304,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Try the symbol as-is first, then with Canadian suffixes
+          // Try the symbol as-is first, then with Canadian/US exchange suffixes
           let quote = null;
           const symbolsToTry = [holding.ticker];
           
           if (!holding.ticker.includes('.')) {
-            symbolsToTry.push(`${holding.ticker}.TO`);
-            symbolsToTry.push(`${holding.ticker}.V`);
-            symbolsToTry.push(`${holding.ticker}.CN`);
+            // Canadian exchanges
+            symbolsToTry.push(`${holding.ticker}.TO`);   // TSX
+            symbolsToTry.push(`${holding.ticker}.V`);    // TSX Venture
+            symbolsToTry.push(`${holding.ticker}.CN`);   // CSE
+            symbolsToTry.push(`${holding.ticker}.NE`);   // NEO Exchange
+            // US exchanges (for cross-listed securities)
+            symbolsToTry.push(`${holding.ticker}.US`);
           }
+          
+          console.log(`[Universal Holdings Refresh] Trying symbols for ${holding.ticker}:`, symbolsToTry);
           
           for (const symbol of symbolsToTry) {
             try {
               const result = await yahooFinance.quote(symbol);
               if (result && (result as any).regularMarketPrice) {
                 quote = result as any;
+                console.log(`[Universal Holdings Refresh] Found price for ${symbol}: ${quote.regularMarketPrice}`);
                 break;
               }
             } catch (e) {
@@ -1335,6 +1342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             updatedCount++;
           } else {
+            console.log(`[Universal Holdings Refresh] Could not find price for ${holding.ticker} - tried all suffixes`);
             tickerPriceCache[holding.ticker] = null;
             if (!errors.includes(holding.ticker)) {
               errors.push(holding.ticker);
