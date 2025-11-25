@@ -100,6 +100,9 @@ export interface IStorage {
   getPositionsByJointAccount(accountId: string): Promise<Position[]>;
   updatePosition(id: string, position: Partial<InsertPosition>): Promise<Position>;
   deletePosition(id: string): Promise<void>;
+  calculateIndividualAccountBalance(accountId: string): Promise<number>;
+  calculateCorporateAccountBalance(accountId: string): Promise<number>;
+  calculateJointAccountBalance(accountId: string): Promise<number>;
 
   // Alert operations
   createAlert(alert: InsertAlert): Promise<Alert>;
@@ -215,53 +218,81 @@ export class DatabaseStorage implements IStorage {
           .where(inArray(jointAccountOwnership.jointAccountId, jointAccountIds))
       : [];
 
-    // Group data by household
-    return allHouseholds.map(household => {
-      // Get individuals for this household
-      const householdIndividuals = allIndividuals.filter(i => i.householdId === household.id);
-      
-      const individualsWithAccounts = householdIndividuals.map(individual => {
-        const accounts = allIndividualAccounts.filter(a => a.individualId === individual.id);
-        return {
-          ...individual,
-          accounts
-        };
-      });
+    // Group data by household with calculated balances
+    return await Promise.all(
+      allHouseholds.map(async (household) => {
+        // Get individuals for this household
+        const householdIndividuals = allIndividuals.filter(i => i.householdId === household.id);
+        
+        const individualsWithAccounts = await Promise.all(
+          householdIndividuals.map(async (individual) => {
+            const accounts = allIndividualAccounts.filter(a => a.individualId === individual.id);
+            const accountsWithBalance = await Promise.all(
+              accounts.map(async (account) => {
+                const calculatedBalance = await this.calculateIndividualAccountBalance(account.id);
+                return {
+                  ...account,
+                  calculatedBalance: calculatedBalance.toString(),
+                };
+              })
+            );
+            return {
+              ...individual,
+              accounts: accountsWithBalance
+            };
+          })
+        );
 
-      // Get corporations for this household
-      const householdCorporations = allCorporations.filter(c => c.householdId === household.id);
-      
-      const corporationsWithAccounts = householdCorporations.map(corporation => {
-        const accounts = allCorporateAccounts.filter(a => a.corporationId === corporation.id);
-        return {
-          ...corporation,
-          accounts
-        };
-      });
+        // Get corporations for this household
+        const householdCorporations = allCorporations.filter(c => c.householdId === household.id);
+        
+        const corporationsWithAccounts = await Promise.all(
+          householdCorporations.map(async (corporation) => {
+            const accounts = allCorporateAccounts.filter(a => a.corporationId === corporation.id);
+            const accountsWithBalance = await Promise.all(
+              accounts.map(async (account) => {
+                const calculatedBalance = await this.calculateCorporateAccountBalance(account.id);
+                return {
+                  ...account,
+                  calculatedBalance: calculatedBalance.toString(),
+                };
+              })
+            );
+            return {
+              ...corporation,
+              accounts: accountsWithBalance
+            };
+          })
+        );
 
-      // Get joint accounts for this household
-      const householdJointAccounts = allJointAccounts.filter(ja => ja.householdId === household.id);
-      
-      const jointAccountsWithOwners = householdJointAccounts.map(jointAccount => {
-        const owners = allOwnerships
-          .filter(o => o.jointAccountId === jointAccount.id)
-          .map(o => ({
-            id: o.individual.id,
-            name: o.individual.name,
-          }));
-        return {
-          ...jointAccount,
-          owners
-        };
-      });
+        // Get joint accounts for this household
+        const householdJointAccounts = allJointAccounts.filter(ja => ja.householdId === household.id);
+        
+        const jointAccountsWithOwners = await Promise.all(
+          householdJointAccounts.map(async (jointAccount) => {
+            const owners = allOwnerships
+              .filter(o => o.jointAccountId === jointAccount.id)
+              .map(o => ({
+                id: o.individual.id,
+                name: o.individual.name,
+              }));
+            const calculatedBalance = await this.calculateJointAccountBalance(jointAccount.id);
+            return {
+              ...jointAccount,
+              calculatedBalance: calculatedBalance.toString(),
+              owners
+            };
+          })
+        );
 
-      return {
-        ...household,
-        individuals: individualsWithAccounts,
-        corporations: corporationsWithAccounts,
-        jointAccounts: jointAccountsWithOwners
-      };
-    });
+        return {
+          ...household,
+          individuals: individualsWithAccounts,
+          corporations: corporationsWithAccounts,
+          jointAccounts: jointAccountsWithOwners
+        };
+      })
+    );
   }
 
   async getHouseholdWithDetails(id: string): Promise<HouseholdWithDetails | null> {
@@ -273,13 +304,22 @@ export class DatabaseStorage implements IStorage {
     // Fetch all individuals for this household
     const individualsData = await this.getIndividualsByHousehold(id);
     
-    // Fetch accounts for each individual
+    // Fetch accounts for each individual with calculated balances
     const individualsWithAccounts = await Promise.all(
       individualsData.map(async (individual) => {
         const accounts = await this.getIndividualAccountsByIndividual(individual.id);
+        const accountsWithBalance = await Promise.all(
+          accounts.map(async (account) => {
+            const calculatedBalance = await this.calculateIndividualAccountBalance(account.id);
+            return {
+              ...account,
+              calculatedBalance: calculatedBalance.toString(),
+            };
+          })
+        );
         return {
           ...individual,
-          accounts
+          accounts: accountsWithBalance
         };
       })
     );
@@ -287,13 +327,22 @@ export class DatabaseStorage implements IStorage {
     // Fetch all corporations for this household
     const corporationsData = await this.getCorporationsByHousehold(id);
     
-    // Fetch accounts for each corporation
+    // Fetch accounts for each corporation with calculated balances
     const corporationsWithAccounts = await Promise.all(
       corporationsData.map(async (corporation) => {
         const accounts = await this.getCorporateAccountsByCorporation(corporation.id);
+        const accountsWithBalance = await Promise.all(
+          accounts.map(async (account) => {
+            const calculatedBalance = await this.calculateCorporateAccountBalance(account.id);
+            return {
+              ...account,
+              calculatedBalance: calculatedBalance.toString(),
+            };
+          })
+        );
         return {
           ...corporation,
-          accounts
+          accounts: accountsWithBalance
         };
       })
     );
@@ -301,12 +350,14 @@ export class DatabaseStorage implements IStorage {
     // Fetch all joint accounts for this household
     const jointAccountsData = await this.getJointAccountsByHousehold(id);
     
-    // Fetch full owner details for each joint account
+    // Fetch full owner details for each joint account with calculated balances
     const jointAccountsWithOwners = await Promise.all(
       jointAccountsData.map(async (jointAccount) => {
         const owners = await this.getJointAccountOwners(jointAccount.id);
+        const calculatedBalance = await this.calculateJointAccountBalance(jointAccount.id);
         return {
           ...jointAccount,
+          calculatedBalance: calculatedBalance.toString(),
           owners: owners.map(owner => ({
             id: owner.id,
             name: owner.name,
@@ -540,6 +591,33 @@ export class DatabaseStorage implements IStorage {
 
   async deletePosition(id: string): Promise<void> {
     await db.delete(positions).where(eq(positions.id, id));
+  }
+
+  async calculateIndividualAccountBalance(accountId: string): Promise<number> {
+    const accountPositions = await this.getPositionsByIndividualAccount(accountId);
+    return accountPositions.reduce((total, position) => {
+      const quantity = parseFloat(position.quantity);
+      const currentPrice = parseFloat(position.currentPrice);
+      return total + (quantity * currentPrice);
+    }, 0);
+  }
+
+  async calculateCorporateAccountBalance(accountId: string): Promise<number> {
+    const accountPositions = await this.getPositionsByCorporateAccount(accountId);
+    return accountPositions.reduce((total, position) => {
+      const quantity = parseFloat(position.quantity);
+      const currentPrice = parseFloat(position.currentPrice);
+      return total + (quantity * currentPrice);
+    }, 0);
+  }
+
+  async calculateJointAccountBalance(accountId: string): Promise<number> {
+    const accountPositions = await this.getPositionsByJointAccount(accountId);
+    return accountPositions.reduce((total, position) => {
+      const quantity = parseFloat(position.quantity);
+      const currentPrice = parseFloat(position.currentPrice);
+      return total + (quantity * currentPrice);
+    }, 0);
   }
 
   // Alert operations
