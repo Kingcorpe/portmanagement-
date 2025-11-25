@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Users, Eye, Plus, UserPlus, Building2, Trash2, Edit, User } from "lucide-react";
+import { ChevronDown, ChevronRight, Users, Plus, UserPlus, Building2, Trash2, Edit, User } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -329,54 +329,47 @@ export function HouseholdCard({
                         {group.category}
                       </div>
                       {group.accounts.map((account) => (
-                        <div key={account.id} className="flex items-center justify-between text-sm" data-testid={`row-account-${account.id}`}>
-                          <div className="flex items-center gap-2">
+                        <div key={account.id} className="flex items-center justify-between text-sm group" data-testid={`row-account-${account.id}`}>
+                          <Link href={`/account/individual/${account.id}`} className="flex items-center gap-3 flex-1 py-1 px-2 -ml-2 rounded-md hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
                             <Badge variant="secondary" className="text-xs font-mono">
                               {accountTypeLabels[account.type]}
                             </Badge>
-                          </div>
-                          <div className="flex items-center gap-2">
                             <span className="font-mono tabular-nums">
                               CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
-                            <Link href={`/account/individual/${account.id}`}>
-                              <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-view-positions-${account.id}`}>
-                                <Eye className="h-3 w-3" />
-                              </Button>
-                            </Link>
-                            {onDeleteAccount && (
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                    data-testid={`button-delete-account-${account.id}`}
+                          </Link>
+                          {onDeleteAccount && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                  data-testid={`button-delete-account-${account.id}`}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Account</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this {accountTypeLabels[account.type]} account? This will permanently remove all positions associated with this account. This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => onDeleteAccount(account.id, "individual")}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    data-testid={`button-confirm-delete-account-${account.id}`}
                                   >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Account</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to delete this {accountTypeLabels[account.type]} account? This will permanently remove all positions associated with this account. This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction 
-                                      onClick={() => onDeleteAccount(account.id, "individual")}
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      data-testid={`button-confirm-delete-account-${account.id}`}
-                                    >
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            )}
-                          </div>
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -474,54 +467,47 @@ export function HouseholdCard({
                         {group.category}
                       </div>
                       {group.accounts.map((account) => (
-                        <div key={account.id} className="flex items-center justify-between text-sm" data-testid={`row-account-${account.id}`}>
-                          <div className="flex items-center gap-2">
+                        <div key={account.id} className="flex items-center justify-between text-sm group" data-testid={`row-account-${account.id}`}>
+                          <Link href={`/account/corporate/${account.id}`} className="flex items-center gap-3 flex-1 py-1 px-2 -ml-2 rounded-md hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
                             <Badge variant="secondary" className="text-xs font-mono">
                               {accountTypeLabels[account.type]}
                             </Badge>
-                          </div>
-                          <div className="flex items-center gap-2">
                             <span className="font-mono tabular-nums">
                               CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
-                            <Link href={`/account/corporate/${account.id}`}>
-                              <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-view-positions-${account.id}`}>
-                                <Eye className="h-3 w-3" />
-                              </Button>
-                            </Link>
-                            {onDeleteAccount && (
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                    data-testid={`button-delete-account-${account.id}`}
+                          </Link>
+                          {onDeleteAccount && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                  data-testid={`button-delete-account-${account.id}`}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Account</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this {accountTypeLabels[account.type]} account? This will permanently remove all positions associated with this account. This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => onDeleteAccount(account.id, "corporate")}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    data-testid={`button-confirm-delete-account-${account.id}`}
                                   >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Account</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to delete this {accountTypeLabels[account.type]} account? This will permanently remove all positions associated with this account. This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction 
-                                      onClick={() => onDeleteAccount(account.id, "corporate")}
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      data-testid={`button-confirm-delete-account-${account.id}`}
-                                    >
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            )}
-                          </div>
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -553,54 +539,47 @@ export function HouseholdCard({
                 <div className="ml-6 space-y-1">
                   {household.jointAccounts.map((account) => {
                     return (
-                      <div key={account.id} className="flex items-center justify-between text-sm" data-testid={`row-joint-account-${account.id}`}>
-                        <div className="flex items-center gap-2">
+                      <div key={account.id} className="flex items-center justify-between text-sm group" data-testid={`row-joint-account-${account.id}`}>
+                        <Link href={`/account/joint/${account.id}`} className="flex items-center gap-3 flex-1 py-1 px-2 -ml-2 rounded-md hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
                           <Badge variant="secondary" className="text-xs font-mono">
                             {accountTypeLabels[account.type]}
                           </Badge>
-                        </div>
-                        <div className="flex items-center gap-2">
                           <span className="font-mono tabular-nums">
                             CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
-                          <Link href={`/account/joint/${account.id}`}>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-view-positions-${account.id}`}>
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                          </Link>
-                          {onDeleteAccount && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                  data-testid={`button-delete-account-${account.id}`}
+                        </Link>
+                        {onDeleteAccount && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                data-testid={`button-delete-account-${account.id}`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Joint Account</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this {accountTypeLabels[account.type]} account? This will permanently remove all positions associated with this account. This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => onDeleteAccount(account.id, "joint")}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  data-testid={`button-confirm-delete-account-${account.id}`}
                                 >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Joint Account</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this {accountTypeLabels[account.type]} account? This will permanently remove all positions associated with this account. This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => onDeleteAccount(account.id, "joint")}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    data-testid={`button-confirm-delete-account-${account.id}`}
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </div>
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                       </div>
                     );
                   })}
