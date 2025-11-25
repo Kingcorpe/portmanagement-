@@ -57,8 +57,6 @@ export const individuals = pgTable("individuals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   householdId: varchar("household_id").notNull().references(() => households.id, { onDelete: 'cascade' }),
   name: text("name").notNull(),
-  initials: varchar("initials", { length: 10 }).notNull(),
-  email: varchar("email"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -77,7 +75,6 @@ export const corporations = pgTable("corporations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   householdId: varchar("household_id").notNull().references(() => households.id, { onDelete: 'cascade' }),
   name: text("name").notNull(),
-  initials: varchar("initials", { length: 10 }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -279,14 +276,11 @@ export const insertHouseholdSchema = createInsertSchema(households).pick({
 export const insertIndividualSchema = createInsertSchema(individuals).pick({
   householdId: true,
   name: true,
-  initials: true,
-  email: true,
 });
 
 export const insertCorporationSchema = createInsertSchema(corporations).pick({
   householdId: true,
   name: true,
-  initials: true,
 });
 
 export const insertIndividualAccountSchema = createInsertSchema(individualAccounts).omit({

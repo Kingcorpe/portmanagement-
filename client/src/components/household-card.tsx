@@ -23,14 +23,12 @@ export interface Account {
 export interface Individual {
   id: string;
   name: string;
-  initials: string;
   accounts: Account[];
 }
 
 export interface Corporation {
   id: string;
   name: string;
-  initials: string;
   accounts: Account[];
 }
 
@@ -175,7 +173,7 @@ export function HouseholdCard({
               <div key={individual.id} className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Avatar className="h-6 w-6">
-                    <AvatarFallback className="text-xs">{individual.initials}</AvatarFallback>
+                    <AvatarFallback className="text-xs">{individual.name.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <span className="font-medium text-sm" data-testid={`text-individual-name-${individual.id}`}>
                     {individual.name}
@@ -242,7 +240,7 @@ export function HouseholdCard({
               <div key={corporation.id} className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Avatar className="h-6 w-6">
-                    <AvatarFallback className="text-xs">{corporation.initials}</AvatarFallback>
+                    <AvatarFallback className="text-xs">{corporation.name.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <span className="font-medium text-sm" data-testid={`text-corporation-name-${corporation.id}`}>
                     {corporation.name}

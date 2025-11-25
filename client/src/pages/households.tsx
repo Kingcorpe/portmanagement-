@@ -99,7 +99,6 @@ export default function Households() {
     const individuals = h.individuals.map((individual) => ({
       id: individual.id,
       name: individual.name,
-      initials: individual.initials,
       accounts: individual.accounts.map((account) => ({
         id: account.id,
         type: account.type,
@@ -112,7 +111,6 @@ export default function Households() {
     const corporations = h.corporations.map((corporation) => ({
       id: corporation.id,
       name: corporation.name,
-      initials: corporation.initials,
       accounts: corporation.accounts.map((account) => ({
         id: account.id,
         type: account.type,

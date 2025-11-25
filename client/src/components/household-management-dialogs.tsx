@@ -64,8 +64,6 @@ export function HouseholdManagementDialogs({
     defaultValues: {
       householdId: "",
       name: "",
-      initials: "",
-      email: "",
     },
   });
 
@@ -84,7 +82,6 @@ export function HouseholdManagementDialogs({
     defaultValues: {
       householdId: "",
       name: "",
-      initials: "",
     },
   });
 
@@ -247,32 +244,6 @@ export function HouseholdManagementDialogs({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={individualForm.control}
-                name="initials"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Initials</FormLabel>
-                    <FormControl>
-                      <Input placeholder="JS" data-testid="input-individual-initials" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={individualForm.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="john@example.com" data-testid="input-individual-email" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
@@ -303,19 +274,6 @@ export function HouseholdManagementDialogs({
                     <FormLabel>Name</FormLabel>
                     <FormControl>
                       <Input placeholder="Smith Corp" data-testid="input-corporation-name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={corporationForm.control}
-                name="initials"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Initials</FormLabel>
-                    <FormControl>
-                      <Input placeholder="SC" data-testid="input-corporation-initials" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
