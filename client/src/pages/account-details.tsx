@@ -31,7 +31,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import * as XLSX from 'xlsx';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -87,6 +90,7 @@ export default function AccountDetails() {
   const [isUploading, setIsUploading] = useState(false);
   const [editingInlineTarget, setEditingInlineTarget] = useState<string | null>(null);
   const [inlineTargetValue, setInlineTargetValue] = useState<string>("");
+  const [holdingComboboxOpen, setHoldingComboboxOpen] = useState(false);
 
   const accountType = params?.accountType as "individual" | "corporate" | "joint" | undefined;
   const accountId = params?.accountId;
@@ -948,26 +952,66 @@ export default function AccountDetails() {
                       <FormField
                         control={allocationForm.control}
                         name="universalHoldingId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Security</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger data-testid="select-holding">
-                                  <SelectValue placeholder="Select a security" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {universalHoldings.map((holding) => (
-                                  <SelectItem key={holding.id} value={holding.id} data-testid={`option-holding-${holding.id}`}>
-                                    {holding.ticker} - {holding.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                        render={({ field }) => {
+                          const selectedHolding = universalHoldings.find(h => h.id === field.value);
+                          return (
+                            <FormItem className="flex flex-col">
+                              <FormLabel>Security</FormLabel>
+                              <Popover open={holdingComboboxOpen} onOpenChange={setHoldingComboboxOpen}>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant="outline"
+                                      role="combobox"
+                                      aria-expanded={holdingComboboxOpen}
+                                      className={cn(
+                                        "w-full justify-between",
+                                        !field.value && "text-muted-foreground"
+                                      )}
+                                      data-testid="select-holding"
+                                    >
+                                      {selectedHolding 
+                                        ? `${selectedHolding.ticker} - ${selectedHolding.name}`
+                                        : "Search or select a security..."}
+                                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[400px] p-0" align="start">
+                                  <Command>
+                                    <CommandInput placeholder="Search by ticker or name..." />
+                                    <CommandList>
+                                      <CommandEmpty>No security found.</CommandEmpty>
+                                      <CommandGroup>
+                                        {universalHoldings.map((holding) => (
+                                          <CommandItem
+                                            key={holding.id}
+                                            value={`${holding.ticker} ${holding.name}`}
+                                            onSelect={() => {
+                                              field.onChange(holding.id);
+                                              setHoldingComboboxOpen(false);
+                                            }}
+                                            data-testid={`option-holding-${holding.id}`}
+                                          >
+                                            <Check
+                                              className={cn(
+                                                "mr-2 h-4 w-4",
+                                                field.value === holding.id ? "opacity-100" : "opacity-0"
+                                              )}
+                                            />
+                                            <span className="font-mono font-medium mr-2">{holding.ticker}</span>
+                                            <span className="text-muted-foreground truncate">{holding.name}</span>
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
                       />
                       <FormField
                         control={allocationForm.control}
