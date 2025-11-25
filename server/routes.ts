@@ -248,6 +248,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/individual-accounts/:id', isAuthenticated, async (req, res) => {
+    try {
+      const account = await storage.getIndividualAccount(req.params.id);
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      res.json(account);
+    } catch (error) {
+      console.error("Error fetching individual account:", error);
+      res.status(500).json({ message: "Failed to fetch account" });
+    }
+  });
+
   app.post('/api/individual-accounts', isAuthenticated, async (req, res) => {
     try {
       const parsed = insertIndividualAccountSchema.parse(req.body);
@@ -297,6 +310,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/corporate-accounts/:id', isAuthenticated, async (req, res) => {
+    try {
+      const account = await storage.getCorporateAccount(req.params.id);
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      res.json(account);
+    } catch (error) {
+      console.error("Error fetching corporate account:", error);
+      res.status(500).json({ message: "Failed to fetch account" });
+    }
+  });
+
   app.post('/api/corporate-accounts', isAuthenticated, async (req, res) => {
     try {
       const parsed = insertCorporateAccountSchema.parse(req.body);
@@ -343,6 +369,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching joint accounts:", error);
       res.status(500).json({ message: "Failed to fetch joint accounts" });
+    }
+  });
+
+  app.get('/api/joint-accounts/:id', isAuthenticated, async (req, res) => {
+    try {
+      const account = await storage.getJointAccount(req.params.id);
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      res.json(account);
+    } catch (error) {
+      console.error("Error fetching joint account:", error);
+      res.status(500).json({ message: "Failed to fetch account" });
     }
   });
 

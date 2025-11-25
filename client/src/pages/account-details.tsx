@@ -44,7 +44,10 @@ import {
   type Position, 
   type UniversalHolding,
   type PlannedPortfolioWithAllocations,
-  type AccountTargetAllocationWithHolding
+  type AccountTargetAllocationWithHolding,
+  type IndividualAccount,
+  type CorporateAccount,
+  type JointAccount
 } from "@shared/schema";
 import type { z } from "zod";
 
@@ -116,7 +119,22 @@ export default function AccountDetails() {
     }
   };
 
+  const getAccountEndpoint = () => {
+    if (!accountType || !accountId) return null;
+    switch (accountType) {
+      case "individual":
+        return `/api/individual-accounts/${accountId}`;
+      case "corporate":
+        return `/api/corporate-accounts/${accountId}`;
+      case "joint":
+        return `/api/joint-accounts/${accountId}`;
+      default:
+        return null;
+    }
+  };
+
   const positionsEndpoint = getPositionsEndpoint();
+  const accountEndpoint = getAccountEndpoint();
 
   const { data: positions = [], isLoading } = useQuery<Position[]>({
     queryKey: [positionsEndpoint],
@@ -135,6 +153,12 @@ export default function AccountDetails() {
       }
       return failureCount < 3;
     },
+  });
+
+  // Fetch account details to get the specific account type
+  const { data: accountData } = useQuery<IndividualAccount | CorporateAccount | JointAccount>({
+    queryKey: [accountEndpoint],
+    enabled: isAuthenticated && !!accountEndpoint,
   });
 
   // Fetch portfolio comparison data
@@ -785,6 +809,29 @@ export default function AccountDetails() {
   const totalBookValue = positions.reduce((sum, p) => sum + (Number(p.quantity) * Number(p.entryPrice)), 0);
   const totalMarketValue = positions.reduce((sum, p) => sum + (Number(p.quantity) * Number(p.currentPrice)), 0);
 
+  // Format the specific account type for display
+  const getAccountTypeLabel = () => {
+    if (!accountData) return `${accountType?.charAt(0).toUpperCase()}${accountType?.slice(1)} Account`;
+    
+    const typeLabels: Record<string, string> = {
+      // Individual account types
+      cash: "Cash Account",
+      tfsa: "TFSA",
+      fhsa: "FHSA",
+      rrsp: "RRSP",
+      lira: "LIRA",
+      liff: "LIFF",
+      rif: "RIF",
+      // Corporate account types
+      ipp: "IPP (Individual Pension Plan)",
+      // Joint account types
+      joint_cash: "Joint Cash Account",
+      resp: "RESP",
+    };
+
+    return typeLabels[accountData.type] || accountData.type.toUpperCase();
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -795,9 +842,9 @@ export default function AccountDetails() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Account Positions</h1>
+            <h1 className="text-3xl font-bold" data-testid="text-account-type">{getAccountTypeLabel()}</h1>
             <p className="text-muted-foreground">
-              {accountType.charAt(0).toUpperCase() + accountType.slice(1)} Account
+              {accountType?.charAt(0).toUpperCase()}{accountType?.slice(1)} Account Positions
             </p>
           </div>
         </div>
