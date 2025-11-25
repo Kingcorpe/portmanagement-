@@ -117,6 +117,7 @@ export const individualAccounts = pgTable("individual_accounts", {
   type: individualAccountTypeEnum("type").notNull(),
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'), // percentage
+  plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -125,6 +126,10 @@ export const individualAccountsRelations = relations(individualAccounts, ({ one,
   individual: one(individuals, {
     fields: [individualAccounts.individualId],
     references: [individuals.id],
+  }),
+  plannedPortfolio: one(plannedPortfolios, {
+    fields: [individualAccounts.plannedPortfolioId],
+    references: [plannedPortfolios.id],
   }),
   positions: many(positions),
 }));
@@ -136,6 +141,7 @@ export const corporateAccounts = pgTable("corporate_accounts", {
   type: corporateAccountTypeEnum("type").notNull(),
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'), // percentage
+  plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -144,6 +150,10 @@ export const corporateAccountsRelations = relations(corporateAccounts, ({ one, m
   corporation: one(corporations, {
     fields: [corporateAccounts.corporationId],
     references: [corporations.id],
+  }),
+  plannedPortfolio: one(plannedPortfolios, {
+    fields: [corporateAccounts.plannedPortfolioId],
+    references: [plannedPortfolios.id],
   }),
   positions: many(positions),
 }));
@@ -155,6 +165,7 @@ export const jointAccounts = pgTable("joint_accounts", {
   type: jointAccountTypeEnum("type").notNull(),
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'),
+  plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -163,6 +174,10 @@ export const jointAccountsRelations = relations(jointAccounts, ({ one, many }) =
   household: one(households, {
     fields: [jointAccounts.householdId],
     references: [households.id],
+  }),
+  plannedPortfolio: one(plannedPortfolios, {
+    fields: [jointAccounts.plannedPortfolioId],
+    references: [plannedPortfolios.id],
   }),
   positions: many(positions),
   ownerships: many(jointAccountOwnership),
