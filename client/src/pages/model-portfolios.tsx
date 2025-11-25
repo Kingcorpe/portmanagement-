@@ -1174,6 +1174,7 @@ export default function ModelPortfolios() {
         </div>
         {activeTab === "holdings" && (
           <div className="flex items-center gap-2">
+            {/* Hidden for future use: Refresh Prices button
             <Button 
               variant="outline" 
               size="sm"
@@ -1188,6 +1189,7 @@ export default function ModelPortfolios() {
               )}
               Refresh Prices
             </Button>
+            */}
             <Dialog open={isHoldingDialogOpen} onOpenChange={(open) => {
               setIsHoldingDialogOpen(open);
               if (!open) {
@@ -1424,8 +1426,8 @@ export default function ModelPortfolios() {
                     <SortableHeader column="ticker">Ticker</SortableHeader>
                     <SortableHeader column="name">Name</SortableHeader>
                     <SortableHeader column="category">Category</SortableHeader>
+                    {/* Hidden for future use: Price and Dividend columns
                     <SortableHeader column="price">Price</SortableHeader>
-                    {/* Hidden for future use: Dividend columns
                     <SortableHeader column="dividendRate">Dividend</SortableHeader>
                     <TableHead>Payout</TableHead>
                     */}
@@ -1449,6 +1451,7 @@ export default function ModelPortfolios() {
                           {categoryLabels[holding.category]}
                         </Badge>
                       </TableCell>
+                      {/* Hidden for future use: Price and Dividend data cells
                       <TableCell className="text-right">
                         <div className="font-mono">
                           CA${Number(holding.price).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1459,7 +1462,6 @@ export default function ModelPortfolios() {
                           </div>
                         )}
                       </TableCell>
-                      {/* Hidden for future use: Dividend data cells
                       <TableCell className="text-right font-mono">
                         {Number(holding.dividendRate).toFixed(2)}%
                       </TableCell>
