@@ -28,7 +28,6 @@ export interface Account {
   id: string;
   type: AccountType;
   balance: number;
-  performance: number;
 }
 
 export interface Individual {
@@ -47,7 +46,6 @@ export interface JointAccount {
   id: string;
   type: "joint-cash" | "resp";
   balance: number;
-  performance: number;
   owners: string[];
 }
 
@@ -243,7 +241,6 @@ export function HouseholdCard({
                     </Button>
                   )}
                   {individual.accounts.map((account) => {
-                    const accountPositive = account.performance >= 0;
                     return (
                       <div key={account.id} className="flex items-center justify-between text-sm" data-testid={`row-account-${account.id}`}>
                         <div className="flex items-center gap-2">
@@ -254,9 +251,6 @@ export function HouseholdCard({
                         <div className="flex items-center gap-2">
                           <span className="font-mono tabular-nums">
                             CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                          <span className={`font-mono tabular-nums text-xs ${accountPositive ? 'text-chart-2' : 'text-destructive'} min-w-[60px] text-right`}>
-                            {accountPositive ? '+' : ''}{account.performance.toFixed(2)}%
                           </span>
                           <Link href={`/account/individual/${account.id}`}>
                             <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-view-positions-${account.id}`}>
@@ -342,7 +336,6 @@ export function HouseholdCard({
                     </Button>
                   )}
                   {corporation.accounts.map((account) => {
-                    const accountPositive = account.performance >= 0;
                     return (
                       <div key={account.id} className="flex items-center justify-between text-sm" data-testid={`row-account-${account.id}`}>
                         <div className="flex items-center gap-2">
@@ -353,9 +346,6 @@ export function HouseholdCard({
                         <div className="flex items-center gap-2">
                           <span className="font-mono tabular-nums">
                             CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                          <span className={`font-mono tabular-nums text-xs ${accountPositive ? 'text-chart-2' : 'text-destructive'} min-w-[60px] text-right`}>
-                            {accountPositive ? '+' : ''}{account.performance.toFixed(2)}%
                           </span>
                           <Link href={`/account/corporate/${account.id}`}>
                             <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-view-positions-${account.id}`}>
@@ -426,7 +416,6 @@ export function HouseholdCard({
                 </div>
                 <div className="ml-8 space-y-1">
                   {household.jointAccounts.map((account) => {
-                    const accountPositive = account.performance >= 0;
                     return (
                       <div key={account.id} className="flex items-center justify-between text-sm" data-testid={`row-joint-account-${account.id}`}>
                         <div className="flex items-center gap-2">
@@ -437,9 +426,6 @@ export function HouseholdCard({
                         <div className="flex items-center gap-2">
                           <span className="font-mono tabular-nums">
                             CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                          <span className={`font-mono tabular-nums text-xs ${accountPositive ? 'text-chart-2' : 'text-destructive'} min-w-[60px] text-right`}>
-                            {accountPositive ? '+' : ''}{account.performance.toFixed(2)}%
                           </span>
                           <Link href={`/account/joint/${account.id}`}>
                             <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-view-positions-${account.id}`}>
