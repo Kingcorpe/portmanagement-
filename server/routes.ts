@@ -3,6 +3,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { ObjectPermission } from "./objectAcl";
 import {
   insertHouseholdSchema,
   insertIndividualSchema,
@@ -35,6 +37,8 @@ import {
   updateFreelancePortfolioAllocationSchema,
   updateAccountTargetAllocationSchema,
   tradingViewWebhookSchema,
+  insertLibraryDocumentSchema,
+  updateLibraryDocumentSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1656,6 +1660,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error looking up ticker:", error);
       res.status(500).json({ message: "Failed to look up ticker" });
+    }
+  });
+
+  // ==================== Object Storage Routes ====================
+  // Reference: blueprint:javascript_object_storage
+
+  // Endpoint to get upload URL for file upload
+  app.post('/api/objects/upload', isAuthenticated, async (req: any, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const fileExtension = req.body.fileExtension || 'pdf';
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL(fileExtension);
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ message: "Failed to get upload URL" });
+    }
+  });
+
+  // Endpoint to serve private objects (with ACL check)
+  app.get("/objects/:objectPath(*)", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      const canAccess = await objectStorageService.canAccessObjectEntity({
+        objectFile,
+        userId: userId,
+        requestedPermission: ObjectPermission.READ,
+      });
+      if (!canAccess) {
+        return res.sendStatus(401);
+      }
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error checking object access:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
+  // ==================== Library Document Routes ====================
+
+  // Get all library documents
+  app.get('/api/library-documents', isAuthenticated, async (req, res) => {
+    try {
+      const documents = await storage.getAllLibraryDocuments();
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching library documents:", error);
+      res.status(500).json({ message: "Failed to fetch library documents" });
+    }
+  });
+
+  // Get library documents by category
+  app.get('/api/library-documents/category/:category', isAuthenticated, async (req, res) => {
+    try {
+      const category = req.params.category as 'reports' | 'strategies';
+      if (!['reports', 'strategies'].includes(category)) {
+        return res.status(400).json({ message: "Invalid category" });
+      }
+      const documents = await storage.getLibraryDocumentsByCategory(category);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching library documents by category:", error);
+      res.status(500).json({ message: "Failed to fetch library documents" });
+    }
+  });
+
+  // Get single library document
+  app.get('/api/library-documents/:id', isAuthenticated, async (req, res) => {
+    try {
+      const document = await storage.getLibraryDocument(req.params.id);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      res.json(document);
+    } catch (error) {
+      console.error("Error fetching library document:", error);
+      res.status(500).json({ message: "Failed to fetch library document" });
+    }
+  });
+
+  // Create library document (after file upload)
+  app.post('/api/library-documents', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const objectStorageService = new ObjectStorageService();
+      
+      // Normalize the object path from the upload URL
+      const objectPath = objectStorageService.normalizeObjectEntityPath(req.body.objectPath);
+      
+      // Set ACL policy for the uploaded object
+      await objectStorageService.trySetObjectEntityAclPolicy(objectPath, {
+        owner: userId,
+        visibility: "private", // Library documents are private to authenticated users
+      });
+      
+      const parsed = insertLibraryDocumentSchema.parse({
+        ...req.body,
+        objectPath,
+        uploadedBy: userId,
+      });
+      
+      const document = await storage.createLibraryDocument(parsed);
+      res.json(document);
+    } catch (error: any) {
+      console.error("Error creating library document:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create library document" });
+    }
+  });
+
+  // Update library document
+  app.patch('/api/library-documents/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = updateLibraryDocumentSchema.parse(req.body);
+      const document = await storage.updateLibraryDocument(req.params.id, parsed);
+      res.json(document);
+    } catch (error: any) {
+      console.error("Error updating library document:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update library document" });
+    }
+  });
+
+  // Delete library document
+  app.delete('/api/library-documents/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteLibraryDocument(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting library document:", error);
+      res.status(500).json({ message: "Failed to delete library document" });
     }
   });
 
