@@ -36,6 +36,7 @@ The system uses a household-based hierarchy to organize client data, distinguish
 - **Separate Account Tables**: Dedicated tables for individual, corporate, and joint accounts for type safety.
 - **Unified Positions Table**: Single table for all holdings, simplifying data retrieval.
 - **Calculated Account Balances**: Account balances are computed dynamically from positions (quantity × currentPrice) rather than stored manually. Backend methods calculate these values and return them as `calculatedBalance`. Frontend transforms this to `balance` for display.
+- **Model Portfolio Assignment**: Accounts can optionally reference a Planned Portfolio as a starting template. The `plannedPortfolioId` field is a nullable foreign key on all account types (individual, corporate, joint). Multiple accounts can share the same model portfolio (many-to-one relationship).
 - **Robust Validation**: Zod is used for all input validation, especially for monetary fields, which are coerced to numbers, validated, and then stored as strings in Drizzle for decimal precision.
 - **Cascading Deletes**: Configured for data integrity across related entities.
 - **UUIDs**: All primary keys utilize UUIDs.
