@@ -537,6 +537,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Portfolio comparison endpoint - compares actual holdings vs model portfolio targets
+  app.get('/api/accounts/:accountType/:accountId/portfolio-comparison', isAuthenticated, async (req, res) => {
+    try {
+      const { accountType, accountId } = req.params;
+      
+      // Get account to find plannedPortfolioId
+      let account;
+      let positions;
+      
+      switch (accountType) {
+        case 'individual':
+          account = await storage.getIndividualAccount(accountId);
+          positions = await storage.getPositionsByIndividualAccount(accountId);
+          break;
+        case 'corporate':
+          account = await storage.getCorporateAccount(accountId);
+          positions = await storage.getPositionsByCorporateAccount(accountId);
+          break;
+        case 'joint':
+          account = await storage.getJointAccount(accountId);
+          positions = await storage.getPositionsByJointAccount(accountId);
+          break;
+        default:
+          return res.status(400).json({ message: "Invalid account type" });
+      }
+      
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // If no model portfolio assigned, return empty comparison
+      if (!account.plannedPortfolioId) {
+        return res.json({
+          hasModelPortfolio: false,
+          modelPortfolio: null,
+          comparison: [],
+          totalActualValue: 0
+        });
+      }
+      
+      // Get the model portfolio with allocations
+      const modelPortfolio = await storage.getPlannedPortfolioWithAllocations(account.plannedPortfolioId);
+      if (!modelPortfolio) {
+        return res.json({
+          hasModelPortfolio: false,
+          modelPortfolio: null,
+          comparison: [],
+          totalActualValue: 0
+        });
+      }
+      
+      // Calculate total actual value from positions
+      const totalActualValue = positions.reduce((sum, pos) => {
+        return sum + (Number(pos.quantity) * Number(pos.currentPrice));
+      }, 0);
+      
+      // Build comparison data
+      // Get all universal holdings to map IDs to tickers
+      const universalHoldings = await storage.getAllUniversalHoldings();
+      const holdingsMap = new Map(universalHoldings.map(h => [h.id, h]));
+      
+      // Create a map of actual allocations by ticker
+      const actualByTicker = new Map<string, { value: number; quantity: number }>();
+      for (const pos of positions) {
+        const ticker = pos.symbol.toUpperCase();
+        const value = Number(pos.quantity) * Number(pos.currentPrice);
+        const existing = actualByTicker.get(ticker) || { value: 0, quantity: 0 };
+        actualByTicker.set(ticker, {
+          value: existing.value + value,
+          quantity: existing.quantity + Number(pos.quantity)
+        });
+      }
+      
+      // Build comparison entries
+      const comparison = [];
+      const processedTickers = new Set<string>();
+      
+      // First, add all target allocations from model portfolio
+      for (const allocation of modelPortfolio.allocations || []) {
+        const holding = holdingsMap.get(allocation.universalHoldingId);
+        if (!holding) continue;
+        
+        const ticker = holding.ticker.toUpperCase();
+        processedTickers.add(ticker);
+        
+        const actual = actualByTicker.get(ticker);
+        const actualValue = actual?.value || 0;
+        const actualPercentage = totalActualValue > 0 ? (actualValue / totalActualValue) * 100 : 0;
+        const targetPercentage = Number(allocation.targetPercentage);
+        const variance = actualPercentage - targetPercentage;
+        
+        comparison.push({
+          ticker,
+          name: holding.name,
+          targetPercentage,
+          actualPercentage: Math.round(actualPercentage * 100) / 100,
+          variance: Math.round(variance * 100) / 100,
+          actualValue: Math.round(actualValue * 100) / 100,
+          targetValue: totalActualValue > 0 ? Math.round((targetPercentage / 100) * totalActualValue * 100) / 100 : 0,
+          quantity: actual?.quantity || 0,
+          status: variance > 2 ? 'over' : variance < -2 ? 'under' : 'on-target'
+        });
+      }
+      
+      // Add any positions that aren't in the model portfolio (unexpected holdings)
+      for (const [ticker, data] of Array.from(actualByTicker)) {
+        if (!processedTickers.has(ticker)) {
+          const actualPercentage = totalActualValue > 0 ? (data.value / totalActualValue) * 100 : 0;
+          comparison.push({
+            ticker,
+            name: ticker, // No name available for unexpected holdings
+            targetPercentage: 0,
+            actualPercentage: Math.round(actualPercentage * 100) / 100,
+            variance: Math.round(actualPercentage * 100) / 100,
+            actualValue: Math.round(data.value * 100) / 100,
+            targetValue: 0,
+            quantity: data.quantity,
+            status: 'unexpected'
+          });
+        }
+      }
+      
+      // Sort by variance (largest discrepancy first)
+      comparison.sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance));
+      
+      res.json({
+        hasModelPortfolio: true,
+        modelPortfolio: {
+          id: modelPortfolio.id,
+          name: modelPortfolio.name,
+          description: modelPortfolio.description
+        },
+        comparison,
+        totalActualValue: Math.round(totalActualValue * 100) / 100
+      });
+    } catch (error) {
+      console.error("Error fetching portfolio comparison:", error);
+      res.status(500).json({ message: "Failed to fetch portfolio comparison" });
+    }
+  });
+
   // Trade routes
   app.get('/api/trades', isAuthenticated, async (req, res) => {
     try {
