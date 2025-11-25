@@ -489,6 +489,8 @@ export default function AccountDetails() {
 
       // Parse data rows
       const positions = [];
+      const cashIdentifiers = ['cash', 'cad', '$cad', 'cad$', 'cash cad', 'canadian dollar', 'money market'];
+      
       for (let i = 1; i < rows.length; i++) {
         const values = rows[i];
         
@@ -496,10 +498,26 @@ export default function AccountDetails() {
           continue; // Skip incomplete rows
         }
 
-        const symbol = values[tickerIndex];
+        const rawSymbol = String(values[tickerIndex]).trim();
+        const symbolLower = rawSymbol.toLowerCase();
+        const isCash = cashIdentifiers.some(id => symbolLower === id || symbolLower.includes(id));
+        
         const quantity = parseFloat(String(values[quantityIndex]).replace(/,/g, ''));
-        const entryPrice = parseFloat(String(values[avgCostIndex]).replace(/,/g, ''));
-        const currentPrice = parseFloat(String(values[marketPriceIndex]).replace(/,/g, ''));
+        
+        // For cash positions, prices are always 1.00
+        let entryPrice: number;
+        let currentPrice: number;
+        let symbol: string;
+        
+        if (isCash) {
+          symbol = "CASH";
+          entryPrice = 1.00;
+          currentPrice = 1.00;
+        } else {
+          symbol = rawSymbol.toUpperCase();
+          entryPrice = parseFloat(String(values[avgCostIndex]).replace(/,/g, ''));
+          currentPrice = parseFloat(String(values[marketPriceIndex]).replace(/,/g, ''));
+        }
 
         if (symbol && !isNaN(quantity) && !isNaN(entryPrice) && !isNaN(currentPrice)) {
           positions.push({ symbol, quantity, entryPrice, currentPrice });

@@ -46,7 +46,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -69,6 +71,15 @@ const riskLevelLabels: Record<string, string> = {
   medium_high: "Medium-High",
   high: "High",
 };
+
+const holdingCategoryLabels: Record<string, string> = {
+  basket_etf: "Basket ETFs",
+  single_etf: "Single ETFs",
+  double_long_etf: "Double Long ETFs",
+  security: "Securities",
+};
+
+const holdingCategoryOrder = ["basket_etf", "single_etf", "double_long_etf", "security"];
 
 const riskLevelColors: Record<string, string> = {
   low: "bg-chart-2 text-white",
@@ -1224,12 +1235,23 @@ export default function ModelPortfolios() {
                           <SelectValue placeholder="Select a holding" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        {holdings.map((holding) => (
-                          <SelectItem key={holding.id} value={holding.id}>
-                            <span className="font-mono">{holding.ticker}</span> - {holding.name}
-                          </SelectItem>
-                        ))}
+                      <SelectContent className="max-h-80">
+                        {holdingCategoryOrder.map((category) => {
+                          const categoryHoldings = holdings.filter(h => h.category === category);
+                          if (categoryHoldings.length === 0) return null;
+                          return (
+                            <SelectGroup key={category}>
+                              <SelectLabel className="font-semibold text-xs uppercase tracking-wide text-muted-foreground px-2 py-1.5">
+                                {holdingCategoryLabels[category]}
+                              </SelectLabel>
+                              {categoryHoldings.map((holding) => (
+                                <SelectItem key={holding.id} value={holding.id}>
+                                  <span className="font-mono">{holding.ticker}</span> - {holding.name}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                     <FormMessage />
