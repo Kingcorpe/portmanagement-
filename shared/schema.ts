@@ -115,6 +115,7 @@ export const individualAccounts = pgTable("individual_accounts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   individualId: varchar("individual_id").notNull().references(() => individuals.id, { onDelete: 'cascade' }),
   type: individualAccountTypeEnum("type").notNull(),
+  nickname: varchar("nickname", { length: 100 }),
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'), // percentage
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
@@ -139,6 +140,7 @@ export const corporateAccounts = pgTable("corporate_accounts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   corporationId: varchar("corporation_id").notNull().references(() => corporations.id, { onDelete: 'cascade' }),
   type: corporateAccountTypeEnum("type").notNull(),
+  nickname: varchar("nickname", { length: 100 }),
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'), // percentage
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
@@ -163,6 +165,7 @@ export const jointAccounts = pgTable("joint_accounts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   householdId: varchar("household_id").notNull().references(() => households.id, { onDelete: 'cascade' }),
   type: jointAccountTypeEnum("type").notNull(),
+  nickname: varchar("nickname", { length: 100 }),
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'),
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
