@@ -8,7 +8,6 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +17,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -25,17 +31,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
-import { insertPositionSchema, type InsertPosition, type Position } from "@shared/schema";
+import { 
+  insertPositionSchema, 
+  insertAccountTargetAllocationSchema,
+  type InsertPosition, 
+  type Position, 
+  type UniversalHolding,
+  type PlannedPortfolioWithAllocations,
+  type AccountTargetAllocationWithHolding
+} from "@shared/schema";
 import type { z } from "zod";
 
 type PositionFormData = z.infer<typeof insertPositionSchema>;
+type AllocationFormData = z.infer<typeof insertAccountTargetAllocationSchema>;
 
 interface PortfolioComparisonItem {
+  allocationId: string | null;
   ticker: string;
   name: string;
   targetPercentage: number;
@@ -48,10 +64,10 @@ interface PortfolioComparisonItem {
 }
 
 interface PortfolioComparisonData {
-  hasModelPortfolio: boolean;
-  modelPortfolio: { id: string; name: string; description: string | null } | null;
+  hasTargetAllocations: boolean;
   comparison: PortfolioComparisonItem[];
   totalActualValue: number;
+  totalTargetPercentage: number;
 }
 
 export default function AccountDetails() {
@@ -60,6 +76,10 @@ export default function AccountDetails() {
   const [, params] = useRoute("/accounts/:accountType/:accountId");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
+  const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);
+  const [editingAllocation, setEditingAllocation] = useState<AccountTargetAllocationWithHolding | null>(null);
+  const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string>("");
 
   const accountType = params?.accountType as "individual" | "corporate" | "joint" | undefined;
   const accountId = params?.accountId;
@@ -121,6 +141,28 @@ export default function AccountDetails() {
   const { data: comparisonData, isLoading: comparisonLoading } = useQuery<PortfolioComparisonData>({
     queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'],
     enabled: isAuthenticated && !!comparisonEndpoint,
+  });
+
+  // Fetch target allocations for this account
+  const targetAllocationsEndpoint = accountType && accountId
+    ? `/api/accounts/${accountType}/${accountId}/target-allocations`
+    : null;
+
+  const { data: targetAllocations = [] } = useQuery<AccountTargetAllocationWithHolding[]>({
+    queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'],
+    enabled: isAuthenticated && !!targetAllocationsEndpoint,
+  });
+
+  // Fetch universal holdings for the allocation form
+  const { data: universalHoldings = [] } = useQuery<UniversalHolding[]>({
+    queryKey: ['/api/universal-holdings'],
+    enabled: isAuthenticated,
+  });
+
+  // Fetch model portfolios for copy feature
+  const { data: modelPortfolios = [] } = useQuery<PlannedPortfolioWithAllocations[]>({
+    queryKey: ['/api/planned-portfolios'],
+    enabled: isAuthenticated,
   });
 
   const form = useForm<PositionFormData>({
@@ -221,6 +263,151 @@ export default function AccountDetails() {
       });
     },
   });
+
+  // Allocation form
+  const allocationForm = useForm<AllocationFormData>({
+    resolver: zodResolver(insertAccountTargetAllocationSchema),
+    defaultValues: {
+      universalHoldingId: "",
+      targetPercentage: "",
+    },
+  });
+
+  useEffect(() => {
+    if (editingAllocation) {
+      allocationForm.reset({
+        universalHoldingId: editingAllocation.universalHoldingId,
+        targetPercentage: editingAllocation.targetPercentage,
+      });
+    } else {
+      allocationForm.reset({
+        universalHoldingId: "",
+        targetPercentage: "",
+      });
+    }
+  }, [editingAllocation, allocationForm]);
+
+  // Allocation mutations
+  const createAllocationMutation = useMutation({
+    mutationFn: async (data: AllocationFormData) => {
+      return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/target-allocations`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      toast({
+        title: "Success",
+        description: "Target allocation added successfully",
+      });
+      handleAllocationDialogChange(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add target allocation",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateAllocationMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<AllocationFormData> }) => {
+      return await apiRequest("PATCH", `/api/account-target-allocations/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      toast({
+        title: "Success",
+        description: "Target allocation updated successfully",
+      });
+      handleAllocationDialogChange(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update target allocation",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteAllocationMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/account-target-allocations/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      toast({
+        title: "Success",
+        description: "Target allocation deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete target allocation",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const copyFromPortfolioMutation = useMutation({
+    mutationFn: async (portfolioId: string) => {
+      return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/copy-from-portfolio/${portfolioId}`);
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      toast({
+        title: "Success",
+        description: `Copied ${data.allocationsCount} allocations from ${data.copiedFrom}`,
+      });
+      setIsCopyDialogOpen(false);
+      setSelectedPortfolioId("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to copy allocations from portfolio",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onAllocationSubmit = (data: AllocationFormData) => {
+    if (editingAllocation) {
+      updateAllocationMutation.mutate({ id: editingAllocation.id, data });
+    } else {
+      createAllocationMutation.mutate(data);
+    }
+  };
+
+  const handleEditAllocation = (allocation: AccountTargetAllocationWithHolding) => {
+    setEditingAllocation(allocation);
+    setIsAllocationDialogOpen(true);
+  };
+
+  const handleDeleteAllocation = (id: string) => {
+    if (confirm("Are you sure you want to delete this target allocation?")) {
+      deleteAllocationMutation.mutate(id);
+    }
+  };
+
+  const handleAllocationDialogChange = (open: boolean) => {
+    setIsAllocationDialogOpen(open);
+    if (!open) {
+      setEditingAllocation(null);
+      allocationForm.reset();
+    }
+  };
+
+  const handleCopyFromPortfolio = () => {
+    if (selectedPortfolioId) {
+      copyFromPortfolioMutation.mutate(selectedPortfolioId);
+    }
+  };
 
   const onSubmit = (data: PositionFormData) => {
     if (editingPosition) {
@@ -416,18 +603,218 @@ export default function AccountDetails() {
         </Card>
       </div>
 
+      {/* Target Allocations Management Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5" />
+                Target Allocations
+              </CardTitle>
+              <CardDescription>
+                Define target asset allocation percentages for this account
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Dialog open={isCopyDialogOpen} onOpenChange={setIsCopyDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" data-testid="button-copy-from-portfolio">
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy from Model
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Copy from Model Portfolio</DialogTitle>
+                    <DialogDescription>
+                      Select a model portfolio to copy its allocations. This will replace any existing target allocations.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <Select value={selectedPortfolioId} onValueChange={setSelectedPortfolioId}>
+                      <SelectTrigger data-testid="select-model-portfolio">
+                        <SelectValue placeholder="Select a model portfolio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {modelPortfolios.map((portfolio) => (
+                          <SelectItem key={portfolio.id} value={portfolio.id} data-testid={`option-portfolio-${portfolio.id}`}>
+                            {portfolio.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setIsCopyDialogOpen(false)} data-testid="button-cancel-copy">
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={handleCopyFromPortfolio} 
+                        disabled={!selectedPortfolioId || copyFromPortfolioMutation.isPending}
+                        data-testid="button-confirm-copy"
+                      >
+                        {copyFromPortfolioMutation.isPending ? "Copying..." : "Copy Allocations"}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={isAllocationDialogOpen} onOpenChange={handleAllocationDialogChange}>
+                <DialogTrigger asChild>
+                  <Button data-testid="button-add-allocation">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Allocation
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{editingAllocation ? "Edit Target Allocation" : "Add Target Allocation"}</DialogTitle>
+                    <DialogDescription>
+                      {editingAllocation ? "Update the allocation details." : "Select a holding and set a target percentage."}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Form {...allocationForm}>
+                    <form onSubmit={allocationForm.handleSubmit(onAllocationSubmit)} className="space-y-4">
+                      <FormField
+                        control={allocationForm.control}
+                        name="universalHoldingId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Security</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-holding">
+                                  <SelectValue placeholder="Select a security" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {universalHoldings.map((holding) => (
+                                  <SelectItem key={holding.id} value={holding.id} data-testid={`option-holding-${holding.id}`}>
+                                    {holding.ticker} - {holding.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={allocationForm.control}
+                        name="targetPercentage"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Target Percentage</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                step="0.01" 
+                                min="0.01"
+                                max="100"
+                                placeholder="25.00" 
+                                data-testid="input-target-percentage" 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => handleAllocationDialogChange(false)} data-testid="button-cancel-allocation">
+                          Cancel
+                        </Button>
+                        <Button 
+                          type="submit" 
+                          data-testid="button-submit-allocation" 
+                          disabled={createAllocationMutation.isPending || updateAllocationMutation.isPending}
+                        >
+                          {createAllocationMutation.isPending || updateAllocationMutation.isPending 
+                            ? "Saving..." 
+                            : editingAllocation ? "Update" : "Add"}
+                        </Button>
+                      </div>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {targetAllocations.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4">
+              No target allocations defined. Add allocations manually or copy from a model portfolio.
+            </p>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ticker</TableHead>
+                    <TableHead>Security</TableHead>
+                    <TableHead className="text-right">Target %</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {targetAllocations.map((allocation) => (
+                    <TableRow key={allocation.id} data-testid={`row-allocation-${allocation.id}`}>
+                      <TableCell className="font-medium" data-testid={`text-alloc-ticker-${allocation.id}`}>
+                        {allocation.holding?.ticker}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm" data-testid={`text-alloc-name-${allocation.id}`}>
+                        {allocation.holding?.name}
+                      </TableCell>
+                      <TableCell className="text-right" data-testid={`text-alloc-pct-${allocation.id}`}>
+                        {Number(allocation.targetPercentage).toFixed(2)}%
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditAllocation(allocation)}
+                            data-testid={`button-edit-allocation-${allocation.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteAllocation(allocation.id)}
+                            data-testid={`button-delete-allocation-${allocation.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <div className="mt-4 flex justify-end">
+                <Badge variant={
+                  targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0) === 100 
+                    ? "default" 
+                    : "secondary"
+                } data-testid="badge-total-allocation">
+                  Total: {targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0).toFixed(2)}%
+                </Badge>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Portfolio Comparison Section */}
-      {comparisonData?.hasModelPortfolio && (
+      {comparisonData?.hasTargetAllocations && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Portfolio Comparison
-              <Badge variant="outline" data-testid="badge-model-portfolio">
-                {comparisonData.modelPortfolio?.name}
-              </Badge>
-            </CardTitle>
+            <CardTitle>Portfolio Comparison</CardTitle>
             <CardDescription>
-              Actual holdings vs. target allocations from model portfolio
+              Actual holdings vs. target allocations
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -435,7 +822,7 @@ export default function AccountDetails() {
               <p className="text-muted-foreground text-center py-4">Loading comparison...</p>
             ) : comparisonData.comparison.length === 0 ? (
               <p className="text-muted-foreground text-center py-4">
-                No allocations defined in the model portfolio or no positions yet.
+                No positions yet to compare against targets.
               </p>
             ) : (
               <Table>
@@ -503,7 +890,7 @@ export default function AccountDetails() {
                         {item.status === 'unexpected' && (
                           <Badge variant="destructive">
                             <AlertTriangle className="h-3 w-3 mr-1" />
-                            Not in Model
+                            Not in Target
                           </Badge>
                         )}
                       </TableCell>
@@ -516,15 +903,15 @@ export default function AccountDetails() {
         </Card>
       )}
 
-      {/* Show message if no model portfolio assigned */}
-      {!comparisonLoading && comparisonData && !comparisonData.hasModelPortfolio && (
+      {/* Show message if no target allocations defined */}
+      {!comparisonLoading && comparisonData && !comparisonData.hasTargetAllocations && (
         <Card>
           <CardHeader>
             <CardTitle>Portfolio Comparison</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground text-center py-4">
-              No model portfolio assigned to this account. Assign a model portfolio when creating or editing the account to see comparison data.
+              No target allocations defined for this account. Add target allocations above to see comparison data.
             </p>
           </CardContent>
         </Card>
