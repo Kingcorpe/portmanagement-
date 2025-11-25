@@ -53,7 +53,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X, RefreshCw } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X, RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -159,6 +160,7 @@ export default function ModelPortfolios() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [inlineEditingAllocation, setInlineEditingAllocation] = useState<{ id: string; type: "planned" | "freelance" } | null>(null);
   const [inlineAllocationValue, setInlineAllocationValue] = useState<string>("");
+  const [openPlannedPortfolios, setOpenPlannedPortfolios] = useState<Set<string>>(new Set());
 
   const holdingForm = useForm<HoldingFormData>({
     resolver: zodResolver(holdingFormSchema),
@@ -588,6 +590,18 @@ export default function ModelPortfolios() {
         }
       );
     }
+  };
+
+  const togglePlannedPortfolio = (portfolioId: string) => {
+    setOpenPlannedPortfolios(prev => {
+      const next = new Set(prev);
+      if (next.has(portfolioId)) {
+        next.delete(portfolioId);
+      } else {
+        next.add(portfolioId);
+      }
+      return next;
+    });
   };
 
   const riskLevelOrder = { low: 1, low_medium: 2, medium: 3, medium_high: 4, high: 5 };
@@ -1059,135 +1073,146 @@ export default function ModelPortfolios() {
             <div className="grid gap-4">
               {filteredPlannedPortfolios.map((portfolio) => {
                 const totalAllocation = portfolio.allocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0);
+                const isOpen = openPlannedPortfolios.has(portfolio.id);
                 return (
-                  <Card key={portfolio.id} data-testid={`card-planned-portfolio-${portfolio.id}`}>
-                    <CardHeader className="flex flex-row items-start justify-between gap-2">
-                      <div>
-                        <CardTitle>{portfolio.name}</CardTitle>
-                        {portfolio.description && <CardDescription>{portfolio.description}</CardDescription>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={totalAllocation === 100 ? "default" : "destructive"}>
-                          <Percent className="h-3 w-3 mr-1" />
-                          {totalAllocation.toFixed(1)}% Allocated
-                        </Badge>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" data-testid={`button-delete-planned-${portfolio.id}`}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Portfolio</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete "{portfolio.name}"? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deletePlannedPortfolioMutation.mutate(portfolio.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {portfolio.allocations.length === 0 ? (
-                        <p className="text-sm text-muted-foreground mb-4">No allocations yet</p>
-                      ) : (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Holding</TableHead>
-                              <TableHead className="text-right">Allocation</TableHead>
-                              <TableHead className="w-[80px]"></TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {portfolio.allocations.map((allocation) => {
-                              const isEditing = inlineEditingAllocation?.id === allocation.id && inlineEditingAllocation?.type === "planned";
-                              const currentValue = Number(allocation.targetPercentage);
-                              return (
-                                <TableRow key={allocation.id} data-testid={`row-allocation-${allocation.id}`}>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-mono font-semibold">{allocation.holding.ticker}</span>
-                                      <span className="text-muted-foreground">{allocation.holding.name}</span>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-right font-mono">
-                                    {isEditing ? (
-                                      <div className="flex items-center gap-1 justify-end">
-                                        <Input
-                                          type="number"
-                                          step="0.01"
-                                          min="0"
-                                          max="100"
-                                          value={inlineAllocationValue}
-                                          onChange={(e) => setInlineAllocationValue(e.target.value)}
-                                          onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                              handleInlineAllocationSave(allocation.id, "planned", currentValue);
-                                            } else if (e.key === "Escape") {
-                                              handleInlineAllocationCancel();
-                                            }
-                                          }}
-                                          className="w-20 h-7 text-right"
-                                          autoFocus
-                                          data-testid={`input-inline-allocation-${allocation.id}`}
-                                        />
-                                        <span>%</span>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 text-primary"
-                                          onClick={() => handleInlineAllocationSave(allocation.id, "planned", currentValue)}
-                                          data-testid={`button-save-inline-allocation-${allocation.id}`}
-                                        >
-                                          <Target className="h-3 w-3" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 text-muted-foreground"
-                                          onClick={handleInlineAllocationCancel}
-                                          data-testid={`button-cancel-inline-allocation-${allocation.id}`}
-                                        >
-                                          <X className="h-3 w-3" />
-                                        </Button>
-                                      </div>
-                                    ) : (
-                                      <span
-                                        className="cursor-pointer hover:text-primary transition-colors"
-                                        onClick={() => handleInlineAllocationEdit("planned", allocation.id, currentValue.toFixed(2))}
-                                        data-testid={`text-allocation-${allocation.id}`}
-                                      >
-                                        {currentValue.toFixed(2)}%
-                                      </span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-1">
-                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deletePlannedAllocationMutation.mutate(allocation.id)} data-testid={`button-delete-allocation-${allocation.id}`}>
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
+                  <Collapsible key={portfolio.id} open={isOpen} onOpenChange={() => togglePlannedPortfolio(portfolio.id)}>
+                    <Card data-testid={`card-planned-portfolio-${portfolio.id}`}>
+                      <CardHeader className="flex flex-row items-start justify-between gap-2 pb-3">
+                        <CollapsibleTrigger className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors" data-testid={`toggle-planned-${portfolio.id}`}>
+                          {isOpen ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                          <div className="text-left">
+                            <CardTitle>{portfolio.name}</CardTitle>
+                            {portfolio.description && <CardDescription>{portfolio.description}</CardDescription>}
+                          </div>
+                        </CollapsibleTrigger>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={totalAllocation === 100 ? "default" : "destructive"}>
+                            <Percent className="h-3 w-3 mr-1" />
+                            {totalAllocation.toFixed(1)}% Allocated
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {portfolio.allocations.length} holding{portfolio.allocations.length !== 1 ? 's' : ''}
+                          </span>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" data-testid={`button-delete-planned-${portfolio.id}`}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Portfolio</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{portfolio.name}"? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deletePlannedPortfolioMutation.mutate(portfolio.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </CardHeader>
+                      <CollapsibleContent>
+                        <CardContent>
+                          {portfolio.allocations.length === 0 ? (
+                            <p className="text-sm text-muted-foreground mb-4">No allocations yet</p>
+                          ) : (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Holding</TableHead>
+                                  <TableHead className="text-right">Allocation</TableHead>
+                                  <TableHead className="w-[80px]"></TableHead>
                                 </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                      )}
-                      <Button variant="outline" size="sm" className="mt-4" onClick={() => handleAddAllocation("planned", portfolio.id)} data-testid={`button-add-allocation-${portfolio.id}`}>
-                        <Plus className="h-3 w-3 mr-1" />
-                        Add Allocation
-                      </Button>
-                    </CardContent>
-                  </Card>
+                              </TableHeader>
+                              <TableBody>
+                                {portfolio.allocations.map((allocation) => {
+                                  const isEditing = inlineEditingAllocation?.id === allocation.id && inlineEditingAllocation?.type === "planned";
+                                  const currentValue = Number(allocation.targetPercentage);
+                                  return (
+                                    <TableRow key={allocation.id} data-testid={`row-allocation-${allocation.id}`}>
+                                      <TableCell>
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-mono font-semibold">{allocation.holding.ticker}</span>
+                                          <span className="text-muted-foreground">{allocation.holding.name}</span>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="text-right font-mono">
+                                        {isEditing ? (
+                                          <div className="flex items-center gap-1 justify-end">
+                                            <Input
+                                              type="number"
+                                              step="0.01"
+                                              min="0"
+                                              max="100"
+                                              value={inlineAllocationValue}
+                                              onChange={(e) => setInlineAllocationValue(e.target.value)}
+                                              onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                  handleInlineAllocationSave(allocation.id, "planned", currentValue);
+                                                } else if (e.key === "Escape") {
+                                                  handleInlineAllocationCancel();
+                                                }
+                                              }}
+                                              className="w-20 h-7 text-right"
+                                              autoFocus
+                                              data-testid={`input-inline-allocation-${allocation.id}`}
+                                            />
+                                            <span>%</span>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6 text-primary"
+                                              onClick={() => handleInlineAllocationSave(allocation.id, "planned", currentValue)}
+                                              data-testid={`button-save-inline-allocation-${allocation.id}`}
+                                            >
+                                              <Target className="h-3 w-3" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6 text-muted-foreground"
+                                              onClick={handleInlineAllocationCancel}
+                                              data-testid={`button-cancel-inline-allocation-${allocation.id}`}
+                                            >
+                                              <X className="h-3 w-3" />
+                                            </Button>
+                                          </div>
+                                        ) : (
+                                          <span
+                                            className="cursor-pointer hover:text-primary transition-colors"
+                                            onClick={() => handleInlineAllocationEdit("planned", allocation.id, currentValue.toFixed(2))}
+                                            data-testid={`text-allocation-${allocation.id}`}
+                                          >
+                                            {currentValue.toFixed(2)}%
+                                          </span>
+                                        )}
+                                      </TableCell>
+                                      <TableCell>
+                                        <div className="flex items-center gap-1">
+                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deletePlannedAllocationMutation.mutate(allocation.id)} data-testid={`button-delete-allocation-${allocation.id}`}>
+                                            <Trash2 className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          )}
+                          <Button variant="outline" size="sm" className="mt-4" onClick={() => handleAddAllocation("planned", portfolio.id)} data-testid={`button-add-allocation-${portfolio.id}`}>
+                            <Plus className="h-3 w-3 mr-1" />
+                            Add Allocation
+                          </Button>
+                        </CardContent>
+                      </CollapsibleContent>
+                    </Card>
+                  </Collapsible>
                 );
               })}
             </div>
