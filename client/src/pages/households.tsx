@@ -7,7 +7,12 @@ import { HouseholdCard, Household, HouseholdCategory, householdCategoryLabels, h
 import { HouseholdManagementDialogs } from "@/components/household-management-dialogs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, LayoutList, LayoutGrid } from "lucide-react";
+import { Plus, Search, LayoutList, LayoutGrid, ChevronRight } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -43,7 +48,8 @@ export default function Households() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"list" | "grouped">("list");
+  const [viewMode, setViewMode] = useState<"list" | "grouped">("grouped");
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   // Dialog state for household management
   const [dialogState, setDialogState] = useState<{
@@ -477,6 +483,18 @@ export default function Households() {
     setDialogState({ type: null, householdId: null, individualId: null, corporationId: null });
   };
 
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
+
   const filteredHouseholds = households
     .filter(household =>
       household.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -634,51 +652,57 @@ export default function Households() {
           ))}
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-3">
           {/* Group households by category */}
-          {(["evergreen", "anchor", "pulse", "emerging_pulse", "emerging_anchor", null] as (HouseholdCategory | null)[]).map(category => {
+          {(["evergreen", "anchor", "pulse", "emerging_pulse", "emerging_anchor"] as HouseholdCategory[]).map(category => {
             const categoryHouseholds = filteredHouseholds.filter(h => h.category === category);
             if (categoryHouseholds.length === 0) return null;
+            const isExpanded = expandedCategories.has(category);
             
             return (
-              <div key={category || "uncategorized"} className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-semibold">
-                    {category ? householdCategoryLabels[category] : "Uncategorized"}
-                  </h2>
-                  {category && (
+              <Collapsible
+                key={category}
+                open={isExpanded}
+                onOpenChange={() => toggleCategory(category)}
+              >
+                <CollapsibleTrigger asChild>
+                  <div 
+                    className="flex items-center gap-3 p-3 rounded-lg border bg-card hover-elevate cursor-pointer"
+                    data-testid={`folder-category-${category}`}
+                  >
+                    <ChevronRight className={`h-5 w-5 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                    <h2 className="text-lg font-semibold flex-1">
+                      {householdCategoryLabels[category]}
+                    </h2>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${householdCategoryColors[category]}`}>
                       {categoryHouseholds.length} {categoryHouseholds.length === 1 ? "household" : "households"}
                     </span>
-                  )}
-                  {!category && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-                      {categoryHouseholds.length} {categoryHouseholds.length === 1 ? "household" : "households"}
-                    </span>
-                  )}
-                </div>
-                <div className="grid gap-4">
-                  {categoryHouseholds.map(household => (
-                    <HouseholdCard 
-                      key={household.id} 
-                      household={household}
-                      onAddIndividual={handleAddIndividual}
-                      onAddCorporation={handleAddCorporation}
-                      onAddAccount={handleAddAccount}
-                      onAddJointAccount={handleAddJointAccount}
-                      onEditHousehold={handleEditHousehold}
-                      onEditCategory={(householdId, currentCategory) => setEditingCategory({ householdId, currentCategory })}
-                      onDeleteHousehold={handleDeleteHousehold}
-                      onDeleteAccount={handleDeleteAccount}
-                      onEditIndividual={handleEditIndividual}
-                      onDeleteIndividual={handleDeleteIndividual}
-                      onEditCorporation={handleEditCorporation}
-                      onDeleteCorporation={handleDeleteCorporation}
-                      onEditJointAccount={handleEditJointAccount}
-                    />
-                  ))}
-                </div>
-              </div>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="grid gap-4 mt-3 pl-8">
+                    {categoryHouseholds.map(household => (
+                      <HouseholdCard 
+                        key={household.id} 
+                        household={household}
+                        onAddIndividual={handleAddIndividual}
+                        onAddCorporation={handleAddCorporation}
+                        onAddAccount={handleAddAccount}
+                        onAddJointAccount={handleAddJointAccount}
+                        onEditHousehold={handleEditHousehold}
+                        onEditCategory={(householdId, currentCategory) => setEditingCategory({ householdId, currentCategory })}
+                        onDeleteHousehold={handleDeleteHousehold}
+                        onDeleteAccount={handleDeleteAccount}
+                        onEditIndividual={handleEditIndividual}
+                        onDeleteIndividual={handleDeleteIndividual}
+                        onEditCorporation={handleEditCorporation}
+                        onDeleteCorporation={handleDeleteCorporation}
+                        onEditJointAccount={handleEditJointAccount}
+                      />
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             );
           })}
         </div>
