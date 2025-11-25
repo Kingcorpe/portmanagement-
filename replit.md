@@ -52,14 +52,27 @@ The API provides comprehensive CRUD operations for households, individuals, corp
 A dedicated webhook endpoint (`POST /api/webhooks/tradingview`) is available for receiving BUY/SELL alerts from TradingView. The system supports optional webhook secret validation for enhanced security.
 
 ### Yahoo Finance Integration
-The platform integrates with Yahoo Finance to fetch real-time market prices for positions:
+The platform integrates with Yahoo Finance to fetch real-time market prices for positions and Universal Holdings:
+
+**Account Position Prices:**
 - **Refresh Market Prices**: Users can click "Refresh Prices" on the Holdings & Portfolio Analysis section to update all position prices from Yahoo Finance.
+- **Price Updated Timestamp**: The `priceUpdatedAt` field tracks when each position's price was last refreshed.
+
+**Universal Holdings Prices:**
+- **Automatic Pricing**: Price field is optional when adding holdings; prices are fetched automatically from Yahoo Finance.
+- **Refresh All Prices**: Users can click "Refresh Prices" on the Universal Holdings tab to update all holding prices at once.
+- **Price Display**: Shows current price with the date it was last updated.
+- **Clickable Ticker**: Clicking a ticker in the Universal Holdings table opens the edit dialog for that holding.
+
+**Common Features:**
 - **Canadian Ticker Support**: Automatically tries multiple exchange suffixes (.TO for TSX, .V for TSX Venture, .CN for CSE) if the symbol doesn't include one.
 - **Cash Position Handling**: Cash positions (CASH, CAD, USD, MONEY MARKET) are automatically assigned a price of $1.
-- **Price Updated Timestamp**: The `priceUpdatedAt` field tracks when each position's price was last refreshed from Yahoo Finance.
-- **API Endpoints**:
+- **Duplicate Ticker Handling**: Price lookups are cached to avoid redundant API calls for duplicate tickers.
+
+**API Endpoints**:
   - `POST /api/market-prices/quotes` - Fetch current quotes for a list of symbols
   - `POST /api/accounts/:accountType/:accountId/refresh-prices` - Refresh all position prices for an account
+  - `POST /api/universal-holdings/refresh-prices` - Refresh all Universal Holdings prices from Yahoo Finance
 
 ## External Dependencies
 - **Replit Auth**: Used for user authentication, supporting OIDC providers like Google, GitHub, X, Apple, and email/password.
