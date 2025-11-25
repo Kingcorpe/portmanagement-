@@ -856,115 +856,6 @@ export default function AccountDetails() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <input
-            type="file"
-            accept=".csv,.xlsx,.xls"
-            onChange={handleFileUpload}
-            className="hidden"
-            id="file-upload"
-            data-testid="input-file-upload"
-          />
-          <Button
-            variant="outline"
-            onClick={() => document.getElementById('file-upload')?.click()}
-            disabled={isUploading}
-            data-testid="button-upload-file"
-          >
-            <FileSpreadsheet className="mr-2 h-4 w-4" />
-            {isUploading ? "Importing..." : "Import"}
-          </Button>
-          <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
-            <DialogTrigger asChild>
-              <Button data-testid="button-add-position">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Position
-              </Button>
-            </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingPosition ? "Edit Position" : "Add New Position"}</DialogTitle>
-              <DialogDescription>
-                {editingPosition ? "Update the position details below." : "Enter the details for the new position."}
-              </DialogDescription>
-            </DialogHeader>
-
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="symbol"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Symbol</FormLabel>
-                      <FormControl>
-                        <Input placeholder="AAPL" data-testid="input-symbol" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="quantity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quantity</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" placeholder="100" data-testid="input-quantity" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="entryPrice"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Entry Price (CAD)</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" placeholder="150.00" data-testid="input-entry-price" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="purchaseDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Purchase Date (Optional)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="date" 
-                          data-testid="input-purchase-date"
-                          value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
-                          onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => handleDialogChange(false)} data-testid="button-cancel">
-                    Cancel
-                  </Button>
-                  <Button type="submit" data-testid="button-submit" disabled={createMutation.isPending || updateMutation.isPending}>
-                    {createMutation.isPending || updateMutation.isPending ? "Saving..." : editingPosition ? "Update" : "Create"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-          </Dialog>
-        </div>
       </div>
 
       <Card className="max-w-sm">
@@ -1456,6 +1347,117 @@ export default function AccountDetails() {
           )}
         </CardContent>
       </Card>
+
+      {/* Footer Actions */}
+      <div className="flex items-center justify-center gap-3 pt-12">
+        <input
+          type="file"
+          accept=".csv,.xlsx,.xls"
+          onChange={handleFileUpload}
+          className="hidden"
+          id="file-upload"
+          data-testid="input-file-upload"
+        />
+        <Button
+          variant="outline"
+          onClick={() => document.getElementById('file-upload')?.click()}
+          disabled={isUploading}
+          data-testid="button-upload-file"
+        >
+          <FileSpreadsheet className="mr-2 h-4 w-4" />
+          {isUploading ? "Importing..." : "Import CSV"}
+        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
+          <DialogTrigger asChild>
+            <Button variant="outline" data-testid="button-add-position">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Position
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingPosition ? "Edit Position" : "Add New Position"}</DialogTitle>
+              <DialogDescription>
+                {editingPosition ? "Update the position details below." : "Enter the details for the new position."}
+              </DialogDescription>
+            </DialogHeader>
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="symbol"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Symbol</FormLabel>
+                      <FormControl>
+                        <Input placeholder="AAPL" data-testid="input-symbol" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="quantity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Quantity</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" placeholder="100" data-testid="input-quantity" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="entryPrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Entry Price (CAD)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.01" placeholder="150.00" data-testid="input-entry-price" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="purchaseDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Purchase Date (Optional)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="date" 
+                          data-testid="input-purchase-date"
+                          value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
+                          onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => handleDialogChange(false)} data-testid="button-cancel">
+                    Cancel
+                  </Button>
+                  <Button type="submit" data-testid="button-submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                    {createMutation.isPending || updateMutation.isPending ? "Saving..." : editingPosition ? "Update" : "Create"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }
