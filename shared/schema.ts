@@ -517,7 +517,7 @@ export const insertUniversalHoldingSchema = createInsertSchema(universalHoldings
   price: true,
 }).extend({
   dividendRate: z.coerce.number().nonnegative().default(0).transform(val => val.toString()),
-  price: z.coerce.number().positive().transform(val => val.toString()),
+  price: z.coerce.number().nonnegative().optional().default(0).transform(val => val.toString()),
 });
 
 // Planned Portfolio insert schema
