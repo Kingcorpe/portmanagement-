@@ -51,7 +51,7 @@ export default function HouseholdCardExample() {
         },
         {
           id: "joint-2",
-          type: "joint-cash",
+          type: "joint_cash",
           balance: 87000,
           performance: 2.1,
           owners: ["ind-1", "ind-2"]

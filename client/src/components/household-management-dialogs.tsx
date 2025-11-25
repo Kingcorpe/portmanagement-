@@ -116,6 +116,7 @@ export function HouseholdManagementDialogs({
     defaultValues: {
       individualId: "",
       type: "cash",
+      nickname: undefined,
     },
   });
 
@@ -134,6 +135,7 @@ export function HouseholdManagementDialogs({
     defaultValues: {
       corporationId: "",
       type: "cash",
+      nickname: undefined,
     },
   });
 
@@ -152,6 +154,7 @@ export function HouseholdManagementDialogs({
     defaultValues: {
       householdId: "",
       type: "joint_cash",
+      nickname: undefined,
     },
   });
 
@@ -404,6 +407,25 @@ export function HouseholdManagementDialogs({
                   </FormItem>
                 )}
               />
+              <FormField
+                control={individualAccountForm.control}
+                name="nickname"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nickname (Optional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="e.g., Vanguard Personal" 
+                        data-testid="input-account-nickname" 
+                        {...field} 
+                        value={field.value ?? ""} 
+                        onChange={(e) => field.onChange(e.target.value || undefined)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
@@ -447,6 +469,25 @@ export function HouseholdManagementDialogs({
                   </FormItem>
                 )}
               />
+              <FormField
+                control={corporateAccountForm.control}
+                name="nickname"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nickname (Optional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="e.g., Corporate Cash" 
+                        data-testid="input-account-nickname" 
+                        {...field} 
+                        value={field.value ?? ""} 
+                        onChange={(e) => field.onChange(e.target.value || undefined)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
@@ -486,6 +527,25 @@ export function HouseholdManagementDialogs({
                         <SelectItem value="resp">RESP</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={jointAccountForm.control}
+                name="nickname"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nickname (Optional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="e.g., Kids Education Fund" 
+                        data-testid="input-account-nickname" 
+                        {...field} 
+                        value={field.value ?? ""} 
+                        onChange={(e) => field.onChange(e.target.value || undefined)}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

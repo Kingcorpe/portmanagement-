@@ -109,6 +109,7 @@ export default function Households() {
       accounts: individual.accounts.map((account: any) => ({
         id: account.id,
         type: account.type,
+        nickname: account.nickname,
         balance: Number(account.calculatedBalance) || 0,
         performance: Number(account.performance) || 0,
       }))
@@ -121,6 +122,7 @@ export default function Households() {
       accounts: corporation.accounts.map((account: any) => ({
         id: account.id,
         type: account.type,
+        nickname: account.nickname,
         balance: Number(account.calculatedBalance) || 0,
         performance: Number(account.performance) || 0,
       }))
@@ -129,7 +131,8 @@ export default function Households() {
     // Transform joint accounts - use calculatedBalance from positions
     const jointAccounts = h.jointAccounts.map((account: any) => ({
       id: account.id,
-      type: account.type.replace(/_/g, '-') as "joint-cash" | "resp",
+      type: account.type as "joint_cash" | "resp",
+      nickname: account.nickname,
       balance: Number(account.calculatedBalance) || 0,
       performance: Number(account.performance) || 0,
       owners: account.owners.map((owner: any) => owner.name)

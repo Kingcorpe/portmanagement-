@@ -809,7 +809,7 @@ export default function AccountDetails() {
   const totalBookValue = positions.reduce((sum, p) => sum + (Number(p.quantity) * Number(p.entryPrice)), 0);
   const totalMarketValue = positions.reduce((sum, p) => sum + (Number(p.quantity) * Number(p.currentPrice)), 0);
 
-  // Format the specific account type for display
+  // Format the specific account type for display: "[Account Type]: [Nickname]" or just "[Account Type]"
   const getAccountTypeLabel = () => {
     if (!accountData) return `${accountType?.charAt(0).toUpperCase()}${accountType?.slice(1)} Account`;
     
@@ -829,7 +829,14 @@ export default function AccountDetails() {
       resp: "RESP",
     };
 
-    return typeLabels[accountData.type] || accountData.type.toUpperCase();
+    const typeLabel = typeLabels[accountData.type] || accountData.type.toUpperCase();
+    
+    // Include nickname if available
+    if (accountData.nickname && accountData.nickname.trim()) {
+      return `${typeLabel}: ${accountData.nickname}`;
+    }
+    
+    return typeLabel;
   };
 
   return (

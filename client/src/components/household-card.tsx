@@ -21,7 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-export type AccountType = "cash" | "tfsa" | "fhsa" | "rrsp" | "lira" | "liff" | "rif" | "joint-cash" | "resp" | "ipp";
+export type AccountType = "cash" | "tfsa" | "fhsa" | "rrsp" | "lira" | "liff" | "rif" | "joint_cash" | "resp" | "ipp";
 
 export interface Account {
   id: string;
@@ -44,7 +44,7 @@ export interface Corporation {
 
 export interface JointAccount {
   id: string;
-  type: "joint-cash" | "resp";
+  type: "joint_cash" | "resp";
   balance: number;
   nickname?: string | null;
   owners: string[];
@@ -76,7 +76,7 @@ interface HouseholdCardProps {
   onDeleteCorporation?: (id: string) => void;
 }
 
-const accountTypeLabels: Record<AccountType, string> = {
+const accountTypeLabels: Record<string, string> = {
   "cash": "Cash",
   "tfsa": "TFSA",
   "fhsa": "FHSA",
@@ -84,14 +84,21 @@ const accountTypeLabels: Record<AccountType, string> = {
   "lira": "LIRA",
   "liff": "LIFF",
   "rif": "RIF",
-  "joint-cash": "Joint Cash",
+  "joint_cash": "Joint Cash",
   "resp": "RESP",
   "ipp": "IPP"
 };
 
 // Helper to format account display name: "[Account Type]: [Nickname]" or just "[Account Type]"
-export function formatAccountDisplayName(type: AccountType, nickname?: string | null): string {
-  const typeLabel = accountTypeLabels[type];
+export function formatAccountDisplayName(type: string | undefined | null, nickname?: string | null): string {
+  // Handle null/undefined type
+  if (!type) {
+    return nickname && nickname.trim() ? `Account: ${nickname}` : "Account";
+  }
+  
+  // Get the type label, falling back to the type string itself if not found
+  const typeLabel = accountTypeLabels[type] || type.toUpperCase();
+  
   if (nickname && nickname.trim()) {
     return `${typeLabel}: ${nickname}`;
   }
@@ -102,11 +109,11 @@ export function formatAccountDisplayName(type: AccountType, nickname?: string | 
 const accountCategories: Record<string, { label: string; types: AccountType[] }> = {
   registered: {
     label: "Registered Accounts",
-    types: ["tfsa", "fhsa", "rrsp", "lira", "liff", "rif"]
+    types: ["tfsa", "fhsa", "rrsp", "lira", "liff", "rif", "resp"]
   },
   nonRegistered: {
     label: "Non-Registered Accounts", 
-    types: ["cash"]
+    types: ["cash", "joint_cash"]
   },
   corporate: {
     label: "Corporate Accounts",
