@@ -1303,6 +1303,7 @@ export default function ModelPortfolios() {
                       )}
                     />
                   </div>
+                  {/* Hidden for future use: Dividend fields
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={holdingForm.control}
@@ -1342,6 +1343,7 @@ export default function ModelPortfolios() {
                       )}
                     />
                   </div>
+                  */}
                   <FormField
                     control={holdingForm.control}
                     name="description"
@@ -1424,8 +1426,10 @@ export default function ModelPortfolios() {
                     <SortableHeader column="category">Category</SortableHeader>
                     <SortableHeader column="riskLevel">Risk</SortableHeader>
                     <SortableHeader column="price">Price</SortableHeader>
+                    {/* Hidden for future use: Dividend columns
                     <SortableHeader column="dividendRate">Dividend</SortableHeader>
                     <TableHead>Payout</TableHead>
+                    */}
                     <TableHead className="w-[100px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1460,12 +1464,14 @@ export default function ModelPortfolios() {
                           </div>
                         )}
                       </TableCell>
+                      {/* Hidden for future use: Dividend data cells
                       <TableCell className="text-right font-mono">
                         {Number(holding.dividendRate).toFixed(2)}%
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{dividendPayoutLabels[holding.dividendPayout]}</Badge>
                       </TableCell>
+                      */}
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditHolding(holding)} data-testid={`button-edit-holding-${holding.id}`}>
