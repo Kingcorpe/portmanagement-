@@ -39,6 +39,7 @@ The system uses a household-based hierarchy to organize client data, distinguish
 - **Robust Validation**: Zod is used for all input validation, especially for monetary fields, which are coerced to numbers, validated, and then stored as strings in Drizzle for decimal precision.
 - **Cascading Deletes**: Configured for data integrity across related entities.
 - **UUIDs**: All primary keys utilize UUIDs.
+- **Delete Functionality**: Users can delete accounts and households with confirmation dialogs using AlertDialog. Delete buttons (trash icon) appear on account rows and household headers. Confirmations prevent accidental deletion.
 
 ### API Endpoints Overview
 The API provides comprehensive CRUD operations for households, individuals, corporations, and various account types. It includes specialized endpoints for managing joint account ownership, positions, and trades. A bulk endpoint (`/api/households/:id/full`) fetches complete household data with all nested entities. Authentication endpoints handle user login, logout, and session management.
