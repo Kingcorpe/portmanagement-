@@ -1172,34 +1172,35 @@ export default function ModelPortfolios() {
           <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">Model Portfolios</h1>
           <p className="text-muted-foreground">Manage your universal holdings and portfolio templates</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => refreshPricesMutation.mutate()}
-            disabled={refreshPricesMutation.isPending}
-            data-testid="button-refresh-prices"
-          >
-            {refreshPricesMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
-            Refresh Prices
-          </Button>
-          <Dialog open={isHoldingDialogOpen} onOpenChange={(open) => {
-            setIsHoldingDialogOpen(open);
-            if (!open) {
-              setEditingHolding(null);
-              holdingForm.reset();
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button data-testid="button-add-holding">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Holding
-              </Button>
-            </DialogTrigger>
+        {activeTab === "holdings" && (
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => refreshPricesMutation.mutate()}
+              disabled={refreshPricesMutation.isPending}
+              data-testid="button-refresh-prices"
+            >
+              {refreshPricesMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Refresh Prices
+            </Button>
+            <Dialog open={isHoldingDialogOpen} onOpenChange={(open) => {
+              setIsHoldingDialogOpen(open);
+              if (!open) {
+                setEditingHolding(null);
+                holdingForm.reset();
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button data-testid="button-add-holding">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Holding
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>{editingHolding ? "Edit Holding" : "Add Universal Holding"}</DialogTitle>
@@ -1360,8 +1361,9 @@ export default function ModelPortfolios() {
                 </form>
               </Form>
             </DialogContent>
-          </Dialog>
-        </div>
+            </Dialog>
+          </div>
+        )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
