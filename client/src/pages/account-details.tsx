@@ -833,6 +833,12 @@ export default function AccountDetails() {
   const totalBookValue = positions.reduce((sum, p) => sum + (Number(p.quantity) * Number(p.entryPrice)), 0);
   const totalMarketValue = positions.reduce((sum, p) => sum + (Number(p.quantity) * Number(p.currentPrice)), 0);
 
+  // Helper function to normalize tickers for comparison (strip exchange suffixes)
+  // e.g., "XIC.TO" -> "XIC", "VFV.V" -> "VFV", "AAPL" -> "AAPL"
+  const normalizeTicker = (ticker: string): string => {
+    return ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+  };
+
   // Format the specific account type for display: "[Account Type]: [Nickname]" or just "[Account Type]"
   const getAccountTypeLabel = () => {
     if (!accountData) return `${accountType?.charAt(0).toUpperCase()}${accountType?.slice(1)} Account`;
@@ -1293,7 +1299,9 @@ export default function AccountDetails() {
               </TableHeader>
               <TableBody>
                 {positions.map((position) => {
-                  const comparison = comparisonData?.comparison.find(c => c.ticker === position.symbol);
+                  // Use normalized ticker comparison to match "XIC.TO" with "XIC" etc.
+                  const normalizedPositionSymbol = normalizeTicker(position.symbol);
+                  const comparison = comparisonData?.comparison.find(c => normalizeTicker(c.ticker) === normalizedPositionSymbol);
                   const marketValue = Number(position.quantity) * Number(position.currentPrice);
                   const isEditingTarget = editingInlineTarget === position.id;
                   
