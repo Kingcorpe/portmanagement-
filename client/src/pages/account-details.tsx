@@ -31,7 +31,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet } from "lucide-react";
+import * as XLSX from 'xlsx';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -441,23 +442,40 @@ export default function AccountDetails() {
     }
   };
 
-  // CSV Upload handler
-  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // File Upload handler (CSV and Excel)
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setIsUploading(true);
 
     try {
-      const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      
-      if (lines.length < 2) {
-        throw new Error("CSV file must have a header row and at least one data row");
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      let rows: string[][] = [];
+
+      if (fileExtension === 'csv') {
+        // Parse CSV
+        const text = await file.text();
+        const lines = text.split('\n').filter(line => line.trim());
+        rows = lines.map(line => line.split(',').map(v => v.trim().replace(/['"$]/g, '')));
+      } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+        // Parse Excel
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json<string[]>(worksheet, { header: 1 });
+        rows = jsonData.map(row => row.map(cell => String(cell ?? '').replace(/['"$]/g, '')));
+      } else {
+        throw new Error("Unsupported file format. Please use CSV or Excel (.xlsx, .xls)");
+      }
+
+      if (rows.length < 2) {
+        throw new Error("File must have a header row and at least one data row");
       }
 
       // Parse header to find column indices
-      const header = lines[0].toLowerCase().split(',').map(h => h.trim());
+      const header = rows[0].map(h => h.toLowerCase().trim());
       
       // Find column indices based on expected headers
       const tickerIndex = header.findIndex(h => h.includes('ticker') || h.includes('symbol'));
@@ -466,22 +484,22 @@ export default function AccountDetails() {
       const marketPriceIndex = header.findIndex(h => h.includes('market price') || h.includes('market') || h.includes('current'));
 
       if (tickerIndex === -1 || quantityIndex === -1 || avgCostIndex === -1 || marketPriceIndex === -1) {
-        throw new Error("CSV must contain columns: ticker symbol, quantity, average cost, and market price");
+        throw new Error("File must contain columns: ticker symbol, quantity, average cost, and market price");
       }
 
       // Parse data rows
       const positions = [];
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim().replace(/['"$]/g, ''));
+      for (let i = 1; i < rows.length; i++) {
+        const values = rows[i];
         
-        if (values.length <= Math.max(tickerIndex, quantityIndex, avgCostIndex, marketPriceIndex)) {
+        if (!values || values.length <= Math.max(tickerIndex, quantityIndex, avgCostIndex, marketPriceIndex)) {
           continue; // Skip incomplete rows
         }
 
         const symbol = values[tickerIndex];
-        const quantity = parseFloat(values[quantityIndex].replace(/,/g, ''));
-        const entryPrice = parseFloat(values[avgCostIndex].replace(/,/g, ''));
-        const currentPrice = parseFloat(values[marketPriceIndex].replace(/,/g, ''));
+        const quantity = parseFloat(String(values[quantityIndex]).replace(/,/g, ''));
+        const entryPrice = parseFloat(String(values[avgCostIndex]).replace(/,/g, ''));
+        const currentPrice = parseFloat(String(values[marketPriceIndex]).replace(/,/g, ''));
 
         if (symbol && !isNaN(quantity) && !isNaN(entryPrice) && !isNaN(currentPrice)) {
           positions.push({ symbol, quantity, entryPrice, currentPrice });
@@ -489,7 +507,7 @@ export default function AccountDetails() {
       }
 
       if (positions.length === 0) {
-        throw new Error("No valid positions found in CSV");
+        throw new Error("No valid positions found in file");
       }
 
       // Upload to server
@@ -512,7 +530,7 @@ export default function AccountDetails() {
     } catch (error: any) {
       toast({
         title: "Import Failed",
-        description: error.message || "Failed to import CSV",
+        description: error.message || "Failed to import file",
         variant: "destructive",
       });
     } finally {
@@ -569,20 +587,20 @@ export default function AccountDetails() {
         <div className="flex items-center gap-2">
           <input
             type="file"
-            accept=".csv"
-            onChange={handleCSVUpload}
+            accept=".csv,.xlsx,.xls"
+            onChange={handleFileUpload}
             className="hidden"
-            id="csv-upload"
-            data-testid="input-csv-upload"
+            id="file-upload"
+            data-testid="input-file-upload"
           />
           <Button
             variant="outline"
-            onClick={() => document.getElementById('csv-upload')?.click()}
+            onClick={() => document.getElementById('file-upload')?.click()}
             disabled={isUploading}
-            data-testid="button-upload-csv"
+            data-testid="button-upload-file"
           >
-            <Upload className="mr-2 h-4 w-4" />
-            {isUploading ? "Importing..." : "Import CSV"}
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            {isUploading ? "Importing..." : "Import"}
           </Button>
           <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
             <DialogTrigger asChild>
