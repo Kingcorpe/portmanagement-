@@ -73,7 +73,7 @@ const riskLevelLabels: Record<string, string> = {
 };
 
 const holdingCategoryLabels: Record<string, string> = {
-  basket_etf: "Basket ETFs",
+  basket_etf: "CC Basket ETFs",
   single_etf: "Single ETFs",
   double_long_etf: "Double Long ETFs",
   security: "Securities",
@@ -99,7 +99,7 @@ const dividendPayoutLabels: Record<string, string> = {
 };
 
 const categoryLabels: Record<string, string> = {
-  basket_etf: "Basket ETFs",
+  basket_etf: "CC Basket ETFs",
   single_etf: "Single ETFs",
   double_long_etf: "Double Long ETFs",
   security: "Securities",
@@ -689,7 +689,7 @@ export default function ModelPortfolios() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="basket_etf">Basket ETFs</SelectItem>
+            <SelectItem value="basket_etf">CC Basket ETFs</SelectItem>
             <SelectItem value="single_etf">Single ETFs</SelectItem>
             <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
             <SelectItem value="security">Securities</SelectItem>
@@ -796,7 +796,7 @@ export default function ModelPortfolios() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="basket_etf">Basket ETFs</SelectItem>
+                              <SelectItem value="basket_etf">CC Basket ETFs</SelectItem>
                               <SelectItem value="single_etf">Single ETFs</SelectItem>
                               <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
                               <SelectItem value="security">Securities</SelectItem>
