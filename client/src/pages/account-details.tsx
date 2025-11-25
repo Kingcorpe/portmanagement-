@@ -31,7 +31,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
@@ -93,6 +94,7 @@ export default function AccountDetails() {
   const [editingInlineTarget, setEditingInlineTarget] = useState<string | null>(null);
   const [inlineTargetValue, setInlineTargetValue] = useState<string>("");
   const [holdingComboboxOpen, setHoldingComboboxOpen] = useState(false);
+  const [isTargetAllocationsOpen, setIsTargetAllocationsOpen] = useState(false);
 
   const accountType = params?.accountType as "individual" | "corporate" | "joint" | undefined;
   const accountId = params?.accountId;
@@ -895,20 +897,35 @@ export default function AccountDetails() {
       </Card>
 
       {/* Target Allocations Management Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5" />
-                Target Allocations
-              </CardTitle>
-              <CardDescription>
-                Define target asset allocation percentages for this account
-              </CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Dialog open={isCopyDialogOpen} onOpenChange={(open) => {
+      <Collapsible open={isTargetAllocationsOpen} onOpenChange={setIsTargetAllocationsOpen}>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity" data-testid="button-toggle-target-allocations">
+                  {isTargetAllocationsOpen ? (
+                    <ChevronDown className="h-5 w-5" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5" />
+                  )}
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5" />
+                      Target Allocations
+                      {targetAllocations.length > 0 && (
+                        <Badge variant="secondary" className="ml-2">
+                          {targetAllocations.length}
+                        </Badge>
+                      )}
+                    </CardTitle>
+                    <CardDescription>
+                      Define target asset allocation percentages for this account
+                    </CardDescription>
+                  </div>
+                </button>
+              </CollapsibleTrigger>
+              <div className="flex gap-2">
+                <Dialog open={isCopyDialogOpen} onOpenChange={(open) => {
                 setIsCopyDialogOpen(open);
                 if (!open) {
                   setSelectedPortfolioId("");
@@ -1118,71 +1135,74 @@ export default function AccountDetails() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          {targetAllocations.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">
-              No target allocations defined. Add allocations manually or copy from a model portfolio.
-            </p>
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Ticker</TableHead>
-                    <TableHead>Security</TableHead>
-                    <TableHead className="text-right">Target %</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {targetAllocations.map((allocation) => (
-                    <TableRow key={allocation.id} data-testid={`row-allocation-${allocation.id}`}>
-                      <TableCell className="font-medium" data-testid={`text-alloc-ticker-${allocation.id}`}>
-                        {allocation.holding?.ticker}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm" data-testid={`text-alloc-name-${allocation.id}`}>
-                        {allocation.holding?.name}
-                      </TableCell>
-                      <TableCell className="text-right" data-testid={`text-alloc-pct-${allocation.id}`}>
-                        {Number(allocation.targetPercentage).toFixed(2)}%
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditAllocation(allocation)}
-                            data-testid={`button-edit-allocation-${allocation.id}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteAllocation(allocation.id)}
-                            data-testid={`button-delete-allocation-${allocation.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+        <CollapsibleContent>
+          <CardContent>
+            {targetAllocations.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">
+                No target allocations defined. Add allocations manually or copy from a model portfolio.
+              </p>
+            ) : (
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Ticker</TableHead>
+                      <TableHead>Security</TableHead>
+                      <TableHead className="text-right">Target %</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <div className="mt-4 flex justify-end">
-                <Badge variant={
-                  targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0) === 100 
-                    ? "default" 
-                    : "secondary"
-                } data-testid="badge-total-allocation">
-                  Total: {targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0).toFixed(2)}%
-                </Badge>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {targetAllocations.map((allocation) => (
+                      <TableRow key={allocation.id} data-testid={`row-allocation-${allocation.id}`}>
+                        <TableCell className="font-medium" data-testid={`text-alloc-ticker-${allocation.id}`}>
+                          {allocation.holding?.ticker}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm" data-testid={`text-alloc-name-${allocation.id}`}>
+                          {allocation.holding?.name}
+                        </TableCell>
+                        <TableCell className="text-right" data-testid={`text-alloc-pct-${allocation.id}`}>
+                          {Number(allocation.targetPercentage).toFixed(2)}%
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEditAllocation(allocation)}
+                              data-testid={`button-edit-allocation-${allocation.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteAllocation(allocation.id)}
+                              data-testid={`button-delete-allocation-${allocation.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <div className="mt-4 flex justify-end">
+                  <Badge variant={
+                    targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0) === 100 
+                      ? "default" 
+                      : "secondary"
+                  } data-testid="badge-total-allocation">
+                    Total: {targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0).toFixed(2)}%
+                  </Badge>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Unified Holdings & Portfolio Comparison Section */}
       <Card>
