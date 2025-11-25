@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { TrendingUp, TrendingDown, ChevronDown, ChevronRight, Users, Eye } from "lucide-react";
+import { TrendingUp, TrendingDown, ChevronDown, ChevronRight, Users, Eye, Plus, UserPlus, Building2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -55,6 +55,10 @@ export interface Household {
 interface HouseholdCardProps {
   household: Household;
   onClick?: (id: string) => void;
+  onAddIndividual?: (householdId: string) => void;
+  onAddCorporation?: (householdId: string) => void;
+  onAddAccount?: (entityId: string, entityType: "individual" | "corporate") => void;
+  onAddJointAccount?: (householdId: string) => void;
 }
 
 const accountTypeLabels: Record<AccountType, string> = {
@@ -70,7 +74,14 @@ const accountTypeLabels: Record<AccountType, string> = {
   "ipp": "IPP"
 };
 
-export function HouseholdCard({ household, onClick }: HouseholdCardProps) {
+export function HouseholdCard({ 
+  household, 
+  onClick,
+  onAddIndividual,
+  onAddCorporation,
+  onAddAccount,
+  onAddJointAccount
+}: HouseholdCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const isPositive = household.totalPerformance >= 0;
 
@@ -124,6 +135,42 @@ export function HouseholdCard({ household, onClick }: HouseholdCardProps) {
         </CardHeader>
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-4">
+            <div className="flex gap-2 flex-wrap">
+              {onAddIndividual && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => onAddIndividual(household.id)}
+                  data-testid={`button-add-individual-${household.id}`}
+                >
+                  <UserPlus className="h-3 w-3 mr-1" />
+                  Add Individual
+                </Button>
+              )}
+              {onAddCorporation && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => onAddCorporation(household.id)}
+                  data-testid={`button-add-corporation-${household.id}`}
+                >
+                  <Building2 className="h-3 w-3 mr-1" />
+                  Add Corporation
+                </Button>
+              )}
+              {onAddJointAccount && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => onAddJointAccount(household.id)}
+                  data-testid={`button-add-joint-account-${household.id}`}
+                >
+                  <Users className="h-3 w-3 mr-1" />
+                  Add Joint Account
+                </Button>
+              )}
+            </div>
+
             {household.individuals.map((individual) => (
               <div key={individual.id} className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -136,6 +183,18 @@ export function HouseholdCard({ household, onClick }: HouseholdCardProps) {
                   <Badge variant="outline" className="text-xs">Individual</Badge>
                 </div>
                 <div className="ml-8 space-y-1">
+                  {onAddAccount && individual.accounts.length === 0 && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full justify-start text-muted-foreground"
+                      onClick={() => onAddAccount(individual.id, "individual")}
+                      data-testid={`button-add-account-individual-${individual.id}`}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Account
+                    </Button>
+                  )}
                   {individual.accounts.map((account) => {
                     const accountPositive = account.performance >= 0;
                     return (
@@ -161,6 +220,20 @@ export function HouseholdCard({ household, onClick }: HouseholdCardProps) {
                       </div>
                     );
                   })}
+                  {onAddAccount && individual.accounts.length > 0 && (
+                    <div className="pt-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full justify-start text-muted-foreground"
+                        onClick={() => onAddAccount(individual.id, "individual")}
+                        data-testid={`button-add-account-individual-${individual.id}`}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add Account
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -177,6 +250,18 @@ export function HouseholdCard({ household, onClick }: HouseholdCardProps) {
                   <Badge variant="outline" className="text-xs">Corporate</Badge>
                 </div>
                 <div className="ml-8 space-y-1">
+                  {onAddAccount && corporation.accounts.length === 0 && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full justify-start text-muted-foreground"
+                      onClick={() => onAddAccount(corporation.id, "corporate")}
+                      data-testid={`button-add-account-corporate-${corporation.id}`}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Account
+                    </Button>
+                  )}
                   {corporation.accounts.map((account) => {
                     const accountPositive = account.performance >= 0;
                     return (
@@ -202,6 +287,20 @@ export function HouseholdCard({ household, onClick }: HouseholdCardProps) {
                       </div>
                     );
                   })}
+                  {onAddAccount && corporation.accounts.length > 0 && (
+                    <div className="pt-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full justify-start text-muted-foreground"
+                        onClick={() => onAddAccount(corporation.id, "corporate")}
+                        data-testid={`button-add-account-corporate-${corporation.id}`}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add Account
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

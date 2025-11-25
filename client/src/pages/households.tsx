@@ -1,19 +1,62 @@
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { HouseholdCard, Household } from "@/components/household-card";
+import { HouseholdManagementDialogs } from "@/components/household-management-dialogs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search } from "lucide-react";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertHouseholdSchema, type InsertHousehold } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import type { HouseholdWithDetails } from "@shared/schema";
 
 export default function Households() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // Dialog state for household management
+  const [dialogState, setDialogState] = useState<{
+    type: "individual" | "corporation" | "individual-account" | "corporate-account" | "joint-account" | null;
+    householdId: string | null;
+    individualId: string | null;
+    corporationId: string | null;
+  }>({
+    type: null,
+    householdId: null,
+    individualId: null,
+    corporationId: null,
+  });
+
+  // Form for creating households
+  const form = useForm<InsertHousehold>({
+    resolver: zodResolver(insertHouseholdSchema),
+    defaultValues: {
+      name: "",
+    },
+  });
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -127,13 +170,61 @@ export default function Households() {
     };
   });
 
+  // Create household mutation
+  const createMutation = useMutation({
+    mutationFn: async (data: InsertHousehold) => {
+      return await apiRequest("POST", "/api/households", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
+      toast({
+        title: "Success",
+        description: "Household created successfully",
+      });
+      setIsDialogOpen(false);
+      form.reset();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create household",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: InsertHousehold) => {
+    createMutation.mutate(data);
+  };
+
+  // Handlers for opening dialogs
+  const handleAddIndividual = (householdId: string) => {
+    setDialogState({ type: "individual", householdId, individualId: null, corporationId: null });
+  };
+
+  const handleAddCorporation = (householdId: string) => {
+    setDialogState({ type: "corporation", householdId, individualId: null, corporationId: null });
+  };
+
+  const handleAddAccount = (entityId: string, entityType: "individual" | "corporate") => {
+    if (entityType === "individual") {
+      setDialogState({ type: "individual-account", householdId: null, individualId: entityId, corporationId: null });
+    } else {
+      setDialogState({ type: "corporate-account", householdId: null, individualId: null, corporationId: entityId });
+    }
+  };
+
+  const handleAddJointAccount = (householdId: string) => {
+    setDialogState({ type: "joint-account", householdId, individualId: null, corporationId: null });
+  };
+
+  const handleCloseDialog = () => {
+    setDialogState({ type: null, householdId: null, individualId: null, corporationId: null });
+  };
+
   const filteredHouseholds = households.filter(household =>
     household.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const handleAddHousehold = () => {
-    console.log('Add household');
-  };
 
   if (authLoading || isLoading) {
     return (
@@ -152,10 +243,47 @@ export default function Households() {
           <h1 className="text-3xl font-bold" data-testid="text-households-title">Households</h1>
           <p className="text-muted-foreground">Manage client accounts and portfolios</p>
         </div>
-        <Button onClick={handleAddHousehold} data-testid="button-add-household">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Household
-        </Button>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-household">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Household
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Household</DialogTitle>
+              <DialogDescription>
+                Add a new household to manage client portfolios.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Household Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Smith Family" data-testid="input-household-name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} data-testid="button-cancel">
+                    Cancel
+                  </Button>
+                  <Button type="submit" data-testid="button-submit" disabled={createMutation.isPending}>
+                    {createMutation.isPending ? "Creating..." : "Create Household"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="relative">
@@ -178,10 +306,25 @@ export default function Households() {
       ) : (
         <div className="grid gap-6">
           {filteredHouseholds.map(household => (
-            <HouseholdCard key={household.id} household={household} />
+            <HouseholdCard 
+              key={household.id} 
+              household={household}
+              onAddIndividual={handleAddIndividual}
+              onAddCorporation={handleAddCorporation}
+              onAddAccount={handleAddAccount}
+              onAddJointAccount={handleAddJointAccount}
+            />
           ))}
         </div>
       )}
+
+      <HouseholdManagementDialogs
+        householdId={dialogState.householdId}
+        individualId={dialogState.individualId}
+        corporationId={dialogState.corporationId}
+        dialogType={dialogState.type}
+        onClose={handleCloseDialog}
+      />
     </div>
   );
 }
