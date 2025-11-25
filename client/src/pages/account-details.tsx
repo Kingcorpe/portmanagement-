@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -80,6 +80,7 @@ export default function AccountDetails() {
   const [editingAllocation, setEditingAllocation] = useState<AccountTargetAllocationWithHolding | null>(null);
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
 
   const accountType = params?.accountType as "individual" | "corporate" | "joint" | undefined;
   const accountId = params?.accountId;
@@ -440,6 +441,87 @@ export default function AccountDetails() {
     }
   };
 
+  // CSV Upload handler
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        throw new Error("CSV file must have a header row and at least one data row");
+      }
+
+      // Parse header to find column indices
+      const header = lines[0].toLowerCase().split(',').map(h => h.trim());
+      
+      // Find column indices based on expected headers
+      const tickerIndex = header.findIndex(h => h.includes('ticker') || h.includes('symbol'));
+      const quantityIndex = header.findIndex(h => h.includes('quantity') || h.includes('qty'));
+      const avgCostIndex = header.findIndex(h => h.includes('average cost') || h.includes('avg cost') || h.includes('cost'));
+      const marketPriceIndex = header.findIndex(h => h.includes('market price') || h.includes('market') || h.includes('current'));
+
+      if (tickerIndex === -1 || quantityIndex === -1 || avgCostIndex === -1 || marketPriceIndex === -1) {
+        throw new Error("CSV must contain columns: ticker symbol, quantity, average cost, and market price");
+      }
+
+      // Parse data rows
+      const positions = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim().replace(/['"$]/g, ''));
+        
+        if (values.length <= Math.max(tickerIndex, quantityIndex, avgCostIndex, marketPriceIndex)) {
+          continue; // Skip incomplete rows
+        }
+
+        const symbol = values[tickerIndex];
+        const quantity = parseFloat(values[quantityIndex].replace(/,/g, ''));
+        const entryPrice = parseFloat(values[avgCostIndex].replace(/,/g, ''));
+        const currentPrice = parseFloat(values[marketPriceIndex].replace(/,/g, ''));
+
+        if (symbol && !isNaN(quantity) && !isNaN(entryPrice) && !isNaN(currentPrice)) {
+          positions.push({ symbol, quantity, entryPrice, currentPrice });
+        }
+      }
+
+      if (positions.length === 0) {
+        throw new Error("No valid positions found in CSV");
+      }
+
+      // Upload to server
+      const response = await apiRequest("POST", "/api/positions/bulk", {
+        positions,
+        accountType,
+        accountId
+      });
+
+      await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+
+      toast({
+        title: "Import Complete",
+        description: response.message || `Imported ${response.created} positions`,
+      });
+
+      if (response.errors && response.errors.length > 0) {
+        console.error("Import errors:", response.errors);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Import Failed",
+        description: error.message || "Failed to import CSV",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      event.target.value = '';
+    }
+  };
+
   if (!accountType || !accountId) {
     return (
       <div className="flex flex-col gap-6">
@@ -484,13 +566,31 @@ export default function AccountDetails() {
           </div>
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-position">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Position
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            accept=".csv"
+            onChange={handleCSVUpload}
+            className="hidden"
+            id="csv-upload"
+            data-testid="input-csv-upload"
+          />
+          <Button
+            variant="outline"
+            onClick={() => document.getElementById('csv-upload')?.click()}
+            disabled={isUploading}
+            data-testid="button-upload-csv"
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            {isUploading ? "Importing..." : "Import CSV"}
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-position">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Position
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingPosition ? "Edit Position" : "Add New Position"}</DialogTitle>
@@ -573,7 +673,8 @@ export default function AccountDetails() {
               </form>
             </Form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

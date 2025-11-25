@@ -539,6 +539,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk upload positions from CSV
+  app.post('/api/positions/bulk', isAuthenticated, async (req, res) => {
+    try {
+      const { positions, accountType, accountId } = req.body;
+      
+      if (!Array.isArray(positions) || positions.length === 0) {
+        return res.status(400).json({ message: "No positions provided" });
+      }
+      
+      if (!accountType || !accountId) {
+        return res.status(400).json({ message: "Account type and ID are required" });
+      }
+      
+      const createdPositions = [];
+      const errors = [];
+      
+      for (let i = 0; i < positions.length; i++) {
+        const pos = positions[i];
+        try {
+          // Build position data with the correct account ID field
+          const positionData: any = {
+            symbol: pos.symbol?.toString().toUpperCase().trim(),
+            quantity: pos.quantity?.toString(),
+            entryPrice: pos.entryPrice?.toString(),
+            currentPrice: pos.currentPrice?.toString(),
+          };
+          
+          // Set the correct account ID based on type
+          switch (accountType) {
+            case 'individual':
+              positionData.individualAccountId = accountId;
+              break;
+            case 'corporate':
+              positionData.corporateAccountId = accountId;
+              break;
+            case 'joint':
+              positionData.jointAccountId = accountId;
+              break;
+            default:
+              throw new Error(`Invalid account type: ${accountType}`);
+          }
+          
+          // Validate required fields
+          if (!positionData.symbol || !positionData.quantity || !positionData.entryPrice || !positionData.currentPrice) {
+            throw new Error(`Missing required fields for row ${i + 1}`);
+          }
+          
+          const parsed = insertPositionSchema.parse(positionData);
+          const position = await storage.createPosition(parsed);
+          createdPositions.push(position);
+        } catch (error: any) {
+          errors.push({ row: i + 1, symbol: pos.symbol, error: error.message });
+        }
+      }
+      
+      res.json({
+        success: true,
+        created: createdPositions.length,
+        errors: errors.length > 0 ? errors : undefined,
+        message: `Successfully imported ${createdPositions.length} positions${errors.length > 0 ? `, ${errors.length} failed` : ''}`
+      });
+    } catch (error: any) {
+      console.error("Error bulk creating positions:", error);
+      res.status(500).json({ message: "Failed to import positions", error: error.message });
+    }
+  });
+
   // Account Target Allocation routes
   app.get('/api/accounts/:accountType/:accountId/target-allocations', isAuthenticated, async (req, res) => {
     try {
