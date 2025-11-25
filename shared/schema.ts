@@ -319,10 +319,42 @@ export const freelancePortfolioAllocationsRelations = relations(freelancePortfol
   }),
 }));
 
+// Account Target Allocations (account-specific target percentages)
+export const accountTargetAllocations = pgTable("account_target_allocations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // One of these will be set depending on account type
+  individualAccountId: varchar("individual_account_id").references(() => individualAccounts.id, { onDelete: 'cascade' }),
+  corporateAccountId: varchar("corporate_account_id").references(() => corporateAccounts.id, { onDelete: 'cascade' }),
+  jointAccountId: varchar("joint_account_id").references(() => jointAccounts.id, { onDelete: 'cascade' }),
+  universalHoldingId: varchar("universal_holding_id").notNull().references(() => universalHoldings.id, { onDelete: 'cascade' }),
+  targetPercentage: decimal("target_percentage", { precision: 5, scale: 2 }).notNull(), // e.g., 25.00 for 25%
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const accountTargetAllocationsRelations = relations(accountTargetAllocations, ({ one }) => ({
+  individualAccount: one(individualAccounts, {
+    fields: [accountTargetAllocations.individualAccountId],
+    references: [individualAccounts.id],
+  }),
+  corporateAccount: one(corporateAccounts, {
+    fields: [accountTargetAllocations.corporateAccountId],
+    references: [corporateAccounts.id],
+  }),
+  jointAccount: one(jointAccounts, {
+    fields: [accountTargetAllocations.jointAccountId],
+    references: [jointAccounts.id],
+  }),
+  holding: one(universalHoldings, {
+    fields: [accountTargetAllocations.universalHoldingId],
+    references: [universalHoldings.id],
+  }),
+}));
+
 // Universal Holdings relations
 export const universalHoldingsRelations = relations(universalHoldings, ({ many }) => ({
   plannedAllocations: many(plannedPortfolioAllocations),
   freelanceAllocations: many(freelancePortfolioAllocations),
+  accountAllocations: many(accountTargetAllocations),
 }));
 
 // Alert signal enum
@@ -511,6 +543,15 @@ export const insertFreelancePortfolioAllocationSchema = createInsertSchema(freel
   targetPercentage: z.coerce.number().positive().max(100).transform(val => val.toString()),
 });
 
+// Account Target Allocation insert schema
+export const insertAccountTargetAllocationSchema = createInsertSchema(accountTargetAllocations).omit({
+  id: true,
+  createdAt: true,
+  targetPercentage: true,
+}).extend({
+  targetPercentage: z.coerce.number().positive().max(100).transform(val => val.toString()),
+});
+
 // Update schemas (partial versions of insert schemas)
 export const updateHouseholdSchema = insertHouseholdSchema.partial();
 export const updateIndividualSchema = insertIndividualSchema.partial();
@@ -525,6 +566,7 @@ export const updatePlannedPortfolioSchema = insertPlannedPortfolioSchema.partial
 export const updatePlannedPortfolioAllocationSchema = insertPlannedPortfolioAllocationSchema.partial();
 export const updateFreelancePortfolioSchema = insertFreelancePortfolioSchema.partial();
 export const updateFreelancePortfolioAllocationSchema = insertFreelancePortfolioAllocationSchema.partial();
+export const updateAccountTargetAllocationSchema = insertAccountTargetAllocationSchema.partial();
 
 // Webhook schema with validation
 export const tradingViewWebhookSchema = z.object({
@@ -579,6 +621,14 @@ export type FreelancePortfolio = typeof freelancePortfolios.$inferSelect;
 
 export type InsertFreelancePortfolioAllocation = z.infer<typeof insertFreelancePortfolioAllocationSchema>;
 export type FreelancePortfolioAllocation = typeof freelancePortfolioAllocations.$inferSelect;
+
+export type InsertAccountTargetAllocation = z.infer<typeof insertAccountTargetAllocationSchema>;
+export type AccountTargetAllocation = typeof accountTargetAllocations.$inferSelect;
+
+// Account Target Allocation with holding details
+export type AccountTargetAllocationWithHolding = AccountTargetAllocation & {
+  holding: UniversalHolding;
+};
 
 // Portfolio with allocations types
 export type PlannedPortfolioWithAllocations = PlannedPortfolio & {
