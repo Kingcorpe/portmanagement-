@@ -27,6 +27,7 @@ export interface Account {
   id: string;
   type: AccountType;
   balance: number;
+  nickname?: string | null;
 }
 
 export interface Individual {
@@ -45,6 +46,7 @@ export interface JointAccount {
   id: string;
   type: "joint-cash" | "resp";
   balance: number;
+  nickname?: string | null;
   owners: string[];
 }
 
@@ -86,6 +88,15 @@ const accountTypeLabels: Record<AccountType, string> = {
   "resp": "RESP",
   "ipp": "IPP"
 };
+
+// Helper to format account display name: "[Account Type]: [Nickname]" or just "[Account Type]"
+export function formatAccountDisplayName(type: AccountType, nickname?: string | null): string {
+  const typeLabel = accountTypeLabels[type];
+  if (nickname && nickname.trim()) {
+    return `${typeLabel}: ${nickname}`;
+  }
+  return typeLabel;
+}
 
 // Account categories for grouping
 const accountCategories: Record<string, { label: string; types: AccountType[] }> = {
@@ -345,7 +356,7 @@ export function HouseholdCard({
                         <div key={account.id} className="flex items-center justify-between text-sm group" data-testid={`row-account-${account.id}`}>
                           <Link href={`/account/individual/${account.id}`} className="flex items-center gap-3 flex-1 py-1 px-2 -ml-2 rounded-md hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
                             <Badge variant="secondary" className="text-xs font-mono">
-                              {accountTypeLabels[account.type]}
+                              {formatAccountDisplayName(account.type, account.nickname)}
                             </Badge>
                             <span className="font-mono tabular-nums">
                               CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -367,7 +378,7 @@ export function HouseholdCard({
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Delete Account</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to delete this {accountTypeLabels[account.type]} account? This will permanently remove all positions associated with this account. This action cannot be undone.
+                                    Are you sure you want to delete this {formatAccountDisplayName(account.type, account.nickname)} account? This will permanently remove all positions associated with this account. This action cannot be undone.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -483,7 +494,7 @@ export function HouseholdCard({
                         <div key={account.id} className="flex items-center justify-between text-sm group" data-testid={`row-account-${account.id}`}>
                           <Link href={`/account/corporate/${account.id}`} className="flex items-center gap-3 flex-1 py-1 px-2 -ml-2 rounded-md hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
                             <Badge variant="secondary" className="text-xs font-mono">
-                              {accountTypeLabels[account.type]}
+                              {formatAccountDisplayName(account.type, account.nickname)}
                             </Badge>
                             <span className="font-mono tabular-nums">
                               CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -505,7 +516,7 @@ export function HouseholdCard({
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Delete Account</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to delete this {accountTypeLabels[account.type]} account? This will permanently remove all positions associated with this account. This action cannot be undone.
+                                    Are you sure you want to delete this {formatAccountDisplayName(account.type, account.nickname)} account? This will permanently remove all positions associated with this account. This action cannot be undone.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -555,7 +566,7 @@ export function HouseholdCard({
                       <div key={account.id} className="flex items-center justify-between text-sm group" data-testid={`row-joint-account-${account.id}`}>
                         <Link href={`/account/joint/${account.id}`} className="flex items-center gap-3 flex-1 py-1 px-2 -ml-2 rounded-md hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
                           <Badge variant="secondary" className="text-xs font-mono">
-                            {accountTypeLabels[account.type]}
+                            {formatAccountDisplayName(account.type, account.nickname)}
                           </Badge>
                           <span className="font-mono tabular-nums">
                             CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -577,7 +588,7 @@ export function HouseholdCard({
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete Joint Account</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Are you sure you want to delete this {accountTypeLabels[account.type]} account? This will permanently remove all positions associated with this account. This action cannot be undone.
+                                  Are you sure you want to delete this {formatAccountDisplayName(account.type, account.nickname)} account? This will permanently remove all positions associated with this account. This action cannot be undone.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
