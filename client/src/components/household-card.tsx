@@ -143,14 +143,21 @@ export function HouseholdCard({
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-3 flex-1">
+            <div 
+              className="flex items-start gap-3 flex-1 cursor-pointer hover-elevate rounded-md p-1 -m-1"
+              onClick={() => setIsOpen(!isOpen)}
+              data-testid={`trigger-household-${household.id}`}
+            >
               <div className="p-2 rounded-md bg-primary/10">
                 <Users className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-lg" data-testid={`text-household-name-${household.id}`}>
-                  {household.name}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-lg" data-testid={`text-household-name-${household.id}`}>
+                    {household.name}
+                  </h3>
+                  {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                </div>
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                   <Badge variant="secondary" className="text-xs">
                     {household.individuals.length} Individual{household.individuals.length !== 1 ? 's' : ''}
@@ -206,11 +213,6 @@ export function HouseholdCard({
                   </AlertDialogContent>
                 </AlertDialog>
               )}
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="icon" data-testid={`button-toggle-${household.id}`}>
-                  {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                </Button>
-              </CollapsibleTrigger>
             </div>
           </div>
         </CardHeader>
