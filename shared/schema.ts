@@ -252,7 +252,8 @@ export const universalHoldings = pgTable("universal_holdings", {
   riskLevel: riskLevelEnum("risk_level").notNull(),
   dividendRate: decimal("dividend_rate", { precision: 8, scale: 4 }).default('0'), // as percentage
   dividendPayout: dividendPayoutEnum("dividend_payout").notNull().default("none"),
-  price: decimal("price", { precision: 15, scale: 2 }).notNull(),
+  price: decimal("price", { precision: 15, scale: 2 }).default('0'), // Current price (auto-updated from Yahoo Finance)
+  priceUpdatedAt: timestamp("price_updated_at"), // When price was last fetched
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

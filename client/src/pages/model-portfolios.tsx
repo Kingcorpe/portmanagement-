@@ -121,7 +121,6 @@ const holdingFormSchema = z.object({
   riskLevel: z.enum(["low", "low_medium", "medium", "medium_high", "high"]),
   dividendRate: z.coerce.number().nonnegative().default(0),
   dividendPayout: z.enum(["monthly", "quarterly", "semi_annual", "annual", "none"]),
-  price: z.coerce.number().positive("Price must be positive"),
   description: z.string().optional(),
 });
 
@@ -167,7 +166,6 @@ export default function ModelPortfolios() {
       riskLevel: "medium",
       dividendRate: 0,
       dividendPayout: "monthly",
-      price: 0,
       description: "",
     },
   });
@@ -453,16 +451,12 @@ export default function ModelPortfolios() {
       
       // Populate all available fields
       holdingForm.setValue("name", data.name);
-      if (data.price) {
-        holdingForm.setValue("price", data.price);
-      }
       if (data.dividendRate) {
         holdingForm.setValue("dividendRate", parseFloat(data.dividendRate.toFixed(2)));
       }
       
       // Build description of what was found
       const details = [];
-      if (data.price) details.push(`Price: CA$${data.price.toFixed(2)}`);
       if (data.dividendRate) details.push(`Yield: ${data.dividendRate.toFixed(2)}%`);
       
       toast({ 
@@ -485,7 +479,6 @@ export default function ModelPortfolios() {
       riskLevel: holding.riskLevel,
       dividendRate: Number(holding.dividendRate) || 0,
       dividendPayout: holding.dividendPayout,
-      price: Number(holding.price),
       description: holding.description || "",
     });
     setIsHoldingDialogOpen(true);
@@ -786,45 +779,30 @@ export default function ModelPortfolios() {
                         </FormItem>
                       )}
                     />
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={holdingForm.control}
-                        name="riskLevel"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Risk Level</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger data-testid="select-risk-level">
-                                  <SelectValue placeholder="Select risk" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="low">Low</SelectItem>
-                                <SelectItem value="low_medium">Low-Medium</SelectItem>
-                                <SelectItem value="medium">Medium</SelectItem>
-                                <SelectItem value="medium_high">Medium-High</SelectItem>
-                                <SelectItem value="high">High</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={holdingForm.control}
-                        name="price"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Price (CA$)</FormLabel>
+                    <FormField
+                      control={holdingForm.control}
+                      name="riskLevel"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Risk Level</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <Input type="number" step="0.01" placeholder="0.00" {...field} data-testid="input-price" />
+                              <SelectTrigger data-testid="select-risk-level">
+                                <SelectValue placeholder="Select risk" />
+                              </SelectTrigger>
                             </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                            <SelectContent>
+                              <SelectItem value="low">Low</SelectItem>
+                              <SelectItem value="low_medium">Low-Medium</SelectItem>
+                              <SelectItem value="medium">Medium</SelectItem>
+                              <SelectItem value="medium_high">Medium-High</SelectItem>
+                              <SelectItem value="high">High</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={holdingForm.control}
@@ -914,7 +892,13 @@ export default function ModelPortfolios() {
                 <TableBody>
                   {filteredHoldings.map((holding) => (
                     <TableRow key={holding.id} data-testid={`row-holding-${holding.id}`}>
-                      <TableCell className="font-mono font-semibold">{holding.ticker}</TableCell>
+                      <TableCell 
+                        className="font-mono font-semibold cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => handleEditHolding(holding)}
+                        data-testid={`text-ticker-${holding.id}`}
+                      >
+                        {holding.ticker}
+                      </TableCell>
                       <TableCell>{holding.name}</TableCell>
                       <TableCell>
                         <Badge className={categoryColors[holding.category]}>
