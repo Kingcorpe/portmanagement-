@@ -1213,6 +1213,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Refresh prices for all Universal Holdings from Yahoo Finance
+  // NOTE: This must be defined BEFORE the /:id routes
+  app.post('/api/universal-holdings/refresh-prices', isAuthenticated, async (req, res) => {
+    try {
+      const holdings = await storage.getAllUniversalHoldings();
+      
+      if (!holdings || holdings.length === 0) {
+        return res.json({ success: true, updated: 0, message: "No holdings to update" });
+      }
+      
+      // Dynamically import yahoo-finance2
+      const yahooFinance = (await import('yahoo-finance2')).default;
+      
+      // Cache for ticker prices to avoid duplicate API calls
+      const tickerPriceCache: Record<string, number | null> = {};
+      const errors: string[] = [];
+      const now = new Date();
+      let updatedCount = 0;
+      
+      // Process each holding individually (handles duplicate tickers)
+      for (const holding of holdings) {
+        try {
+          const upperSymbol = holding.ticker.toUpperCase().trim();
+          
+          // Handle cash positions
+          if (upperSymbol === 'CASH' || upperSymbol === 'CAD' || upperSymbol === 'USD' || 
+              upperSymbol.includes('CASH') || upperSymbol.includes('MONEY MARKET')) {
+            await storage.updateUniversalHolding(holding.id, { 
+              price: "1.00",
+              priceUpdatedAt: now
+            });
+            updatedCount++;
+            continue;
+          }
+          
+          // Check cache first
+          if (tickerPriceCache[holding.ticker] !== undefined) {
+            const cachedPrice = tickerPriceCache[holding.ticker];
+            if (cachedPrice !== null) {
+              await storage.updateUniversalHolding(holding.id, { 
+                price: cachedPrice.toFixed(2),
+                priceUpdatedAt: now
+              });
+              updatedCount++;
+            }
+            continue;
+          }
+          
+          // Try the symbol as-is first, then with Canadian suffixes
+          let quote = null;
+          const symbolsToTry = [holding.ticker];
+          
+          if (!holding.ticker.includes('.')) {
+            symbolsToTry.push(`${holding.ticker}.TO`);
+            symbolsToTry.push(`${holding.ticker}.V`);
+            symbolsToTry.push(`${holding.ticker}.CN`);
+          }
+          
+          for (const symbol of symbolsToTry) {
+            try {
+              const result = await yahooFinance.quote(symbol);
+              if (result && (result as any).regularMarketPrice) {
+                quote = result as any;
+                break;
+              }
+            } catch (e) {
+              // Try next suffix
+            }
+          }
+          
+          if (quote && quote.regularMarketPrice) {
+            const price = quote.regularMarketPrice;
+            tickerPriceCache[holding.ticker] = price;
+            await storage.updateUniversalHolding(holding.id, { 
+              price: price.toFixed(2),
+              priceUpdatedAt: now
+            });
+            updatedCount++;
+          } else {
+            tickerPriceCache[holding.ticker] = null;
+            if (!errors.includes(holding.ticker)) {
+              errors.push(holding.ticker);
+            }
+          }
+        } catch (error: any) {
+          console.error(`Error fetching quote for ${holding.ticker}:`, error);
+          tickerPriceCache[holding.ticker] = null;
+          if (!errors.includes(holding.ticker)) {
+            errors.push(holding.ticker);
+          }
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        updated: updatedCount,
+        errors: errors.length > 0 ? errors : undefined,
+        message: `Updated ${updatedCount} holdings${errors.length > 0 ? `, ${errors.length} symbols not found` : ''}`
+      });
+    } catch (error: any) {
+      console.error("Error refreshing universal holdings prices:", error);
+      res.status(500).json({ message: "Failed to refresh prices", error: error.message });
+    }
+  });
+
   app.get('/api/universal-holdings/:id', isAuthenticated, async (req, res) => {
     try {
       const holding = await storage.getUniversalHolding(req.params.id);

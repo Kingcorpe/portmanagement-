@@ -53,7 +53,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X } from "lucide-react";
+import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X, RefreshCw } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -259,6 +259,20 @@ export default function ModelPortfolios() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/universal-holdings"] });
       toast({ title: "Success", description: "Holding deleted successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const refreshPricesMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/universal-holdings/refresh-prices"),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/universal-holdings"] });
+      toast({ 
+        title: "Prices Updated", 
+        description: data.message || `Updated ${data.updated} holdings` 
+      });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -691,7 +705,20 @@ export default function ModelPortfolios() {
         </TabsList>
 
         <TabsContent value="holdings" className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => refreshPricesMutation.mutate()}
+              disabled={refreshPricesMutation.isPending}
+              data-testid="button-refresh-prices"
+            >
+              {refreshPricesMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Refresh Prices
+            </Button>
             <Dialog open={isHoldingDialogOpen} onOpenChange={(open) => {
               setIsHoldingDialogOpen(open);
               if (!open) {
@@ -910,8 +937,15 @@ export default function ModelPortfolios() {
                           {riskLevelLabels[holding.riskLevel]}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right font-mono">
-                        CA${Number(holding.price).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <TableCell className="text-right">
+                        <div className="font-mono">
+                          CA${Number(holding.price).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        {holding.priceUpdatedAt && (
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(holding.priceUpdatedAt).toLocaleDateString()}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-right font-mono">
                         {Number(holding.dividendRate).toFixed(2)}%
