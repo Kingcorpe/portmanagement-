@@ -133,6 +133,7 @@ export default function AccountDetails() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+      queryClient.refetchQueries({ queryKey: ["/api/households/full"] });
       toast({
         title: "Success",
         description: "Position created successfully",
@@ -154,6 +155,7 @@ export default function AccountDetails() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+      queryClient.refetchQueries({ queryKey: ["/api/households/full"] });
       toast({
         title: "Success",
         description: "Position updated successfully",
@@ -175,6 +177,7 @@ export default function AccountDetails() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+      queryClient.refetchQueries({ queryKey: ["/api/households/full"] });
       toast({
         title: "Success",
         description: "Position deleted successfully",

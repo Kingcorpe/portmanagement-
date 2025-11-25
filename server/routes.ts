@@ -55,6 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/households/full', isAuthenticated, async (req, res) => {
     try {
       const households = await storage.getAllHouseholdsWithDetails();
+      console.log('[DEBUG] Sample account from first household:', JSON.stringify(households[0]?.individuals[0]?.accounts[0], null, 2));
       res.json(households);
     } catch (error) {
       console.error("Error fetching household details:", error);

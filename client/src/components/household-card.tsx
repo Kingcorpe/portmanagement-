@@ -204,7 +204,7 @@ export function HouseholdCard({
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="font-mono tabular-nums">
-                            CA${parseFloat((account as any).calculatedBalance || '0').toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                           <span className={`font-mono tabular-nums text-xs ${accountPositive ? 'text-chart-2' : 'text-destructive'} min-w-[60px] text-right`}>
                             {accountPositive ? '+' : ''}{account.performance.toFixed(2)}%
@@ -271,7 +271,7 @@ export function HouseholdCard({
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="font-mono tabular-nums">
-                            CA${parseFloat((account as any).calculatedBalance || '0').toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                           <span className={`font-mono tabular-nums text-xs ${accountPositive ? 'text-chart-2' : 'text-destructive'} min-w-[60px] text-right`}>
                             {accountPositive ? '+' : ''}{account.performance.toFixed(2)}%
@@ -323,7 +323,7 @@ export function HouseholdCard({
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="font-mono tabular-nums">
-                            CA${parseFloat((account as any).calculatedBalance || '0').toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                           <span className={`font-mono tabular-nums text-xs ${accountPositive ? 'text-chart-2' : 'text-destructive'} min-w-[60px] text-right`}>
                             {accountPositive ? '+' : ''}{account.performance.toFixed(2)}%

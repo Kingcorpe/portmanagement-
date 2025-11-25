@@ -328,10 +328,16 @@ export const insertPositionSchema = createInsertSchema(positions).omit({
   quantity: true,
   entryPrice: true,
   currentPrice: true,
+  purchaseDate: true,
 }).extend({
   quantity: z.coerce.number().positive().transform(val => val.toString()),
   entryPrice: z.coerce.number().positive().transform(val => val.toString()),
   currentPrice: z.coerce.number().positive().optional().transform(val => val !== undefined ? val.toString() : undefined),
+  purchaseDate: z.union([z.date(), z.string()]).optional().transform(val => {
+    if (!val) return undefined;
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }),
 });
 
 export const insertAlertSchema = createInsertSchema(alerts).omit({

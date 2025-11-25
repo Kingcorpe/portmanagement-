@@ -95,37 +95,37 @@ export default function Households() {
 
   // Transform backend data to component format and calculate totals
   const households: Household[] = householdsData.map(h => {
-    // Transform individuals with accounts - data is already numeric from Drizzle
+    // Transform individuals with accounts - use calculatedBalance from positions
     const individuals = h.individuals.map((individual) => ({
       id: individual.id,
       name: individual.name,
-      accounts: individual.accounts.map((account) => ({
+      accounts: individual.accounts.map((account: any) => ({
         id: account.id,
         type: account.type,
-        balance: Number(account.balance) || 0,
+        balance: Number(account.calculatedBalance) || 0,
         performance: Number(account.performance) || 0,
       }))
     }));
 
-    // Transform corporations with accounts
+    // Transform corporations with accounts - use calculatedBalance from positions
     const corporations = h.corporations.map((corporation) => ({
       id: corporation.id,
       name: corporation.name,
-      accounts: corporation.accounts.map((account) => ({
+      accounts: corporation.accounts.map((account: any) => ({
         id: account.id,
         type: account.type,
-        balance: Number(account.balance) || 0,
+        balance: Number(account.calculatedBalance) || 0,
         performance: Number(account.performance) || 0,
       }))
     }));
 
-    // Transform joint accounts - convert snake_case to hyphenated format for UI
-    const jointAccounts = h.jointAccounts.map((account) => ({
+    // Transform joint accounts - use calculatedBalance from positions
+    const jointAccounts = h.jointAccounts.map((account: any) => ({
       id: account.id,
       type: account.type.replace(/_/g, '-') as "joint-cash" | "resp",
-      balance: Number(account.balance) || 0,
+      balance: Number(account.calculatedBalance) || 0,
       performance: Number(account.performance) || 0,
-      owners: account.owners.map((owner) => owner.name)
+      owners: account.owners.map((owner: any) => owner.name)
     }));
 
     // Calculate total value across all accounts
