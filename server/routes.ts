@@ -778,31 +778,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return sum + Number(alloc.targetPercentage);
       }, 0);
       
-      // Create a map of actual allocations by ticker
-      const actualByTicker = new Map<string, { value: number; quantity: number }>();
+      // Helper function to normalize tickers by stripping exchange suffixes
+      // e.g., "XIC.TO" -> "XIC", "VFV.TO" -> "VFV", "AAPL" -> "AAPL"
+      const normalizeTicker = (ticker: string): string => {
+        return ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+      };
+      
+      // Create a map of actual allocations by normalized ticker
+      // Store both normalized and original ticker for display
+      const actualByTicker = new Map<string, { value: number; quantity: number; originalTicker: string }>();
       for (const pos of positions) {
-        const ticker = pos.symbol.toUpperCase();
+        const originalTicker = pos.symbol.toUpperCase();
+        const normalizedTicker = normalizeTicker(originalTicker);
         const value = Number(pos.quantity) * Number(pos.currentPrice);
-        const existing = actualByTicker.get(ticker) || { value: 0, quantity: 0 };
-        actualByTicker.set(ticker, {
+        const existing = actualByTicker.get(normalizedTicker) || { value: 0, quantity: 0, originalTicker };
+        actualByTicker.set(normalizedTicker, {
           value: existing.value + value,
-          quantity: existing.quantity + Number(pos.quantity)
+          quantity: existing.quantity + Number(pos.quantity),
+          originalTicker: existing.originalTicker
         });
       }
       
       // Build comparison entries
       const comparison = [];
-      const processedTickers = new Set<string>();
+      const processedNormalizedTickers = new Set<string>();
       
       // First, add all target allocations
       for (const allocation of targetAllocations) {
         const holding = allocation.holding;
         if (!holding) continue;
         
-        const ticker = holding.ticker.toUpperCase();
-        processedTickers.add(ticker);
+        const displayTicker = holding.ticker.toUpperCase();
+        const normalizedTicker = normalizeTicker(displayTicker);
+        processedNormalizedTickers.add(normalizedTicker);
         
-        const actual = actualByTicker.get(ticker);
+        const actual = actualByTicker.get(normalizedTicker);
         const actualValue = actual?.value || 0;
         const actualPercentage = totalActualValue > 0 ? (actualValue / totalActualValue) * 100 : 0;
         const targetPercentage = Number(allocation.targetPercentage);
@@ -810,7 +820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         comparison.push({
           allocationId: allocation.id,
-          ticker,
+          ticker: displayTicker,
           name: holding.name,
           targetPercentage,
           actualPercentage: Math.round(actualPercentage * 100) / 100,
@@ -823,13 +833,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Add any positions that aren't in the target allocations (unexpected holdings)
-      for (const [ticker, data] of Array.from(actualByTicker)) {
-        if (!processedTickers.has(ticker)) {
+      for (const [normalizedTicker, data] of Array.from(actualByTicker)) {
+        if (!processedNormalizedTickers.has(normalizedTicker)) {
           const actualPercentage = totalActualValue > 0 ? (data.value / totalActualValue) * 100 : 0;
           comparison.push({
             allocationId: null,
-            ticker,
-            name: ticker, // No name available for unexpected holdings
+            ticker: data.originalTicker,
+            name: data.originalTicker, // No name available for unexpected holdings
             targetPercentage: 0,
             actualPercentage: Math.round(actualPercentage * 100) / 100,
             variance: Math.round(actualPercentage * 100) / 100,
