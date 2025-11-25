@@ -275,7 +275,7 @@ function SortablePlannedPortfolioCard({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {portfolio.allocations.map((allocation) => {
+                    {[...portfolio.allocations].sort((a, b) => a.holding.ticker.localeCompare(b.holding.ticker)).map((allocation) => {
                       const isEditing = inlineEditingAllocation?.id === allocation.id && inlineEditingAllocation?.type === "planned";
                       const currentValue = Number(allocation.targetPercentage);
                       return (
@@ -478,7 +478,7 @@ function SortableFreelancePortfolioCard({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {portfolio.allocations.map((allocation) => {
+                    {[...portfolio.allocations].sort((a, b) => a.holding.ticker.localeCompare(b.holding.ticker)).map((allocation) => {
                       const isEditing = inlineEditingAllocation?.id === allocation.id && inlineEditingAllocation?.type === "freelance";
                       const currentValue = Number(allocation.targetPercentage);
                       return (
