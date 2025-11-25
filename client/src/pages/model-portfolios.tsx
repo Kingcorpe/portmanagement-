@@ -228,7 +228,10 @@ function SortablePlannedPortfolioCard({
               </CollapsibleTrigger>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant={totalAllocation === 100 ? "default" : "destructive"}>
+              <Badge 
+                variant={totalAllocation === 100 ? "default" : "destructive"}
+                className={totalAllocation === 100 ? "bg-green-600 hover:bg-green-700" : ""}
+              >
                 <Percent className="h-3 w-3 mr-1" />
                 {totalAllocation.toFixed(1)}% Allocated
               </Badge>
@@ -428,7 +431,10 @@ function SortableFreelancePortfolioCard({
               </CollapsibleTrigger>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant={totalAllocation === 100 ? "default" : "destructive"}>
+              <Badge 
+                variant={totalAllocation === 100 ? "default" : "destructive"}
+                className={totalAllocation === 100 ? "bg-green-600 hover:bg-green-700" : ""}
+              >
                 <Percent className="h-3 w-3 mr-1" />
                 {totalAllocation.toFixed(1)}% Allocated
               </Badge>
