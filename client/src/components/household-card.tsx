@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, ChevronDown, ChevronRight, Users, Eye, Plus, UserPlus, Building2, Trash2, Edit, User } from "lucide-react";
+import { ChevronDown, ChevronRight, Users, Eye, Plus, UserPlus, Building2, Trash2, Edit, User } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -137,7 +137,6 @@ export function HouseholdCard({
   onDeleteCorporation
 }: HouseholdCardProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const isPositive = household.totalPerformance >= 0;
 
   return (
     <Card data-testid={`card-household-${household.id}`}>
@@ -167,15 +166,9 @@ export function HouseholdCard({
                     </Badge>
                   )}
                 </div>
-                <div className="mt-3 space-y-1">
+                <div className="mt-3">
                   <div className="text-2xl font-bold font-mono tabular-nums" data-testid={`text-household-value-${household.id}`}>
                     CA${household.totalValue.toLocaleString()}
-                  </div>
-                  <div className={`flex items-center gap-1 text-sm font-medium ${isPositive ? 'text-chart-2' : 'text-destructive'}`}>
-                    {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    <span data-testid={`text-household-performance-${household.id}`}>
-                      {isPositive ? '+' : ''}{household.totalPerformance.toFixed(2)}%
-                    </span>
                   </div>
                 </div>
               </div>
