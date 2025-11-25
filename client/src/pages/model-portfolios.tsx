@@ -1161,126 +1161,91 @@ export default function ModelPortfolios() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">Model Portfolios</h1>
           <p className="text-muted-foreground">Manage your universal holdings and portfolio templates</p>
         </div>
-      </div>
-
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-            data-testid="input-search"
-          />
-        </div>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-[180px]" data-testid="select-category-filter">
-            <SelectValue placeholder="Filter by category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="basket_etf">CC Basket ETFs</SelectItem>
-            <SelectItem value="single_etf">Single ETFs</SelectItem>
-            <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
-            <SelectItem value="security">Securities</SelectItem>
-            <SelectItem value="auto_added">Auto Added</SelectItem>
-            <SelectItem value="misc">Misc.</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="holdings" data-testid="tab-holdings">Universal Holdings</TabsTrigger>
-          <TabsTrigger value="planned" data-testid="tab-planned">Planned Portfolios</TabsTrigger>
-          <TabsTrigger value="freelance" data-testid="tab-freelance">Freelance Portfolios</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="holdings" className="space-y-4">
-          <div className="flex justify-end gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => refreshPricesMutation.mutate()}
-              disabled={refreshPricesMutation.isPending}
-              data-testid="button-refresh-prices"
-            >
-              {refreshPricesMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              Refresh Prices
-            </Button>
-            <Dialog open={isHoldingDialogOpen} onOpenChange={(open) => {
-              setIsHoldingDialogOpen(open);
-              if (!open) {
-                setEditingHolding(null);
-                holdingForm.reset();
-              }
-            }}>
-              <DialogTrigger asChild>
-                <Button data-testid="button-add-holding">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Holding
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>{editingHolding ? "Edit Holding" : "Add Universal Holding"}</DialogTitle>
-                  <DialogDescription>
-                    {editingHolding ? "Update the holding details" : "Add a new ETF or security to your universal holdings library"}
-                  </DialogDescription>
-                </DialogHeader>
-                <Form {...holdingForm}>
-                  <form onSubmit={holdingForm.handleSubmit(onHoldingSubmit)} className="space-y-4">
-                    <FormField
-                      control={holdingForm.control}
-                      name="ticker"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Ticker Symbol</FormLabel>
-                          <div className="flex gap-2">
-                            <FormControl>
-                              <Input placeholder="e.g. VFV.TO" {...field} data-testid="input-ticker" />
-                            </FormControl>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              onClick={lookupTicker}
-                              disabled={isLookingUpTicker}
-                              data-testid="button-lookup-ticker"
-                            >
-                              {isLookingUpTicker ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Search className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={holdingForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Name</FormLabel>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => refreshPricesMutation.mutate()}
+            disabled={refreshPricesMutation.isPending}
+            data-testid="button-refresh-prices"
+          >
+            {refreshPricesMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Refresh Prices
+          </Button>
+          <Dialog open={isHoldingDialogOpen} onOpenChange={(open) => {
+            setIsHoldingDialogOpen(open);
+            if (!open) {
+              setEditingHolding(null);
+              holdingForm.reset();
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-holding">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Holding
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{editingHolding ? "Edit Holding" : "Add Universal Holding"}</DialogTitle>
+                <DialogDescription>
+                  {editingHolding ? "Update the holding details" : "Add a new ETF or security to your universal holdings library"}
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...holdingForm}>
+                <form onSubmit={holdingForm.handleSubmit(onHoldingSubmit)} className="space-y-4">
+                  <FormField
+                    control={holdingForm.control}
+                    name="ticker"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ticker Symbol</FormLabel>
+                        <div className="flex gap-2">
                           <FormControl>
-                            <Input placeholder="e.g. Vanguard S&P 500 Index ETF" {...field} data-testid="input-name" />
+                            <Input placeholder="e.g. VFV.TO" {...field} data-testid="input-ticker" />
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={lookupTicker}
+                            disabled={isLookingUpTicker}
+                            data-testid="button-lookup-ticker"
+                          >
+                            {isLookingUpTicker ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Search className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={holdingForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Vanguard S&P 500 Index ETF" {...field} data-testid="input-holding-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={holdingForm.control}
                       name="category"
@@ -1298,6 +1263,7 @@ export default function ModelPortfolios() {
                               <SelectItem value="single_etf">Single ETFs</SelectItem>
                               <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
                               <SelectItem value="security">Securities</SelectItem>
+                              <SelectItem value="auto_added">Auto Added</SelectItem>
                               <SelectItem value="misc">Misc.</SelectItem>
                             </SelectContent>
                           </Select>
@@ -1329,67 +1295,107 @@ export default function ModelPortfolios() {
                         </FormItem>
                       )}
                     />
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={holdingForm.control}
-                        name="dividendRate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Dividend Rate (%)</FormLabel>
-                            <FormControl>
-                              <Input type="number" step="0.01" placeholder="0.00" {...field} data-testid="input-dividend-rate" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={holdingForm.control}
-                        name="dividendPayout"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Payout Frequency</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger data-testid="select-dividend-payout">
-                                  <SelectValue placeholder="Select frequency" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="none">None</SelectItem>
-                                <SelectItem value="monthly">Monthly</SelectItem>
-                                <SelectItem value="quarterly">Quarterly</SelectItem>
-                                <SelectItem value="semi_annual">Semi-Annual</SelectItem>
-                                <SelectItem value="annual">Annual</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={holdingForm.control}
-                      name="description"
+                      name="dividendRate"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Description</FormLabel>
+                          <FormLabel>Dividend Rate (%)</FormLabel>
                           <FormControl>
-                            <Textarea placeholder="Brief description of this holding..." {...field} data-testid="input-description" />
+                            <Input type="number" step="0.01" min="0" placeholder="0.00" {...field} data-testid="input-dividend-rate" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" className="w-full" disabled={createHoldingMutation.isPending || updateHoldingMutation.isPending} data-testid="button-submit-holding">
-                      {createHoldingMutation.isPending || updateHoldingMutation.isPending ? "Saving..." : (editingHolding ? "Update Holding" : "Add Holding")}
-                    </Button>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-          </div>
+                    <FormField
+                      control={holdingForm.control}
+                      name="dividendPayout"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Payout Frequency</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-dividend-payout">
+                                <SelectValue placeholder="Select frequency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="monthly">Monthly</SelectItem>
+                              <SelectItem value="quarterly">Quarterly</SelectItem>
+                              <SelectItem value="semi_annual">Semi-Annual</SelectItem>
+                              <SelectItem value="annual">Annual</SelectItem>
+                              <SelectItem value="none">None</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={holdingForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description (Optional)</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Brief description..." {...field} data-testid="input-holding-description" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full" disabled={createHoldingMutation.isPending || updateHoldingMutation.isPending} data-testid="button-submit-holding">
+                    {(createHoldingMutation.isPending || updateHoldingMutation.isPending) ? "Saving..." : (editingHolding ? "Update Holding" : "Add Holding")}
+                  </Button>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
 
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <TabsList>
+            <TabsTrigger value="holdings" data-testid="tab-holdings">Universal Holdings</TabsTrigger>
+            <TabsTrigger value="planned" data-testid="tab-planned">Planned Portfolios</TabsTrigger>
+            <TabsTrigger value="freelance" data-testid="tab-freelance">Freelance Portfolios</TabsTrigger>
+          </TabsList>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 w-[200px]"
+                data-testid="input-search"
+              />
+            </div>
+            {activeTab === "holdings" && (
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[160px]" data-testid="select-category-filter">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="basket_etf">CC Basket ETFs</SelectItem>
+                  <SelectItem value="single_etf">Single ETFs</SelectItem>
+                  <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
+                  <SelectItem value="security">Securities</SelectItem>
+                  <SelectItem value="auto_added">Auto Added</SelectItem>
+                  <SelectItem value="misc">Misc.</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </div>
+
+        <TabsContent value="holdings" className="space-y-4">
           {holdingsLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
