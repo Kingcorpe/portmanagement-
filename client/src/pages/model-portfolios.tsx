@@ -86,9 +86,24 @@ const dividendPayoutLabels: Record<string, string> = {
   none: "None",
 };
 
+const categoryLabels: Record<string, string> = {
+  basket_etf: "Basket ETFs",
+  single_etf: "Single ETFs",
+  double_long_etf: "Double Long ETFs",
+  security: "Securities",
+};
+
+const categoryColors: Record<string, string> = {
+  basket_etf: "bg-blue-500 text-white",
+  single_etf: "bg-purple-500 text-white",
+  double_long_etf: "bg-amber-500 text-white",
+  security: "bg-slate-500 text-white",
+};
+
 const holdingFormSchema = z.object({
   ticker: z.string().min(1, "Ticker is required").max(20),
   name: z.string().min(1, "Name is required"),
+  category: z.enum(["basket_etf", "single_etf", "double_long_etf", "security"]),
   riskLevel: z.enum(["low", "low_medium", "medium", "medium_high", "high"]),
   dividendRate: z.coerce.number().nonnegative().default(0),
   dividendPayout: z.enum(["monthly", "quarterly", "semi_annual", "annual", "none"]),
@@ -123,14 +138,16 @@ export default function ModelPortfolios() {
   const [allocationTarget, setAllocationTarget] = useState<{ type: "planned" | "freelance"; portfolioId: string } | null>(null);
   const [editingAllocation, setEditingAllocation] = useState<{ id: string; type: "planned" | "freelance"; universalHoldingId: string; targetPercentage: number } | null>(null);
   const [isLookingUpTicker, setIsLookingUpTicker] = useState(false);
-  const [holdingsSortColumn, setHoldingsSortColumn] = useState<"ticker" | "name" | "riskLevel" | "price" | "dividendRate">("ticker");
+  const [holdingsSortColumn, setHoldingsSortColumn] = useState<"ticker" | "name" | "category" | "riskLevel" | "price" | "dividendRate">("ticker");
   const [holdingsSortDirection, setHoldingsSortDirection] = useState<"asc" | "desc">("asc");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
   const holdingForm = useForm<HoldingFormData>({
     resolver: zodResolver(holdingFormSchema),
     defaultValues: {
       ticker: "",
       name: "",
+      category: "basket_etf",
       riskLevel: "medium",
       dividendRate: 0,
       dividendPayout: "monthly",
@@ -444,6 +461,7 @@ export default function ModelPortfolios() {
     holdingForm.reset({
       ticker: holding.ticker,
       name: holding.name,
+      category: holding.category,
       riskLevel: holding.riskLevel,
       dividendRate: Number(holding.dividendRate) || 0,
       dividendPayout: holding.dividendPayout,
@@ -476,6 +494,7 @@ export default function ModelPortfolios() {
   };
 
   const riskLevelOrder = { low: 1, low_medium: 2, medium: 3, medium_high: 4, high: 5 };
+  const categoryOrder = { basket_etf: 1, single_etf: 2, double_long_etf: 3, security: 4 };
 
   const handleHoldingsSort = (column: typeof holdingsSortColumn) => {
     if (holdingsSortColumn === column) {
@@ -505,8 +524,9 @@ export default function ModelPortfolios() {
 
   const filteredHoldings = holdings
     .filter(
-      (h) => h.ticker.toLowerCase().includes(searchQuery.toLowerCase()) || 
-             h.name.toLowerCase().includes(searchQuery.toLowerCase())
+      (h) => (h.ticker.toLowerCase().includes(searchQuery.toLowerCase()) || 
+             h.name.toLowerCase().includes(searchQuery.toLowerCase())) &&
+             (categoryFilter === "all" || h.category === categoryFilter)
     )
     .sort((a, b) => {
       let comparison = 0;
@@ -516,6 +536,9 @@ export default function ModelPortfolios() {
           break;
         case "name":
           comparison = a.name.localeCompare(b.name);
+          break;
+        case "category":
+          comparison = categoryOrder[a.category] - categoryOrder[b.category];
           break;
         case "riskLevel":
           comparison = riskLevelOrder[a.riskLevel] - riskLevelOrder[b.riskLevel];
@@ -555,7 +578,7 @@ export default function ModelPortfolios() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
@@ -566,6 +589,18 @@ export default function ModelPortfolios() {
             data-testid="input-search"
           />
         </div>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-[180px]" data-testid="select-category-filter">
+            <SelectValue placeholder="Filter by category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="basket_etf">Basket ETFs</SelectItem>
+            <SelectItem value="single_etf">Single ETFs</SelectItem>
+            <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
+            <SelectItem value="security">Securities</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -637,6 +672,29 @@ export default function ModelPortfolios() {
                           <FormControl>
                             <Input placeholder="e.g. Vanguard S&P 500 Index ETF" {...field} data-testid="input-name" />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={holdingForm.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Category</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-category">
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="basket_etf">Basket ETFs</SelectItem>
+                              <SelectItem value="single_etf">Single ETFs</SelectItem>
+                              <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
+                              <SelectItem value="security">Securities</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -758,6 +816,7 @@ export default function ModelPortfolios() {
                   <TableRow>
                     <SortableHeader column="ticker">Ticker</SortableHeader>
                     <SortableHeader column="name">Name</SortableHeader>
+                    <SortableHeader column="category">Category</SortableHeader>
                     <SortableHeader column="riskLevel">Risk</SortableHeader>
                     <SortableHeader column="price">Price</SortableHeader>
                     <SortableHeader column="dividendRate">Dividend</SortableHeader>
@@ -770,6 +829,11 @@ export default function ModelPortfolios() {
                     <TableRow key={holding.id} data-testid={`row-holding-${holding.id}`}>
                       <TableCell className="font-mono font-semibold">{holding.ticker}</TableCell>
                       <TableCell>{holding.name}</TableCell>
+                      <TableCell>
+                        <Badge className={categoryColors[holding.category]}>
+                          {categoryLabels[holding.category]}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <Badge className={riskLevelColors[holding.riskLevel]}>
                           {riskLevelLabels[holding.riskLevel]}

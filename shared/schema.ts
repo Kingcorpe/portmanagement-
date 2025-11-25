@@ -239,11 +239,15 @@ export const riskLevelEnum = pgEnum("risk_level", ["low", "low_medium", "medium"
 // Dividend payout frequency enum
 export const dividendPayoutEnum = pgEnum("dividend_payout", ["monthly", "quarterly", "semi_annual", "annual", "none"]);
 
+// Holding category enum
+export const holdingCategoryEnum = pgEnum("holding_category", ["basket_etf", "single_etf", "double_long_etf", "security"]);
+
 // Universal Holdings table (ETF library)
 export const universalHoldings = pgTable("universal_holdings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   ticker: varchar("ticker", { length: 20 }).notNull().unique(),
   name: text("name").notNull(),
+  category: holdingCategoryEnum("category").notNull().default("basket_etf"),
   riskLevel: riskLevelEnum("risk_level").notNull(),
   dividendRate: decimal("dividend_rate", { precision: 8, scale: 4 }).default('0'), // as percentage
   dividendPayout: dividendPayoutEnum("dividend_payout").notNull().default("none"),
