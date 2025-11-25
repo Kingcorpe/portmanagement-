@@ -1252,7 +1252,8 @@ export default function AccountDetails() {
                   <TableHead>Symbol</TableHead>
                   {comparisonData?.hasTargetAllocations && (
                     <>
-                      <TableHead className="text-right">Change Needed</TableHead>
+                      <TableHead className="text-right">Shares to Trade</TableHead>
+                      <TableHead className="text-right">$ Change</TableHead>
                       <TableHead className="text-right">Variance</TableHead>
                       <TableHead className="text-right">Actual %</TableHead>
                     </>
@@ -1309,38 +1310,60 @@ export default function AccountDetails() {
                           <div className="text-xs text-muted-foreground truncate max-w-[120px]">{comparison.name}</div>
                         )}
                       </TableCell>
-                      {comparisonData?.hasTargetAllocations && (
-                        <>
-                          <TableCell 
-                            className={`text-right font-medium ${
-                              comparison && (comparison.targetValue - comparison.actualValue) > 0 ? 'text-green-600 dark:text-green-400' : 
-                              comparison && (comparison.targetValue - comparison.actualValue) < 0 ? 'text-red-600 dark:text-red-400' : ''
-                            }`}
-                            data-testid={`text-change-needed-${position.id}`}
-                          >
-                            {comparison && comparison.targetPercentage > 0 ? (
-                              <>
-                                {(comparison.targetValue - comparison.actualValue) > 0 ? '+' : ''}
-                                ${(comparison.targetValue - comparison.actualValue).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                              </>
-                            ) : '-'}
-                          </TableCell>
-                          <TableCell 
-                            className={`text-right font-medium ${
-                              comparison && comparison.variance > 0 ? 'text-green-600 dark:text-green-400' : 
-                              comparison && comparison.variance < 0 ? 'text-red-600 dark:text-red-400' : ''
-                            }`}
-                            data-testid={`text-variance-${position.id}`}
-                          >
-                            {comparison ? (
-                              <>{comparison.variance > 0 ? '+' : ''}{comparison.variance.toFixed(1)}%</>
-                            ) : '-'}
-                          </TableCell>
-                          <TableCell className="text-right" data-testid={`text-actual-pct-${position.id}`}>
-                            {comparison ? `${comparison.actualPercentage.toFixed(1)}%` : '-'}
-                          </TableCell>
-                        </>
-                      )}
+                      {comparisonData?.hasTargetAllocations && (() => {
+                        const changeNeeded = comparison ? comparison.targetValue - comparison.actualValue : 0;
+                        const currentPrice = Number(position.currentPrice);
+                        const sharesToTrade = currentPrice > 0 ? changeNeeded / currentPrice : 0;
+                        
+                        return (
+                          <>
+                            <TableCell 
+                              className={`text-right font-medium ${
+                                sharesToTrade > 0 ? 'text-green-600 dark:text-green-400' : 
+                                sharesToTrade < 0 ? 'text-red-600 dark:text-red-400' : ''
+                              }`}
+                              data-testid={`text-shares-to-trade-${position.id}`}
+                            >
+                              {comparison && comparison.targetPercentage > 0 ? (
+                                <div>
+                                  <div className="font-semibold">
+                                    {sharesToTrade > 0 ? 'Buy ' : sharesToTrade < 0 ? 'Sell ' : ''}
+                                    {Math.abs(sharesToTrade).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                  </div>
+                                </div>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell 
+                              className={`text-right font-medium ${
+                                changeNeeded > 0 ? 'text-green-600 dark:text-green-400' : 
+                                changeNeeded < 0 ? 'text-red-600 dark:text-red-400' : ''
+                              }`}
+                              data-testid={`text-change-needed-${position.id}`}
+                            >
+                              {comparison && comparison.targetPercentage > 0 ? (
+                                <>
+                                  {changeNeeded > 0 ? '+' : ''}
+                                  ${changeNeeded.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                </>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell 
+                              className={`text-right font-medium ${
+                                comparison && comparison.variance > 0 ? 'text-green-600 dark:text-green-400' : 
+                                comparison && comparison.variance < 0 ? 'text-red-600 dark:text-red-400' : ''
+                              }`}
+                              data-testid={`text-variance-${position.id}`}
+                            >
+                              {comparison ? (
+                                <>{comparison.variance > 0 ? '+' : ''}{comparison.variance.toFixed(1)}%</>
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell className="text-right" data-testid={`text-actual-pct-${position.id}`}>
+                              {comparison ? `${comparison.actualPercentage.toFixed(1)}%` : '-'}
+                            </TableCell>
+                          </>
+                        );
+                      })()}
                       <TableCell className="text-right" data-testid={`text-target-pct-${position.id}`}>
                         {isEditingTarget ? (
                           <div className="flex items-center justify-end gap-1">
