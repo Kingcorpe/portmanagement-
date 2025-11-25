@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { HouseholdCard, Household } from "@/components/household-card";
+import { HouseholdCard, Household, HouseholdCategory, householdCategoryLabels, householdCategoryColors } from "@/components/household-card";
 import { HouseholdManagementDialogs } from "@/components/household-management-dialogs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -55,6 +62,12 @@ export default function Households() {
     type: "individual" | "corporation" | "household" | "joint-account";
     id: string;
     name: string;
+  } | null>(null);
+
+  // State for editing household category
+  const [editingCategory, setEditingCategory] = useState<{
+    householdId: string;
+    currentCategory: HouseholdCategory | null;
   } | null>(null);
 
   // Form for creating households
@@ -170,6 +183,7 @@ export default function Households() {
     return {
       id: h.id,
       name: h.name,
+      category: h.category,
       individuals,
       corporations,
       jointAccounts,
@@ -217,6 +231,28 @@ export default function Households() {
       toast({
         title: "Error",
         description: error.message || "Failed to delete household",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update household category mutation
+  const updateCategoryMutation = useMutation({
+    mutationFn: async ({ householdId, category }: { householdId: string; category: HouseholdCategory | null }) => {
+      return await apiRequest("PATCH", `/api/households/${householdId}`, { category });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
+      toast({
+        title: "Success",
+        description: "Category updated successfully",
+      });
+      setEditingCategory(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update category",
         variant: "destructive",
       });
     },
@@ -531,6 +567,7 @@ export default function Households() {
               onAddAccount={handleAddAccount}
               onAddJointAccount={handleAddJointAccount}
               onEditHousehold={handleEditHousehold}
+              onEditCategory={(householdId, currentCategory) => setEditingCategory({ householdId, currentCategory })}
               onDeleteHousehold={handleDeleteHousehold}
               onDeleteAccount={handleDeleteAccount}
               onEditIndividual={handleEditIndividual}
@@ -609,6 +646,68 @@ export default function Households() {
                 data-testid="button-save-edit"
               >
                 {updateIndividualMutation.isPending || updateCorporationMutation.isPending || updateHouseholdMutation.isPending || updateJointAccountMutation.isPending ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Category Dialog */}
+      <Dialog open={editingCategory !== null} onOpenChange={(open) => !open && setEditingCategory(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set Household Category</DialogTitle>
+            <DialogDescription>
+              Choose a category for this household to help organize your clients.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-2">
+              {(["evergreen", "anchor", "pulse", "emerging_pulse", "emerging_anchor"] as HouseholdCategory[]).map((category) => (
+                <Button
+                  key={category}
+                  variant={editingCategory?.currentCategory === category ? "default" : "outline"}
+                  className={`justify-start ${editingCategory?.currentCategory === category ? "" : householdCategoryColors[category]}`}
+                  onClick={() => {
+                    if (editingCategory) {
+                      updateCategoryMutation.mutate({ 
+                        householdId: editingCategory.householdId, 
+                        category 
+                      });
+                    }
+                  }}
+                  disabled={updateCategoryMutation.isPending}
+                  data-testid={`button-category-${category}`}
+                >
+                  {householdCategoryLabels[category]}
+                </Button>
+              ))}
+              {editingCategory?.currentCategory && (
+                <Button
+                  variant="ghost"
+                  className="justify-start text-muted-foreground"
+                  onClick={() => {
+                    if (editingCategory) {
+                      updateCategoryMutation.mutate({ 
+                        householdId: editingCategory.householdId, 
+                        category: null 
+                      });
+                    }
+                  }}
+                  disabled={updateCategoryMutation.isPending}
+                  data-testid="button-clear-category"
+                >
+                  Clear Category
+                </Button>
+              )}
+            </div>
+            <div className="flex justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => setEditingCategory(null)}
+                data-testid="button-cancel-category"
+              >
+                Cancel
               </Button>
             </div>
           </div>

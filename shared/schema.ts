@@ -39,10 +39,20 @@ export const users = pgTable("users", {
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
+// Household category enum
+export const householdCategoryEnum = pgEnum("household_category", [
+  "evergreen",
+  "anchor",
+  "pulse",
+  "emerging_pulse",
+  "emerging_anchor",
+]);
+
 // Households table
 export const households = pgTable("households", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  category: householdCategoryEnum("category"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

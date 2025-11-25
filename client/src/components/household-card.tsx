@@ -50,15 +50,34 @@ export interface JointAccount {
   owners: string[];
 }
 
+export type HouseholdCategory = "evergreen" | "anchor" | "pulse" | "emerging_pulse" | "emerging_anchor";
+
 export interface Household {
   id: string;
   name: string;
+  category?: HouseholdCategory | null;
   individuals: Individual[];
   corporations: Corporation[];
   jointAccounts: JointAccount[];
   totalValue: number;
   totalPerformance: number;
 }
+
+export const householdCategoryLabels: Record<HouseholdCategory, string> = {
+  evergreen: "Evergreen",
+  anchor: "Anchor",
+  pulse: "Pulse",
+  emerging_pulse: "Emerging Pulse",
+  emerging_anchor: "Emerging Anchor",
+};
+
+export const householdCategoryColors: Record<HouseholdCategory, string> = {
+  evergreen: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  anchor: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  pulse: "bg-purple-500/10 text-purple-600 dark:text-purple-400",
+  emerging_pulse: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
+  emerging_anchor: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
+};
 
 interface HouseholdCardProps {
   household: Household;
@@ -68,6 +87,7 @@ interface HouseholdCardProps {
   onAddAccount?: (entityId: string, entityType: "individual" | "corporate") => void;
   onAddJointAccount?: (householdId: string) => void;
   onEditHousehold?: (householdId: string, currentName: string) => void;
+  onEditCategory?: (householdId: string, currentCategory: HouseholdCategory | null) => void;
   onDeleteHousehold?: (householdId: string) => void;
   onDeleteAccount?: (accountId: string, accountType: "individual" | "corporate" | "joint") => void;
   onEditIndividual?: (id: string, currentName: string) => void;
@@ -150,6 +170,7 @@ export function HouseholdCard({
   onAddAccount,
   onAddJointAccount,
   onEditHousehold,
+  onEditCategory,
   onDeleteHousehold,
   onDeleteAccount,
   onEditIndividual,
@@ -178,6 +199,31 @@ export function HouseholdCard({
                   <h3 className="font-semibold text-lg" data-testid={`text-household-name-${household.id}`}>
                     {household.name}
                   </h3>
+                  {household.category && (
+                    <Badge 
+                      className={`text-xs cursor-pointer ${householdCategoryColors[household.category]}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditCategory?.(household.id, household.category || null);
+                      }}
+                      data-testid={`badge-category-${household.id}`}
+                    >
+                      {householdCategoryLabels[household.category]}
+                    </Badge>
+                  )}
+                  {!household.category && onEditCategory && (
+                    <Badge 
+                      variant="outline"
+                      className="text-xs cursor-pointer text-muted-foreground border-dashed"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditCategory(household.id, null);
+                      }}
+                      data-testid={`badge-set-category-${household.id}`}
+                    >
+                      Set Category
+                    </Badge>
+                  )}
                   {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                 </div>
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
