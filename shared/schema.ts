@@ -331,7 +331,7 @@ export const insertPositionSchema = createInsertSchema(positions).omit({
 }).extend({
   quantity: z.coerce.number().positive().transform(val => val.toString()),
   entryPrice: z.coerce.number().positive().transform(val => val.toString()),
-  currentPrice: z.coerce.number().positive().transform(val => val.toString()),
+  currentPrice: z.coerce.number().positive().optional().transform(val => val !== undefined ? val.toString() : undefined),
 });
 
 export const insertAlertSchema = createInsertSchema(alerts).omit({

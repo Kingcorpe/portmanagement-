@@ -248,8 +248,6 @@ export class DatabaseStorage implements IStorage {
           .map(o => ({
             id: o.individual.id,
             name: o.individual.name,
-            initials: o.individual.initials,
-            email: o.individual.email
           }));
         return {
           ...jointAccount,
@@ -312,8 +310,6 @@ export class DatabaseStorage implements IStorage {
           owners: owners.map(owner => ({
             id: owner.id,
             name: owner.name,
-            initials: owner.initials,
-            email: owner.email
           }))
         };
       })
@@ -507,7 +503,12 @@ export class DatabaseStorage implements IStorage {
 
   // Position operations
   async createPosition(positionData: InsertPosition): Promise<Position> {
-    const [position] = await db.insert(positions).values(positionData).returning();
+    // If currentPrice is not provided, default it to entryPrice
+    const dataWithDefaults = {
+      ...positionData,
+      currentPrice: positionData.currentPrice || positionData.entryPrice,
+    };
+    const [position] = await db.insert(positions).values(dataWithDefaults).returning();
     return position;
   }
 
