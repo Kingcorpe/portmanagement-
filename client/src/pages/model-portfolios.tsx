@@ -9,6 +9,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   Table,
   TableBody,
   TableCell,
@@ -54,7 +71,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X, RefreshCw, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X, RefreshCw, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -142,6 +159,406 @@ type HoldingFormData = z.infer<typeof holdingFormSchema>;
 type PortfolioFormData = z.infer<typeof portfolioFormSchema>;
 type AllocationFormData = z.infer<typeof allocationFormSchema>;
 
+interface SortablePlannedPortfolioCardProps {
+  portfolio: PlannedPortfolioWithAllocations;
+  totalAllocation: number;
+  isOpen: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+  onAddAllocation: () => void;
+  inlineEditingAllocation: { id: string; type: "planned" | "freelance" } | null;
+  inlineAllocationValue: string;
+  setInlineAllocationValue: (value: string) => void;
+  handleInlineAllocationSave: (id: string, type: "planned" | "freelance", currentValue: number) => void;
+  handleInlineAllocationCancel: () => void;
+  handleInlineAllocationEdit: (type: "planned" | "freelance", id: string, value: string) => void;
+  deletePlannedAllocationMutation: { mutate: (id: string) => void };
+}
+
+function SortablePlannedPortfolioCard({
+  portfolio,
+  totalAllocation,
+  isOpen,
+  onToggle,
+  onDelete,
+  onAddAllocation,
+  inlineEditingAllocation,
+  inlineAllocationValue,
+  setInlineAllocationValue,
+  handleInlineAllocationSave,
+  handleInlineAllocationCancel,
+  handleInlineAllocationEdit,
+  deletePlannedAllocationMutation,
+}: SortablePlannedPortfolioCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: portfolio.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Collapsible open={isOpen} onOpenChange={onToggle}>
+        <Card data-testid={`card-planned-portfolio-${portfolio.id}`}>
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-3">
+            <div className="flex items-center gap-2">
+              <button
+                className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none"
+                {...attributes}
+                {...listeners}
+                data-testid={`drag-handle-planned-${portfolio.id}`}
+              >
+                <GripVertical className="h-5 w-5 text-muted-foreground" />
+              </button>
+              <CollapsibleTrigger className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors" data-testid={`toggle-planned-${portfolio.id}`}>
+                {isOpen ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                <div className="text-left">
+                  <CardTitle>{portfolio.name}</CardTitle>
+                  {portfolio.description && <CardDescription>{portfolio.description}</CardDescription>}
+                </div>
+              </CollapsibleTrigger>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant={totalAllocation === 100 ? "default" : "destructive"}>
+                <Percent className="h-3 w-3 mr-1" />
+                {totalAllocation.toFixed(1)}% Allocated
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                {portfolio.allocations.length} holding{portfolio.allocations.length !== 1 ? 's' : ''}
+              </span>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" data-testid={`button-delete-planned-${portfolio.id}`}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Portfolio</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete "{portfolio.name}"? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              {portfolio.allocations.length === 0 ? (
+                <p className="text-sm text-muted-foreground mb-4">No allocations yet</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Holding</TableHead>
+                      <TableHead className="text-right">Allocation</TableHead>
+                      <TableHead className="w-[80px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {portfolio.allocations.map((allocation) => {
+                      const isEditing = inlineEditingAllocation?.id === allocation.id && inlineEditingAllocation?.type === "planned";
+                      const currentValue = Number(allocation.targetPercentage);
+                      return (
+                        <TableRow key={allocation.id} data-testid={`row-allocation-${allocation.id}`}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-semibold">{allocation.holding.ticker}</span>
+                              <span className="text-muted-foreground">{allocation.holding.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {isEditing ? (
+                              <div className="flex items-center gap-1 justify-end">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  max="100"
+                                  value={inlineAllocationValue}
+                                  onChange={(e) => setInlineAllocationValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      handleInlineAllocationSave(allocation.id, "planned", currentValue);
+                                    } else if (e.key === "Escape") {
+                                      handleInlineAllocationCancel();
+                                    }
+                                  }}
+                                  className="w-20 h-7 text-right"
+                                  autoFocus
+                                  data-testid={`input-inline-allocation-${allocation.id}`}
+                                />
+                                <span>%</span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-primary"
+                                  onClick={() => handleInlineAllocationSave(allocation.id, "planned", currentValue)}
+                                  data-testid={`button-save-inline-allocation-${allocation.id}`}
+                                >
+                                  <Target className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-muted-foreground"
+                                  onClick={handleInlineAllocationCancel}
+                                  data-testid={`button-cancel-inline-allocation-${allocation.id}`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <span
+                                className="cursor-pointer hover:text-primary transition-colors"
+                                onClick={() => handleInlineAllocationEdit("planned", allocation.id, currentValue.toFixed(2))}
+                                data-testid={`text-allocation-${allocation.id}`}
+                              >
+                                {currentValue.toFixed(2)}%
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deletePlannedAllocationMutation.mutate(allocation.id)} data-testid={`button-delete-allocation-${allocation.id}`}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+              <Button variant="outline" size="sm" className="mt-4" onClick={onAddAllocation} data-testid={`button-add-allocation-${portfolio.id}`}>
+                <Plus className="h-3 w-3 mr-1" />
+                Add Allocation
+              </Button>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+    </div>
+  );
+}
+
+interface SortableFreelancePortfolioCardProps {
+  portfolio: FreelancePortfolioWithAllocations;
+  totalAllocation: number;
+  isOpen: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+  onAddAllocation: () => void;
+  inlineEditingAllocation: { id: string; type: "planned" | "freelance" } | null;
+  inlineAllocationValue: string;
+  setInlineAllocationValue: (value: string) => void;
+  handleInlineAllocationSave: (id: string, type: "planned" | "freelance", currentValue: number) => void;
+  handleInlineAllocationCancel: () => void;
+  handleInlineAllocationEdit: (type: "planned" | "freelance", id: string, value: string) => void;
+  deleteFreelanceAllocationMutation: { mutate: (id: string) => void };
+}
+
+function SortableFreelancePortfolioCard({
+  portfolio,
+  totalAllocation,
+  isOpen,
+  onToggle,
+  onDelete,
+  onAddAllocation,
+  inlineEditingAllocation,
+  inlineAllocationValue,
+  setInlineAllocationValue,
+  handleInlineAllocationSave,
+  handleInlineAllocationCancel,
+  handleInlineAllocationEdit,
+  deleteFreelanceAllocationMutation,
+}: SortableFreelancePortfolioCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: portfolio.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Collapsible open={isOpen} onOpenChange={onToggle}>
+        <Card data-testid={`card-freelance-portfolio-${portfolio.id}`}>
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-3">
+            <div className="flex items-center gap-2">
+              <button
+                className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none"
+                {...attributes}
+                {...listeners}
+                data-testid={`drag-handle-freelance-${portfolio.id}`}
+              >
+                <GripVertical className="h-5 w-5 text-muted-foreground" />
+              </button>
+              <CollapsibleTrigger className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors" data-testid={`toggle-freelance-${portfolio.id}`}>
+                {isOpen ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                <div className="text-left">
+                  <CardTitle>{portfolio.name}</CardTitle>
+                  {portfolio.description && <CardDescription>{portfolio.description}</CardDescription>}
+                </div>
+              </CollapsibleTrigger>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant={totalAllocation === 100 ? "default" : "destructive"}>
+                <Percent className="h-3 w-3 mr-1" />
+                {totalAllocation.toFixed(1)}% Allocated
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                {portfolio.allocations.length} holding{portfolio.allocations.length !== 1 ? 's' : ''}
+              </span>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" data-testid={`button-delete-freelance-${portfolio.id}`}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Portfolio</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete "{portfolio.name}"? This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              {portfolio.allocations.length === 0 ? (
+                <p className="text-sm text-muted-foreground mb-4">No allocations yet</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Holding</TableHead>
+                      <TableHead className="text-right">Allocation</TableHead>
+                      <TableHead className="w-[80px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {portfolio.allocations.map((allocation) => {
+                      const isEditing = inlineEditingAllocation?.id === allocation.id && inlineEditingAllocation?.type === "freelance";
+                      const currentValue = Number(allocation.targetPercentage);
+                      return (
+                        <TableRow key={allocation.id} data-testid={`row-allocation-${allocation.id}`}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-semibold">{allocation.holding.ticker}</span>
+                              <span className="text-muted-foreground">{allocation.holding.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {isEditing ? (
+                              <div className="flex items-center gap-1 justify-end">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  max="100"
+                                  value={inlineAllocationValue}
+                                  onChange={(e) => setInlineAllocationValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      handleInlineAllocationSave(allocation.id, "freelance", currentValue);
+                                    } else if (e.key === "Escape") {
+                                      handleInlineAllocationCancel();
+                                    }
+                                  }}
+                                  className="w-20 h-7 text-right"
+                                  autoFocus
+                                  data-testid={`input-inline-allocation-${allocation.id}`}
+                                />
+                                <span>%</span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-primary"
+                                  onClick={() => handleInlineAllocationSave(allocation.id, "freelance", currentValue)}
+                                  data-testid={`button-save-inline-allocation-${allocation.id}`}
+                                >
+                                  <Target className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-muted-foreground"
+                                  onClick={handleInlineAllocationCancel}
+                                  data-testid={`button-cancel-inline-allocation-${allocation.id}`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <span
+                                className="cursor-pointer hover:text-primary transition-colors"
+                                onClick={() => handleInlineAllocationEdit("freelance", allocation.id, currentValue.toFixed(2))}
+                                data-testid={`text-allocation-${allocation.id}`}
+                              >
+                                {currentValue.toFixed(2)}%
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteFreelanceAllocationMutation.mutate(allocation.id)} data-testid={`button-delete-allocation-${allocation.id}`}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+              <Button variant="outline" size="sm" className="mt-4" onClick={onAddAllocation} data-testid={`button-add-allocation-${portfolio.id}`}>
+                <Plus className="h-3 w-3 mr-1" />
+                Add Allocation
+              </Button>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+    </div>
+  );
+}
+
 export default function ModelPortfolios() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -161,6 +578,7 @@ export default function ModelPortfolios() {
   const [inlineEditingAllocation, setInlineEditingAllocation] = useState<{ id: string; type: "planned" | "freelance" } | null>(null);
   const [inlineAllocationValue, setInlineAllocationValue] = useState<string>("");
   const [openPlannedPortfolios, setOpenPlannedPortfolios] = useState<Set<string>>(new Set());
+  const [openFreelancePortfolios, setOpenFreelancePortfolios] = useState<Set<string>>(new Set());
 
   const holdingForm = useForm<HoldingFormData>({
     resolver: zodResolver(holdingFormSchema),
@@ -416,6 +834,55 @@ export default function ModelPortfolios() {
     },
   });
 
+  const reorderPlannedPortfoliosMutation = useMutation({
+    mutationFn: (orderedIds: string[]) => 
+      apiRequest("POST", "/api/planned-portfolios/reorder", { orderedIds }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/planned-portfolios"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: "Failed to reorder portfolios", variant: "destructive" });
+    },
+  });
+
+  const reorderFreelancePortfoliosMutation = useMutation({
+    mutationFn: (orderedIds: string[]) => 
+      apiRequest("POST", "/api/freelance-portfolios/reorder", { orderedIds }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/freelance-portfolios"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: "Failed to reorder portfolios", variant: "destructive" });
+    },
+  });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handlePlannedDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = plannedPortfolios.findIndex((p) => p.id === active.id);
+      const newIndex = plannedPortfolios.findIndex((p) => p.id === over.id);
+      const newOrder = arrayMove(plannedPortfolios, oldIndex, newIndex);
+      reorderPlannedPortfoliosMutation.mutate(newOrder.map((p) => p.id));
+    }
+  };
+
+  const handleFreelanceDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = freelancePortfolios.findIndex((p) => p.id === active.id);
+      const newIndex = freelancePortfolios.findIndex((p) => p.id === over.id);
+      const newOrder = arrayMove(freelancePortfolios, oldIndex, newIndex);
+      reorderFreelancePortfoliosMutation.mutate(newOrder.map((p) => p.id));
+    }
+  };
+
   const onHoldingSubmit = (data: HoldingFormData) => {
     const normalizedData = {
       ...data,
@@ -594,6 +1061,18 @@ export default function ModelPortfolios() {
 
   const togglePlannedPortfolio = (portfolioId: string) => {
     setOpenPlannedPortfolios(prev => {
+      const next = new Set(prev);
+      if (next.has(portfolioId)) {
+        next.delete(portfolioId);
+      } else {
+        next.add(portfolioId);
+      }
+      return next;
+    });
+  };
+
+  const toggleFreelancePortfolio = (portfolioId: string) => {
+    setOpenFreelancePortfolios(prev => {
       const next = new Set(prev);
       if (next.has(portfolioId)) {
         next.delete(portfolioId);
@@ -1073,152 +1552,34 @@ export default function ModelPortfolios() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4">
-              {filteredPlannedPortfolios.map((portfolio) => {
-                const totalAllocation = portfolio.allocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0);
-                const isOpen = openPlannedPortfolios.has(portfolio.id);
-                return (
-                  <Collapsible key={portfolio.id} open={isOpen} onOpenChange={() => togglePlannedPortfolio(portfolio.id)}>
-                    <Card data-testid={`card-planned-portfolio-${portfolio.id}`}>
-                      <CardHeader className="flex flex-row items-start justify-between gap-2 pb-3">
-                        <CollapsibleTrigger className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors" data-testid={`toggle-planned-${portfolio.id}`}>
-                          {isOpen ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-                          <div className="text-left">
-                            <CardTitle>{portfolio.name}</CardTitle>
-                            {portfolio.description && <CardDescription>{portfolio.description}</CardDescription>}
-                          </div>
-                        </CollapsibleTrigger>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={totalAllocation === 100 ? "default" : "destructive"}>
-                            <Percent className="h-3 w-3 mr-1" />
-                            {totalAllocation.toFixed(1)}% Allocated
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">
-                            {portfolio.allocations.length} holding{portfolio.allocations.length !== 1 ? 's' : ''}
-                          </span>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" data-testid={`button-delete-planned-${portfolio.id}`}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Portfolio</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete "{portfolio.name}"? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => deletePlannedPortfolioMutation.mutate(portfolio.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </CardHeader>
-                      <CollapsibleContent>
-                        <CardContent>
-                          {portfolio.allocations.length === 0 ? (
-                            <p className="text-sm text-muted-foreground mb-4">No allocations yet</p>
-                          ) : (
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Holding</TableHead>
-                                  <TableHead className="text-right">Allocation</TableHead>
-                                  <TableHead className="w-[80px]"></TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {portfolio.allocations.map((allocation) => {
-                                  const isEditing = inlineEditingAllocation?.id === allocation.id && inlineEditingAllocation?.type === "planned";
-                                  const currentValue = Number(allocation.targetPercentage);
-                                  return (
-                                    <TableRow key={allocation.id} data-testid={`row-allocation-${allocation.id}`}>
-                                      <TableCell>
-                                        <div className="flex items-center gap-2">
-                                          <span className="font-mono font-semibold">{allocation.holding.ticker}</span>
-                                          <span className="text-muted-foreground">{allocation.holding.name}</span>
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="text-right font-mono">
-                                        {isEditing ? (
-                                          <div className="flex items-center gap-1 justify-end">
-                                            <Input
-                                              type="number"
-                                              step="0.01"
-                                              min="0"
-                                              max="100"
-                                              value={inlineAllocationValue}
-                                              onChange={(e) => setInlineAllocationValue(e.target.value)}
-                                              onKeyDown={(e) => {
-                                                if (e.key === "Enter") {
-                                                  handleInlineAllocationSave(allocation.id, "planned", currentValue);
-                                                } else if (e.key === "Escape") {
-                                                  handleInlineAllocationCancel();
-                                                }
-                                              }}
-                                              className="w-20 h-7 text-right"
-                                              autoFocus
-                                              data-testid={`input-inline-allocation-${allocation.id}`}
-                                            />
-                                            <span>%</span>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-6 w-6 text-primary"
-                                              onClick={() => handleInlineAllocationSave(allocation.id, "planned", currentValue)}
-                                              data-testid={`button-save-inline-allocation-${allocation.id}`}
-                                            >
-                                              <Target className="h-3 w-3" />
-                                            </Button>
-                                            <Button
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-6 w-6 text-muted-foreground"
-                                              onClick={handleInlineAllocationCancel}
-                                              data-testid={`button-cancel-inline-allocation-${allocation.id}`}
-                                            >
-                                              <X className="h-3 w-3" />
-                                            </Button>
-                                          </div>
-                                        ) : (
-                                          <span
-                                            className="cursor-pointer hover:text-primary transition-colors"
-                                            onClick={() => handleInlineAllocationEdit("planned", allocation.id, currentValue.toFixed(2))}
-                                            data-testid={`text-allocation-${allocation.id}`}
-                                          >
-                                            {currentValue.toFixed(2)}%
-                                          </span>
-                                        )}
-                                      </TableCell>
-                                      <TableCell>
-                                        <div className="flex items-center gap-1">
-                                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deletePlannedAllocationMutation.mutate(allocation.id)} data-testid={`button-delete-allocation-${allocation.id}`}>
-                                            <Trash2 className="h-3 w-3" />
-                                          </Button>
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                })}
-                              </TableBody>
-                            </Table>
-                          )}
-                          <Button variant="outline" size="sm" className="mt-4" onClick={() => handleAddAllocation("planned", portfolio.id)} data-testid={`button-add-allocation-${portfolio.id}`}>
-                            <Plus className="h-3 w-3 mr-1" />
-                            Add Allocation
-                          </Button>
-                        </CardContent>
-                      </CollapsibleContent>
-                    </Card>
-                  </Collapsible>
-                );
-              })}
-            </div>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handlePlannedDragEnd}>
+              <SortableContext items={filteredPlannedPortfolios.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                <div className="grid gap-4">
+                  {filteredPlannedPortfolios.map((portfolio) => {
+                    const totalAllocation = portfolio.allocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0);
+                    const isOpen = openPlannedPortfolios.has(portfolio.id);
+                    return (
+                      <SortablePlannedPortfolioCard
+                        key={portfolio.id}
+                        portfolio={portfolio}
+                        totalAllocation={totalAllocation}
+                        isOpen={isOpen}
+                        onToggle={() => togglePlannedPortfolio(portfolio.id)}
+                        onDelete={() => deletePlannedPortfolioMutation.mutate(portfolio.id)}
+                        onAddAllocation={() => handleAddAllocation("planned", portfolio.id)}
+                        inlineEditingAllocation={inlineEditingAllocation}
+                        inlineAllocationValue={inlineAllocationValue}
+                        setInlineAllocationValue={setInlineAllocationValue}
+                        handleInlineAllocationSave={handleInlineAllocationSave}
+                        handleInlineAllocationCancel={handleInlineAllocationCancel}
+                        handleInlineAllocationEdit={handleInlineAllocationEdit}
+                        deletePlannedAllocationMutation={deletePlannedAllocationMutation}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </TabsContent>
 
@@ -1286,141 +1647,34 @@ export default function ModelPortfolios() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4">
-              {filteredFreelancePortfolios.map((portfolio) => {
-                const totalAllocation = portfolio.allocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0);
-                return (
-                  <Card key={portfolio.id} data-testid={`card-freelance-portfolio-${portfolio.id}`}>
-                    <CardHeader className="flex flex-row items-start justify-between gap-2">
-                      <div>
-                        <CardTitle>{portfolio.name}</CardTitle>
-                        {portfolio.description && <CardDescription>{portfolio.description}</CardDescription>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={totalAllocation === 100 ? "default" : "destructive"}>
-                          <Percent className="h-3 w-3 mr-1" />
-                          {totalAllocation.toFixed(1)}% Allocated
-                        </Badge>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" data-testid={`button-delete-freelance-${portfolio.id}`}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Portfolio</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete "{portfolio.name}"? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteFreelancePortfolioMutation.mutate(portfolio.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {portfolio.allocations.length === 0 ? (
-                        <p className="text-sm text-muted-foreground mb-4">No allocations yet</p>
-                      ) : (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Holding</TableHead>
-                              <TableHead className="text-right">Allocation</TableHead>
-                              <TableHead className="w-[80px]"></TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {portfolio.allocations.map((allocation) => {
-                              const isEditing = inlineEditingAllocation?.id === allocation.id && inlineEditingAllocation?.type === "freelance";
-                              const currentValue = Number(allocation.targetPercentage);
-                              return (
-                                <TableRow key={allocation.id} data-testid={`row-freelance-allocation-${allocation.id}`}>
-                                  <TableCell>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-mono font-semibold">{allocation.holding.ticker}</span>
-                                      <span className="text-muted-foreground">{allocation.holding.name}</span>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="text-right font-mono">
-                                    {isEditing ? (
-                                      <div className="flex items-center gap-1 justify-end">
-                                        <Input
-                                          type="number"
-                                          step="0.01"
-                                          min="0"
-                                          max="100"
-                                          value={inlineAllocationValue}
-                                          onChange={(e) => setInlineAllocationValue(e.target.value)}
-                                          onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                              handleInlineAllocationSave(allocation.id, "freelance", currentValue);
-                                            } else if (e.key === "Escape") {
-                                              handleInlineAllocationCancel();
-                                            }
-                                          }}
-                                          className="w-20 h-7 text-right"
-                                          autoFocus
-                                          data-testid={`input-inline-freelance-allocation-${allocation.id}`}
-                                        />
-                                        <span>%</span>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 text-primary"
-                                          onClick={() => handleInlineAllocationSave(allocation.id, "freelance", currentValue)}
-                                          data-testid={`button-save-inline-freelance-allocation-${allocation.id}`}
-                                        >
-                                          <Target className="h-3 w-3" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-6 w-6 text-muted-foreground"
-                                          onClick={handleInlineAllocationCancel}
-                                          data-testid={`button-cancel-inline-freelance-allocation-${allocation.id}`}
-                                        >
-                                          <X className="h-3 w-3" />
-                                        </Button>
-                                      </div>
-                                    ) : (
-                                      <span
-                                        className="cursor-pointer hover:text-primary transition-colors"
-                                        onClick={() => handleInlineAllocationEdit("freelance", allocation.id, currentValue.toFixed(2))}
-                                        data-testid={`text-freelance-allocation-${allocation.id}`}
-                                      >
-                                        {currentValue.toFixed(2)}%
-                                      </span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex items-center gap-1">
-                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteFreelanceAllocationMutation.mutate(allocation.id)} data-testid={`button-delete-freelance-allocation-${allocation.id}`}>
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                      )}
-                      <Button variant="outline" size="sm" className="mt-4" onClick={() => handleAddAllocation("freelance", portfolio.id)} data-testid={`button-add-freelance-allocation-${portfolio.id}`}>
-                        <Plus className="h-3 w-3 mr-1" />
-                        Add Allocation
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleFreelanceDragEnd}>
+              <SortableContext items={filteredFreelancePortfolios.map(p => p.id)} strategy={verticalListSortingStrategy}>
+                <div className="grid gap-4">
+                  {filteredFreelancePortfolios.map((portfolio) => {
+                    const totalAllocation = portfolio.allocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0);
+                    const isOpen = openFreelancePortfolios.has(portfolio.id);
+                    return (
+                      <SortableFreelancePortfolioCard
+                        key={portfolio.id}
+                        portfolio={portfolio}
+                        totalAllocation={totalAllocation}
+                        isOpen={isOpen}
+                        onToggle={() => toggleFreelancePortfolio(portfolio.id)}
+                        onDelete={() => deleteFreelancePortfolioMutation.mutate(portfolio.id)}
+                        onAddAllocation={() => handleAddAllocation("freelance", portfolio.id)}
+                        inlineEditingAllocation={inlineEditingAllocation}
+                        inlineAllocationValue={inlineAllocationValue}
+                        setInlineAllocationValue={setInlineAllocationValue}
+                        handleInlineAllocationSave={handleInlineAllocationSave}
+                        handleInlineAllocationCancel={handleInlineAllocationCancel}
+                        handleInlineAllocationEdit={handleInlineAllocationEdit}
+                        deleteFreelanceAllocationMutation={deleteFreelanceAllocationMutation}
+                      />
+                    );
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </TabsContent>
       </Tabs>

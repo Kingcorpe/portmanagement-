@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { relations } from 'drizzle-orm';
 import {
   index,
+  integer,
   jsonb,
   pgTable,
   timestamp,
@@ -267,6 +268,7 @@ export const plannedPortfolios = pgTable("planned_portfolios", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
+  sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -300,6 +302,7 @@ export const freelancePortfolios = pgTable("freelance_portfolios", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
+  sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

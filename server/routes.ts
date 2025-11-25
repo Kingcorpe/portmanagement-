@@ -1468,6 +1468,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/planned-portfolios/reorder', isAuthenticated, async (req, res) => {
+    try {
+      const { orderedIds } = req.body;
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ message: "orderedIds must be an array" });
+      }
+      await storage.reorderPlannedPortfolios(orderedIds);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error reordering planned portfolios:", error);
+      res.status(500).json({ message: "Failed to reorder planned portfolios" });
+    }
+  });
+
   // Planned Portfolio Allocation routes
   app.post('/api/planned-portfolio-allocations', isAuthenticated, async (req, res) => {
     try {
@@ -1566,6 +1580,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting freelance portfolio:", error);
       res.status(500).json({ message: "Failed to delete freelance portfolio" });
+    }
+  });
+
+  app.post('/api/freelance-portfolios/reorder', isAuthenticated, async (req, res) => {
+    try {
+      const { orderedIds } = req.body;
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ message: "orderedIds must be an array" });
+      }
+      await storage.reorderFreelancePortfolios(orderedIds);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error reordering freelance portfolios:", error);
+      res.status(500).json({ message: "Failed to reorder freelance portfolios" });
     }
   });
 

@@ -820,7 +820,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllPlannedPortfolios(): Promise<PlannedPortfolio[]> {
-    return await db.select().from(plannedPortfolios).orderBy(plannedPortfolios.name);
+    return await db.select().from(plannedPortfolios).orderBy(plannedPortfolios.sortOrder, plannedPortfolios.name);
+  }
+
+  async reorderPlannedPortfolios(orderedIds: string[]): Promise<void> {
+    await Promise.all(
+      orderedIds.map((id, index) =>
+        db.update(plannedPortfolios)
+          .set({ sortOrder: index })
+          .where(eq(plannedPortfolios.id, id))
+      )
+    );
   }
 
   async getAllPlannedPortfoliosWithAllocations(): Promise<PlannedPortfolioWithAllocations[]> {
@@ -919,7 +929,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllFreelancePortfolios(): Promise<FreelancePortfolio[]> {
-    return await db.select().from(freelancePortfolios).orderBy(freelancePortfolios.name);
+    return await db.select().from(freelancePortfolios).orderBy(freelancePortfolios.sortOrder, freelancePortfolios.name);
+  }
+
+  async reorderFreelancePortfolios(orderedIds: string[]): Promise<void> {
+    await Promise.all(
+      orderedIds.map((id, index) =>
+        db.update(freelancePortfolios)
+          .set({ sortOrder: index })
+          .where(eq(freelancePortfolios.id, id))
+      )
+    );
   }
 
   async getAllFreelancePortfoliosWithAllocations(): Promise<FreelancePortfolioWithAllocations[]> {
