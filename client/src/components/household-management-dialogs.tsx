@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -15,7 +15,6 @@ import {
   type InsertIndividualAccount,
   type InsertCorporateAccount,
   type InsertJointAccount,
-  type PlannedPortfolioWithAllocations,
 } from "@shared/schema";
 import {
   Dialog,
@@ -59,10 +58,6 @@ export function HouseholdManagementDialogs({
 }: HouseholdManagementDialogsProps) {
   const { toast } = useToast();
 
-  // Fetch planned portfolios for model selection
-  const { data: plannedPortfolios = [] } = useQuery<PlannedPortfolioWithAllocations[]>({
-    queryKey: ["/api/planned-portfolios"],
-  });
 
   // Individual form
   const individualForm = useForm<InsertIndividual>({
@@ -108,7 +103,6 @@ export function HouseholdManagementDialogs({
       type: "cash",
       balance: "",
       performance: "",
-      plannedPortfolioId: undefined,
     },
   });
 
@@ -129,7 +123,6 @@ export function HouseholdManagementDialogs({
       type: "cash",
       balance: "",
       performance: "",
-      plannedPortfolioId: undefined,
     },
   });
 
@@ -150,7 +143,6 @@ export function HouseholdManagementDialogs({
       type: "joint_cash",
       balance: "",
       performance: "",
-      plannedPortfolioId: undefined,
     },
   });
 
@@ -362,31 +354,6 @@ export function HouseholdManagementDialogs({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={individualAccountForm.control}
-                name="plannedPortfolioId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Model Portfolio (Optional)</FormLabel>
-                    <Select onValueChange={(value) => field.onChange(value === "none" ? undefined : value)} value={field.value || "none"}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-model-portfolio">
-                          <SelectValue placeholder="Select a model portfolio" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">No Model Portfolio</SelectItem>
-                        {plannedPortfolios.map((portfolio) => (
-                          <SelectItem key={portfolio.id} value={portfolio.id}>
-                            {portfolio.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
@@ -456,31 +423,6 @@ export function HouseholdManagementDialogs({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={corporateAccountForm.control}
-                name="plannedPortfolioId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Model Portfolio (Optional)</FormLabel>
-                    <Select onValueChange={(value) => field.onChange(value === "none" ? undefined : value)} value={field.value || "none"}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-model-portfolio">
-                          <SelectValue placeholder="Select a model portfolio" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">No Model Portfolio</SelectItem>
-                        {plannedPortfolios.map((portfolio) => (
-                          <SelectItem key={portfolio.id} value={portfolio.id}>
-                            {portfolio.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
@@ -546,31 +488,6 @@ export function HouseholdManagementDialogs({
                     <FormControl>
                       <Input type="number" step="0.01" placeholder="8.5" data-testid="input-performance" {...field} />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={jointAccountForm.control}
-                name="plannedPortfolioId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Model Portfolio (Optional)</FormLabel>
-                    <Select onValueChange={(value) => field.onChange(value === "none" ? undefined : value)} value={field.value || "none"}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-model-portfolio">
-                          <SelectValue placeholder="Select a model portfolio" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">No Model Portfolio</SelectItem>
-                        {plannedPortfolios.map((portfolio) => (
-                          <SelectItem key={portfolio.id} value={portfolio.id}>
-                            {portfolio.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
