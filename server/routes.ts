@@ -826,6 +826,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Ticker lookup endpoint using Yahoo Finance
+  app.get('/api/ticker-lookup/:ticker', isAuthenticated, async (req, res) => {
+    try {
+      const ticker = req.params.ticker.toUpperCase();
+      
+      // Use Yahoo Finance quote API
+      const response = await fetch(
+        `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(ticker)}&quotesCount=5&newsCount=0`,
+        {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        }
+      );
+      
+      if (!response.ok) {
+        return res.status(404).json({ message: "Unable to look up ticker" });
+      }
+      
+      const data = await response.json();
+      
+      if (data.quotes && data.quotes.length > 0) {
+        // Find exact match first, or use first result
+        const exactMatch = data.quotes.find((q: any) => q.symbol === ticker);
+        const quote = exactMatch || data.quotes[0];
+        
+        res.json({
+          ticker: quote.symbol,
+          name: quote.shortname || quote.longname || quote.symbol,
+          exchange: quote.exchange,
+          type: quote.quoteType
+        });
+      } else {
+        res.status(404).json({ message: "Ticker not found" });
+      }
+    } catch (error) {
+      console.error("Error looking up ticker:", error);
+      res.status(500).json({ message: "Failed to look up ticker" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

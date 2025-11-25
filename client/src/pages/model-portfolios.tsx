@@ -51,7 +51,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent } from "lucide-react";
+import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -121,6 +121,7 @@ export default function ModelPortfolios() {
   const [editingHolding, setEditingHolding] = useState<UniversalHolding | null>(null);
   const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);
   const [allocationTarget, setAllocationTarget] = useState<{ type: "planned" | "freelance"; portfolioId: string } | null>(null);
+  const [isLookingUpTicker, setIsLookingUpTicker] = useState(false);
 
   const holdingForm = useForm<HoldingFormData>({
     resolver: zodResolver(holdingFormSchema),
@@ -356,6 +357,30 @@ export default function ModelPortfolios() {
     }
   };
 
+  const lookupTicker = async () => {
+    const ticker = holdingForm.getValues("ticker");
+    if (!ticker || ticker.trim() === "") {
+      toast({ title: "Error", description: "Please enter a ticker symbol first", variant: "destructive" });
+      return;
+    }
+
+    setIsLookingUpTicker(true);
+    try {
+      const response = await fetch(`/api/ticker-lookup/${encodeURIComponent(ticker.trim())}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Ticker not found");
+      }
+      const data = await response.json();
+      holdingForm.setValue("name", data.name);
+      toast({ title: "Found", description: `${data.ticker}: ${data.name}` });
+    } catch (error: any) {
+      toast({ title: "Not Found", description: error.message || "Could not find ticker", variant: "destructive" });
+    } finally {
+      setIsLookingUpTicker(false);
+    }
+  };
+
   const handleEditHolding = (holding: UniversalHolding) => {
     setEditingHolding(holding);
     holdingForm.reset({
@@ -456,9 +481,25 @@ export default function ModelPortfolios() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Ticker Symbol</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g. VFV.TO" {...field} data-testid="input-ticker" />
-                          </FormControl>
+                          <div className="flex gap-2">
+                            <FormControl>
+                              <Input placeholder="e.g. VFV.TO" {...field} data-testid="input-ticker" />
+                            </FormControl>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={lookupTicker}
+                              disabled={isLookingUpTicker}
+                              data-testid="button-lookup-ticker"
+                            >
+                              {isLookingUpTicker ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Search className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}
