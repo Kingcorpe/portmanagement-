@@ -1,8 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { TrendingUp, TrendingDown, ChevronDown, ChevronRight, Users, Eye, Plus, UserPlus, Building2, Trash2, Edit } from "lucide-react";
+import { TrendingUp, TrendingDown, ChevronDown, ChevronRight, Users, Eye, Plus, UserPlus, Building2, Trash2, Edit, User } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -86,6 +85,42 @@ const accountTypeLabels: Record<AccountType, string> = {
   "resp": "RESP",
   "ipp": "IPP"
 };
+
+// Account categories for grouping
+const accountCategories: Record<string, { label: string; types: AccountType[] }> = {
+  registered: {
+    label: "Registered Accounts",
+    types: ["tfsa", "fhsa", "rrsp", "lira", "liff", "rif"]
+  },
+  nonRegistered: {
+    label: "Non-Registered Accounts", 
+    types: ["cash"]
+  },
+  corporate: {
+    label: "Corporate Accounts",
+    types: ["cash", "ipp"]
+  }
+};
+
+// Helper to group accounts by category
+function groupAccountsByCategory(accounts: Account[], entityType: "individual" | "corporate") {
+  if (entityType === "individual") {
+    const registered = accounts.filter(a => accountCategories.registered.types.includes(a.type));
+    const nonRegistered = accounts.filter(a => accountCategories.nonRegistered.types.includes(a.type));
+    return [
+      { category: "Registered", accounts: registered },
+      { category: "Non-Registered", accounts: nonRegistered }
+    ].filter(g => g.accounts.length > 0);
+  } else {
+    // Corporate accounts - group by type
+    const cash = accounts.filter(a => a.type === "cash");
+    const ipp = accounts.filter(a => a.type === "ipp");
+    return [
+      { category: "Cash Accounts", accounts: cash },
+      { category: "Pension Plans", accounts: ipp }
+    ].filter(g => g.accounts.length > 0);
+  }
+}
 
 export function HouseholdCard({ 
   household, 
@@ -225,12 +260,10 @@ export function HouseholdCard({
             </div>
 
             {household.individuals.map((individual) => (
-              <div key={individual.id} className="space-y-2">
+              <div key={individual.id} className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="text-xs">{individual.name.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
+                    <User className="h-4 w-4 text-muted-foreground" />
                     <span className="font-medium text-sm" data-testid={`text-individual-name-${individual.id}`}>
                       {individual.name}
                     </span>
@@ -282,7 +315,7 @@ export function HouseholdCard({
                     )}
                   </div>
                 </div>
-                <div className="ml-8 space-y-1">
+                <div className="ml-6 space-y-3">
                   {onAddAccount && individual.accounts.length === 0 && (
                     <Button 
                       variant="ghost" 
@@ -295,59 +328,64 @@ export function HouseholdCard({
                       Add Account
                     </Button>
                   )}
-                  {individual.accounts.map((account) => {
-                    return (
-                      <div key={account.id} className="flex items-center justify-between text-sm" data-testid={`row-account-${account.id}`}>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-xs font-mono">
-                            {accountTypeLabels[account.type]}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono tabular-nums">
-                            CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                          <Link href={`/account/individual/${account.id}`}>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-view-positions-${account.id}`}>
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                          </Link>
-                          {onDeleteAccount && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                  data-testid={`button-delete-account-${account.id}`}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Account</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this {accountTypeLabels[account.type]} account? This will permanently remove all positions associated with this account. This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => onDeleteAccount(account.id, "individual")}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    data-testid={`button-confirm-delete-account-${account.id}`}
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </div>
+                  {groupAccountsByCategory(individual.accounts, "individual").map((group) => (
+                    <div key={group.category} className="space-y-1">
+                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        {group.category}
                       </div>
-                    );
-                  })}
+                      {group.accounts.map((account) => (
+                        <div key={account.id} className="flex items-center justify-between text-sm" data-testid={`row-account-${account.id}`}>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs font-mono">
+                              {accountTypeLabels[account.type]}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono tabular-nums">
+                              CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                            <Link href={`/account/individual/${account.id}`}>
+                              <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-view-positions-${account.id}`}>
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                            </Link>
+                            {onDeleteAccount && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                    data-testid={`button-delete-account-${account.id}`}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Account</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete this {accountTypeLabels[account.type]} account? This will permanently remove all positions associated with this account. This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => onDeleteAccount(account.id, "individual")}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      data-testid={`button-confirm-delete-account-${account.id}`}
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
                   {onAddAccount && individual.accounts.length > 0 && (
                     <div className="pt-1">
                       <Button 
@@ -367,12 +405,10 @@ export function HouseholdCard({
             ))}
 
             {household.corporations.map((corporation) => (
-              <div key={corporation.id} className="space-y-2">
+              <div key={corporation.id} className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-6 w-6">
-                      <AvatarFallback className="text-xs">{corporation.name.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
                     <span className="font-medium text-sm" data-testid={`text-corporation-name-${corporation.id}`}>
                       {corporation.name}
                     </span>
@@ -424,7 +460,7 @@ export function HouseholdCard({
                     )}
                   </div>
                 </div>
-                <div className="ml-8 space-y-1">
+                <div className="ml-6 space-y-3">
                   {onAddAccount && corporation.accounts.length === 0 && (
                     <Button 
                       variant="ghost" 
@@ -437,59 +473,64 @@ export function HouseholdCard({
                       Add Account
                     </Button>
                   )}
-                  {corporation.accounts.map((account) => {
-                    return (
-                      <div key={account.id} className="flex items-center justify-between text-sm" data-testid={`row-account-${account.id}`}>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-xs font-mono">
-                            {accountTypeLabels[account.type]}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono tabular-nums">
-                            CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                          <Link href={`/account/corporate/${account.id}`}>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-view-positions-${account.id}`}>
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                          </Link>
-                          {onDeleteAccount && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                  data-testid={`button-delete-account-${account.id}`}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Account</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete this {accountTypeLabels[account.type]} account? This will permanently remove all positions associated with this account. This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => onDeleteAccount(account.id, "corporate")}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    data-testid={`button-confirm-delete-account-${account.id}`}
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </div>
+                  {groupAccountsByCategory(corporation.accounts, "corporate").map((group) => (
+                    <div key={group.category} className="space-y-1">
+                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        {group.category}
                       </div>
-                    );
-                  })}
+                      {group.accounts.map((account) => (
+                        <div key={account.id} className="flex items-center justify-between text-sm" data-testid={`row-account-${account.id}`}>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs font-mono">
+                              {accountTypeLabels[account.type]}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono tabular-nums">
+                              CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                            <Link href={`/account/corporate/${account.id}`}>
+                              <Button variant="ghost" size="icon" className="h-6 w-6" data-testid={`button-view-positions-${account.id}`}>
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                            </Link>
+                            {onDeleteAccount && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                    data-testid={`button-delete-account-${account.id}`}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Account</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete this {accountTypeLabels[account.type]} account? This will permanently remove all positions associated with this account. This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => onDeleteAccount(account.id, "corporate")}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      data-testid={`button-confirm-delete-account-${account.id}`}
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
                   {onAddAccount && corporation.accounts.length > 0 && (
                     <div className="pt-1">
                       <Button 
@@ -509,14 +550,12 @@ export function HouseholdCard({
             ))}
 
             {household.jointAccounts.length > 0 && (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className="h-6 w-6 rounded-full bg-accent flex items-center justify-center">
-                    <Users className="h-3 w-3" />
-                  </div>
+                  <Users className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium text-sm">Joint Accounts</span>
                 </div>
-                <div className="ml-8 space-y-1">
+                <div className="ml-6 space-y-1">
                   {household.jointAccounts.map((account) => {
                     return (
                       <div key={account.id} className="flex items-center justify-between text-sm" data-testid={`row-joint-account-${account.id}`}>
