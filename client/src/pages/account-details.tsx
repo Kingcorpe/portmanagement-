@@ -292,9 +292,10 @@ export default function AccountDetails() {
     mutationFn: async (data: AllocationFormData) => {
       return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/target-allocations`, data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       toast({
         title: "Success",
         description: "Target allocation added successfully",
@@ -314,9 +315,10 @@ export default function AccountDetails() {
     mutationFn: async ({ id, data }: { id: string; data: Partial<AllocationFormData> }) => {
       return await apiRequest("PATCH", `/api/account-target-allocations/${id}`, data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       toast({
         title: "Success",
         description: "Target allocation updated successfully",
@@ -336,9 +338,10 @@ export default function AccountDetails() {
     mutationFn: async (id: string) => {
       return await apiRequest("DELETE", `/api/account-target-allocations/${id}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       toast({
         title: "Success",
         description: "Target allocation deleted successfully",
@@ -357,9 +360,10 @@ export default function AccountDetails() {
     mutationFn: async (portfolioId: string) => {
       return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/copy-from-portfolio/${portfolioId}`);
     },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+    onSuccess: async (data: any) => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       toast({
         title: "Success",
         description: `Copied ${data.allocationsCount} allocations from ${data.copiedFrom}`,
