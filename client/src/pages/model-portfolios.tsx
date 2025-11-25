@@ -53,7 +53,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -155,6 +155,8 @@ export default function ModelPortfolios() {
   const [holdingsSortColumn, setHoldingsSortColumn] = useState<"ticker" | "name" | "category" | "riskLevel" | "price" | "dividendRate">("ticker");
   const [holdingsSortDirection, setHoldingsSortDirection] = useState<"asc" | "desc">("asc");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [inlineEditingAllocation, setInlineEditingAllocation] = useState<{ id: string; type: "planned" | "freelance" } | null>(null);
+  const [inlineAllocationValue, setInlineAllocationValue] = useState<string>("");
 
   const holdingForm = useForm<HoldingFormData>({
     resolver: zodResolver(holdingFormSchema),
@@ -509,6 +511,73 @@ export default function ModelPortfolios() {
       targetPercentage: Number(allocation.targetPercentage),
     });
     setIsAllocationDialogOpen(true);
+  };
+
+  const handleInlineAllocationEdit = (type: "planned" | "freelance", allocationId: string, currentValue: string) => {
+    setInlineEditingAllocation({ id: allocationId, type });
+    setInlineAllocationValue(currentValue);
+  };
+
+  const handleInlineAllocationCancel = () => {
+    setInlineEditingAllocation(null);
+    setInlineAllocationValue("");
+  };
+
+  const handleInlineAllocationSave = (allocationId: string, type: "planned" | "freelance", currentValue: number) => {
+    const trimmedValue = inlineAllocationValue.trim();
+    
+    if (trimmedValue === "") {
+      handleInlineAllocationCancel();
+      return;
+    }
+    
+    const targetPct = parseFloat(trimmedValue);
+    if (isNaN(targetPct)) {
+      toast({
+        title: "Invalid Value",
+        description: "Please enter a valid number",
+        variant: "destructive",
+      });
+      setInlineAllocationValue(currentValue.toString());
+      return;
+    }
+    
+    if (targetPct <= 0 || targetPct > 100) {
+      toast({
+        title: "Invalid Value",
+        description: "Percentage must be between 0 and 100",
+        variant: "destructive",
+      });
+      setInlineAllocationValue(currentValue.toString());
+      return;
+    }
+    
+    if (Math.abs(targetPct - currentValue) < 0.01) {
+      handleInlineAllocationCancel();
+      return;
+    }
+    
+    if (type === "planned") {
+      updatePlannedAllocationMutation.mutate(
+        { id: allocationId, data: { targetPercentage: targetPct } },
+        {
+          onSuccess: () => {
+            setInlineEditingAllocation(null);
+            setInlineAllocationValue("");
+          },
+        }
+      );
+    } else {
+      updateFreelanceAllocationMutation.mutate(
+        { id: allocationId, data: { targetPercentage: targetPct } },
+        {
+          onSuccess: () => {
+            setInlineEditingAllocation(null);
+            setInlineAllocationValue("");
+          },
+        }
+      );
+    }
   };
 
   const riskLevelOrder = { low: 1, low_medium: 2, medium: 3, medium_high: 4, high: 5 };
@@ -1017,29 +1086,78 @@ export default function ModelPortfolios() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {portfolio.allocations.map((allocation) => (
-                              <TableRow key={allocation.id} data-testid={`row-allocation-${allocation.id}`}>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-mono font-semibold">{allocation.holding.ticker}</span>
-                                    <span className="text-muted-foreground">{allocation.holding.name}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right font-mono">
-                                  {Number(allocation.targetPercentage).toFixed(2)}%
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-1">
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={() => handleEditAllocation("planned", allocation)} data-testid={`button-edit-allocation-${allocation.id}`}>
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deletePlannedAllocationMutation.mutate(allocation.id)} data-testid={`button-delete-allocation-${allocation.id}`}>
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
+                            {portfolio.allocations.map((allocation) => {
+                              const isEditing = inlineEditingAllocation?.id === allocation.id && inlineEditingAllocation?.type === "planned";
+                              const currentValue = Number(allocation.targetPercentage);
+                              return (
+                                <TableRow key={allocation.id} data-testid={`row-allocation-${allocation.id}`}>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono font-semibold">{allocation.holding.ticker}</span>
+                                      <span className="text-muted-foreground">{allocation.holding.name}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono">
+                                    {isEditing ? (
+                                      <div className="flex items-center gap-1 justify-end">
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          max="100"
+                                          value={inlineAllocationValue}
+                                          onChange={(e) => setInlineAllocationValue(e.target.value)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              handleInlineAllocationSave(allocation.id, "planned", currentValue);
+                                            } else if (e.key === "Escape") {
+                                              handleInlineAllocationCancel();
+                                            }
+                                          }}
+                                          className="w-20 h-7 text-right"
+                                          autoFocus
+                                          data-testid={`input-inline-allocation-${allocation.id}`}
+                                        />
+                                        <span>%</span>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-primary"
+                                          onClick={() => handleInlineAllocationSave(allocation.id, "planned", currentValue)}
+                                          data-testid={`button-save-inline-allocation-${allocation.id}`}
+                                        >
+                                          <Target className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-muted-foreground"
+                                          onClick={handleInlineAllocationCancel}
+                                          data-testid={`button-cancel-inline-allocation-${allocation.id}`}
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <span
+                                        className="cursor-pointer hover:text-primary transition-colors"
+                                        onClick={() => handleInlineAllocationEdit("planned", allocation.id, currentValue.toFixed(2))}
+                                        data-testid={`text-allocation-${allocation.id}`}
+                                      >
+                                        {currentValue.toFixed(2)}%
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-1">
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deletePlannedAllocationMutation.mutate(allocation.id)} data-testid={`button-delete-allocation-${allocation.id}`}>
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
                           </TableBody>
                         </Table>
                       )}
@@ -1170,29 +1288,78 @@ export default function ModelPortfolios() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {portfolio.allocations.map((allocation) => (
-                              <TableRow key={allocation.id} data-testid={`row-freelance-allocation-${allocation.id}`}>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-mono font-semibold">{allocation.holding.ticker}</span>
-                                    <span className="text-muted-foreground">{allocation.holding.name}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right font-mono">
-                                  {Number(allocation.targetPercentage).toFixed(2)}%
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-1">
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={() => handleEditAllocation("freelance", allocation)} data-testid={`button-edit-freelance-allocation-${allocation.id}`}>
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteFreelanceAllocationMutation.mutate(allocation.id)} data-testid={`button-delete-freelance-allocation-${allocation.id}`}>
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
+                            {portfolio.allocations.map((allocation) => {
+                              const isEditing = inlineEditingAllocation?.id === allocation.id && inlineEditingAllocation?.type === "freelance";
+                              const currentValue = Number(allocation.targetPercentage);
+                              return (
+                                <TableRow key={allocation.id} data-testid={`row-freelance-allocation-${allocation.id}`}>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono font-semibold">{allocation.holding.ticker}</span>
+                                      <span className="text-muted-foreground">{allocation.holding.name}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono">
+                                    {isEditing ? (
+                                      <div className="flex items-center gap-1 justify-end">
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          max="100"
+                                          value={inlineAllocationValue}
+                                          onChange={(e) => setInlineAllocationValue(e.target.value)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              handleInlineAllocationSave(allocation.id, "freelance", currentValue);
+                                            } else if (e.key === "Escape") {
+                                              handleInlineAllocationCancel();
+                                            }
+                                          }}
+                                          className="w-20 h-7 text-right"
+                                          autoFocus
+                                          data-testid={`input-inline-freelance-allocation-${allocation.id}`}
+                                        />
+                                        <span>%</span>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-primary"
+                                          onClick={() => handleInlineAllocationSave(allocation.id, "freelance", currentValue)}
+                                          data-testid={`button-save-inline-freelance-allocation-${allocation.id}`}
+                                        >
+                                          <Target className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-muted-foreground"
+                                          onClick={handleInlineAllocationCancel}
+                                          data-testid={`button-cancel-inline-freelance-allocation-${allocation.id}`}
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <span
+                                        className="cursor-pointer hover:text-primary transition-colors"
+                                        onClick={() => handleInlineAllocationEdit("freelance", allocation.id, currentValue.toFixed(2))}
+                                        data-testid={`text-freelance-allocation-${allocation.id}`}
+                                      >
+                                        {currentValue.toFixed(2)}%
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-1">
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteFreelanceAllocationMutation.mutate(allocation.id)} data-testid={`button-delete-freelance-allocation-${allocation.id}`}>
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
                           </TableBody>
                         </Table>
                       )}
