@@ -354,6 +354,8 @@ export class DatabaseStorage implements IStorage {
               .map(o => ({
                 id: o.individual.id,
                 name: o.individual.name,
+                initials: o.individual.name.split(' ').map(n => n[0]).join('').toUpperCase(),
+                email: null,
               }));
             const calculatedBalance = await this.calculateJointAccountBalance(jointAccount.id);
             return {
@@ -440,6 +442,8 @@ export class DatabaseStorage implements IStorage {
           owners: owners.map(owner => ({
             id: owner.id,
             name: owner.name,
+            initials: owner.name.split(' ').map(n => n[0]).join('').toUpperCase(),
+            email: null,
           }))
         };
       })
