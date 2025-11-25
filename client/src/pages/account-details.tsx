@@ -479,6 +479,7 @@ export default function AccountDetails() {
       
       // Find column indices based on expected headers
       const tickerIndex = header.findIndex(h => h.includes('ticker') || h.includes('symbol') || h === 'security symbol');
+      const securityNameIndex = header.findIndex(h => h === 'security' || h === 'security name' || h === 'name');
       const quantityIndex = header.findIndex(h => h.includes('quantity') || h.includes('qty'));
       const avgCostIndex = header.findIndex(h => h.includes('average cost') || h.includes('avg cost') || h.includes('book cost') || (h.includes('cost') && !h.includes('book')));
       
@@ -525,9 +526,16 @@ export default function AccountDetails() {
         }
 
         const rawSymbol = String(values[tickerIndex]).trim();
-        console.log(`[Import Debug] Row ${i}: symbol="${rawSymbol}", qty="${values[quantityIndex]}", cost="${values[avgCostIndex]}", price="${values[priceColumnIndex]}"`);
+        const securityName = securityNameIndex !== -1 ? String(values[securityNameIndex] ?? '').trim().toLowerCase() : '';
+        console.log(`[Import Debug] Row ${i}: symbol="${rawSymbol}", security="${securityName}", qty="${values[quantityIndex]}", cost="${values[avgCostIndex]}", price="${values[priceColumnIndex]}"`);
         const symbolLower = rawSymbol.toLowerCase();
-        const isCash = cashIdentifiers.some(id => symbolLower === id || symbolLower.includes(id));
+        
+        // Check if this is a cash position - by symbol, security name, or if empty symbol with $1 price
+        const rawPrice = parseFloat(String(values[priceColumnIndex]).replace(/,/g, ''));
+        const isCashBySymbol = cashIdentifiers.some(id => symbolLower === id || symbolLower.includes(id));
+        const isCashByName = cashIdentifiers.some(id => securityName === id || securityName.includes(id));
+        const isCashByPrice = rawSymbol === '' && Math.abs(rawPrice - 1) < 0.01; // Empty symbol with $1 price = likely cash
+        const isCash = isCashBySymbol || isCashByName || isCashByPrice;
         
         const quantity = parseFloat(String(values[quantityIndex]).replace(/,/g, ''));
         
@@ -555,8 +563,12 @@ export default function AccountDetails() {
           }
         }
 
-        if (symbol && !isNaN(quantity) && !isNaN(entryPrice) && !isNaN(currentPrice)) {
+        // Skip rows with no symbol (unless it's cash) or zero/invalid quantity
+        if (symbol && !isNaN(quantity) && quantity > 0 && !isNaN(entryPrice) && !isNaN(currentPrice)) {
           positions.push({ symbol, quantity, entryPrice, currentPrice });
+          console.log(`[Import Debug] Added position: ${symbol} qty=${quantity} entry=${entryPrice} current=${currentPrice}`);
+        } else {
+          console.log(`[Import Debug] Skipped row: symbol="${symbol}" qty=${quantity} valid=${!isNaN(quantity) && quantity > 0}`);
         }
       }
 
