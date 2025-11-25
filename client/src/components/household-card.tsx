@@ -342,18 +342,6 @@ export function HouseholdCard({
                   </div>
                 </div>
                 <div className="ml-6 space-y-3">
-                  {onAddAccount && individual.accounts.length === 0 && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="w-full justify-start text-muted-foreground"
-                      onClick={() => onAddAccount(individual.id, "individual")}
-                      data-testid={`button-add-account-individual-${individual.id}`}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Account
-                    </Button>
-                  )}
                   {groupAccountsByCategory(individual.accounts, "individual").map((group) => (
                     <div key={group.category} className="space-y-1">
                       <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -405,7 +393,7 @@ export function HouseholdCard({
                       ))}
                     </div>
                   ))}
-                  {onAddAccount && individual.accounts.length > 0 && (
+                  {onAddAccount && (
                     <div className="pt-1">
                       <Button 
                         variant="ghost" 
@@ -480,18 +468,6 @@ export function HouseholdCard({
                   </div>
                 </div>
                 <div className="ml-6 space-y-3">
-                  {onAddAccount && corporation.accounts.length === 0 && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="w-full justify-start text-muted-foreground"
-                      onClick={() => onAddAccount(corporation.id, "corporate")}
-                      data-testid={`button-add-account-corporate-${corporation.id}`}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Account
-                    </Button>
-                  )}
                   {groupAccountsByCategory(corporation.accounts, "corporate").map((group) => (
                     <div key={group.category} className="space-y-1">
                       <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -543,7 +519,7 @@ export function HouseholdCard({
                       ))}
                     </div>
                   ))}
-                  {onAddAccount && corporation.accounts.length > 0 && (
+                  {onAddAccount && (
                     <div className="pt-1">
                       <Button 
                         variant="ghost" 
