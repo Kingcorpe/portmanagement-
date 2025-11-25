@@ -19,6 +19,7 @@ import {
   insertPlannedPortfolioAllocationSchema,
   insertFreelancePortfolioSchema,
   insertFreelancePortfolioAllocationSchema,
+  insertAccountTargetAllocationSchema,
   updateHouseholdSchema,
   updateIndividualSchema,
   updateCorporationSchema,
@@ -32,6 +33,7 @@ import {
   updatePlannedPortfolioAllocationSchema,
   updateFreelancePortfolioSchema,
   updateFreelancePortfolioAllocationSchema,
+  updateAccountTargetAllocationSchema,
   tradingViewWebhookSchema,
 } from "@shared/schema";
 
@@ -537,27 +539,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Portfolio comparison endpoint - compares actual holdings vs model portfolio targets
+  // Account Target Allocation routes
+  app.get('/api/accounts/:accountType/:accountId/target-allocations', isAuthenticated, async (req, res) => {
+    try {
+      const { accountType, accountId } = req.params;
+      
+      let allocations;
+      switch (accountType) {
+        case 'individual':
+          allocations = await storage.getAccountTargetAllocationsByIndividualAccount(accountId);
+          break;
+        case 'corporate':
+          allocations = await storage.getAccountTargetAllocationsByCorporateAccount(accountId);
+          break;
+        case 'joint':
+          allocations = await storage.getAccountTargetAllocationsByJointAccount(accountId);
+          break;
+        default:
+          return res.status(400).json({ message: "Invalid account type" });
+      }
+      
+      res.json(allocations);
+    } catch (error) {
+      console.error("Error fetching account target allocations:", error);
+      res.status(500).json({ message: "Failed to fetch account target allocations" });
+    }
+  });
+
+  app.post('/api/accounts/:accountType/:accountId/target-allocations', isAuthenticated, async (req, res) => {
+    try {
+      const { accountType, accountId } = req.params;
+      const parsed = insertAccountTargetAllocationSchema.parse(req.body);
+      
+      // Set the correct account ID field based on type
+      const allocationData = {
+        ...parsed,
+        individualAccountId: accountType === 'individual' ? accountId : null,
+        corporateAccountId: accountType === 'corporate' ? accountId : null,
+        jointAccountId: accountType === 'joint' ? accountId : null,
+      };
+      
+      const allocation = await storage.createAccountTargetAllocation(allocationData);
+      res.json(allocation);
+    } catch (error: any) {
+      console.error("Error creating account target allocation:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create account target allocation" });
+    }
+  });
+
+  app.patch('/api/account-target-allocations/:id', isAuthenticated, async (req, res) => {
+    try {
+      const parsed = updateAccountTargetAllocationSchema.parse(req.body);
+      const allocation = await storage.updateAccountTargetAllocation(req.params.id, parsed);
+      res.json(allocation);
+    } catch (error: any) {
+      console.error("Error updating account target allocation:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update account target allocation" });
+    }
+  });
+
+  app.delete('/api/account-target-allocations/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteAccountTargetAllocation(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting account target allocation:", error);
+      res.status(500).json({ message: "Failed to delete account target allocation" });
+    }
+  });
+
+  // Copy allocations from a model portfolio to an account
+  app.post('/api/accounts/:accountType/:accountId/copy-from-portfolio/:portfolioId', isAuthenticated, async (req, res) => {
+    try {
+      const { accountType, accountId, portfolioId } = req.params;
+      
+      // Validate account type
+      if (!['individual', 'corporate', 'joint'].includes(accountType)) {
+        return res.status(400).json({ message: "Invalid account type" });
+      }
+      
+      // Get the model portfolio with allocations
+      const modelPortfolio = await storage.getPlannedPortfolioWithAllocations(portfolioId);
+      if (!modelPortfolio) {
+        return res.status(404).json({ message: "Model portfolio not found" });
+      }
+      
+      // Delete existing allocations for this account
+      await storage.deleteAllAccountTargetAllocations(accountType as 'individual' | 'corporate' | 'joint', accountId);
+      
+      // Copy allocations from model portfolio
+      const createdAllocations = [];
+      for (const allocation of modelPortfolio.allocations || []) {
+        const newAllocation = await storage.createAccountTargetAllocation({
+          universalHoldingId: allocation.universalHoldingId,
+          targetPercentage: allocation.targetPercentage,
+          individualAccountId: accountType === 'individual' ? accountId : null,
+          corporateAccountId: accountType === 'corporate' ? accountId : null,
+          jointAccountId: accountType === 'joint' ? accountId : null,
+        });
+        createdAllocations.push(newAllocation);
+      }
+      
+      res.json({
+        success: true,
+        copiedFrom: modelPortfolio.name,
+        allocationsCount: createdAllocations.length
+      });
+    } catch (error) {
+      console.error("Error copying allocations from portfolio:", error);
+      res.status(500).json({ message: "Failed to copy allocations from portfolio" });
+    }
+  });
+
+  // Portfolio comparison endpoint - compares actual holdings vs account-specific target allocations
   app.get('/api/accounts/:accountType/:accountId/portfolio-comparison', isAuthenticated, async (req, res) => {
     try {
       const { accountType, accountId } = req.params;
       
-      // Get account to find plannedPortfolioId
+      // Get account and positions
       let account;
       let positions;
+      let targetAllocations;
       
       switch (accountType) {
         case 'individual':
           account = await storage.getIndividualAccount(accountId);
           positions = await storage.getPositionsByIndividualAccount(accountId);
+          targetAllocations = await storage.getAccountTargetAllocationsByIndividualAccount(accountId);
           break;
         case 'corporate':
           account = await storage.getCorporateAccount(accountId);
           positions = await storage.getPositionsByCorporateAccount(accountId);
+          targetAllocations = await storage.getAccountTargetAllocationsByCorporateAccount(accountId);
           break;
         case 'joint':
           account = await storage.getJointAccount(accountId);
           positions = await storage.getPositionsByJointAccount(accountId);
+          targetAllocations = await storage.getAccountTargetAllocationsByJointAccount(accountId);
           break;
         default:
           return res.status(400).json({ message: "Invalid account type" });
@@ -567,24 +691,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Account not found" });
       }
       
-      // If no model portfolio assigned, return empty comparison
-      if (!account.plannedPortfolioId) {
+      // If no target allocations defined, return empty comparison
+      if (targetAllocations.length === 0) {
         return res.json({
-          hasModelPortfolio: false,
-          modelPortfolio: null,
+          hasTargetAllocations: false,
           comparison: [],
-          totalActualValue: 0
-        });
-      }
-      
-      // Get the model portfolio with allocations
-      const modelPortfolio = await storage.getPlannedPortfolioWithAllocations(account.plannedPortfolioId);
-      if (!modelPortfolio) {
-        return res.json({
-          hasModelPortfolio: false,
-          modelPortfolio: null,
-          comparison: [],
-          totalActualValue: 0
+          totalActualValue: 0,
+          totalTargetPercentage: 0
         });
       }
       
@@ -593,10 +706,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return sum + (Number(pos.quantity) * Number(pos.currentPrice));
       }, 0);
       
-      // Build comparison data
-      // Get all universal holdings to map IDs to tickers
-      const universalHoldings = await storage.getAllUniversalHoldings();
-      const holdingsMap = new Map(universalHoldings.map(h => [h.id, h]));
+      // Calculate total target percentage
+      const totalTargetPercentage = targetAllocations.reduce((sum, alloc) => {
+        return sum + Number(alloc.targetPercentage);
+      }, 0);
       
       // Create a map of actual allocations by ticker
       const actualByTicker = new Map<string, { value: number; quantity: number }>();
@@ -614,9 +727,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const comparison = [];
       const processedTickers = new Set<string>();
       
-      // First, add all target allocations from model portfolio
-      for (const allocation of modelPortfolio.allocations || []) {
-        const holding = holdingsMap.get(allocation.universalHoldingId);
+      // First, add all target allocations
+      for (const allocation of targetAllocations) {
+        const holding = allocation.holding;
         if (!holding) continue;
         
         const ticker = holding.ticker.toUpperCase();
@@ -629,6 +742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const variance = actualPercentage - targetPercentage;
         
         comparison.push({
+          allocationId: allocation.id,
           ticker,
           name: holding.name,
           targetPercentage,
@@ -641,11 +755,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Add any positions that aren't in the model portfolio (unexpected holdings)
+      // Add any positions that aren't in the target allocations (unexpected holdings)
       for (const [ticker, data] of Array.from(actualByTicker)) {
         if (!processedTickers.has(ticker)) {
           const actualPercentage = totalActualValue > 0 ? (data.value / totalActualValue) * 100 : 0;
           comparison.push({
+            allocationId: null,
             ticker,
             name: ticker, // No name available for unexpected holdings
             targetPercentage: 0,
@@ -663,14 +778,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       comparison.sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance));
       
       res.json({
-        hasModelPortfolio: true,
-        modelPortfolio: {
-          id: modelPortfolio.id,
-          name: modelPortfolio.name,
-          description: modelPortfolio.description
-        },
+        hasTargetAllocations: true,
         comparison,
-        totalActualValue: Math.round(totalActualValue * 100) / 100
+        totalActualValue: Math.round(totalActualValue * 100) / 100,
+        totalTargetPercentage: Math.round(totalTargetPercentage * 100) / 100
       });
     } catch (error) {
       console.error("Error fetching portfolio comparison:", error);

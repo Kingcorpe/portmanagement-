@@ -16,6 +16,7 @@ import {
   plannedPortfolioAllocations,
   freelancePortfolios,
   freelancePortfolioAllocations,
+  accountTargetAllocations,
   type User,
   type UpsertUser,
   type Household,
@@ -51,6 +52,9 @@ import {
   type FreelancePortfolioAllocation,
   type InsertFreelancePortfolioAllocation,
   type FreelancePortfolioWithAllocations,
+  type AccountTargetAllocation,
+  type InsertAccountTargetAllocation,
+  type AccountTargetAllocationWithHolding,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, inArray } from "drizzle-orm";
@@ -171,6 +175,15 @@ export interface IStorage {
   updateFreelancePortfolioAllocation(id: string, allocation: Partial<InsertFreelancePortfolioAllocation>): Promise<FreelancePortfolioAllocation>;
   deleteFreelancePortfolioAllocation(id: string): Promise<void>;
   getFreelancePortfolioAllocations(portfolioId: string): Promise<FreelancePortfolioAllocation[]>;
+
+  // Account Target Allocation operations
+  createAccountTargetAllocation(allocation: InsertAccountTargetAllocation): Promise<AccountTargetAllocation>;
+  updateAccountTargetAllocation(id: string, allocation: Partial<InsertAccountTargetAllocation>): Promise<AccountTargetAllocation>;
+  deleteAccountTargetAllocation(id: string): Promise<void>;
+  getAccountTargetAllocationsByIndividualAccount(accountId: string): Promise<AccountTargetAllocationWithHolding[]>;
+  getAccountTargetAllocationsByCorporateAccount(accountId: string): Promise<AccountTargetAllocationWithHolding[]>;
+  getAccountTargetAllocationsByJointAccount(accountId: string): Promise<AccountTargetAllocationWithHolding[]>;
+  deleteAllAccountTargetAllocations(accountType: 'individual' | 'corporate' | 'joint', accountId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -951,6 +964,74 @@ export class DatabaseStorage implements IStorage {
 
   async getFreelancePortfolioAllocations(portfolioId: string): Promise<FreelancePortfolioAllocation[]> {
     return await db.select().from(freelancePortfolioAllocations).where(eq(freelancePortfolioAllocations.freelancePortfolioId, portfolioId));
+  }
+
+  // Account Target Allocation operations
+  async createAccountTargetAllocation(allocationData: InsertAccountTargetAllocation): Promise<AccountTargetAllocation> {
+    const [allocation] = await db.insert(accountTargetAllocations).values(allocationData).returning();
+    return allocation;
+  }
+
+  async updateAccountTargetAllocation(id: string, allocationData: Partial<InsertAccountTargetAllocation>): Promise<AccountTargetAllocation> {
+    const [allocation] = await db
+      .update(accountTargetAllocations)
+      .set(allocationData)
+      .where(eq(accountTargetAllocations.id, id))
+      .returning();
+    return allocation;
+  }
+
+  async deleteAccountTargetAllocation(id: string): Promise<void> {
+    await db.delete(accountTargetAllocations).where(eq(accountTargetAllocations.id, id));
+  }
+
+  async getAccountTargetAllocationsByIndividualAccount(accountId: string): Promise<AccountTargetAllocationWithHolding[]> {
+    const allocations = await db.select()
+      .from(accountTargetAllocations)
+      .where(eq(accountTargetAllocations.individualAccountId, accountId));
+    
+    const holdingsMap = new Map((await this.getAllUniversalHoldings()).map(h => [h.id, h]));
+    
+    return allocations.map(allocation => ({
+      ...allocation,
+      holding: holdingsMap.get(allocation.universalHoldingId)!,
+    }));
+  }
+
+  async getAccountTargetAllocationsByCorporateAccount(accountId: string): Promise<AccountTargetAllocationWithHolding[]> {
+    const allocations = await db.select()
+      .from(accountTargetAllocations)
+      .where(eq(accountTargetAllocations.corporateAccountId, accountId));
+    
+    const holdingsMap = new Map((await this.getAllUniversalHoldings()).map(h => [h.id, h]));
+    
+    return allocations.map(allocation => ({
+      ...allocation,
+      holding: holdingsMap.get(allocation.universalHoldingId)!,
+    }));
+  }
+
+  async getAccountTargetAllocationsByJointAccount(accountId: string): Promise<AccountTargetAllocationWithHolding[]> {
+    const allocations = await db.select()
+      .from(accountTargetAllocations)
+      .where(eq(accountTargetAllocations.jointAccountId, accountId));
+    
+    const holdingsMap = new Map((await this.getAllUniversalHoldings()).map(h => [h.id, h]));
+    
+    return allocations.map(allocation => ({
+      ...allocation,
+      holding: holdingsMap.get(allocation.universalHoldingId)!,
+    }));
+  }
+
+  async deleteAllAccountTargetAllocations(accountType: 'individual' | 'corporate' | 'joint', accountId: string): Promise<void> {
+    if (accountType === 'individual') {
+      await db.delete(accountTargetAllocations).where(eq(accountTargetAllocations.individualAccountId, accountId));
+    } else if (accountType === 'corporate') {
+      await db.delete(accountTargetAllocations).where(eq(accountTargetAllocations.corporateAccountId, accountId));
+    } else {
+      await db.delete(accountTargetAllocations).where(eq(accountTargetAllocations.jointAccountId, accountId));
+    }
   }
 }
 
