@@ -77,9 +77,10 @@ const holdingCategoryLabels: Record<string, string> = {
   single_etf: "Single ETFs",
   double_long_etf: "Double Long ETFs",
   security: "Securities",
+  auto_added: "Auto Added",
 };
 
-const holdingCategoryOrder = ["basket_etf", "single_etf", "double_long_etf", "security"];
+const holdingCategoryOrder = ["basket_etf", "single_etf", "double_long_etf", "security", "auto_added"];
 
 const riskLevelColors: Record<string, string> = {
   low: "bg-chart-2 text-white",
@@ -102,6 +103,7 @@ const categoryLabels: Record<string, string> = {
   single_etf: "Single ETFs",
   double_long_etf: "Double Long ETFs",
   security: "Securities",
+  auto_added: "Auto Added",
 };
 
 const categoryColors: Record<string, string> = {
@@ -109,12 +111,13 @@ const categoryColors: Record<string, string> = {
   single_etf: "bg-purple-500 text-white",
   double_long_etf: "bg-amber-500 text-white",
   security: "bg-slate-500 text-white",
+  auto_added: "bg-gray-500 text-white",
 };
 
 const holdingFormSchema = z.object({
   ticker: z.string().min(1, "Ticker is required").max(20),
   name: z.string().min(1, "Name is required"),
-  category: z.enum(["basket_etf", "single_etf", "double_long_etf", "security"]),
+  category: z.enum(["basket_etf", "single_etf", "double_long_etf", "security", "auto_added"]),
   riskLevel: z.enum(["low", "low_medium", "medium", "medium_high", "high"]),
   dividendRate: z.coerce.number().nonnegative().default(0),
   dividendPayout: z.enum(["monthly", "quarterly", "semi_annual", "annual", "none"]),
@@ -509,7 +512,7 @@ export default function ModelPortfolios() {
   };
 
   const riskLevelOrder = { low: 1, low_medium: 2, medium: 3, medium_high: 4, high: 5 };
-  const categoryOrder = { basket_etf: 1, single_etf: 2, double_long_etf: 3, security: 4 };
+  const categoryOrder: Record<string, number> = { basket_etf: 1, single_etf: 2, double_long_etf: 3, security: 4, auto_added: 5 };
 
   const handleHoldingsSort = (column: typeof holdingsSortColumn) => {
     if (holdingsSortColumn === column) {
