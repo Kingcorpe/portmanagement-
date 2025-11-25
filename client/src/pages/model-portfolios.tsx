@@ -78,9 +78,10 @@ const holdingCategoryLabels: Record<string, string> = {
   double_long_etf: "Double Long ETFs",
   security: "Securities",
   auto_added: "Auto Added",
+  misc: "Misc.",
 };
 
-const holdingCategoryOrder = ["basket_etf", "single_etf", "double_long_etf", "security", "auto_added"];
+const holdingCategoryOrder = ["basket_etf", "single_etf", "double_long_etf", "security", "auto_added", "misc"];
 
 const riskLevelColors: Record<string, string> = {
   low: "bg-chart-2 text-white",
@@ -104,6 +105,7 @@ const categoryLabels: Record<string, string> = {
   double_long_etf: "Double Long ETFs",
   security: "Securities",
   auto_added: "Auto Added",
+  misc: "Misc.",
 };
 
 const categoryColors: Record<string, string> = {
@@ -112,12 +114,13 @@ const categoryColors: Record<string, string> = {
   double_long_etf: "bg-amber-500 text-white",
   security: "bg-slate-500 text-white",
   auto_added: "bg-gray-500 text-white",
+  misc: "bg-teal-500 text-white",
 };
 
 const holdingFormSchema = z.object({
   ticker: z.string().min(1, "Ticker is required").max(20),
   name: z.string().min(1, "Name is required"),
-  category: z.enum(["basket_etf", "single_etf", "double_long_etf", "security", "auto_added"]),
+  category: z.enum(["basket_etf", "single_etf", "double_long_etf", "security", "auto_added", "misc"]),
   riskLevel: z.enum(["low", "low_medium", "medium", "medium_high", "high"]),
   dividendRate: z.coerce.number().nonnegative().default(0),
   dividendPayout: z.enum(["monthly", "quarterly", "semi_annual", "annual", "none"]),
@@ -588,7 +591,7 @@ export default function ModelPortfolios() {
   };
 
   const riskLevelOrder = { low: 1, low_medium: 2, medium: 3, medium_high: 4, high: 5 };
-  const categoryOrder: Record<string, number> = { basket_etf: 1, single_etf: 2, double_long_etf: 3, security: 4, auto_added: 5 };
+  const categoryOrder: Record<string, number> = { basket_etf: 1, single_etf: 2, double_long_etf: 3, security: 4, auto_added: 5, misc: 6 };
 
   const handleHoldingsSort = (column: typeof holdingsSortColumn) => {
     if (holdingsSortColumn === column) {

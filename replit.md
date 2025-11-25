@@ -39,7 +39,7 @@ The system uses a household-based hierarchy to organize client data, distinguish
 - **Account-Specific Target Allocations**: Each account has its own target allocations stored in the `accountTargetAllocations` table. Users can manually enter allocations or copy from a model portfolio. Portfolio comparison uses account-specific allocations with variance analytics (over/under/on-target status).
 - **Inline Target % Editing**: Users can click on the Target % column in the holdings table to edit target allocations directly. If the ticker doesn't exist in Universal Holdings, it's automatically added with the "auto_added" category. Changes sync to the Target Allocations section. Clearing the field removes the target allocation.
 - **Copy from Model Portfolio**: Users can copy allocations from a model portfolio to any account. This clears existing allocations and replaces them with cloned allocations from the selected model.
-- **Universal Holdings Categories**: Tickers in Universal Holdings are categorized as: basket_etf, single_etf, double_long_etf, security, or auto_added (for tickers automatically added via inline target editing).
+- **Universal Holdings Categories**: Tickers in Universal Holdings are categorized as: basket_etf, single_etf, double_long_etf, security, auto_added (for tickers automatically added via inline target editing), or misc (for miscellaneous holdings).
 - **Robust Validation**: Zod is used for all input validation, especially for monetary fields, which are coerced to numbers, validated, and then stored as strings in Drizzle for decimal precision.
 - **Cascading Deletes**: Configured for data integrity across related entities.
 - **UUIDs**: All primary keys utilize UUIDs.
