@@ -1252,6 +1252,7 @@ export default function AccountDetails() {
                   <TableHead>Symbol</TableHead>
                   {comparisonData?.hasTargetAllocations && (
                     <>
+                      <TableHead className="text-right">Change Needed</TableHead>
                       <TableHead className="text-right">Variance</TableHead>
                       <TableHead className="text-right">Actual %</TableHead>
                     </>
@@ -1310,6 +1311,20 @@ export default function AccountDetails() {
                       </TableCell>
                       {comparisonData?.hasTargetAllocations && (
                         <>
+                          <TableCell 
+                            className={`text-right font-medium ${
+                              comparison && (comparison.targetValue - comparison.actualValue) > 0 ? 'text-green-600 dark:text-green-400' : 
+                              comparison && (comparison.targetValue - comparison.actualValue) < 0 ? 'text-red-600 dark:text-red-400' : ''
+                            }`}
+                            data-testid={`text-change-needed-${position.id}`}
+                          >
+                            {comparison && comparison.targetPercentage > 0 ? (
+                              <>
+                                {(comparison.targetValue - comparison.actualValue) > 0 ? '+' : ''}
+                                ${(comparison.targetValue - comparison.actualValue).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                              </>
+                            ) : '-'}
+                          </TableCell>
                           <TableCell 
                             className={`text-right font-medium ${
                               comparison && comparison.variance > 0 ? 'text-green-600 dark:text-green-400' : 
