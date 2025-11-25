@@ -72,6 +72,10 @@ export function AppSidebar() {
 
   const isLibraryActive = location.startsWith("/library");
 
+  const handleLogout = () => {
+    window.location.href = "/api/logout";
+  };
+
   return (
     <Sidebar>
       <SidebarContent>
@@ -137,7 +141,7 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton data-testid="button-logout">
+            <SidebarMenuButton data-testid="button-logout" onClick={handleLogout}>
               <LogOut />
               <span>Logout</span>
             </SidebarMenuButton>
