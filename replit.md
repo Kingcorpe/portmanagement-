@@ -49,7 +49,18 @@ The API provides comprehensive CRUD operations for households, individuals, corp
 ### TradingView Webhook Integration
 A dedicated webhook endpoint (`POST /api/webhooks/tradingview`) is available for receiving BUY/SELL alerts from TradingView. The system supports optional webhook secret validation for enhanced security.
 
+### Yahoo Finance Integration
+The platform integrates with Yahoo Finance to fetch real-time market prices for positions:
+- **Refresh Market Prices**: Users can click "Refresh Prices" on the Holdings & Portfolio Analysis section to update all position prices from Yahoo Finance.
+- **Canadian Ticker Support**: Automatically tries multiple exchange suffixes (.TO for TSX, .V for TSX Venture, .CN for CSE) if the symbol doesn't include one.
+- **Cash Position Handling**: Cash positions (CASH, CAD, USD, MONEY MARKET) are automatically assigned a price of $1.
+- **Price Updated Timestamp**: The `priceUpdatedAt` field tracks when each position's price was last refreshed from Yahoo Finance.
+- **API Endpoints**:
+  - `POST /api/market-prices/quotes` - Fetch current quotes for a list of symbols
+  - `POST /api/accounts/:accountType/:accountId/refresh-prices` - Refresh all position prices for an account
+
 ## External Dependencies
 - **Replit Auth**: Used for user authentication, supporting OIDC providers like Google, GitHub, X, Apple, and email/password.
 - **Neon (PostgreSQL)**: Cloud-hosted PostgreSQL database for persistent data storage.
 - **TradingView**: External charting and analysis platform, integrated via webhooks for alert reception.
+- **Yahoo Finance (yahoo-finance2)**: Used to fetch real-time stock and ETF prices for portfolio valuation.

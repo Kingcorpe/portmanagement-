@@ -645,8 +645,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           for (const symbol of symbolsToTry) {
             try {
-              quote = await yahooFinance.quote(symbol);
-              if (quote && quote.regularMarketPrice) {
+              const result = await yahooFinance.quote(symbol);
+              if (result && (result as any).regularMarketPrice) {
+                quote = result as any;
                 break;
               }
             } catch (e) {
@@ -706,7 +707,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get unique symbols
-      const symbols = [...new Set(positions.map(p => p.symbol))];
+      const symbolSet = new Set(positions.map(p => p.symbol));
+      const symbols = Array.from(symbolSet);
       
       // Dynamically import yahoo-finance2
       const yahooFinance = (await import('yahoo-finance2')).default;
@@ -737,8 +739,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           for (const symbol of symbolsToTry) {
             try {
-              quote = await yahooFinance.quote(symbol);
-              if (quote && quote.regularMarketPrice) {
+              const result = await yahooFinance.quote(symbol);
+              if (result && (result as any).regularMarketPrice) {
+                quote = result as any;
                 break;
               }
             } catch (e) {

@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw } from "lucide-react";
 import * as XLSX from 'xlsx';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -377,6 +377,35 @@ export default function AccountDetails() {
       toast({
         title: "Error",
         description: error.message || "Failed to copy allocations from portfolio",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Refresh market prices mutation
+  const refreshPricesMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/refresh-prices`);
+    },
+    onSuccess: async (data: any) => {
+      await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      queryClient.refetchQueries({ queryKey: ["/api/households/full"] });
+      
+      let message = `Updated ${data.updated} position${data.updated !== 1 ? 's' : ''} with current market prices`;
+      if (data.errors && data.errors.length > 0) {
+        message += `. Could not find prices for: ${data.errors.join(', ')}`;
+      }
+      
+      toast({
+        title: "Prices Refreshed",
+        description: message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to refresh market prices",
         variant: "destructive",
       });
     },
@@ -1003,11 +1032,32 @@ export default function AccountDetails() {
 
       {/* Unified Holdings & Portfolio Comparison Section */}
       <Card>
-        <CardHeader>
-          <CardTitle>Holdings & Portfolio Analysis</CardTitle>
-          <CardDescription>
-            All positions with target allocation comparison
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+          <div>
+            <CardTitle>Holdings & Portfolio Analysis</CardTitle>
+            <CardDescription>
+              All positions with target allocation comparison
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refreshPricesMutation.mutate()}
+            disabled={refreshPricesMutation.isPending || positions.length === 0}
+            data-testid="button-refresh-prices"
+          >
+            {refreshPricesMutation.isPending ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Refreshing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh Prices
+              </>
+            )}
+          </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Summary Stats */}
@@ -1113,7 +1163,12 @@ export default function AccountDetails() {
                         {Number(position.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell className="text-right" data-testid={`text-current-price-${position.id}`}>
-                        ${Number(position.currentPrice).toFixed(2)}
+                        <div>${Number(position.currentPrice).toFixed(2)}</div>
+                        {position.priceUpdatedAt && (
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(position.priceUpdatedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-right font-medium" data-testid={`text-market-value-${position.id}`}>
                         ${marketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
