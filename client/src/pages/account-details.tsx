@@ -511,14 +511,21 @@ export default function AccountDetails() {
       const positions = [];
       const cashIdentifiers = ['cash', 'cad', '$cad', 'cad$', 'cash cad', 'canadian dollar', 'money market'];
       
+      console.log('[Import Debug] Column indices:', { tickerIndex, quantityIndex, avgCostIndex, priceColumnIndex, useMarketValue });
+      console.log('[Import Debug] Headers found:', header);
+      
       for (let i = 1; i < rows.length; i++) {
         const values = rows[i];
         
-        if (!values || values.length <= Math.max(tickerIndex, quantityIndex, avgCostIndex, marketPriceIndex)) {
+        // Check if row has enough columns for all required indices
+        const maxIndex = Math.max(tickerIndex, quantityIndex, avgCostIndex, priceColumnIndex);
+        if (!values || values.length <= maxIndex) {
+          console.log(`[Import Debug] Skipping row ${i}: not enough columns (${values?.length || 0} <= ${maxIndex})`);
           continue; // Skip incomplete rows
         }
 
         const rawSymbol = String(values[tickerIndex]).trim();
+        console.log(`[Import Debug] Row ${i}: symbol="${rawSymbol}", qty="${values[quantityIndex]}", cost="${values[avgCostIndex]}", price="${values[priceColumnIndex]}"`);
         const symbolLower = rawSymbol.toLowerCase();
         const isCash = cashIdentifiers.some(id => symbolLower === id || symbolLower.includes(id));
         
