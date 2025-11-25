@@ -372,8 +372,25 @@ export default function ModelPortfolios() {
         throw new Error(error.message || "Ticker not found");
       }
       const data = await response.json();
+      
+      // Populate all available fields
       holdingForm.setValue("name", data.name);
-      toast({ title: "Found", description: `${data.ticker}: ${data.name}` });
+      if (data.price) {
+        holdingForm.setValue("price", data.price);
+      }
+      if (data.dividendRate) {
+        holdingForm.setValue("dividendRate", parseFloat(data.dividendRate.toFixed(2)));
+      }
+      
+      // Build description of what was found
+      const details = [];
+      if (data.price) details.push(`Price: CA$${data.price.toFixed(2)}`);
+      if (data.dividendRate) details.push(`Yield: ${data.dividendRate.toFixed(2)}%`);
+      
+      toast({ 
+        title: "Found", 
+        description: `${data.ticker}: ${data.name}${details.length > 0 ? ' | ' + details.join(', ') : ''}` 
+      });
     } catch (error: any) {
       toast({ title: "Not Found", description: error.message || "Could not find ticker", variant: "destructive" });
     } finally {

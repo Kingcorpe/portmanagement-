@@ -831,8 +831,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const ticker = req.params.ticker.toUpperCase();
       
-      // Use Yahoo Finance quote API
-      const response = await fetch(
+      // First, search for the ticker to get basic info
+      const searchResponse = await fetch(
         `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(ticker)}&quotesCount=5&newsCount=0`,
         {
           headers: {
@@ -841,26 +841,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       );
       
-      if (!response.ok) {
+      if (!searchResponse.ok) {
         return res.status(404).json({ message: "Unable to look up ticker" });
       }
       
-      const data = await response.json();
+      const searchData = await searchResponse.json();
       
-      if (data.quotes && data.quotes.length > 0) {
-        // Find exact match first, or use first result
-        const exactMatch = data.quotes.find((q: any) => q.symbol === ticker);
-        const quote = exactMatch || data.quotes[0];
-        
-        res.json({
-          ticker: quote.symbol,
-          name: quote.shortname || quote.longname || quote.symbol,
-          exchange: quote.exchange,
-          type: quote.quoteType
-        });
-      } else {
-        res.status(404).json({ message: "Ticker not found" });
+      if (!searchData.quotes || searchData.quotes.length === 0) {
+        return res.status(404).json({ message: "Ticker not found" });
       }
+      
+      // Find exact match first, or use first result
+      const exactMatch = searchData.quotes.find((q: any) => q.symbol === ticker);
+      const searchQuote = exactMatch || searchData.quotes[0];
+      const symbol = searchQuote.symbol;
+      
+      // Fetch detailed quote data including price using v8 chart API
+      const quoteResponse = await fetch(
+        `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`,
+        {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        }
+      );
+      
+      let price = null;
+      
+      if (quoteResponse.ok) {
+        const quoteData = await quoteResponse.json();
+        const meta = quoteData?.chart?.result?.[0]?.meta;
+        if (meta) {
+          price = meta.regularMarketPrice || null;
+        }
+      }
+      
+      res.json({
+        ticker: symbol,
+        name: searchQuote.shortname || searchQuote.longname || symbol,
+        exchange: searchQuote.exchange,
+        type: searchQuote.quoteType,
+        price: price
+      });
     } catch (error) {
       console.error("Error looking up ticker:", error);
       res.status(500).json({ message: "Failed to look up ticker" });
