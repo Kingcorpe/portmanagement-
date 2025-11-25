@@ -151,7 +151,7 @@ export function SimpleDocumentUploader({
     setError("");
 
     try {
-      await apiRequest("/api/library-documents", "POST", {
+      await apiRequest("POST", "/api/library-documents", {
         title: title.trim(),
         category,
         objectPath,
