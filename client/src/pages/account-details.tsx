@@ -1124,8 +1124,10 @@ export default function AccountDetails() {
                 <TableRow>
                   <TableHead>Symbol</TableHead>
                   <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Entry Price</TableHead>
-                  <TableHead className="text-right">Total Value</TableHead>
+                  <TableHead className="text-right">Avg Cost</TableHead>
+                  <TableHead className="text-right">Book Value</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-right">Market Value</TableHead>
                   <TableHead>Purchase Date</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -1137,13 +1139,19 @@ export default function AccountDetails() {
                       {position.symbol}
                     </TableCell>
                     <TableCell className="text-right" data-testid={`text-quantity-${position.id}`}>
-                      {Number(position.quantity).toFixed(2)}
+                      {Number(position.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell className="text-right" data-testid={`text-entry-price-${position.id}`}>
                       ${Number(position.entryPrice).toFixed(2)}
                     </TableCell>
-                    <TableCell className="text-right" data-testid={`text-value-${position.id}`}>
-                      ${(Number(position.quantity) * Number(position.entryPrice)).toFixed(2)}
+                    <TableCell className="text-right" data-testid={`text-book-value-${position.id}`}>
+                      ${(Number(position.quantity) * Number(position.entryPrice)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell className="text-right" data-testid={`text-current-price-${position.id}`}>
+                      ${Number(position.currentPrice).toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right font-medium" data-testid={`text-market-value-${position.id}`}>
+                      ${(Number(position.quantity) * Number(position.currentPrice)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell data-testid={`text-purchase-date-${position.id}`}>
                       {position.purchaseDate ? new Date(position.purchaseDate).toLocaleDateString('en-CA') : '-'}
