@@ -121,6 +121,7 @@ export default function ModelPortfolios() {
   const [editingHolding, setEditingHolding] = useState<UniversalHolding | null>(null);
   const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);
   const [allocationTarget, setAllocationTarget] = useState<{ type: "planned" | "freelance"; portfolioId: string } | null>(null);
+  const [editingAllocation, setEditingAllocation] = useState<{ id: string; type: "planned" | "freelance"; universalHoldingId: string; targetPercentage: number } | null>(null);
   const [isLookingUpTicker, setIsLookingUpTicker] = useState(false);
   const [holdingsSortColumn, setHoldingsSortColumn] = useState<"ticker" | "name" | "riskLevel" | "price" | "dividendRate">("ticker");
   const [holdingsSortDirection, setHoldingsSortDirection] = useState<"asc" | "desc">("asc");
@@ -333,6 +334,38 @@ export default function ModelPortfolios() {
     },
   });
 
+  const updatePlannedAllocationMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<AllocationFormData> }) => 
+      apiRequest("PATCH", `/api/planned-portfolio-allocations/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/planned-portfolios"] });
+      toast({ title: "Success", description: "Allocation updated successfully" });
+      setIsAllocationDialogOpen(false);
+      setEditingAllocation(null);
+      setAllocationTarget(null);
+      allocationForm.reset();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateFreelanceAllocationMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<AllocationFormData> }) => 
+      apiRequest("PATCH", `/api/freelance-portfolio-allocations/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/freelance-portfolios"] });
+      toast({ title: "Success", description: "Allocation updated successfully" });
+      setIsAllocationDialogOpen(false);
+      setEditingAllocation(null);
+      setAllocationTarget(null);
+      allocationForm.reset();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   const onHoldingSubmit = (data: HoldingFormData) => {
     if (editingHolding) {
       updateHoldingMutation.mutate({ id: editingHolding.id, data });
@@ -350,12 +383,18 @@ export default function ModelPortfolios() {
   };
 
   const onAllocationSubmit = (data: AllocationFormData) => {
-    if (!allocationTarget) return;
-    
-    if (allocationTarget.type === "planned") {
-      createPlannedAllocationMutation.mutate({ ...data, plannedPortfolioId: allocationTarget.portfolioId });
-    } else {
-      createFreelanceAllocationMutation.mutate({ ...data, freelancePortfolioId: allocationTarget.portfolioId });
+    if (editingAllocation) {
+      if (editingAllocation.type === "planned") {
+        updatePlannedAllocationMutation.mutate({ id: editingAllocation.id, data });
+      } else {
+        updateFreelanceAllocationMutation.mutate({ id: editingAllocation.id, data });
+      }
+    } else if (allocationTarget) {
+      if (allocationTarget.type === "planned") {
+        createPlannedAllocationMutation.mutate({ ...data, plannedPortfolioId: allocationTarget.portfolioId });
+      } else {
+        createFreelanceAllocationMutation.mutate({ ...data, freelancePortfolioId: allocationTarget.portfolioId });
+      }
     }
   };
 
@@ -416,7 +455,23 @@ export default function ModelPortfolios() {
 
   const handleAddAllocation = (type: "planned" | "freelance", portfolioId: string) => {
     setAllocationTarget({ type, portfolioId });
+    setEditingAllocation(null);
     allocationForm.reset();
+    setIsAllocationDialogOpen(true);
+  };
+
+  const handleEditAllocation = (type: "planned" | "freelance", allocation: { id: string; universalHoldingId: string; targetPercentage: string }) => {
+    setEditingAllocation({
+      id: allocation.id,
+      type,
+      universalHoldingId: allocation.universalHoldingId,
+      targetPercentage: Number(allocation.targetPercentage),
+    });
+    setAllocationTarget(null);
+    allocationForm.reset({
+      universalHoldingId: allocation.universalHoldingId,
+      targetPercentage: Number(allocation.targetPercentage),
+    });
     setIsAllocationDialogOpen(true);
   };
 
@@ -876,7 +931,7 @@ export default function ModelPortfolios() {
                             <TableRow>
                               <TableHead>Holding</TableHead>
                               <TableHead className="text-right">Allocation</TableHead>
-                              <TableHead className="w-[60px]"></TableHead>
+                              <TableHead className="w-[80px]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -892,9 +947,14 @@ export default function ModelPortfolios() {
                                   {Number(allocation.targetPercentage).toFixed(2)}%
                                 </TableCell>
                                 <TableCell>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deletePlannedAllocationMutation.mutate(allocation.id)} data-testid={`button-delete-allocation-${allocation.id}`}>
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
+                                  <div className="flex items-center gap-1">
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={() => handleEditAllocation("planned", allocation)} data-testid={`button-edit-allocation-${allocation.id}`}>
+                                      <Edit className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deletePlannedAllocationMutation.mutate(allocation.id)} data-testid={`button-delete-allocation-${allocation.id}`}>
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -1024,7 +1084,7 @@ export default function ModelPortfolios() {
                             <TableRow>
                               <TableHead>Holding</TableHead>
                               <TableHead className="text-right">Allocation</TableHead>
-                              <TableHead className="w-[60px]"></TableHead>
+                              <TableHead className="w-[80px]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1040,9 +1100,14 @@ export default function ModelPortfolios() {
                                   {Number(allocation.targetPercentage).toFixed(2)}%
                                 </TableCell>
                                 <TableCell>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteFreelanceAllocationMutation.mutate(allocation.id)} data-testid={`button-delete-freelance-allocation-${allocation.id}`}>
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
+                                  <div className="flex items-center gap-1">
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground" onClick={() => handleEditAllocation("freelance", allocation)} data-testid={`button-edit-freelance-allocation-${allocation.id}`}>
+                                      <Edit className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteFreelanceAllocationMutation.mutate(allocation.id)} data-testid={`button-delete-freelance-allocation-${allocation.id}`}>
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -1066,14 +1131,15 @@ export default function ModelPortfolios() {
         setIsAllocationDialogOpen(open);
         if (!open) {
           setAllocationTarget(null);
+          setEditingAllocation(null);
           allocationForm.reset();
         }
       }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Allocation</DialogTitle>
+            <DialogTitle>{editingAllocation ? "Edit Allocation" : "Add Allocation"}</DialogTitle>
             <DialogDescription>
-              Select a holding and set the target percentage
+              {editingAllocation ? "Update the target percentage for this holding" : "Select a holding and set the target percentage"}
             </DialogDescription>
           </DialogHeader>
           <Form {...allocationForm}>
@@ -1084,7 +1150,7 @@ export default function ModelPortfolios() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Holding</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!!editingAllocation}>
                       <FormControl>
                         <SelectTrigger data-testid="select-holding">
                           <SelectValue placeholder="Select a holding" />
@@ -1115,8 +1181,10 @@ export default function ModelPortfolios() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={createPlannedAllocationMutation.isPending || createFreelanceAllocationMutation.isPending} data-testid="button-submit-allocation">
-                {createPlannedAllocationMutation.isPending || createFreelanceAllocationMutation.isPending ? "Adding..." : "Add Allocation"}
+              <Button type="submit" className="w-full" disabled={createPlannedAllocationMutation.isPending || createFreelanceAllocationMutation.isPending || updatePlannedAllocationMutation.isPending || updateFreelanceAllocationMutation.isPending} data-testid="button-submit-allocation">
+                {(createPlannedAllocationMutation.isPending || createFreelanceAllocationMutation.isPending || updatePlannedAllocationMutation.isPending || updateFreelanceAllocationMutation.isPending) 
+                  ? (editingAllocation ? "Saving..." : "Adding...") 
+                  : (editingAllocation ? "Save Changes" : "Add Allocation")}
               </Button>
             </form>
           </Form>
