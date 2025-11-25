@@ -866,24 +866,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { accountType, accountId } = req.params;
       const { ticker, targetPercentage } = req.body;
       
-      if (!ticker || targetPercentage === undefined || targetPercentage === null) {
-        return res.status(400).json({ message: "Ticker and targetPercentage are required" });
+      if (!ticker) {
+        return res.status(400).json({ message: "Ticker is required" });
       }
       
       if (!['individual', 'corporate', 'joint'].includes(accountType)) {
         return res.status(400).json({ message: "Invalid account type" });
       }
       
-      const targetPct = parseFloat(targetPercentage);
+      // Handle empty/null/undefined as 0 for deletion
+      const targetPctStr = (targetPercentage === undefined || targetPercentage === null || targetPercentage === "") 
+        ? "0" 
+        : String(targetPercentage);
+      const targetPct = parseFloat(targetPctStr);
+      
       if (isNaN(targetPct) || targetPct < 0 || targetPct > 100) {
         return res.status(400).json({ message: "Target percentage must be between 0 and 100" });
       }
       
       // Check if ticker exists in Universal Holdings
       let holding = await storage.getUniversalHoldingByTicker(ticker.toUpperCase());
+      let wasAutoAdded = false;
       
-      // If not, auto-add to Universal Holdings with "auto_added" category
-      if (!holding) {
+      // If ticker doesn't exist and we're setting a non-zero target, auto-add to Universal Holdings
+      if (!holding && targetPct > 0) {
         holding = await storage.createUniversalHolding({
           ticker: ticker.toUpperCase(),
           name: `${ticker.toUpperCase()} (Auto-added)`,
@@ -893,6 +899,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           dividendPayout: "none",
           price: "0",
           description: "Automatically added from holdings table. Please update details.",
+        });
+        wasAutoAdded = true;
+      }
+      
+      // If target is 0 or less and ticker doesn't exist in Universal Holdings, nothing to delete
+      if (targetPct <= 0 && !holding) {
+        return res.json({ 
+          success: true, 
+          action: 'none',
+          message: 'No allocation to remove' 
         });
       }
       
@@ -910,11 +926,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           break;
       }
       
-      const existingAllocation = existingAllocations?.find(a => a.universalHoldingId === holding!.id);
+      const existingAllocation = holding ? existingAllocations?.find(a => a.universalHoldingId === holding!.id) : undefined;
       
       let allocation;
-      if (targetPct === 0) {
-        // If target is 0, delete the allocation if it exists
+      if (targetPct <= 0) {
+        // If target is 0 or less, delete the allocation if it exists
         if (existingAllocation) {
           await storage.deleteAccountTargetAllocation(existingAllocation.id);
           return res.json({ 
@@ -934,23 +950,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allocation = await storage.updateAccountTargetAllocation(existingAllocation.id, {
           targetPercentage: targetPct.toString(),
         });
+        return res.json({
+          success: true,
+          action: 'updated',
+          allocation,
+          holdingAutoAdded: false,
+        });
       } else {
         // Create new allocation
         allocation = await storage.createAccountTargetAllocation({
-          universalHoldingId: holding.id,
+          universalHoldingId: holding!.id,
           targetPercentage: targetPct.toString(),
           individualAccountId: accountType === 'individual' ? accountId : null,
           corporateAccountId: accountType === 'corporate' ? accountId : null,
           jointAccountId: accountType === 'joint' ? accountId : null,
         });
+        return res.json({
+          success: true,
+          action: 'created',
+          allocation,
+          holdingAutoAdded: wasAutoAdded,
+        });
       }
-      
-      res.json({
-        success: true,
-        action: existingAllocation ? 'updated' : 'created',
-        allocation,
-        holdingAutoAdded: !existingAllocation && holding.category === 'auto_added',
-      });
     } catch (error: any) {
       console.error("Error setting inline target allocation:", error);
       res.status(500).json({ message: "Failed to set target allocation", error: error.message });

@@ -82,6 +82,8 @@ export default function AccountDetails() {
   const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
+  const [editingInlineTarget, setEditingInlineTarget] = useState<string | null>(null);
+  const [inlineTargetValue, setInlineTargetValue] = useState<string>("");
 
   const accountType = params?.accountType as "individual" | "corporate" | "joint" | undefined;
   const accountId = params?.accountId;
@@ -410,6 +412,127 @@ export default function AccountDetails() {
       });
     },
   });
+
+  // Inline target allocation mutation
+  const inlineTargetMutation = useMutation({
+    mutationFn: async ({ ticker, targetPercentage }: { ticker: string; targetPercentage: string }) => {
+      return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/inline-target-allocation`, {
+        ticker,
+        targetPercentage,
+      });
+    },
+    onSuccess: async (data: any) => {
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/universal-holdings'] });
+      
+      setEditingInlineTarget(null);
+      setInlineTargetValue("");
+      
+      if (data.holdingAutoAdded) {
+        toast({
+          title: "Target Set",
+          description: `Target allocation set. Ticker was automatically added to Universal Holdings.`,
+        });
+      } else if (data.action === 'deleted') {
+        toast({
+          title: "Target Removed",
+          description: "Target allocation has been removed.",
+        });
+      } else {
+        toast({
+          title: "Target Updated",
+          description: `Target allocation ${data.action === 'created' ? 'added' : 'updated'} successfully.`,
+        });
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to set target allocation",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleInlineTargetEdit = (position: Position) => {
+    const comparison = comparisonData?.comparison.find(c => c.ticker === position.symbol);
+    setEditingInlineTarget(position.id);
+    setInlineTargetValue(comparison?.targetPercentage?.toString() || "");
+  };
+
+  const handleInlineTargetSave = (position: Position) => {
+    const trimmedValue = inlineTargetValue.trim();
+    const comparison = comparisonData?.comparison.find(c => c.ticker === position.symbol);
+    const currentTarget = comparison?.targetPercentage || 0;
+    
+    // Empty or blank means delete the allocation (only if one exists)
+    if (trimmedValue === "") {
+      if (currentTarget > 0) {
+        inlineTargetMutation.mutate({
+          ticker: position.symbol,
+          targetPercentage: "",
+        });
+      } else {
+        // No allocation exists, just cancel editing
+        handleInlineTargetCancel();
+      }
+      return;
+    }
+    
+    const targetPct = parseFloat(trimmedValue);
+    if (isNaN(targetPct)) {
+      toast({
+        title: "Invalid Value",
+        description: "Please enter a valid number",
+        variant: "destructive",
+      });
+      // Reset to original value
+      setInlineTargetValue(currentTarget > 0 ? currentTarget.toString() : "");
+      return;
+    }
+    
+    if (targetPct < 0 || targetPct > 100) {
+      toast({
+        title: "Invalid Value",
+        description: "Target percentage must be between 0 and 100",
+        variant: "destructive",
+      });
+      // Reset to original value
+      setInlineTargetValue(currentTarget > 0 ? currentTarget.toString() : "");
+      return;
+    }
+    
+    // If setting to 0, treat as deletion
+    if (targetPct === 0) {
+      if (currentTarget > 0) {
+        inlineTargetMutation.mutate({
+          ticker: position.symbol,
+          targetPercentage: "",
+        });
+      } else {
+        handleInlineTargetCancel();
+      }
+      return;
+    }
+    
+    // Only save if value actually changed
+    if (Math.abs(targetPct - currentTarget) < 0.01) {
+      handleInlineTargetCancel();
+      return;
+    }
+    
+    inlineTargetMutation.mutate({
+      ticker: position.symbol,
+      targetPercentage: trimmedValue,
+    });
+  };
+
+  const handleInlineTargetCancel = () => {
+    setEditingInlineTarget(null);
+    setInlineTargetValue("");
+  };
 
   const onAllocationSubmit = (data: AllocationFormData) => {
     if (editingAllocation) {
@@ -1103,9 +1226,9 @@ export default function AccountDetails() {
                       <TableHead className="text-center">Status</TableHead>
                       <TableHead className="text-right">Variance</TableHead>
                       <TableHead className="text-right">Actual %</TableHead>
-                      <TableHead className="text-right">Target %</TableHead>
                     </>
                   )}
+                  <TableHead className="text-right">Target %</TableHead>
                   <TableHead>Symbol</TableHead>
                   <TableHead className="text-right">Qty</TableHead>
                   <TableHead className="text-right">Price</TableHead>
@@ -1117,6 +1240,7 @@ export default function AccountDetails() {
                 {positions.map((position) => {
                   const comparison = comparisonData?.comparison.find(c => c.ticker === position.symbol);
                   const marketValue = Number(position.quantity) * Number(position.currentPrice);
+                  const isEditingTarget = editingInlineTarget === position.id;
                   
                   return (
                     <TableRow key={position.id} data-testid={`row-position-${position.id}`}>
@@ -1165,11 +1289,55 @@ export default function AccountDetails() {
                           <TableCell className="text-right" data-testid={`text-actual-pct-${position.id}`}>
                             {comparison ? `${comparison.actualPercentage.toFixed(1)}%` : '-'}
                           </TableCell>
-                          <TableCell className="text-right" data-testid={`text-target-pct-${position.id}`}>
-                            {comparison && comparison.targetPercentage > 0 ? `${comparison.targetPercentage.toFixed(1)}%` : '-'}
-                          </TableCell>
                         </>
                       )}
+                      <TableCell className="text-right" data-testid={`text-target-pct-${position.id}`}>
+                        {isEditingTarget ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              max="100"
+                              value={inlineTargetValue}
+                              onChange={(e) => setInlineTargetValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleInlineTargetSave(position);
+                                if (e.key === 'Escape') handleInlineTargetCancel();
+                              }}
+                              className="w-16 h-7 text-right text-sm"
+                              data-testid={`input-target-${position.id}`}
+                              autoFocus
+                            />
+                            <span className="text-muted-foreground">%</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleInlineTargetSave(position)}
+                              disabled={inlineTargetMutation.isPending}
+                              data-testid={`button-save-target-${position.id}`}
+                            >
+                              {inlineTargetMutation.isPending ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Target className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleInlineTargetEdit(position)}
+                            className="text-right hover:bg-muted/50 px-2 py-1 rounded cursor-pointer w-full"
+                            data-testid={`button-edit-target-${position.id}`}
+                          >
+                            {comparison && comparison.targetPercentage > 0 
+                              ? `${comparison.targetPercentage.toFixed(1)}%` 
+                              : <span className="text-muted-foreground">-</span>
+                            }
+                          </button>
+                        )}
+                      </TableCell>
                       <TableCell data-testid={`text-symbol-${position.id}`}>
                         <div className="font-medium">{position.symbol}</div>
                         {comparison && (
