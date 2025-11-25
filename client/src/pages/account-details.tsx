@@ -243,8 +243,10 @@ export default function AccountDetails() {
     mutationFn: async (data: InsertPosition) => {
       return await apiRequest("POST", "/api/positions", data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       queryClient.refetchQueries({ queryKey: ["/api/households/full"] });
       toast({
         title: "Success",
@@ -265,8 +267,10 @@ export default function AccountDetails() {
     mutationFn: async ({ id, data }: { id: string; data: Partial<InsertPosition> }) => {
       return await apiRequest("PATCH", `/api/positions/${id}`, data);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       queryClient.refetchQueries({ queryKey: ["/api/households/full"] });
       toast({
         title: "Success",
@@ -287,8 +291,10 @@ export default function AccountDetails() {
     mutationFn: async (id: string) => {
       return await apiRequest("DELETE", `/api/positions/${id}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       queryClient.refetchQueries({ queryKey: ["/api/households/full"] });
       toast({
         title: "Success",
