@@ -343,16 +343,24 @@ export default function AccountDetails() {
 
   // Helper to refresh all allocation-related data
   const refreshAllocationData = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] }),
-      queryClient.invalidateQueries({ queryKey: [positionsEndpoint] }),
-    ]);
-    await Promise.all([
-      queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] }),
-      queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] }),
-      queryClient.refetchQueries({ queryKey: [positionsEndpoint] }),
-    ]);
+    // Invalidate any queries containing the account ID to catch all related data
+    await queryClient.invalidateQueries({ 
+      predicate: (query) => {
+        const key = query.queryKey;
+        if (Array.isArray(key)) {
+          // Check if any part of the key contains the account ID
+          return key.some(part => 
+            typeof part === 'string' && 
+            (part.includes(accountId || '') || 
+             part.includes('target-allocation') || 
+             part.includes('portfolio-comparison') ||
+             part.includes('positions'))
+          );
+        }
+        return false;
+      },
+      refetchType: 'active'
+    });
   };
 
   // Allocation mutations
@@ -420,7 +428,8 @@ export default function AccountDetails() {
 
   const copyFromPortfolioMutation = useMutation({
     mutationFn: async ({ portfolioId, portfolioType }: { portfolioId: string; portfolioType: "planned" | "freelance" }) => {
-      return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/copy-from-portfolio/${portfolioId}?portfolioType=${portfolioType}`);
+      const res = await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/copy-from-portfolio/${portfolioId}?portfolioType=${portfolioType}`);
+      return await res.json();
     },
     onSuccess: async (data: any) => {
       await refreshAllocationData();
@@ -444,7 +453,8 @@ export default function AccountDetails() {
   // Refresh market prices mutation
   const refreshPricesMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/refresh-prices`);
+      const res = await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/refresh-prices`);
+      return await res.json();
     },
     onSuccess: async (data: any) => {
       await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
@@ -473,10 +483,11 @@ export default function AccountDetails() {
   // Inline target allocation mutation
   const inlineTargetMutation = useMutation({
     mutationFn: async ({ ticker, targetPercentage }: { ticker: string; targetPercentage: string }) => {
-      return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/inline-target-allocation`, {
+      const res = await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/inline-target-allocation`, {
         ticker,
         targetPercentage,
       });
+      return await res.json();
     },
     onSuccess: async (data: any) => {
       await refreshAllocationData();
@@ -512,14 +523,16 @@ export default function AccountDetails() {
   });
 
   const handleInlineTargetEdit = (position: Position) => {
-    const comparison = comparisonData?.comparison.find(c => c.ticker === position.symbol);
+    const normalizedSymbol = normalizeTicker(position.symbol);
+    const comparison = comparisonData?.comparison.find(c => normalizeTicker(c.ticker) === normalizedSymbol);
     setEditingInlineTarget(position.id);
     setInlineTargetValue(comparison?.targetPercentage?.toString() || "");
   };
 
   const handleInlineTargetSave = (position: Position) => {
     const trimmedValue = inlineTargetValue.trim();
-    const comparison = comparisonData?.comparison.find(c => c.ticker === position.symbol);
+    const normalizedSymbol = normalizeTicker(position.symbol);
+    const comparison = comparisonData?.comparison.find(c => normalizeTicker(c.ticker) === normalizedSymbol);
     const currentTarget = comparison?.targetPercentage || 0;
     
     // Empty or blank means delete the allocation (only if one exists)
