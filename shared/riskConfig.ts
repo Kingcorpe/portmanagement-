@@ -2,10 +2,10 @@ export type RiskTolerance = "conservative" | "moderate" | "aggressive" | "very_a
 export type HoldingCategory = "basket_etf" | "single_etf" | "double_long_etf" | "security" | "auto_added" | "misc";
 
 export const RISK_TOLERANCE_LABELS: Record<RiskTolerance, string> = {
-  conservative: "Conservative",
-  moderate: "Moderate",
-  aggressive: "Aggressive",
-  very_aggressive: "Very Aggressive",
+  conservative: "Low",
+  moderate: "Medium",
+  aggressive: "Medium/High",
+  very_aggressive: "High",
 };
 
 export const RISK_TOLERANCE_DESCRIPTIONS: Record<RiskTolerance, string> = {
@@ -14,6 +14,8 @@ export const RISK_TOLERANCE_DESCRIPTIONS: Record<RiskTolerance, string> = {
   aggressive: "Higher risk - Growth-focused with significant exposure to higher-risk assets",
   very_aggressive: "Maximum risk - No restrictions, suitable for experienced investors",
 };
+
+export const VISIBLE_RISK_TOLERANCES: RiskTolerance[] = ["moderate", "aggressive", "very_aggressive"];
 
 export const CATEGORY_RISK_SCORES: Record<HoldingCategory, number> = {
   basket_etf: 1,

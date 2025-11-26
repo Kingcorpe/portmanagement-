@@ -60,6 +60,7 @@ import {
   RISK_TOLERANCE_DESCRIPTIONS,
   RISK_LIMITS,
   CATEGORY_LABELS,
+  VISIBLE_RISK_TOLERANCES,
   validateRiskLimits,
   type RiskTolerance,
   type HoldingCategory,
@@ -1096,10 +1097,10 @@ export default function AccountDetails() {
                 <SelectValue placeholder="Select risk tolerance" />
               </SelectTrigger>
               <SelectContent>
-                {(Object.entries(RISK_TOLERANCE_LABELS) as [RiskTolerance, string][]).map(([value, label]) => (
+                {VISIBLE_RISK_TOLERANCES.map((value) => (
                   <SelectItem key={value} value={value}>
                     <div className="flex flex-col">
-                      <span>{label}</span>
+                      <span>{RISK_TOLERANCE_LABELS[value]}</span>
                     </div>
                   </SelectItem>
                 ))}
