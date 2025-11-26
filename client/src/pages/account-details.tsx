@@ -91,6 +91,7 @@ export default function AccountDetails() {
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<string>("");
   const [selectedPortfolioType, setSelectedPortfolioType] = useState<"planned" | "freelance">("planned");
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [editingInlineTarget, setEditingInlineTarget] = useState<string | null>(null);
   const [inlineTargetValue, setInlineTargetValue] = useState<string>("");
   const [holdingComboboxOpen, setHoldingComboboxOpen] = useState(false);
@@ -645,12 +646,10 @@ export default function AccountDetails() {
     }
   };
 
-  // File Upload handler (CSV and Excel)
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  // Process file (CSV and Excel)
+  const processFile = async (file: File) => {
     setIsUploading(true);
+    setIsDragging(false);
 
     try {
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
@@ -804,8 +803,50 @@ export default function AccountDetails() {
       });
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // File input change handler
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      processFile(file);
       // Reset file input
       event.target.value = '';
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (ext === 'csv' || ext === 'xlsx' || ext === 'xls') {
+        processFile(file);
+      } else {
+        toast({
+          title: "Invalid File",
+          description: "Please drop a CSV or Excel file (.csv, .xlsx, .xls)",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -1558,16 +1599,33 @@ export default function AccountDetails() {
         </CardContent>
       </Card>
 
-      {/* Footer Actions */}
-      <div className="flex items-center justify-center gap-3 pt-12">
+      {/* Drag and Drop Zone */}
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+          isDragging 
+            ? "border-primary bg-primary/5" 
+            : "border-muted-foreground/25 hover:border-muted-foreground/50"
+        }`}
+        data-testid="dropzone-csv"
+      >
         <input
           type="file"
           accept=".csv,.xlsx,.xls"
-          onChange={handleFileUpload}
+          onChange={handleFileInputChange}
           className="hidden"
           id="file-upload"
           data-testid="input-file-upload"
         />
+        <FileSpreadsheet className={`mx-auto h-10 w-10 mb-3 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
+        <p className={`text-sm font-medium mb-1 ${isDragging ? "text-primary" : "text-foreground"}`}>
+          {isDragging ? "Drop file here" : "Drag and drop a CSV or Excel file"}
+        </p>
+        <p className="text-xs text-muted-foreground mb-4">
+          or click the button below to browse
+        </p>
         <Button
           variant="outline"
           onClick={() => document.getElementById('file-upload')?.click()}
@@ -1575,8 +1633,12 @@ export default function AccountDetails() {
           data-testid="button-upload-file"
         >
           <FileSpreadsheet className="mr-2 h-4 w-4" />
-          {isUploading ? "Importing..." : "Import CSV"}
+          {isUploading ? "Importing..." : "Browse Files"}
         </Button>
+      </div>
+
+      {/* Footer Actions */}
+      <div className="flex items-center justify-center gap-3 pt-6">
         <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
           <DialogTrigger asChild>
             <Button variant="outline" data-testid="button-add-position">
