@@ -39,6 +39,26 @@ export const users = pgTable("users", {
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
+// User settings table (for per-user configuration)
+export const userSettings = pgTable("user_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
+  reportEmail: varchar("report_email"),
+  webhookSecret: varchar("webhook_secret").notNull().default(sql`replace(gen_random_uuid()::text, '-', '')`),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const userSettingsRelations = relations(userSettings, ({ one }) => ({
+  user: one(users, {
+    fields: [userSettings.userId],
+    references: [users.id],
+  }),
+}));
+
+export type UserSettings = typeof userSettings.$inferSelect;
+export type InsertUserSettings = typeof userSettings.$inferInsert;
+
 // Household category enum
 export const householdCategoryEnum = pgEnum("household_category", [
   "evergreen",
@@ -51,17 +71,52 @@ export const householdCategoryEnum = pgEnum("household_category", [
 // Households table
 export const households = pgTable("households", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }), // Owner of the household
   name: text("name").notNull(),
   category: householdCategoryEnum("category"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const householdsRelations = relations(households, ({ many }) => ({
+export const householdsRelations = relations(households, ({ one, many }) => ({
+  owner: one(users, {
+    fields: [households.userId],
+    references: [users.id],
+  }),
   individuals: many(individuals),
   corporations: many(corporations),
   jointAccounts: many(jointAccounts),
+  shares: many(householdShares),
 }));
+
+// Share access level enum
+export const shareAccessLevelEnum = pgEnum("share_access_level", [
+  "viewer",   // Can view household data only
+  "editor",   // Can view and edit household data
+]);
+
+// Household shares table (for sharing households with specific users)
+export const householdShares = pgTable("household_shares", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  householdId: varchar("household_id").notNull().references(() => households.id, { onDelete: 'cascade' }),
+  sharedWithUserId: varchar("shared_with_user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  accessLevel: shareAccessLevelEnum("access_level").notNull().default("viewer"),
+  sharedAt: timestamp("shared_at").defaultNow(),
+});
+
+export const householdSharesRelations = relations(householdShares, ({ one }) => ({
+  household: one(households, {
+    fields: [householdShares.householdId],
+    references: [households.id],
+  }),
+  sharedWithUser: one(users, {
+    fields: [householdShares.sharedWithUserId],
+    references: [users.id],
+  }),
+}));
+
+export type HouseholdShare = typeof householdShares.$inferSelect;
+export type InsertHouseholdShare = typeof householdShares.$inferInsert;
 
 // Individuals table
 export const individuals = pgTable("individuals", {
@@ -430,6 +485,21 @@ export const tradesRelations = relations(trades, ({ one }) => ({
 }));
 
 // Zod schemas for validation
+
+// User Settings insert schema
+export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  webhookSecret: true, // Auto-generated
+});
+
+// Household Share insert schema
+export const insertHouseholdShareSchema = createInsertSchema(householdShares).omit({
+  id: true,
+  sharedAt: true,
+});
+
 export const insertHouseholdSchema = createInsertSchema(households).pick({
   name: true,
   category: true,

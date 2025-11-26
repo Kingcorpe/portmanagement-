@@ -2,12 +2,15 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { generatePortfolioRebalanceReport } from "./pdf-report";
 import { sendEmailWithAttachment } from "./gmail";
+import { eq } from "drizzle-orm";
 import {
+  users,
   insertHouseholdSchema,
   insertIndividualSchema,
   insertCorporationSchema,
@@ -60,9 +63,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Household routes
-  app.get('/api/households', isAuthenticated, async (req, res) => {
+  app.get('/api/households', isAuthenticated, async (req: any, res) => {
     try {
-      const households = await storage.getAllHouseholds();
+      const userId = req.user.claims.sub;
+      const households = await storage.getAllHouseholds(userId);
       res.json(households);
     } catch (error) {
       console.error("Error fetching households:", error);
@@ -70,9 +74,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/households/full', isAuthenticated, async (req, res) => {
+  app.get('/api/households/full', isAuthenticated, async (req: any, res) => {
     try {
-      const households = await storage.getAllHouseholdsWithDetails();
+      const userId = req.user.claims.sub;
+      const households = await storage.getAllHouseholdsWithDetails(userId);
       console.log('[DEBUG] Sample account from first household:', JSON.stringify(households[0]?.individuals[0]?.accounts[0], null, 2));
       res.json(households);
     } catch (error) {
@@ -81,10 +86,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/households', isAuthenticated, async (req, res) => {
+  app.post('/api/households', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const parsed = insertHouseholdSchema.parse(req.body);
-      const household = await storage.createHousehold(parsed);
+      // Create household with the current user as owner
+      const household = await storage.createHousehold({ ...parsed, userId });
       res.json(household);
     } catch (error: any) {
       console.error("Error creating household:", error);
@@ -135,13 +142,166 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/households/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/households/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      // Only allow owner to delete household
+      const household = await storage.getHousehold(req.params.id);
+      if (!household) {
+        return res.status(404).json({ message: "Household not found" });
+      }
+      if (household.userId !== userId) {
+        return res.status(403).json({ message: "Only the owner can delete a household" });
+      }
       await storage.deleteHousehold(req.params.id);
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting household:", error);
       res.status(500).json({ message: "Failed to delete household" });
+    }
+  });
+
+  // User Settings routes
+  app.get('/api/user/settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      let settings = await storage.getUserSettings(userId);
+      
+      // Auto-create settings if they don't exist
+      if (!settings) {
+        settings = await storage.createUserSettings({ userId });
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching user settings:", error);
+      res.status(500).json({ message: "Failed to fetch user settings" });
+    }
+  });
+
+  app.patch('/api/user/settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { reportEmail } = req.body;
+      
+      // Ensure settings exist
+      let settings = await storage.getUserSettings(userId);
+      if (!settings) {
+        settings = await storage.createUserSettings({ userId, reportEmail });
+      } else {
+        settings = await storage.updateUserSettings(userId, { reportEmail });
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating user settings:", error);
+      res.status(500).json({ message: "Failed to update user settings" });
+    }
+  });
+
+  app.post('/api/user/settings/regenerate-webhook-secret', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Ensure settings exist
+      let settings = await storage.getUserSettings(userId);
+      if (!settings) {
+        settings = await storage.createUserSettings({ userId });
+      }
+      
+      settings = await storage.regenerateWebhookSecret(userId);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error regenerating webhook secret:", error);
+      res.status(500).json({ message: "Failed to regenerate webhook secret" });
+    }
+  });
+
+  // Household Sharing routes
+  app.get('/api/households/:id/shares', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const householdId = req.params.id;
+      
+      // Only owner can view shares
+      const household = await storage.getHousehold(householdId);
+      if (!household) {
+        return res.status(404).json({ message: "Household not found" });
+      }
+      if (household.userId !== userId) {
+        return res.status(403).json({ message: "Only the owner can view shares" });
+      }
+      
+      const shares = await storage.getHouseholdShares(householdId);
+      res.json(shares);
+    } catch (error) {
+      console.error("Error fetching household shares:", error);
+      res.status(500).json({ message: "Failed to fetch household shares" });
+    }
+  });
+
+  app.post('/api/households/:id/shares', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const householdId = req.params.id;
+      const { email, accessLevel = 'viewer' } = req.body;
+      
+      // Only owner can share
+      const household = await storage.getHousehold(householdId);
+      if (!household) {
+        return res.status(404).json({ message: "Household not found" });
+      }
+      if (household.userId !== userId) {
+        return res.status(403).json({ message: "Only the owner can share a household" });
+      }
+      
+      // Find user by email
+      const [userToShare] = await db.select().from(users).where(eq(users.email, email));
+      if (!userToShare) {
+        return res.status(404).json({ message: "User not found with that email" });
+      }
+      
+      // Can't share with yourself
+      if (userToShare.id === userId) {
+        return res.status(400).json({ message: "Cannot share with yourself" });
+      }
+      
+      const share = await storage.shareHousehold({
+        householdId,
+        sharedWithUserId: userToShare.id,
+        accessLevel,
+      });
+      
+      res.json(share);
+    } catch (error: any) {
+      console.error("Error sharing household:", error);
+      // Handle duplicate share
+      if (error.code === '23505') {
+        return res.status(400).json({ message: "Household already shared with this user" });
+      }
+      res.status(500).json({ message: "Failed to share household" });
+    }
+  });
+
+  app.delete('/api/households/:id/shares/:sharedWithUserId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id: householdId, sharedWithUserId } = req.params;
+      
+      // Only owner can remove shares
+      const household = await storage.getHousehold(householdId);
+      if (!household) {
+        return res.status(404).json({ message: "Household not found" });
+      }
+      if (household.userId !== userId) {
+        return res.status(403).json({ message: "Only the owner can remove shares" });
+      }
+      
+      await storage.removeHouseholdShare(householdId, sharedWithUserId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error removing household share:", error);
+      res.status(500).json({ message: "Failed to remove household share" });
     }
   });
 

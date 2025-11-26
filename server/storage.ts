@@ -2,6 +2,8 @@
 import {
   users,
   households,
+  householdShares,
+  userSettings,
   individuals,
   corporations,
   individualAccounts,
@@ -22,6 +24,10 @@ import {
   type UpsertUser,
   type Household,
   type InsertHousehold,
+  type HouseholdShare,
+  type InsertHouseholdShare,
+  type UserSettings,
+  type InsertUserSettings,
   type Individual,
   type InsertIndividual,
   type Corporation,
@@ -60,21 +66,35 @@ import {
   type InsertLibraryDocument,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, inArray, ilike, or, sql } from "drizzle-orm";
+import { eq, desc, inArray, ilike, or, and, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
 
-  // Household operations
-  createHousehold(household: InsertHousehold): Promise<Household>;
+  // User Settings operations
+  getUserSettings(userId: string): Promise<UserSettings | undefined>;
+  createUserSettings(settings: InsertUserSettings): Promise<UserSettings>;
+  updateUserSettings(userId: string, settings: Partial<InsertUserSettings>): Promise<UserSettings>;
+  getUserSettingsByWebhookSecret(secret: string): Promise<UserSettings | undefined>;
+  regenerateWebhookSecret(userId: string): Promise<UserSettings>;
+
+  // Household Sharing operations
+  shareHousehold(share: InsertHouseholdShare): Promise<HouseholdShare>;
+  getHouseholdShares(householdId: string): Promise<(HouseholdShare & { sharedWithUser: User })[]>;
+  removeHouseholdShare(householdId: string, sharedWithUserId: string): Promise<void>;
+  getSharedHouseholdsForUser(userId: string): Promise<string[]>; // Returns household IDs
+
+  // Household operations (with optional user filtering)
+  createHousehold(household: InsertHousehold & { userId?: string }): Promise<Household>;
   getHousehold(id: string): Promise<Household | undefined>;
-  getAllHouseholds(): Promise<Household[]>;
-  getAllHouseholdsWithDetails(): Promise<HouseholdWithDetails[]>;
+  getAllHouseholds(userId?: string): Promise<Household[]>;
+  getAllHouseholdsWithDetails(userId?: string): Promise<HouseholdWithDetails[]>;
   getHouseholdWithDetails(id: string): Promise<HouseholdWithDetails | null>;
   updateHousehold(id: string, household: Partial<InsertHousehold>): Promise<Household>;
   deleteHousehold(id: string): Promise<void>;
+  canUserAccessHousehold(userId: string, householdId: string): Promise<boolean>;
 
   // Individual operations
   createIndividual(individual: InsertIndividual): Promise<Individual>;
@@ -220,8 +240,101 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  // User Settings operations
+  async getUserSettings(userId: string): Promise<UserSettings | undefined> {
+    const [settings] = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
+    return settings;
+  }
+
+  async createUserSettings(settingsData: InsertUserSettings): Promise<UserSettings> {
+    const [settings] = await db.insert(userSettings).values(settingsData).returning();
+    return settings;
+  }
+
+  async updateUserSettings(userId: string, settingsData: Partial<InsertUserSettings>): Promise<UserSettings> {
+    const [settings] = await db
+      .update(userSettings)
+      .set({ ...settingsData, updatedAt: new Date() })
+      .where(eq(userSettings.userId, userId))
+      .returning();
+    return settings;
+  }
+
+  async getUserSettingsByWebhookSecret(secret: string): Promise<UserSettings | undefined> {
+    const [settings] = await db.select().from(userSettings).where(eq(userSettings.webhookSecret, secret));
+    return settings;
+  }
+
+  async regenerateWebhookSecret(userId: string): Promise<UserSettings> {
+    const newSecret = crypto.randomUUID().replace(/-/g, '');
+    const [settings] = await db
+      .update(userSettings)
+      .set({ webhookSecret: newSecret, updatedAt: new Date() })
+      .where(eq(userSettings.userId, userId))
+      .returning();
+    return settings;
+  }
+
+  // Household Sharing operations
+  async shareHousehold(shareData: InsertHouseholdShare): Promise<HouseholdShare> {
+    const [share] = await db.insert(householdShares).values(shareData).returning();
+    return share;
+  }
+
+  async getHouseholdShares(householdId: string): Promise<(HouseholdShare & { sharedWithUser: User })[]> {
+    const shares = await db
+      .select({
+        id: householdShares.id,
+        householdId: householdShares.householdId,
+        sharedWithUserId: householdShares.sharedWithUserId,
+        accessLevel: householdShares.accessLevel,
+        sharedAt: householdShares.sharedAt,
+        sharedWithUser: users,
+      })
+      .from(householdShares)
+      .innerJoin(users, eq(householdShares.sharedWithUserId, users.id))
+      .where(eq(householdShares.householdId, householdId));
+    return shares;
+  }
+
+  async removeHouseholdShare(householdId: string, sharedWithUserId: string): Promise<void> {
+    await db
+      .delete(householdShares)
+      .where(and(
+        eq(householdShares.householdId, householdId),
+        eq(householdShares.sharedWithUserId, sharedWithUserId)
+      ));
+  }
+
+  async getSharedHouseholdsForUser(userId: string): Promise<string[]> {
+    const shares = await db
+      .select({ householdId: householdShares.householdId })
+      .from(householdShares)
+      .where(eq(householdShares.sharedWithUserId, userId));
+    return shares.map(s => s.householdId);
+  }
+
+  async canUserAccessHousehold(userId: string, householdId: string): Promise<boolean> {
+    // Check if user owns the household
+    const [household] = await db
+      .select()
+      .from(households)
+      .where(and(eq(households.id, householdId), eq(households.userId, userId)));
+    if (household) return true;
+
+    // Check if household is shared with user
+    const [share] = await db
+      .select()
+      .from(householdShares)
+      .where(and(
+        eq(householdShares.householdId, householdId),
+        eq(householdShares.sharedWithUserId, userId)
+      ));
+    return !!share;
+  }
+
   // Household operations
-  async createHousehold(householdData: InsertHousehold): Promise<Household> {
+  async createHousehold(householdData: InsertHousehold & { userId?: string }): Promise<Household> {
     const [household] = await db.insert(households).values(householdData).returning();
     return household;
   }
@@ -231,13 +344,48 @@ export class DatabaseStorage implements IStorage {
     return household;
   }
 
-  async getAllHouseholds(): Promise<Household[]> {
-    return await db.select().from(households).orderBy(desc(households.createdAt));
+  async getAllHouseholds(userId?: string): Promise<Household[]> {
+    if (!userId) {
+      // No user filter - return all (for backward compatibility during migration)
+      return await db.select().from(households).orderBy(desc(households.createdAt));
+    }
+
+    // Get households owned by user
+    const ownedHouseholds = await db
+      .select()
+      .from(households)
+      .where(eq(households.userId, userId))
+      .orderBy(desc(households.createdAt));
+
+    // Get households shared with user
+    const sharedHouseholdIds = await this.getSharedHouseholdsForUser(userId);
+    
+    if (sharedHouseholdIds.length === 0) {
+      return ownedHouseholds;
+    }
+
+    const sharedHouseholds = await db
+      .select()
+      .from(households)
+      .where(inArray(households.id, sharedHouseholdIds))
+      .orderBy(desc(households.createdAt));
+
+    // Combine and deduplicate
+    const allHouseholds = [...ownedHouseholds];
+    for (const shared of sharedHouseholds) {
+      if (!allHouseholds.find(h => h.id === shared.id)) {
+        allHouseholds.push(shared);
+      }
+    }
+
+    return allHouseholds.sort((a, b) => 
+      (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
+    );
   }
 
-  async getAllHouseholdsWithDetails(): Promise<HouseholdWithDetails[]> {
-    // Fetch all households
-    const allHouseholds = await this.getAllHouseholds();
+  async getAllHouseholdsWithDetails(userId?: string): Promise<HouseholdWithDetails[]> {
+    // Fetch all households (filtered by user if provided)
+    const allHouseholds = await this.getAllHouseholds(userId);
     
     if (allHouseholds.length === 0) {
       return [];
