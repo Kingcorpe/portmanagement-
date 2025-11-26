@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -95,6 +95,9 @@ export default function AccountDetails() {
   const [inlineTargetValue, setInlineTargetValue] = useState<string>("");
   const [holdingComboboxOpen, setHoldingComboboxOpen] = useState(false);
   const [isTargetAllocationsOpen, setIsTargetAllocationsOpen] = useState(false);
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const [emailAddress, setEmailAddress] = useState("");
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const accountType = params?.accountType as "individual" | "corporate" | "joint" | undefined;
   const accountId = params?.accountId;
@@ -1219,25 +1222,37 @@ export default function AccountDetails() {
               All positions with target allocation comparison
             </CardDescription>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refreshPricesMutation.mutate()}
-            disabled={refreshPricesMutation.isPending || positions.length === 0}
-            data-testid="button-refresh-prices"
-          >
-            {refreshPricesMutation.isPending ? (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Refreshing...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh Prices
-              </>
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEmailDialogOpen(true)}
+              disabled={positions.length === 0}
+              data-testid="button-email-report"
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Email Report
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refreshPricesMutation.mutate()}
+              disabled={refreshPricesMutation.isPending || positions.length === 0}
+              data-testid="button-refresh-prices"
+            >
+              {refreshPricesMutation.isPending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh Prices
+                </>
+              )}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Summary Stats */}
@@ -1650,6 +1665,93 @@ export default function AccountDetails() {
                 </div>
               </form>
             </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Email Report Dialog */}
+        <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Email Portfolio Report</DialogTitle>
+              <DialogDescription>
+                Send a PDF report of this portfolio's rebalancing actions to an email address.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <label htmlFor="email" className="text-sm font-medium">Email Address</label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="example@email.com"
+                  value={emailAddress}
+                  onChange={(e) => setEmailAddress(e.target.value)}
+                  data-testid="input-email-address"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsEmailDialogOpen(false);
+                    setEmailAddress("");
+                  }}
+                  data-testid="button-cancel-email"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    if (!emailAddress || !emailAddress.includes('@')) {
+                      toast({
+                        title: "Invalid Email",
+                        description: "Please enter a valid email address",
+                        variant: "destructive"
+                      });
+                      return;
+                    }
+                    
+                    setIsSendingEmail(true);
+                    try {
+                      const response = await apiRequest(
+                        'POST',
+                        `/api/accounts/${accountType}/${accountId}/email-report`,
+                        { email: emailAddress }
+                      );
+                      
+                      toast({
+                        title: "Report Sent",
+                        description: `Portfolio report has been sent to ${emailAddress}`
+                      });
+                      setIsEmailDialogOpen(false);
+                      setEmailAddress("");
+                    } catch (error: any) {
+                      toast({
+                        title: "Failed to Send",
+                        description: error.message || "Could not send the report. Please try again.",
+                        variant: "destructive"
+                      });
+                    } finally {
+                      setIsSendingEmail(false);
+                    }
+                  }}
+                  disabled={isSendingEmail || !emailAddress}
+                  data-testid="button-send-email"
+                >
+                  {isSendingEmail ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Send Report
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

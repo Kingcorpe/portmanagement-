@@ -5,6 +5,8 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
+import { generatePortfolioRebalanceReport } from "./pdf-report";
+import { sendEmailWithAttachment } from "./gmail";
 import {
   insertHouseholdSchema,
   insertIndividualSchema,
@@ -1856,6 +1858,215 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting library document:", error);
       res.status(500).json({ message: "Failed to delete library document" });
+    }
+  });
+
+  // Email portfolio rebalancing report
+  app.post('/api/accounts/:accountType/:accountId/email-report', isAuthenticated, async (req: any, res) => {
+    try {
+      const { accountType, accountId } = req.params;
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email address is required" });
+      }
+      
+      // Get account, positions, and target allocations
+      let account: any;
+      let positions: any[];
+      let targetAllocations: any[];
+      let ownerName = '';
+      let householdName = '';
+      
+      switch (accountType) {
+        case 'individual':
+          account = await storage.getIndividualAccount(accountId);
+          positions = await storage.getPositionsByIndividualAccount(accountId);
+          targetAllocations = await storage.getAccountTargetAllocationsByIndividualAccount(accountId);
+          if (account) {
+            const individual = await storage.getIndividual(account.individualId);
+            if (individual) {
+              ownerName = individual.name;
+              const household = await storage.getHousehold(individual.householdId);
+              householdName = household?.name || '';
+            }
+          }
+          break;
+        case 'corporate':
+          account = await storage.getCorporateAccount(accountId);
+          positions = await storage.getPositionsByCorporateAccount(accountId);
+          targetAllocations = await storage.getAccountTargetAllocationsByCorporateAccount(accountId);
+          if (account) {
+            const corporation = await storage.getCorporation(account.corporationId);
+            if (corporation) {
+              ownerName = corporation.name;
+              const household = await storage.getHousehold(corporation.householdId);
+              householdName = household?.name || '';
+            }
+          }
+          break;
+        case 'joint':
+          account = await storage.getJointAccount(accountId);
+          positions = await storage.getPositionsByJointAccount(accountId);
+          targetAllocations = await storage.getAccountTargetAllocationsByJointAccount(accountId);
+          if (account) {
+            const owners = await storage.getJointAccountOwners(accountId);
+            const ownerNames: string[] = [];
+            for (const individual of owners) {
+              ownerNames.push(individual.name);
+              if (!householdName) {
+                const household = await storage.getHousehold(individual.householdId);
+                householdName = household?.name || '';
+              }
+            }
+            ownerName = ownerNames.join(' & ');
+          }
+          break;
+        default:
+          return res.status(400).json({ message: "Invalid account type" });
+      }
+      
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Calculate portfolio comparison data
+      const normalizeTicker = (ticker: string): string => {
+        return ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+      };
+      
+      const totalActualValue = positions.reduce((sum, pos) => {
+        return sum + (Number(pos.quantity) * Number(pos.currentPrice));
+      }, 0);
+      
+      // Create actual allocation map
+      const actualByTicker = new Map<string, { value: number; quantity: number; originalTicker: string; price: number }>();
+      for (const pos of positions) {
+        const originalTicker = pos.symbol.toUpperCase();
+        const normalizedTicker = normalizeTicker(originalTicker);
+        const value = Number(pos.quantity) * Number(pos.currentPrice);
+        const existing = actualByTicker.get(normalizedTicker) || { value: 0, quantity: 0, originalTicker, price: Number(pos.currentPrice) };
+        actualByTicker.set(normalizedTicker, {
+          value: existing.value + value,
+          quantity: existing.quantity + Number(pos.quantity),
+          originalTicker: existing.originalTicker,
+          price: Number(pos.currentPrice)
+        });
+      }
+      
+      // Build report positions
+      const reportPositions = [];
+      const processedNormalizedTickers = new Set<string>();
+      
+      // First, add all target allocations
+      for (const allocation of targetAllocations) {
+        const holding = allocation.holding;
+        if (!holding) continue;
+        
+        const displayTicker = holding.ticker.toUpperCase();
+        const normalizedTicker = normalizeTicker(displayTicker);
+        processedNormalizedTickers.add(normalizedTicker);
+        
+        const actual = actualByTicker.get(normalizedTicker);
+        const actualValue = actual?.value || 0;
+        const actualPercentage = totalActualValue > 0 ? (actualValue / totalActualValue) * 100 : 0;
+        const targetPercentage = Number(allocation.targetPercentage);
+        const variance = actualPercentage - targetPercentage;
+        const targetValue = totalActualValue > 0 ? (targetPercentage / 100) * totalActualValue : 0;
+        const changeNeeded = targetValue - actualValue;
+        const currentPrice = actual?.price || Number(holding.currentPrice) || 1;
+        const sharesToTrade = currentPrice > 0 ? changeNeeded / currentPrice : 0;
+        
+        reportPositions.push({
+          symbol: displayTicker,
+          name: holding.name,
+          quantity: actual?.quantity || 0,
+          currentPrice,
+          marketValue: actualValue,
+          actualPercentage: Math.round(actualPercentage * 100) / 100,
+          targetPercentage,
+          variance: Math.round(variance * 100) / 100,
+          changeNeeded: Math.round(changeNeeded * 100) / 100,
+          sharesToTrade: Math.round(sharesToTrade * 100) / 100,
+          status: (variance > 2 ? 'over' : variance < -2 ? 'under' : 'on-target') as 'over' | 'under' | 'on-target' | 'unexpected'
+        });
+      }
+      
+      // Add unexpected positions (no target = liquidate)
+      for (const [normalizedTicker, data] of Array.from(actualByTicker)) {
+        if (!processedNormalizedTickers.has(normalizedTicker)) {
+          const actualPercentage = totalActualValue > 0 ? (data.value / totalActualValue) * 100 : 0;
+          reportPositions.push({
+            symbol: data.originalTicker,
+            name: data.originalTicker,
+            quantity: data.quantity,
+            currentPrice: data.price,
+            marketValue: data.value,
+            actualPercentage: Math.round(actualPercentage * 100) / 100,
+            targetPercentage: 0,
+            variance: Math.round(actualPercentage * 100) / 100,
+            changeNeeded: -data.value, // Need to sell everything
+            sharesToTrade: -data.quantity, // Sell all shares
+            status: 'unexpected' as const
+          });
+        }
+      }
+      
+      // Format account type for display
+      const accountTypeLabels: Record<string, string> = {
+        cash: 'Cash',
+        tfsa: 'TFSA',
+        fhsa: 'FHSA',
+        rrsp: 'RRSP',
+        lira: 'LIRA',
+        liff: 'LIFF',
+        rif: 'RIF',
+        corporate_cash: 'Corporate Cash',
+        ipp: 'IPP',
+        joint_cash: 'Joint Cash',
+        resp: 'RESP'
+      };
+      
+      // Generate PDF
+      const pdfBuffer = await generatePortfolioRebalanceReport({
+        accountName: account.nickname || '',
+        accountType: accountTypeLabels[account.type] || account.type.toUpperCase(),
+        householdName,
+        ownerName,
+        totalValue: totalActualValue,
+        positions: reportPositions,
+        generatedAt: new Date()
+      });
+      
+      // Send email
+      const subject = `Portfolio Rebalancing Report - ${householdName} - ${accountTypeLabels[account.type] || account.type}`;
+      const body = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Portfolio Rebalancing Report</h2>
+          <p>Please find attached the portfolio rebalancing report for:</p>
+          <ul>
+            <li><strong>Household:</strong> ${householdName}</li>
+            <li><strong>Owner:</strong> ${ownerName}</li>
+            <li><strong>Account:</strong> ${accountTypeLabels[account.type] || account.type}${account.nickname ? ` - ${account.nickname}` : ''}</li>
+            <li><strong>Total Value:</strong> $${totalActualValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</li>
+          </ul>
+          <p style="color: #666; font-size: 12px; margin-top: 30px;">
+            This report was generated on ${new Date().toLocaleString('en-CA', { dateStyle: 'long', timeStyle: 'short' })}.
+          </p>
+        </div>
+      `;
+      
+      const fileName = `Portfolio_Rebalancing_${householdName.replace(/\s+/g, '_')}_${account.type}_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      await sendEmailWithAttachment(email, subject, body, pdfBuffer, fileName);
+      
+      res.json({ 
+        success: true, 
+        message: `Report sent successfully to ${email}` 
+      });
+    } catch (error: any) {
+      console.error("Error sending portfolio report:", error);
+      res.status(500).json({ message: error.message || "Failed to send portfolio report" });
     }
   });
 
