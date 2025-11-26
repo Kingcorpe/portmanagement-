@@ -1383,6 +1383,7 @@ export default function AccountDetails() {
                   <TableHead>Symbol</TableHead>
                   <TableHead className="text-right">Qty</TableHead>
                   <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-right">Book Value</TableHead>
                   <TableHead className="text-right">Market Value</TableHead>
                   {comparisonData?.hasTargetAllocations && (
                     <TableHead className="text-right">Actual %</TableHead>
@@ -1436,6 +1437,11 @@ export default function AccountDetails() {
                             {new Date(position.priceUpdatedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}
                           </div>
                         )}
+                      </TableCell>
+                      
+                      {/* Book Value */}
+                      <TableCell className="text-right" data-testid={`text-book-value-${position.id}`}>
+                        ${(Number(position.quantity) * Number(position.entryPrice)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
                       
                       {/* Market Value */}
