@@ -597,7 +597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Find target allocation for this symbol
             const targetAlloc = targetAllocations.find(t => 
-              normalizeTicker(t.ticker) === normalizedAlertSymbol
+              t.ticker && normalizeTicker(t.ticker) === normalizedAlertSymbol
             );
             const targetPercent = targetAlloc ? Number(targetAlloc.targetPercentage) : 0;
             
@@ -638,6 +638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 
                 // First, add all target allocations
                 for (const allocation of targetAllocations) {
+                  if (!allocation.ticker) continue; // Skip allocations without tickers
                   const displayTicker = allocation.ticker.toUpperCase();
                   const normalizedTicker = normalizeTicker(displayTicker);
                   processedNormalizedTickers.add(normalizedTicker);

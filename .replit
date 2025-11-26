@@ -48,3 +48,9 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_database:1.0.0", "javascript_log_in_with_replit:1.0.0", "javascript_object_storage:1.0.0", "google-mail:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+TRADINGVIEW_REPORT_EMAIL = "ryan@crsolutions.ca"
+TRADINGVIEW_WEBHOOK_SECRET = "2e3cb66bdc008494d7d7c989072760e3"
