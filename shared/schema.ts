@@ -314,7 +314,7 @@ export const riskLevelEnum = pgEnum("risk_level", ["low", "low_medium", "medium"
 export const dividendPayoutEnum = pgEnum("dividend_payout", ["monthly", "quarterly", "semi_annual", "annual", "none"]);
 
 // Holding category enum
-export const holdingCategoryEnum = pgEnum("holding_category", ["basket_etf", "single_etf", "double_long_etf", "security", "auto_added", "misc", "dyn6004"]);
+export const holdingCategoryEnum = pgEnum("holding_category", ["basket_etf", "single_etf", "double_long_etf", "security", "auto_added", "misc"]);
 
 // Universal Holdings table (ETF library)
 export const universalHoldings = pgTable("universal_holdings", {
