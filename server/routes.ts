@@ -1121,7 +1121,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate webhook secret if configured
       const webhookSecret = process.env.TRADINGVIEW_WEBHOOK_SECRET;
       if (webhookSecret) {
-        const providedSecret = req.headers['x-webhook-secret'] || req.body.secret;
+        // Check URL query param, header, or body for secret
+        const providedSecret = req.query.secret || req.headers['x-webhook-secret'] || req.body.secret;
         if (providedSecret !== webhookSecret) {
           return res.status(401).json({ message: "Unauthorized: Invalid webhook secret" });
         }
