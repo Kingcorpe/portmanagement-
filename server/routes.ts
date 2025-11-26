@@ -1475,6 +1475,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
+      // Auto-add ticker to Universal Holdings if it doesn't exist
+      const ticker = parsed.symbol.toUpperCase();
+      const existingHolding = await storage.getUniversalHoldingByTicker(ticker);
+      if (!existingHolding) {
+        await storage.createUniversalHolding({
+          ticker: ticker,
+          name: `${ticker} (Auto-added)`,
+          category: "auto_added",
+          riskLevel: "medium",
+          dividendRate: "0",
+          dividendPayout: "none",
+          price: parsed.currentPrice?.toString() || "0",
+          description: "Automatically added from position. Please update details.",
+        });
+      }
+      
       const position = await storage.createPosition(parsed);
       res.json(position);
     } catch (error: any) {
@@ -1589,6 +1605,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Validate required fields
           if (!positionData.symbol || !positionData.quantity || !positionData.entryPrice || !positionData.currentPrice) {
             throw new Error(`Missing required fields for row ${i + 1}`);
+          }
+          
+          // Auto-add ticker to Universal Holdings if it doesn't exist
+          const ticker = positionData.symbol.toUpperCase();
+          const existingHolding = await storage.getUniversalHoldingByTicker(ticker);
+          if (!existingHolding) {
+            await storage.createUniversalHolding({
+              ticker: ticker,
+              name: `${ticker} (Auto-added)`,
+              category: "auto_added",
+              riskLevel: "medium",
+              dividendRate: "0",
+              dividendPayout: "none",
+              price: positionData.currentPrice?.toString() || "0",
+              description: "Automatically added from position. Please update details.",
+            });
           }
           
           const parsed = insertPositionSchema.parse(positionData);
