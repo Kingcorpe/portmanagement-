@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send, DollarSign } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -92,6 +92,8 @@ export default function AccountDetails() {
   const [selectedPortfolioType, setSelectedPortfolioType] = useState<"planned" | "freelance">("planned");
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
+  const [cashAmount, setCashAmount] = useState("");
   const [editingInlineTarget, setEditingInlineTarget] = useState<string | null>(null);
   const [inlineTargetValue, setInlineTargetValue] = useState<string>("");
   const [holdingComboboxOpen, setHoldingComboboxOpen] = useState(false);
@@ -848,6 +850,32 @@ export default function AccountDetails() {
         });
       }
     }
+  };
+
+  // Add cash deposit handler
+  const handleAddCash = () => {
+    const amount = parseFloat(cashAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid cash amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createMutation.mutate({
+      symbol: "CASH",
+      quantity: amount.toString(),
+      entryPrice: "1",
+      currentPrice: "1",
+      individualAccountId: accountType === "individual" ? accountId : undefined,
+      corporateAccountId: accountType === "corporate" ? accountId : undefined,
+      jointAccountId: accountType === "joint" ? accountId : undefined,
+    } as InsertPosition);
+
+    setIsCashDialogOpen(false);
+    setCashAmount("");
   };
 
   if (!accountType || !accountId) {
@@ -1727,6 +1755,61 @@ export default function AccountDetails() {
                 </div>
               </form>
             </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Cash Dialog */}
+        <Dialog open={isCashDialogOpen} onOpenChange={(open) => {
+          setIsCashDialogOpen(open);
+          if (!open) setCashAmount("");
+        }}>
+          <DialogTrigger asChild>
+            <Button variant="outline" data-testid="button-add-cash">
+              <DollarSign className="mr-2 h-4 w-4" />
+              Add Cash
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Cash Deposit</DialogTitle>
+              <DialogDescription>
+                Enter the cash amount to add to this account.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <label htmlFor="cash-amount" className="text-sm font-medium">Amount (CAD)</label>
+                <Input
+                  id="cash-amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="1000.00"
+                  value={cashAmount}
+                  onChange={(e) => setCashAmount(e.target.value)}
+                  data-testid="input-cash-amount"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsCashDialogOpen(false);
+                    setCashAmount("");
+                  }}
+                  data-testid="button-cancel-cash"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleAddCash}
+                  disabled={createMutation.isPending}
+                  data-testid="button-submit-cash"
+                >
+                  {createMutation.isPending ? "Adding..." : "Add Cash"}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
 
