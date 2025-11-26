@@ -1554,16 +1554,16 @@ export default function AccountDetails() {
                               </div>
                             </TableCell>
                             
-                            {/* Status */}
+                            {/* Status - colors reflect action (green=buy, red=sell) */}
                             <TableCell className="text-center" data-testid={`badge-status-${position.id}`}>
                               {comparison?.status === 'over' && (
-                                <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                                   <TrendingUp className="h-3 w-3 mr-1" />
                                   Over
                                 </Badge>
                               )}
                               {comparison?.status === 'under' && (
-                                <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                                   <TrendingDown className="h-3 w-3 mr-1" />
                                   Under
                                 </Badge>
