@@ -341,15 +341,27 @@ export default function AccountDetails() {
     }
   }, [editingAllocation, allocationForm]);
 
+  // Helper to refresh all allocation-related data
+  const refreshAllocationData = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] }),
+      queryClient.invalidateQueries({ queryKey: [positionsEndpoint] }),
+    ]);
+    await Promise.all([
+      queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] }),
+      queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] }),
+      queryClient.refetchQueries({ queryKey: [positionsEndpoint] }),
+    ]);
+  };
+
   // Allocation mutations
   const createAllocationMutation = useMutation({
     mutationFn: async (data: AllocationFormData) => {
       return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/target-allocations`, data);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
-      await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await refreshAllocationData();
       toast({
         title: "Success",
         description: "Target allocation added successfully",
@@ -370,9 +382,7 @@ export default function AccountDetails() {
       return await apiRequest("PATCH", `/api/account-target-allocations/${id}`, data);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
-      await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await refreshAllocationData();
       toast({
         title: "Success",
         description: "Target allocation updated successfully",
@@ -393,9 +403,7 @@ export default function AccountDetails() {
       return await apiRequest("DELETE", `/api/account-target-allocations/${id}`);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
-      await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await refreshAllocationData();
       toast({
         title: "Success",
         description: "Target allocation deleted successfully",
@@ -415,9 +423,7 @@ export default function AccountDetails() {
       return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/copy-from-portfolio/${portfolioId}?portfolioType=${portfolioType}`);
     },
     onSuccess: async (data: any) => {
-      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
-      await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await refreshAllocationData();
       toast({
         title: "Success",
         description: `Copied ${data.allocationsCount} allocations from ${data.copiedFrom}`,
@@ -473,9 +479,7 @@ export default function AccountDetails() {
       });
     },
     onSuccess: async (data: any) => {
-      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
-      await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await refreshAllocationData();
       await queryClient.invalidateQueries({ queryKey: ['/api/universal-holdings'] });
       
       setEditingInlineTarget(null);
