@@ -880,8 +880,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Joint account ownership routes
-  app.get('/api/joint-accounts/:jointAccountId/owners', isAuthenticated, async (req, res) => {
+  app.get('/api/joint-accounts/:jointAccountId/owners', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      
+      // Check authorization
+      const householdId = await storage.getHouseholdIdFromAccount('joint', req.params.jointAccountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Joint account not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const owners = await storage.getJointAccountOwners(req.params.jointAccountId);
       res.json(owners);
     } catch (error) {
@@ -890,9 +903,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/joint-account-ownership', isAuthenticated, async (req, res) => {
+  app.post('/api/joint-account-ownership', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const parsed = insertJointAccountOwnershipSchema.parse(req.body);
+      
+      // Check authorization via the joint account
+      const householdId = await storage.getHouseholdIdFromAccount('joint', parsed.jointAccountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Joint account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const ownership = await storage.addJointAccountOwner(parsed);
       res.json(ownership);
     } catch (error: any) {
@@ -1364,8 +1390,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk upload positions from CSV
-  app.post('/api/positions/bulk', isAuthenticated, async (req, res) => {
+  app.post('/api/positions/bulk', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const { positions, accountType, accountId } = req.body;
       
       if (!Array.isArray(positions) || positions.length === 0) {
@@ -1374,6 +1401,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!accountType || !accountId) {
         return res.status(400).json({ message: "Account type and ID are required" });
+      }
+      
+      // Check authorization
+      const householdId = await storage.getHouseholdIdFromAccount(accountType as 'individual' | 'corporate' | 'joint', accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
       }
       
       const createdPositions = [];
@@ -1506,9 +1544,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Refresh prices for all positions in an account
-  app.post('/api/accounts/:accountType/:accountId/refresh-prices', isAuthenticated, async (req, res) => {
+  app.post('/api/accounts/:accountType/:accountId/refresh-prices', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const { accountType, accountId } = req.params;
+      
+      // Check authorization
+      const householdId = await storage.getHouseholdIdFromAccount(accountType as 'individual' | 'corporate' | 'joint', accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
       
       // Get all positions for the account
       let positions;
@@ -1610,9 +1660,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Account Target Allocation routes
-  app.get('/api/accounts/:accountType/:accountId/target-allocations', isAuthenticated, async (req, res) => {
+  app.get('/api/accounts/:accountType/:accountId/target-allocations', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const { accountType, accountId } = req.params;
+      
+      // Check authorization
+      const householdId = await storage.getHouseholdIdFromAccount(accountType as 'individual' | 'corporate' | 'joint', accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
       
       let allocations;
       switch (accountType) {
@@ -1636,9 +1698,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/accounts/:accountType/:accountId/target-allocations', isAuthenticated, async (req, res) => {
+  app.post('/api/accounts/:accountType/:accountId/target-allocations', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const { accountType, accountId } = req.params;
+      
+      // Check authorization
+      const householdId = await storage.getHouseholdIdFromAccount(accountType as 'individual' | 'corporate' | 'joint', accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const parsed = insertAccountTargetAllocationSchema.parse(req.body);
       
       // Set the correct account ID field based on type
@@ -1660,8 +1735,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/account-target-allocations/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/account-target-allocations/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      
+      // Check authorization
+      const householdId = await storage.getHouseholdIdFromTargetAllocation(req.params.id);
+      if (!householdId) {
+        return res.status(404).json({ message: "Target allocation not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const parsed = updateAccountTargetAllocationSchema.parse(req.body);
       const allocation = await storage.updateAccountTargetAllocation(req.params.id, parsed);
       res.json(allocation);
@@ -1674,8 +1762,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/account-target-allocations/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/account-target-allocations/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      
+      // Check authorization
+      const householdId = await storage.getHouseholdIdFromTargetAllocation(req.params.id);
+      if (!householdId) {
+        return res.status(404).json({ message: "Target allocation not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       await storage.deleteAccountTargetAllocation(req.params.id);
       res.json({ success: true });
     } catch (error) {
@@ -1685,8 +1786,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Inline target allocation - sets target % for a ticker, auto-adds to Universal Holdings if needed
-  app.post('/api/accounts/:accountType/:accountId/inline-target-allocation', isAuthenticated, async (req, res) => {
+  app.post('/api/accounts/:accountType/:accountId/inline-target-allocation', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const { accountType, accountId } = req.params;
       const { ticker, targetPercentage } = req.body;
       
@@ -1696,6 +1798,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!['individual', 'corporate', 'joint'].includes(accountType)) {
         return res.status(400).json({ message: "Invalid account type" });
+      }
+      
+      // Check authorization
+      const householdId = await storage.getHouseholdIdFromAccount(accountType as 'individual' | 'corporate' | 'joint', accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
       }
       
       // Handle empty/null/undefined as 0 for deletion
@@ -1803,14 +1916,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Copy allocations from a model portfolio (planned or freelance) to an account
-  app.post('/api/accounts/:accountType/:accountId/copy-from-portfolio/:portfolioId', isAuthenticated, async (req, res) => {
+  app.post('/api/accounts/:accountType/:accountId/copy-from-portfolio/:portfolioId', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const { accountType, accountId, portfolioId } = req.params;
       const { portfolioType } = req.query; // 'planned' or 'freelance'
       
       // Validate account type
       if (!['individual', 'corporate', 'joint'].includes(accountType)) {
         return res.status(400).json({ message: "Invalid account type" });
+      }
+      
+      // Check authorization
+      const householdId = await storage.getHouseholdIdFromAccount(accountType as 'individual' | 'corporate' | 'joint', accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
       }
       
       // Get the portfolio with allocations - check both planned and freelance

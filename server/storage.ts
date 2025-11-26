@@ -99,6 +99,7 @@ export interface IStorage {
   getHouseholdIdFromAccount(accountType: 'individual' | 'corporate' | 'joint', accountId: string): Promise<string | null>;
   getHouseholdIdFromPosition(positionId: string): Promise<string | null>;
   getHouseholdIdFromTrade(tradeId: string): Promise<string | null>;
+  getHouseholdIdFromTargetAllocation(allocationId: string): Promise<string | null>;
 
   // Individual operations
   createIndividual(individual: InsertIndividual): Promise<Individual>;
@@ -399,6 +400,20 @@ export class DatabaseStorage implements IStorage {
       return this.getHouseholdIdFromAccount('corporate', trade.corporateAccountId);
     } else if (trade.jointAccountId) {
       return this.getHouseholdIdFromAccount('joint', trade.jointAccountId);
+    }
+    return null;
+  }
+
+  async getHouseholdIdFromTargetAllocation(allocationId: string): Promise<string | null> {
+    const [allocation] = await db.select().from(accountTargetAllocations).where(eq(accountTargetAllocations.id, allocationId));
+    if (!allocation) return null;
+
+    if (allocation.individualAccountId) {
+      return this.getHouseholdIdFromAccount('individual', allocation.individualAccountId);
+    } else if (allocation.corporateAccountId) {
+      return this.getHouseholdIdFromAccount('corporate', allocation.corporateAccountId);
+    } else if (allocation.jointAccountId) {
+      return this.getHouseholdIdFromAccount('joint', allocation.jointAccountId);
     }
     return null;
   }
