@@ -1711,7 +1711,15 @@ export default function ModelPortfolios() {
       }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingAllocation ? "Edit Allocation" : "Add Allocation"}</DialogTitle>
+            <DialogTitle>
+              {editingAllocation ? "Edit Allocation" : "Add Allocation"}
+              {allocationTarget && !editingAllocation && (() => {
+                const portfolio = allocationTarget.type === "planned" 
+                  ? plannedPortfolios.find(p => p.id === allocationTarget.portfolioId)
+                  : freelancePortfolios.find(p => p.id === allocationTarget.portfolioId);
+                return portfolio ? ` to "${portfolio.name}"` : "";
+              })()}
+            </DialogTitle>
             <DialogDescription>
               {editingAllocation ? "Update the target percentage for this holding" : "Select a holding and set the target percentage"}
             </DialogDescription>
