@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send, DollarSign } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send, DollarSign, Shield } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -55,6 +55,17 @@ import {
   type JointAccount
 } from "@shared/schema";
 import type { z } from "zod";
+import {
+  RISK_TOLERANCE_LABELS,
+  RISK_TOLERANCE_DESCRIPTIONS,
+  RISK_LIMITS,
+  CATEGORY_LABELS,
+  validateRiskLimits,
+  type RiskTolerance,
+  type HoldingCategory,
+  type RiskValidationResult,
+} from "@shared/riskConfig";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type PositionFormData = z.infer<typeof insertPositionSchema>;
 type AllocationFormData = z.infer<typeof insertAccountTargetAllocationSchema>;
@@ -522,6 +533,31 @@ export default function AccountDetails() {
     },
   });
 
+  const updateRiskToleranceMutation = useMutation({
+    mutationFn: async (riskTolerance: RiskTolerance) => {
+      const endpoint = accountEndpoint;
+      if (!endpoint) throw new Error("Account endpoint not available");
+      return await apiRequest("PATCH", endpoint, { riskTolerance });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ 
+        queryKey: [accountEndpoint],
+        refetchType: 'active',
+      });
+      toast({
+        title: "Risk Tolerance Updated",
+        description: "Account risk tolerance has been updated successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update risk tolerance",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleInlineTargetEdit = (position: Position) => {
     const normalizedSymbol = normalizeTicker(position.symbol);
     const comparison = comparisonData?.comparison.find(c => normalizeTicker(c.ticker) === normalizedSymbol);
@@ -627,6 +663,55 @@ export default function AccountDetails() {
       setEditingAllocation(null);
       allocationForm.reset();
     }
+  };
+
+  const computeRiskValidation = (): RiskValidationResult | null => {
+    const riskTolerance = ((accountData as any)?.riskTolerance || "moderate") as RiskTolerance;
+    const selectedHoldingId = allocationForm.watch("universalHoldingId");
+    const targetPct = parseFloat(allocationForm.watch("targetPercentage") || "0");
+    
+    if (!selectedHoldingId || isNaN(targetPct) || targetPct <= 0) {
+      return null;
+    }
+    
+    const selectedHolding = universalHoldings.find(h => h.id === selectedHoldingId);
+    if (!selectedHolding) {
+      return null;
+    }
+    
+    const existingAllocations = targetAllocations
+      .filter(a => a.id !== editingAllocation?.id)
+      .map(a => ({
+        category: a.holding.category as HoldingCategory,
+        targetPercentage: parseFloat(a.targetPercentage),
+      }));
+    
+    const newAllocation = {
+      category: selectedHolding.category as HoldingCategory,
+      targetPercentage: targetPct,
+    };
+    
+    const allAllocations = [...existingAllocations, newAllocation];
+    return validateRiskLimits(allAllocations, riskTolerance);
+  };
+
+  const computePortfolioRiskValidation = (): RiskValidationResult | null => {
+    const riskTolerance = ((accountData as any)?.riskTolerance || "moderate") as RiskTolerance;
+    
+    if (!selectedPortfolioId) return null;
+    
+    const portfolio = selectedPortfolioType === "planned"
+      ? plannedPortfolios.find(p => p.id === selectedPortfolioId)
+      : freelancePortfolios.find(p => p.id === selectedPortfolioId);
+    
+    if (!portfolio || !portfolio.allocations || portfolio.allocations.length === 0) return null;
+    
+    const allocations = portfolio.allocations.map(a => ({
+      category: a.holding.category as HoldingCategory,
+      targetPercentage: parseFloat(a.targetPercentage),
+    }));
+    
+    return validateRiskLimits(allocations, riskTolerance);
   };
 
   const handleCopyFromPortfolio = () => {
@@ -977,19 +1062,55 @@ export default function AccountDetails() {
 
       </div>
 
-      <Card className="max-w-sm">
-        <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Market Value</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold" data-testid="text-total-value">
-            ${totalMarketValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CAD
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Book Value: ${totalBookValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Market Value</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="text-total-value">
+              ${totalMarketValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CAD
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Book Value: ${totalBookValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Risk Tolerance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select
+              value={(accountData as any)?.riskTolerance || "moderate"}
+              onValueChange={(value: RiskTolerance) => {
+                updateRiskToleranceMutation.mutate(value);
+              }}
+              disabled={updateRiskToleranceMutation.isPending}
+            >
+              <SelectTrigger data-testid="select-risk-tolerance" className="w-full">
+                <SelectValue placeholder="Select risk tolerance" />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.entries(RISK_TOLERANCE_LABELS) as [RiskTolerance, string][]).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    <div className="flex flex-col">
+                      <span>{label}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-2">
+              {RISK_TOLERANCE_DESCRIPTIONS[(accountData as any)?.riskTolerance as RiskTolerance || "moderate"]}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Target Allocations Management Section */}
       <Collapsible open={isTargetAllocationsOpen} onOpenChange={setIsTargetAllocationsOpen}>
@@ -1092,6 +1213,57 @@ export default function AccountDetails() {
                         )}
                       </SelectContent>
                     </Select>
+                    
+                    {(() => {
+                      const riskValidation = computePortfolioRiskValidation();
+                      if (!riskValidation) return null;
+                      
+                      const riskTolerance = ((accountData as any)?.riskTolerance || "moderate") as RiskTolerance;
+                      
+                      if (riskValidation.violations.length > 0) {
+                        return (
+                          <Alert variant="destructive" data-testid="alert-copy-risk-violation">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTitle>Risk Limit Exceeded</AlertTitle>
+                            <AlertDescription>
+                              <div className="space-y-1 mt-1">
+                                {riskValidation.violations.map((v, i) => (
+                                  <p key={i}>
+                                    {CATEGORY_LABELS[v.category]}: {v.currentPercentage.toFixed(1)}% 
+                                    (max {v.maxAllowed}% for {RISK_TOLERANCE_LABELS[riskTolerance]})
+                                  </p>
+                                ))}
+                              </div>
+                              <p className="text-xs mt-2">
+                                This portfolio exceeds the account's risk tolerance limits. You can still copy, but consider adjusting the allocations.
+                              </p>
+                            </AlertDescription>
+                          </Alert>
+                        );
+                      }
+                      
+                      if (riskValidation.warnings.length > 0) {
+                        return (
+                          <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20" data-testid="alert-copy-risk-warning">
+                            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                            <AlertTitle className="text-yellow-800 dark:text-yellow-400">Approaching Risk Limit</AlertTitle>
+                            <AlertDescription className="text-yellow-700 dark:text-yellow-300">
+                              <div className="space-y-1 mt-1">
+                                {riskValidation.warnings.map((w, i) => (
+                                  <p key={i}>
+                                    {CATEGORY_LABELS[w.category]}: {w.currentPercentage.toFixed(1)}% 
+                                    (max {w.maxAllowed}% for {RISK_TOLERANCE_LABELS[riskTolerance]})
+                                  </p>
+                                ))}
+                              </div>
+                            </AlertDescription>
+                          </Alert>
+                        );
+                      }
+                      
+                      return null;
+                    })()}
+
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" onClick={() => setIsCopyDialogOpen(false)} data-testid="button-cancel-copy">
                         Cancel
@@ -1209,6 +1381,57 @@ export default function AccountDetails() {
                           </FormItem>
                         )}
                       />
+                      
+                      {(() => {
+                        const riskValidation = computeRiskValidation();
+                        if (!riskValidation) return null;
+                        
+                        const riskTolerance = ((accountData as any)?.riskTolerance || "moderate") as RiskTolerance;
+                        
+                        if (riskValidation.violations.length > 0) {
+                          return (
+                            <Alert variant="destructive" data-testid="alert-risk-violation">
+                              <AlertTriangle className="h-4 w-4" />
+                              <AlertTitle>Risk Limit Exceeded</AlertTitle>
+                              <AlertDescription>
+                                <div className="space-y-1 mt-1">
+                                  {riskValidation.violations.map((v, i) => (
+                                    <p key={i}>
+                                      {CATEGORY_LABELS[v.category]}: {v.currentPercentage.toFixed(1)}% 
+                                      (max {v.maxAllowed}% for {RISK_TOLERANCE_LABELS[riskTolerance]})
+                                    </p>
+                                  ))}
+                                </div>
+                                <p className="text-xs mt-2">
+                                  You can still save, but this allocation exceeds the risk tolerance limits.
+                                </p>
+                              </AlertDescription>
+                            </Alert>
+                          );
+                        }
+                        
+                        if (riskValidation.warnings.length > 0) {
+                          return (
+                            <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20" data-testid="alert-risk-warning">
+                              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                              <AlertTitle className="text-yellow-800 dark:text-yellow-400">Approaching Risk Limit</AlertTitle>
+                              <AlertDescription className="text-yellow-700 dark:text-yellow-300">
+                                <div className="space-y-1 mt-1">
+                                  {riskValidation.warnings.map((w, i) => (
+                                    <p key={i}>
+                                      {CATEGORY_LABELS[w.category]}: {w.currentPercentage.toFixed(1)}% 
+                                      (max {w.maxAllowed}% for {RISK_TOLERANCE_LABELS[riskTolerance]})
+                                    </p>
+                                  ))}
+                                </div>
+                              </AlertDescription>
+                            </Alert>
+                          );
+                        }
+                        
+                        return null;
+                      })()}
+
                       <div className="flex justify-end gap-2">
                         <Button type="button" variant="outline" onClick={() => handleAllocationDialogChange(false)} data-testid="button-cancel-allocation">
                           Cancel
