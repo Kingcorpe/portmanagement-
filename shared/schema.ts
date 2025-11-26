@@ -335,6 +335,7 @@ export const universalHoldings = pgTable("universal_holdings", {
 // Planned Portfolios table (reusable templates)
 export const plannedPortfolios = pgTable("planned_portfolios", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"), // Multi-tenant: owner of this portfolio
   name: text("name").notNull(),
   description: text("description"),
   sortOrder: integer("sort_order").default(0),
@@ -369,6 +370,7 @@ export const plannedPortfolioAllocationsRelations = relations(plannedPortfolioAl
 // Freelance Portfolios table (custom one-off portfolios)
 export const freelancePortfolios = pgTable("freelance_portfolios", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"), // Multi-tenant: owner of this portfolio
   name: text("name").notNull(),
   description: text("description"),
   sortOrder: integer("sort_order").default(0),

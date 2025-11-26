@@ -1939,20 +1939,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get the portfolio with allocations - check both planned and freelance
-      let portfolio: { name: string; allocations: { universalHoldingId: string; targetPercentage: string }[] } | null = null;
+      let portfolio: { name: string; userId?: string | null; allocations: { universalHoldingId: string; targetPercentage: string }[] } | null = null;
+      let isPlannedPortfolio = false;
       
       if (portfolioType === 'freelance') {
         portfolio = await storage.getFreelancePortfolioWithAllocations(portfolioId);
       } else {
         // Default to planned portfolio, or check both if not specified
         portfolio = await storage.getPlannedPortfolioWithAllocations(portfolioId);
-        if (!portfolio) {
+        if (portfolio) {
+          isPlannedPortfolio = true;
+        } else {
           portfolio = await storage.getFreelancePortfolioWithAllocations(portfolioId);
         }
       }
       
       if (!portfolio) {
         return res.status(404).json({ message: "Portfolio not found" });
+      }
+      
+      // Check portfolio ownership - users can only copy from their own portfolios
+      if (portfolio.userId && portfolio.userId !== userId) {
+        return res.status(403).json({ message: "Access denied to this portfolio" });
       }
       
       // Delete existing allocations for this account
@@ -2358,9 +2366,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Planned Portfolio routes
-  app.get('/api/planned-portfolios', isAuthenticated, async (req, res) => {
+  app.get('/api/planned-portfolios', isAuthenticated, async (req: any, res) => {
     try {
-      const portfolios = await storage.getAllPlannedPortfoliosWithAllocations();
+      const userId = req.user.claims.sub;
+      const portfolios = await storage.getAllPlannedPortfoliosWithAllocations(userId);
       res.json(portfolios);
     } catch (error) {
       console.error("Error fetching planned portfolios:", error);
@@ -2368,10 +2377,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/planned-portfolios', isAuthenticated, async (req, res) => {
+  app.post('/api/planned-portfolios', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const parsed = insertPlannedPortfolioSchema.parse(req.body);
-      const portfolio = await storage.createPlannedPortfolio(parsed);
+      const portfolio = await storage.createPlannedPortfolio({ ...parsed, userId });
       res.json(portfolio);
     } catch (error: any) {
       console.error("Error creating planned portfolio:", error);
@@ -2382,11 +2392,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/planned-portfolios/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/planned-portfolios/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const portfolio = await storage.getPlannedPortfolioWithAllocations(req.params.id);
       if (!portfolio) {
         return res.status(404).json({ message: "Planned portfolio not found" });
+      }
+      // Check ownership
+      if (portfolio.userId && portfolio.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
       }
       res.json(portfolio);
     } catch (error) {
@@ -2395,8 +2410,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/planned-portfolios/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/planned-portfolios/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const existing = await storage.getPlannedPortfolio(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Planned portfolio not found" });
+      }
+      if (existing.userId && existing.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const parsed = updatePlannedPortfolioSchema.parse(req.body);
       const portfolio = await storage.updatePlannedPortfolio(req.params.id, parsed);
       res.json(portfolio);
@@ -2409,8 +2433,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/planned-portfolios/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/planned-portfolios/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const existing = await storage.getPlannedPortfolio(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Planned portfolio not found" });
+      }
+      if (existing.userId && existing.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       await storage.deletePlannedPortfolio(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -2419,11 +2452,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/planned-portfolios/reorder', isAuthenticated, async (req, res) => {
+  app.post('/api/planned-portfolios/reorder', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const { orderedIds } = req.body;
       if (!Array.isArray(orderedIds)) {
         return res.status(400).json({ message: "orderedIds must be an array" });
+      }
+      // Verify all portfolios belong to this user before reordering
+      for (const id of orderedIds) {
+        const portfolio = await storage.getPlannedPortfolio(id);
+        if (portfolio && portfolio.userId && portfolio.userId !== userId) {
+          return res.status(403).json({ message: "Access denied" });
+        }
       }
       await storage.reorderPlannedPortfolios(orderedIds);
       res.json({ success: true });
@@ -2473,9 +2514,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Freelance Portfolio routes
-  app.get('/api/freelance-portfolios', isAuthenticated, async (req, res) => {
+  app.get('/api/freelance-portfolios', isAuthenticated, async (req: any, res) => {
     try {
-      const portfolios = await storage.getAllFreelancePortfoliosWithAllocations();
+      const userId = req.user.claims.sub;
+      const portfolios = await storage.getAllFreelancePortfoliosWithAllocations(userId);
       res.json(portfolios);
     } catch (error) {
       console.error("Error fetching freelance portfolios:", error);
@@ -2483,10 +2525,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/freelance-portfolios', isAuthenticated, async (req, res) => {
+  app.post('/api/freelance-portfolios', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const parsed = insertFreelancePortfolioSchema.parse(req.body);
-      const portfolio = await storage.createFreelancePortfolio(parsed);
+      const portfolio = await storage.createFreelancePortfolio({ ...parsed, userId });
       res.json(portfolio);
     } catch (error: any) {
       console.error("Error creating freelance portfolio:", error);
@@ -2497,11 +2540,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/freelance-portfolios/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/freelance-portfolios/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const portfolio = await storage.getFreelancePortfolioWithAllocations(req.params.id);
       if (!portfolio) {
         return res.status(404).json({ message: "Freelance portfolio not found" });
+      }
+      // Check ownership
+      if (portfolio.userId && portfolio.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
       }
       res.json(portfolio);
     } catch (error) {
@@ -2510,8 +2558,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/freelance-portfolios/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/freelance-portfolios/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const existing = await storage.getFreelancePortfolio(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Freelance portfolio not found" });
+      }
+      if (existing.userId && existing.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const parsed = updateFreelancePortfolioSchema.parse(req.body);
       const portfolio = await storage.updateFreelancePortfolio(req.params.id, parsed);
       res.json(portfolio);
@@ -2524,8 +2581,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/freelance-portfolios/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/freelance-portfolios/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const existing = await storage.getFreelancePortfolio(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Freelance portfolio not found" });
+      }
+      if (existing.userId && existing.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       await storage.deleteFreelancePortfolio(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -2534,11 +2600,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/freelance-portfolios/reorder', isAuthenticated, async (req, res) => {
+  app.post('/api/freelance-portfolios/reorder', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const { orderedIds } = req.body;
       if (!Array.isArray(orderedIds)) {
         return res.status(400).json({ message: "orderedIds must be an array" });
+      }
+      // Verify all portfolios belong to this user before reordering
+      for (const id of orderedIds) {
+        const portfolio = await storage.getFreelancePortfolio(id);
+        if (portfolio && portfolio.userId && portfolio.userId !== userId) {
+          return res.status(403).json({ message: "Access denied" });
+        }
       }
       await storage.reorderFreelancePortfolios(orderedIds);
       res.json({ success: true });
@@ -2693,9 +2767,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ==================== Library Document Routes ====================
 
   // Get all library documents
-  app.get('/api/library-documents', isAuthenticated, async (req, res) => {
+  app.get('/api/library-documents', isAuthenticated, async (req: any, res) => {
     try {
-      const documents = await storage.getAllLibraryDocuments();
+      const userId = req.user.claims.sub;
+      const documents = await storage.getAllLibraryDocuments(userId);
       res.json(documents);
     } catch (error) {
       console.error("Error fetching library documents:", error);
@@ -2704,13 +2779,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get library documents by category
-  app.get('/api/library-documents/category/:category', isAuthenticated, async (req, res) => {
+  app.get('/api/library-documents/category/:category', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const category = req.params.category as 'reports' | 'strategies';
       if (!['reports', 'strategies'].includes(category)) {
         return res.status(400).json({ message: "Invalid category" });
       }
-      const documents = await storage.getLibraryDocumentsByCategory(category);
+      const documents = await storage.getLibraryDocumentsByCategory(category, userId);
       res.json(documents);
     } catch (error) {
       console.error("Error fetching library documents by category:", error);
@@ -2719,11 +2795,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get single library document
-  app.get('/api/library-documents/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/library-documents/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const document = await storage.getLibraryDocument(req.params.id);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
+      }
+      // Check ownership
+      if (document.uploadedBy && document.uploadedBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
       }
       res.json(document);
     } catch (error) {
@@ -2773,8 +2854,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update library document
-  app.patch('/api/library-documents/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/library-documents/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const existing = await storage.getLibraryDocument(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      if (existing.uploadedBy && existing.uploadedBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const parsed = updateLibraryDocumentSchema.parse(req.body);
       const document = await storage.updateLibraryDocument(req.params.id, parsed);
       res.json(document);
@@ -2788,8 +2878,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete library document
-  app.delete('/api/library-documents/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/library-documents/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const existing = await storage.getLibraryDocument(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      if (existing.uploadedBy && existing.uploadedBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       await storage.deleteLibraryDocument(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -2801,11 +2900,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Email portfolio rebalancing report
   app.post('/api/accounts/:accountType/:accountId/email-report', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const { accountType, accountId } = req.params;
       const { email } = req.body;
       
       if (!email) {
         return res.status(400).json({ message: "Email address is required" });
+      }
+      
+      // Check authorization
+      const householdId = await storage.getHouseholdIdFromAccount(accountType as 'individual' | 'corporate' | 'joint', accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
       }
       
       // Get account, positions, and target allocations

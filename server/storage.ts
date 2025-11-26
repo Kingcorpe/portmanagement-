@@ -179,8 +179,8 @@ export interface IStorage {
   createPlannedPortfolio(portfolio: InsertPlannedPortfolio): Promise<PlannedPortfolio>;
   getPlannedPortfolio(id: string): Promise<PlannedPortfolio | undefined>;
   getPlannedPortfolioWithAllocations(id: string): Promise<PlannedPortfolioWithAllocations | null>;
-  getAllPlannedPortfolios(): Promise<PlannedPortfolio[]>;
-  getAllPlannedPortfoliosWithAllocations(): Promise<PlannedPortfolioWithAllocations[]>;
+  getAllPlannedPortfolios(userId?: string): Promise<PlannedPortfolio[]>;
+  getAllPlannedPortfoliosWithAllocations(userId?: string): Promise<PlannedPortfolioWithAllocations[]>;
   updatePlannedPortfolio(id: string, portfolio: Partial<InsertPlannedPortfolio>): Promise<PlannedPortfolio>;
   deletePlannedPortfolio(id: string): Promise<void>;
 
@@ -194,8 +194,8 @@ export interface IStorage {
   createFreelancePortfolio(portfolio: InsertFreelancePortfolio): Promise<FreelancePortfolio>;
   getFreelancePortfolio(id: string): Promise<FreelancePortfolio | undefined>;
   getFreelancePortfolioWithAllocations(id: string): Promise<FreelancePortfolioWithAllocations | null>;
-  getAllFreelancePortfolios(): Promise<FreelancePortfolio[]>;
-  getAllFreelancePortfoliosWithAllocations(): Promise<FreelancePortfolioWithAllocations[]>;
+  getAllFreelancePortfolios(userId?: string): Promise<FreelancePortfolio[]>;
+  getAllFreelancePortfoliosWithAllocations(userId?: string): Promise<FreelancePortfolioWithAllocations[]>;
   updateFreelancePortfolio(id: string, portfolio: Partial<InsertFreelancePortfolio>): Promise<FreelancePortfolio>;
   deleteFreelancePortfolio(id: string): Promise<void>;
 
@@ -217,8 +217,8 @@ export interface IStorage {
   // Library document operations
   createLibraryDocument(document: InsertLibraryDocument): Promise<LibraryDocument>;
   getLibraryDocument(id: string): Promise<LibraryDocument | undefined>;
-  getAllLibraryDocuments(): Promise<LibraryDocument[]>;
-  getLibraryDocumentsByCategory(category: 'reports' | 'strategies'): Promise<LibraryDocument[]>;
+  getAllLibraryDocuments(userId?: string): Promise<LibraryDocument[]>;
+  getLibraryDocumentsByCategory(category: 'reports' | 'strategies', userId?: string): Promise<LibraryDocument[]>;
   updateLibraryDocument(id: string, document: Partial<InsertLibraryDocument>): Promise<LibraryDocument>;
   deleteLibraryDocument(id: string): Promise<void>;
 }
@@ -1065,7 +1065,12 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getAllPlannedPortfolios(): Promise<PlannedPortfolio[]> {
+  async getAllPlannedPortfolios(userId?: string): Promise<PlannedPortfolio[]> {
+    if (userId) {
+      return await db.select().from(plannedPortfolios)
+        .where(eq(plannedPortfolios.userId, userId))
+        .orderBy(plannedPortfolios.sortOrder, plannedPortfolios.name);
+    }
     return await db.select().from(plannedPortfolios).orderBy(plannedPortfolios.sortOrder, plannedPortfolios.name);
   }
 
@@ -1079,8 +1084,8 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
-  async getAllPlannedPortfoliosWithAllocations(): Promise<PlannedPortfolioWithAllocations[]> {
-    const portfolios = await this.getAllPlannedPortfolios();
+  async getAllPlannedPortfoliosWithAllocations(userId?: string): Promise<PlannedPortfolioWithAllocations[]> {
+    const portfolios = await this.getAllPlannedPortfolios(userId);
     
     const allAllocations = await db.select().from(plannedPortfolioAllocations);
     const allHoldings = await this.getAllUniversalHoldings();
@@ -1174,7 +1179,12 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getAllFreelancePortfolios(): Promise<FreelancePortfolio[]> {
+  async getAllFreelancePortfolios(userId?: string): Promise<FreelancePortfolio[]> {
+    if (userId) {
+      return await db.select().from(freelancePortfolios)
+        .where(eq(freelancePortfolios.userId, userId))
+        .orderBy(freelancePortfolios.sortOrder, freelancePortfolios.name);
+    }
     return await db.select().from(freelancePortfolios).orderBy(freelancePortfolios.sortOrder, freelancePortfolios.name);
   }
 
@@ -1188,8 +1198,8 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
-  async getAllFreelancePortfoliosWithAllocations(): Promise<FreelancePortfolioWithAllocations[]> {
-    const portfolios = await this.getAllFreelancePortfolios();
+  async getAllFreelancePortfoliosWithAllocations(userId?: string): Promise<FreelancePortfolioWithAllocations[]> {
+    const portfolios = await this.getAllFreelancePortfolios(userId);
     
     const allAllocations = await db.select().from(freelancePortfolioAllocations);
     const allHoldings = await this.getAllUniversalHoldings();
@@ -1326,11 +1336,24 @@ export class DatabaseStorage implements IStorage {
     return document;
   }
 
-  async getAllLibraryDocuments(): Promise<LibraryDocument[]> {
+  async getAllLibraryDocuments(userId?: string): Promise<LibraryDocument[]> {
+    if (userId) {
+      return await db.select().from(libraryDocuments)
+        .where(eq(libraryDocuments.uploadedBy, userId))
+        .orderBy(desc(libraryDocuments.createdAt));
+    }
     return await db.select().from(libraryDocuments).orderBy(desc(libraryDocuments.createdAt));
   }
 
-  async getLibraryDocumentsByCategory(category: 'reports' | 'strategies'): Promise<LibraryDocument[]> {
+  async getLibraryDocumentsByCategory(category: 'reports' | 'strategies', userId?: string): Promise<LibraryDocument[]> {
+    if (userId) {
+      return await db.select().from(libraryDocuments)
+        .where(and(
+          eq(libraryDocuments.category, category),
+          eq(libraryDocuments.uploadedBy, userId)
+        ))
+        .orderBy(desc(libraryDocuments.createdAt));
+    }
     return await db.select().from(libraryDocuments)
       .where(eq(libraryDocuments.category, category))
       .orderBy(desc(libraryDocuments.createdAt));
