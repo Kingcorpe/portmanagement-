@@ -113,3 +113,30 @@ The platform integrates with Yahoo Finance to fetch real-time market prices for 
 - **Neon (PostgreSQL)**: Cloud-hosted PostgreSQL database for persistent data storage.
 - **TradingView**: External charting and analysis platform, integrated via webhooks for alert reception.
 - **Yahoo Finance (yahoo-finance2)**: Used to fetch real-time stock and ETF prices for portfolio valuation.
+
+## SaaS Conversion Task List (Future Development)
+This is the roadmap for converting the platform to a multi-tenant SaaS product.
+
+### Phase 1: Data Isolation (3-4 days)
+1. Add userId to households table and update schema
+2. Create user_settings table for per-user configuration (email, webhook secret, plan type)
+3. Update storage layer - Filter all queries by userId for data isolation
+4. Update API routes to use authenticated user's ID for all operations
+
+### Phase 2: User Experience (3-4 days)
+5. Create user settings page - Email configuration, webhook secret display/regenerate
+6. Update webhook endpoint to route alerts to correct user based on secret
+7. Create onboarding flow for new users (welcome screen, setup wizard)
+8. Update navigation/UI for multi-tenant experience (user dashboard, account menu)
+
+### Phase 3: Payments (3-5 days)
+9. Integrate Stripe for subscription payments (checkout, webhooks, portal)
+10. Implement plan limits (free tier: 1 household, paid: unlimited)
+11. Add subscription status checks to protected features
+
+### Phase 4: Polish (2-3 days)
+12. Create landing/marketing page for new visitors
+13. Add TradingView setup instructions page with user's unique webhook URL
+14. Testing and polish - Verify data isolation, payment flow, alert routing
+
+**Estimated Total: 2-3 weeks**
