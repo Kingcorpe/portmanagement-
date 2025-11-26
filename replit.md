@@ -51,6 +51,13 @@ The API provides comprehensive CRUD operations for households, individuals, corp
 ### TradingView Webhook Integration
 A dedicated webhook endpoint (`POST /api/webhooks/tradingview`) is available for receiving BUY/SELL alerts from TradingView.
 
+**Alert Display Features:**
+- **Collapsible Alert Cards**: Each alert card can be expanded to show affected accounts
+- **Affected Accounts View**: Shows all accounts holding the alerted symbol with their allocation status
+- **Status Indicators**: Accounts are labeled as Underweight, Overweight, On Target, or No Target
+- **Smart Sorting**: Accounts sorted by relevance (underweight first for BUY signals, overweight first for SELL)
+- **Clickable Links**: Each account links directly to its detail page for quick navigation
+
 **Webhook Features:**
 - **Secret Validation**: Optional webhook secret via `TRADINGVIEW_WEBHOOK_SECRET` environment variable
 - **Automatic Report Generation**: When a BUY signal is received, the system automatically:
