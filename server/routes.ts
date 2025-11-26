@@ -973,6 +973,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get accounts affected by a symbol (for alert details)
+  app.get('/api/symbols/:symbol/affected-accounts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const symbol = req.params.symbol;
+      
+      // Find all positions for this symbol
+      const positionsForSymbol = await storage.getPositionsBySymbol(symbol);
+      
+      // Helper to normalize tickers for matching
+      const normalizeTicker = (ticker: string): string => {
+        return ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+      };
+      
+      const affectedAccounts: Array<{
+        accountId: string;
+        accountType: string;
+        accountName: string;
+        householdName: string;
+        ownerName: string;
+        currentValue: number;
+        actualPercentage: number;
+        targetPercentage: number | null;
+        variance: number | null;
+        status: 'under' | 'over' | 'on-target' | 'no-target';
+      }> = [];
+      
+      for (const position of positionsForSymbol) {
+        let accountType: string;
+        let accountId: string;
+        let account: any;
+        let allPositions: any[];
+        let targetAllocations: any[];
+        let ownerName = '';
+        let householdName = '';
+        let householdId = '';
+        
+        // Determine account type and fetch related data
+        if (position.individualAccountId) {
+          accountType = 'individual';
+          accountId = position.individualAccountId;
+          account = await storage.getIndividualAccount(accountId);
+          if (!account) continue;
+          
+          const individual = await storage.getIndividual(account.individualId);
+          if (!individual) continue;
+          
+          householdId = individual.householdId;
+          ownerName = individual.name;
+          allPositions = await storage.getPositionsByIndividualAccount(accountId);
+          targetAllocations = await storage.getAccountTargetAllocationsByIndividualAccount(accountId);
+        } else if (position.corporateAccountId) {
+          accountType = 'corporate';
+          accountId = position.corporateAccountId;
+          account = await storage.getCorporateAccount(accountId);
+          if (!account) continue;
+          
+          const corporation = await storage.getCorporation(account.corporationId);
+          if (!corporation) continue;
+          
+          householdId = corporation.householdId;
+          ownerName = corporation.name;
+          allPositions = await storage.getPositionsByCorporateAccount(accountId);
+          targetAllocations = await storage.getAccountTargetAllocationsByCorporateAccount(accountId);
+        } else if (position.jointAccountId) {
+          accountType = 'joint';
+          accountId = position.jointAccountId;
+          account = await storage.getJointAccount(accountId);
+          if (!account) continue;
+          
+          householdId = account.householdId;
+          const owners = await storage.getJointAccountOwners(accountId);
+          ownerName = owners.map((o: any) => o.name).join(' & ');
+          allPositions = await storage.getPositionsByJointAccount(accountId);
+          targetAllocations = await storage.getAccountTargetAllocationsByJointAccount(accountId);
+        } else {
+          continue;
+        }
+        
+        // Check if user has access to this household
+        const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+        if (!hasAccess) continue;
+        
+        // Get household name
+        const household = await storage.getHousehold(householdId);
+        householdName = household?.name || 'Unknown';
+        
+        // Calculate portfolio total value
+        const totalValue = allPositions.reduce((sum, p) => {
+          const qty = parseFloat(p.quantity || '0');
+          const price = parseFloat(p.currentPrice || p.entryPrice || '0');
+          return sum + (qty * price);
+        }, 0);
+        
+        // Calculate current position value and percentage
+        const positionQty = parseFloat(position.quantity || '0');
+        const positionPrice = parseFloat(position.currentPrice || position.entryPrice || '0');
+        const currentValue = positionQty * positionPrice;
+        const actualPercentage = totalValue > 0 ? (currentValue / totalValue) * 100 : 0;
+        
+        // Find target allocation for this symbol
+        const normalizedSymbol = normalizeTicker(symbol);
+        const targetAllocation = targetAllocations.find(t => 
+          normalizeTicker(t.symbol) === normalizedSymbol
+        );
+        
+        const targetPercentage = targetAllocation ? parseFloat(targetAllocation.targetPercentage) : null;
+        const variance = targetPercentage !== null ? actualPercentage - targetPercentage : null;
+        
+        // Determine status
+        let status: 'under' | 'over' | 'on-target' | 'no-target' = 'no-target';
+        if (variance !== null) {
+          if (Math.abs(variance) <= 1) {
+            status = 'on-target';
+          } else if (variance < 0) {
+            status = 'under';
+          } else {
+            status = 'over';
+          }
+        }
+        
+        affectedAccounts.push({
+          accountId,
+          accountType,
+          accountName: account.accountType || account.name || 'Account',
+          householdName,
+          ownerName,
+          currentValue,
+          actualPercentage,
+          targetPercentage,
+          variance,
+          status,
+        });
+      }
+      
+      res.json(affectedAccounts);
+    } catch (error) {
+      console.error("Error fetching affected accounts:", error);
+      res.status(500).json({ message: "Failed to fetch affected accounts" });
+    }
+  });
+
   // TradingView webhook endpoint - validates secret for security
   app.post('/api/webhooks/tradingview', async (req, res) => {
     try {
