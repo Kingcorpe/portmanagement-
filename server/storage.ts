@@ -98,6 +98,7 @@ export interface IStorage {
   canUserEditHousehold(userId: string, householdId: string): Promise<boolean>;
   getHouseholdIdFromAccount(accountType: 'individual' | 'corporate' | 'joint', accountId: string): Promise<string | null>;
   getHouseholdIdFromPosition(positionId: string): Promise<string | null>;
+  getHouseholdIdFromTrade(tradeId: string): Promise<string | null>;
 
   // Individual operations
   createIndividual(individual: InsertIndividual): Promise<Individual>;
@@ -384,6 +385,20 @@ export class DatabaseStorage implements IStorage {
       return this.getHouseholdIdFromAccount('corporate', position.corporateAccountId);
     } else if (position.jointAccountId) {
       return this.getHouseholdIdFromAccount('joint', position.jointAccountId);
+    }
+    return null;
+  }
+
+  async getHouseholdIdFromTrade(tradeId: string): Promise<string | null> {
+    const [trade] = await db.select().from(trades).where(eq(trades.id, tradeId));
+    if (!trade) return null;
+
+    if (trade.individualAccountId) {
+      return this.getHouseholdIdFromAccount('individual', trade.individualAccountId);
+    } else if (trade.corporateAccountId) {
+      return this.getHouseholdIdFromAccount('corporate', trade.corporateAccountId);
+    } else if (trade.jointAccountId) {
+      return this.getHouseholdIdFromAccount('joint', trade.jointAccountId);
     }
     return null;
   }

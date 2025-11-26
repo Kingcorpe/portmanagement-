@@ -447,6 +447,7 @@ export const alertStatusEnum = pgEnum("alert_status", ["pending", "executed", "d
 // TradingView alerts table
 export const alerts = pgTable("alerts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"), // Multi-tenant: owner of this alert (nullable for legacy alerts)
   symbol: varchar("symbol", { length: 20 }).notNull(),
   signal: alertSignalEnum("signal").notNull(),
   price: decimal("price", { precision: 15, scale: 2 }).notNull(),

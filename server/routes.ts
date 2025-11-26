@@ -905,21 +905,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Alert routes
-  app.get('/api/alerts', isAuthenticated, async (req, res) => {
+  app.get('/api/alerts', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const status = req.query.status as "pending" | "executed" | "dismissed" | undefined;
-      const alerts = status
+      const allAlerts = status
         ? await storage.getAlertsByStatus(status)
         : await storage.getAllAlerts();
-      res.json(alerts);
+      
+      // Filter alerts to only those owned by this user (or legacy alerts without userId)
+      const userAlerts = allAlerts.filter(alert => !alert.userId || alert.userId === userId);
+      res.json(userAlerts);
     } catch (error) {
       console.error("Error fetching alerts:", error);
       res.status(500).json({ message: "Failed to fetch alerts" });
     }
   });
 
-  app.patch('/api/alerts/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/alerts/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      
+      // Verify the user owns this alert
+      const existingAlert = await storage.getAlert(req.params.id);
+      if (!existingAlert) {
+        return res.status(404).json({ message: "Alert not found" });
+      }
+      if (existingAlert.userId && existingAlert.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const parsed = updateAlertSchema.parse(req.body);
       const alert = await storage.updateAlert(req.params.id, parsed);
       res.json(alert);
@@ -1985,19 +2000,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Trade routes
-  app.get('/api/trades', isAuthenticated, async (req, res) => {
+  app.get('/api/trades', isAuthenticated, async (req: any, res) => {
     try {
-      const trades = await storage.getAllTrades();
-      res.json(trades);
+      const userId = req.user.claims.sub;
+      const allTrades = await storage.getAllTrades();
+      
+      // Filter trades to only those in accessible households
+      const accessibleTrades = await Promise.all(
+        allTrades.map(async (trade) => {
+          const householdId = await storage.getHouseholdIdFromTrade(trade.id);
+          if (!householdId) return null;
+          const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+          return hasAccess ? trade : null;
+        })
+      );
+      
+      res.json(accessibleTrades.filter(Boolean));
     } catch (error) {
       console.error("Error fetching trades:", error);
       res.status(500).json({ message: "Failed to fetch trades" });
     }
   });
 
-  app.post('/api/trades', isAuthenticated, async (req, res) => {
+  app.post('/api/trades', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const parsed = insertTradeSchema.parse(req.body);
+      
+      // Determine account type and get household ID
+      let householdId: string | null = null;
+      if (parsed.individualAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('individual', parsed.individualAccountId);
+      } else if (parsed.corporateAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('corporate', parsed.corporateAccountId);
+      } else if (parsed.jointAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('joint', parsed.jointAccountId);
+      }
+      
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const trade = await storage.createTrade(parsed);
       res.json(trade);
     } catch (error: any) {
