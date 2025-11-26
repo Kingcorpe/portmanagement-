@@ -56,13 +56,14 @@ import {
 } from "@shared/schema";
 import type { z } from "zod";
 import {
-  RISK_TOLERANCE_LABELS,
-  RISK_TOLERANCE_DESCRIPTIONS,
-  RISK_LIMITS,
+  RISK_LEVEL_LABELS,
   CATEGORY_LABELS,
-  VISIBLE_RISK_TOLERANCES,
   validateRiskLimits,
-  type RiskTolerance,
+  calculateBlendedLimits,
+  formatRiskAllocation,
+  getRiskAllocationFromAccount,
+  type RiskLevel,
+  type RiskAllocation,
   type HoldingCategory,
   type RiskValidationResult,
 } from "@shared/riskConfig";
@@ -113,6 +114,9 @@ export default function AccountDetails() {
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   const [emailAddress, setEmailAddress] = useState("");
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [riskMedium, setRiskMedium] = useState("100");
+  const [riskMediumHigh, setRiskMediumHigh] = useState("0");
+  const [riskHigh, setRiskHigh] = useState("0");
 
   const accountType = params?.accountType as "individual" | "corporate" | "joint" | undefined;
   const accountId = params?.accountId;
@@ -186,6 +190,16 @@ export default function AccountDetails() {
     queryKey: [accountEndpoint],
     enabled: isAuthenticated && !!accountEndpoint,
   });
+
+  // Sync risk allocation state with account data when it loads
+  useEffect(() => {
+    if (accountData) {
+      const allocation = getRiskAllocationFromAccount(accountData);
+      setRiskMedium(allocation.medium.toString());
+      setRiskMediumHigh(allocation.mediumHigh.toString());
+      setRiskHigh(allocation.high.toString());
+    }
+  }, [accountData]);
 
   // Fetch portfolio comparison data
   const comparisonEndpoint = accountType && accountId 
@@ -534,11 +548,15 @@ export default function AccountDetails() {
     },
   });
 
-  const updateRiskToleranceMutation = useMutation({
-    mutationFn: async (riskTolerance: RiskTolerance) => {
+  const updateRiskAllocationMutation = useMutation({
+    mutationFn: async (allocation: RiskAllocation) => {
       const endpoint = accountEndpoint;
       if (!endpoint) throw new Error("Account endpoint not available");
-      return await apiRequest("PATCH", endpoint, { riskTolerance });
+      return await apiRequest("PATCH", endpoint, { 
+        riskMediumPct: allocation.medium.toString(),
+        riskMediumHighPct: allocation.mediumHigh.toString(),
+        riskHighPct: allocation.high.toString(),
+      });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ 
@@ -667,7 +685,7 @@ export default function AccountDetails() {
   };
 
   const computeRiskValidation = (): RiskValidationResult | null => {
-    const riskTolerance = ((accountData as any)?.riskTolerance || "moderate") as RiskTolerance;
+    const riskAllocation = getRiskAllocationFromAccount(accountData);
     const selectedHoldingId = allocationForm.watch("universalHoldingId");
     const targetPct = parseFloat(allocationForm.watch("targetPercentage") || "0");
     
@@ -693,11 +711,11 @@ export default function AccountDetails() {
     };
     
     const allAllocations = [...existingAllocations, newAllocation];
-    return validateRiskLimits(allAllocations, riskTolerance);
+    return validateRiskLimits(allAllocations, riskAllocation);
   };
 
   const computePortfolioRiskValidation = (): RiskValidationResult | null => {
-    const riskTolerance = ((accountData as any)?.riskTolerance || "moderate") as RiskTolerance;
+    const riskAllocation = getRiskAllocationFromAccount(accountData);
     
     if (!selectedPortfolioId) return null;
     
@@ -712,7 +730,7 @@ export default function AccountDetails() {
       targetPercentage: parseFloat(a.targetPercentage),
     }));
     
-    return validateRiskLimits(allocations, riskTolerance);
+    return validateRiskLimits(allocations, riskAllocation);
   };
 
   const handleCopyFromPortfolio = () => {
@@ -1086,29 +1104,83 @@ export default function AccountDetails() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Select
-              value={(accountData as any)?.riskTolerance || "moderate"}
-              onValueChange={(value: RiskTolerance) => {
-                updateRiskToleranceMutation.mutate(value);
-              }}
-              disabled={updateRiskToleranceMutation.isPending}
-            >
-              <SelectTrigger data-testid="select-risk-tolerance" className="w-full">
-                <SelectValue placeholder="Select risk tolerance" />
-              </SelectTrigger>
-              <SelectContent>
-                {VISIBLE_RISK_TOLERANCES.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    <div className="flex flex-col">
-                      <span>{RISK_TOLERANCE_LABELS[value]}</span>
+            {(() => {
+              const currentAllocation = getRiskAllocationFromAccount(accountData);
+              const total = parseFloat(riskMedium || "0") + parseFloat(riskMediumHigh || "0") + parseFloat(riskHigh || "0");
+              const isValid = Math.abs(total - 100) < 0.01;
+              
+              const handleSave = () => {
+                if (isValid) {
+                  updateRiskAllocationMutation.mutate({
+                    medium: parseFloat(riskMedium || "0"),
+                    mediumHigh: parseFloat(riskMediumHigh || "0"),
+                    high: parseFloat(riskHigh || "0"),
+                  });
+                }
+              };
+              
+              return (
+                <div className="space-y-3">
+                  <div className="text-sm font-medium mb-2">
+                    {formatRiskAllocation(currentAllocation)}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Medium %</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={riskMedium}
+                        onChange={(e) => setRiskMedium(e.target.value)}
+                        className="h-8"
+                        data-testid="input-risk-medium"
+                      />
                     </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground mt-2">
-              {RISK_TOLERANCE_DESCRIPTIONS[(accountData as any)?.riskTolerance as RiskTolerance || "moderate"]}
-            </p>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Med/High %</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={riskMediumHigh}
+                        onChange={(e) => setRiskMediumHigh(e.target.value)}
+                        className="h-8"
+                        data-testid="input-risk-medium-high"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">High %</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={riskHigh}
+                        onChange={(e) => setRiskHigh(e.target.value)}
+                        className="h-8"
+                        data-testid="input-risk-high"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={cn("text-xs", isValid ? "text-muted-foreground" : "text-destructive font-medium")}>
+                      Total: {total.toFixed(0)}% {!isValid && "(must equal 100%)"}
+                    </span>
+                    <Button 
+                      size="sm" 
+                      onClick={handleSave}
+                      disabled={!isValid || updateRiskAllocationMutation.isPending}
+                      data-testid="button-save-risk"
+                    >
+                      {updateRiskAllocationMutation.isPending ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
@@ -1219,8 +1291,6 @@ export default function AccountDetails() {
                       const riskValidation = computePortfolioRiskValidation();
                       if (!riskValidation) return null;
                       
-                      const riskTolerance = ((accountData as any)?.riskTolerance || "moderate") as RiskTolerance;
-                      
                       if (riskValidation.violations.length > 0) {
                         return (
                           <Alert variant="destructive" data-testid="alert-copy-risk-violation">
@@ -1231,7 +1301,7 @@ export default function AccountDetails() {
                                 {riskValidation.violations.map((v, i) => (
                                   <p key={i}>
                                     {CATEGORY_LABELS[v.category]}: {v.currentPercentage.toFixed(1)}% 
-                                    (max {v.maxAllowed}% for {RISK_TOLERANCE_LABELS[riskTolerance]})
+                                    (max {v.maxAllowed.toFixed(1)}% allowed)
                                   </p>
                                 ))}
                               </div>
@@ -1253,7 +1323,7 @@ export default function AccountDetails() {
                                 {riskValidation.warnings.map((w, i) => (
                                   <p key={i}>
                                     {CATEGORY_LABELS[w.category]}: {w.currentPercentage.toFixed(1)}% 
-                                    (max {w.maxAllowed}% for {RISK_TOLERANCE_LABELS[riskTolerance]})
+                                    (max {w.maxAllowed.toFixed(1)}% allowed)
                                   </p>
                                 ))}
                               </div>
@@ -1387,8 +1457,6 @@ export default function AccountDetails() {
                         const riskValidation = computeRiskValidation();
                         if (!riskValidation) return null;
                         
-                        const riskTolerance = ((accountData as any)?.riskTolerance || "moderate") as RiskTolerance;
-                        
                         if (riskValidation.violations.length > 0) {
                           return (
                             <Alert variant="destructive" data-testid="alert-risk-violation">
@@ -1399,7 +1467,7 @@ export default function AccountDetails() {
                                   {riskValidation.violations.map((v, i) => (
                                     <p key={i}>
                                       {CATEGORY_LABELS[v.category]}: {v.currentPercentage.toFixed(1)}% 
-                                      (max {v.maxAllowed}% for {RISK_TOLERANCE_LABELS[riskTolerance]})
+                                      (max {v.maxAllowed.toFixed(1)}% allowed)
                                     </p>
                                   ))}
                                 </div>
@@ -1421,7 +1489,7 @@ export default function AccountDetails() {
                                   {riskValidation.warnings.map((w, i) => (
                                     <p key={i}>
                                       {CATEGORY_LABELS[w.category]}: {w.currentPercentage.toFixed(1)}% 
-                                      (max {w.maxAllowed}% for {RISK_TOLERANCE_LABELS[riskTolerance]})
+                                      (max {w.maxAllowed.toFixed(1)}% allowed)
                                     </p>
                                   ))}
                                 </div>
