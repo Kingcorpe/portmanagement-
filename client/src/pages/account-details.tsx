@@ -1409,11 +1409,11 @@ export default function AccountDetails() {
                   
                   return (
                     <TableRow key={position.id} data-testid={`row-position-${position.id}`}>
-                      {/* Symbol - color matches status */}
+                      {/* Symbol - color reflects action needed (green=buy, red=sell) */}
                       <TableCell data-testid={`text-symbol-${position.id}`}>
                         <div className={`font-medium ${
-                          comparison?.status === 'over' ? 'text-green-600 dark:text-green-400' :
-                          comparison?.status === 'under' ? 'text-red-600 dark:text-red-400' :
+                          comparison?.status === 'under' ? 'text-green-600 dark:text-green-400' :
+                          comparison?.status === 'over' ? 'text-red-600 dark:text-red-400' :
                           comparison?.status === 'on-target' ? 'text-blue-600 dark:text-blue-400' :
                           comparison?.status === 'unexpected' ? 'text-amber-600 dark:text-amber-400' :
                           ''
