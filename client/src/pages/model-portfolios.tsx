@@ -328,13 +328,24 @@ function SortablePlannedPortfolioCard({
                                 </Button>
                               </div>
                             ) : (
-                              <span
-                                className="cursor-pointer hover:text-primary transition-colors"
-                                onClick={() => handleInlineAllocationEdit("planned", allocation.id, currentValue.toFixed(2))}
-                                data-testid={`text-allocation-${allocation.id}`}
-                              >
-                                {currentValue.toFixed(2)}%
-                              </span>
+                              <div className="flex items-center gap-1 justify-end">
+                                <span
+                                  className="cursor-pointer hover:text-primary transition-colors"
+                                  onClick={() => handleInlineAllocationEdit("planned", allocation.id, currentValue.toFixed(2))}
+                                  data-testid={`text-allocation-${allocation.id}`}
+                                >
+                                  {currentValue.toFixed(2)}%
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-muted-foreground hover:text-primary"
+                                  onClick={() => handleInlineAllocationEdit("planned", allocation.id, currentValue.toFixed(2))}
+                                  data-testid={`button-edit-allocation-${allocation.id}`}
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                              </div>
                             )}
                           </TableCell>
                           <TableCell>
@@ -531,13 +542,24 @@ function SortableFreelancePortfolioCard({
                                 </Button>
                               </div>
                             ) : (
-                              <span
-                                className="cursor-pointer hover:text-primary transition-colors"
-                                onClick={() => handleInlineAllocationEdit("freelance", allocation.id, currentValue.toFixed(2))}
-                                data-testid={`text-allocation-${allocation.id}`}
-                              >
-                                {currentValue.toFixed(2)}%
-                              </span>
+                              <div className="flex items-center gap-1 justify-end">
+                                <span
+                                  className="cursor-pointer hover:text-primary transition-colors"
+                                  onClick={() => handleInlineAllocationEdit("freelance", allocation.id, currentValue.toFixed(2))}
+                                  data-testid={`text-allocation-${allocation.id}`}
+                                >
+                                  {currentValue.toFixed(2)}%
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-muted-foreground hover:text-primary"
+                                  onClick={() => handleInlineAllocationEdit("freelance", allocation.id, currentValue.toFixed(2))}
+                                  data-testid={`button-edit-allocation-${allocation.id}`}
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                              </div>
                             )}
                           </TableCell>
                           <TableCell>
