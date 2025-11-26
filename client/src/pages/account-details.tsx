@@ -1385,6 +1385,7 @@ export default function AccountDetails() {
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Book Value</TableHead>
                   <TableHead className="text-right">Market Value</TableHead>
+                  <TableHead className="text-right">U/R Gain $</TableHead>
                   {comparisonData?.hasTargetAllocations && (
                     <TableHead className="text-right">Actual %</TableHead>
                   )}
@@ -1448,6 +1449,23 @@ export default function AccountDetails() {
                       <TableCell className="text-right font-medium" data-testid={`text-market-value-${position.id}`}>
                         ${marketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
+                      
+                      {/* U/R Cap Gain $ */}
+                      {(() => {
+                        const bookValue = Number(position.quantity) * Number(position.entryPrice);
+                        const unrealizedGain = marketValue - bookValue;
+                        return (
+                          <TableCell 
+                            className={`text-right font-medium ${
+                              unrealizedGain > 0 ? 'text-green-600 dark:text-green-400' : 
+                              unrealizedGain < 0 ? 'text-red-600 dark:text-red-400' : ''
+                            }`}
+                            data-testid={`text-unrealized-gain-${position.id}`}
+                          >
+                            {unrealizedGain >= 0 ? '+' : ''}${unrealizedGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </TableCell>
+                        );
+                      })()}
                       
                       {/* Actual % (only when target allocations exist) */}
                       {comparisonData?.hasTargetAllocations && (
