@@ -879,7 +879,13 @@ export class DatabaseStorage implements IStorage {
     
     // Check if this is a cash position - aggregate with existing cash
     const cashSymbols = ['CASH', 'CAD', 'USD', 'MONEY MARKET'];
-    const isCashPosition = cashSymbols.includes(dataWithDefaults.symbol?.toUpperCase() || '');
+    const symbolUpper = dataWithDefaults.symbol?.toUpperCase() || '';
+    const isCashPosition = cashSymbols.includes(symbolUpper);
+    
+    console.log('[Cash Debug] Symbol:', dataWithDefaults.symbol, 'Upper:', symbolUpper, 'IsCash:', isCashPosition);
+    console.log('[Cash Debug] Account IDs - Individual:', dataWithDefaults.individualAccountId, 
+                'Corporate:', dataWithDefaults.corporateAccountId, 
+                'Joint:', dataWithDefaults.jointAccountId);
     
     if (isCashPosition) {
       // Find existing cash position in the same account
@@ -896,16 +902,23 @@ export class DatabaseStorage implements IStorage {
           .where(eq(positions.jointAccountId, dataWithDefaults.jointAccountId));
       }
       
+      console.log('[Cash Debug] Existing positions found:', existingPositions.length);
+      console.log('[Cash Debug] Position symbols:', existingPositions.map(p => p.symbol));
+      
       // Find existing cash position with the same symbol
       const existingCash = existingPositions.find(p => 
-        p.symbol?.toUpperCase() === dataWithDefaults.symbol?.toUpperCase()
+        p.symbol?.toUpperCase() === symbolUpper
       );
+      
+      console.log('[Cash Debug] Existing cash found:', existingCash ? existingCash.id : 'none');
       
       if (existingCash) {
         // Aggregate: add new quantity to existing cash position
         const existingQty = parseFloat(existingCash.quantity || '0');
         const newQty = parseFloat(dataWithDefaults.quantity || '0');
         const aggregatedQty = (existingQty + newQty).toString();
+        
+        console.log('[Cash Debug] Aggregating:', existingQty, '+', newQty, '=', aggregatedQty);
         
         const [updatedPosition] = await db
           .update(positions)
@@ -917,6 +930,7 @@ export class DatabaseStorage implements IStorage {
     }
     
     // For non-cash positions or if no existing cash, create new position
+    console.log('[Cash Debug] Creating new position');
     const [position] = await db.insert(positions).values(dataWithDefaults).returning();
     return position;
   }
