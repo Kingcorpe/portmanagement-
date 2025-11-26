@@ -876,6 +876,47 @@ export class DatabaseStorage implements IStorage {
       ...positionData,
       currentPrice: positionData.currentPrice || positionData.entryPrice,
     };
+    
+    // Check if this is a cash position - aggregate with existing cash
+    const cashSymbols = ['CASH', 'CAD', 'USD', 'MONEY MARKET'];
+    const isCashPosition = cashSymbols.includes(dataWithDefaults.symbol?.toUpperCase() || '');
+    
+    if (isCashPosition) {
+      // Find existing cash position in the same account
+      let existingPositions: Position[] = [];
+      
+      if (dataWithDefaults.individualAccountId) {
+        existingPositions = await db.select().from(positions)
+          .where(eq(positions.individualAccountId, dataWithDefaults.individualAccountId));
+      } else if (dataWithDefaults.corporateAccountId) {
+        existingPositions = await db.select().from(positions)
+          .where(eq(positions.corporateAccountId, dataWithDefaults.corporateAccountId));
+      } else if (dataWithDefaults.jointAccountId) {
+        existingPositions = await db.select().from(positions)
+          .where(eq(positions.jointAccountId, dataWithDefaults.jointAccountId));
+      }
+      
+      // Find existing cash position with the same symbol
+      const existingCash = existingPositions.find(p => 
+        p.symbol?.toUpperCase() === dataWithDefaults.symbol?.toUpperCase()
+      );
+      
+      if (existingCash) {
+        // Aggregate: add new quantity to existing cash position
+        const existingQty = parseFloat(existingCash.quantity || '0');
+        const newQty = parseFloat(dataWithDefaults.quantity || '0');
+        const aggregatedQty = (existingQty + newQty).toString();
+        
+        const [updatedPosition] = await db
+          .update(positions)
+          .set({ quantity: aggregatedQty, updatedAt: new Date() })
+          .where(eq(positions.id, existingCash.id))
+          .returning();
+        return updatedPosition;
+      }
+    }
+    
+    // For non-cash positions or if no existing cash, create new position
     const [position] = await db.insert(positions).values(dataWithDefaults).returning();
     return position;
   }
