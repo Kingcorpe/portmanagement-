@@ -97,9 +97,10 @@ const holdingCategoryLabels: Record<string, string> = {
   security: "Securities",
   auto_added: "Auto Added",
   misc: "Misc.",
+  dyn6004: "DYN6004",
 };
 
-const holdingCategoryOrder = ["basket_etf", "single_etf", "double_long_etf", "security", "auto_added", "misc"];
+const holdingCategoryOrder = ["basket_etf", "single_etf", "double_long_etf", "security", "auto_added", "misc", "dyn6004"];
 
 const riskLevelColors: Record<string, string> = {
   low: "bg-chart-2 text-white",
@@ -124,6 +125,7 @@ const categoryLabels: Record<string, string> = {
   security: "Securities",
   auto_added: "Auto Added",
   misc: "Misc.",
+  dyn6004: "DYN6004",
 };
 
 const categoryColors: Record<string, string> = {
@@ -133,12 +135,13 @@ const categoryColors: Record<string, string> = {
   security: "bg-slate-500 text-white",
   auto_added: "bg-gray-500 text-white",
   misc: "bg-teal-500 text-white",
+  dyn6004: "bg-indigo-500 text-white",
 };
 
 const holdingFormSchema = z.object({
   ticker: z.string().min(1, "Ticker is required").max(20),
   name: z.string().min(1, "Name is required"),
-  category: z.enum(["basket_etf", "single_etf", "double_long_etf", "security", "auto_added", "misc"]),
+  category: z.enum(["basket_etf", "single_etf", "double_long_etf", "security", "auto_added", "misc", "dyn6004"]),
   riskLevel: z.enum(["low", "low_medium", "medium", "medium_high", "high"]),
   dividendRate: z.coerce.number().nonnegative().default(0),
   dividendPayout: z.enum(["monthly", "quarterly", "semi_annual", "annual", "none"]),
@@ -1090,7 +1093,7 @@ export default function ModelPortfolios() {
   };
 
   const riskLevelOrder = { low: 1, low_medium: 2, medium: 3, medium_high: 4, high: 5 };
-  const categoryOrder: Record<string, number> = { basket_etf: 1, single_etf: 2, double_long_etf: 3, security: 4, auto_added: 5, misc: 6 };
+  const categoryOrder: Record<string, number> = { basket_etf: 1, single_etf: 2, double_long_etf: 3, security: 4, auto_added: 5, misc: 6, dyn6004: 7 };
 
   const handleHoldingsSort = (column: typeof holdingsSortColumn) => {
     if (holdingsSortColumn === column) {
@@ -1274,6 +1277,7 @@ export default function ModelPortfolios() {
                               <SelectItem value="security">Securities</SelectItem>
                               <SelectItem value="auto_added">Auto Added</SelectItem>
                               <SelectItem value="misc">Misc.</SelectItem>
+                              <SelectItem value="dyn6004">DYN6004</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -1401,6 +1405,7 @@ export default function ModelPortfolios() {
                   <SelectItem value="security">Securities</SelectItem>
                   <SelectItem value="auto_added">Auto Added</SelectItem>
                   <SelectItem value="misc">Misc.</SelectItem>
+                  <SelectItem value="dyn6004">DYN6004</SelectItem>
                 </SelectContent>
               </Select>
             )}
