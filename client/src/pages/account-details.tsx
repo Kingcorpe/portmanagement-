@@ -1267,11 +1267,19 @@ export default function AccountDetails() {
                   </TableBody>
                 </Table>
                 <div className="mt-4 flex justify-end">
-                  <Badge variant={
-                    targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0) === 100 
-                      ? "default" 
-                      : "secondary"
-                  } data-testid="badge-total-allocation">
+                  <Badge 
+                    variant={
+                      targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0) === 100 
+                        ? "default" 
+                        : "destructive"
+                    }
+                    className={
+                      targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0) === 100 
+                        ? "bg-green-600 hover:bg-green-700" 
+                        : ""
+                    }
+                    data-testid="badge-total-allocation"
+                  >
                     Total: {targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0).toFixed(2)}%
                   </Badge>
                 </div>
