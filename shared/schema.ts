@@ -10,6 +10,7 @@ import {
   text,
   decimal,
   pgEnum,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -102,7 +103,10 @@ export const householdShares = pgTable("household_shares", {
   sharedWithUserId: varchar("shared_with_user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   accessLevel: shareAccessLevelEnum("access_level").notNull().default("viewer"),
   sharedAt: timestamp("shared_at").defaultNow(),
-});
+}, (table) => [
+  // Unique constraint to prevent duplicate shares
+  uniqueIndex("idx_household_shares_unique").on(table.householdId, table.sharedWithUserId),
+]);
 
 export const householdSharesRelations = relations(householdShares, ({ one }) => ({
   household: one(households, {

@@ -78,7 +78,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const households = await storage.getAllHouseholdsWithDetails(userId);
-      console.log('[DEBUG] Sample account from first household:', JSON.stringify(households[0]?.individuals[0]?.accounts[0], null, 2));
       res.json(households);
     } catch (error) {
       console.error("Error fetching household details:", error);
@@ -102,9 +101,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/households/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/households/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const household = await storage.getHousehold(req.params.id);
+      const userId = req.user.claims.sub;
+      const householdId = req.params.id;
+      
+      // Verify user has access to this household
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const household = await storage.getHousehold(householdId);
       if (!household) {
         return res.status(404).json({ message: "Household not found" });
       }
@@ -115,9 +123,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/households/:id/full', isAuthenticated, async (req, res) => {
+  app.get('/api/households/:id/full', isAuthenticated, async (req: any, res) => {
     try {
-      const household = await storage.getHouseholdWithDetails(req.params.id);
+      const userId = req.user.claims.sub;
+      const householdId = req.params.id;
+      
+      // Verify user has access to this household
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const household = await storage.getHouseholdWithDetails(householdId);
       if (!household) {
         return res.status(404).json({ message: "Household not found" });
       }
@@ -128,10 +145,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/households/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/households/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const householdId = req.params.id;
+      
+      // Verify user has edit access (owner or editor share)
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const parsed = updateHouseholdSchema.parse(req.body);
-      const household = await storage.updateHousehold(req.params.id, parsed);
+      const household = await storage.updateHousehold(householdId, parsed);
       res.json(household);
     } catch (error: any) {
       console.error("Error updating household:", error);
@@ -306,9 +332,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Individual routes
-  app.get('/api/households/:householdId/individuals', isAuthenticated, async (req, res) => {
+  app.get('/api/households/:householdId/individuals', isAuthenticated, async (req: any, res) => {
     try {
-      const individuals = await storage.getIndividualsByHousehold(req.params.householdId);
+      const userId = req.user.claims.sub;
+      const householdId = req.params.householdId;
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const individuals = await storage.getIndividualsByHousehold(householdId);
       res.json(individuals);
     } catch (error) {
       console.error("Error fetching individuals:", error);
@@ -316,9 +350,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/individuals', isAuthenticated, async (req, res) => {
+  app.post('/api/individuals', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const parsed = insertIndividualSchema.parse(req.body);
+      
+      // Verify user has edit access to the household
+      const canEdit = await storage.canUserEditHousehold(userId, parsed.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const individual = await storage.createIndividual(parsed);
       res.json(individual);
     } catch (error: any) {
@@ -330,11 +372,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/individuals/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/individuals/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const individual = await storage.getIndividual(req.params.id);
+      if (!individual) {
+        return res.status(404).json({ message: "Individual not found" });
+      }
+      
+      // Verify user has edit access to the household
+      const canEdit = await storage.canUserEditHousehold(userId, individual.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const parsed = insertIndividualSchema.partial().parse(req.body);
-      const individual = await storage.updateIndividual(req.params.id, parsed);
-      res.json(individual);
+      const updated = await storage.updateIndividual(req.params.id, parsed);
+      res.json(updated);
     } catch (error: any) {
       console.error("Error updating individual:", error);
       if (error.name === 'ZodError') {
@@ -344,8 +398,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/individuals/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/individuals/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const individual = await storage.getIndividual(req.params.id);
+      if (!individual) {
+        return res.status(404).json({ message: "Individual not found" });
+      }
+      
+      // Verify user has edit access to the household
+      const canEdit = await storage.canUserEditHousehold(userId, individual.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       await storage.deleteIndividual(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -355,9 +421,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Corporation routes
-  app.get('/api/households/:householdId/corporations', isAuthenticated, async (req, res) => {
+  app.get('/api/households/:householdId/corporations', isAuthenticated, async (req: any, res) => {
     try {
-      const corporations = await storage.getCorporationsByHousehold(req.params.householdId);
+      const userId = req.user.claims.sub;
+      const householdId = req.params.householdId;
+      
+      // Verify user has access to this household
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const corporations = await storage.getCorporationsByHousehold(householdId);
       res.json(corporations);
     } catch (error) {
       console.error("Error fetching corporations:", error);
@@ -365,9 +440,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/corporations', isAuthenticated, async (req, res) => {
+  app.post('/api/corporations', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const parsed = insertCorporationSchema.parse(req.body);
+      
+      // Verify user has edit access to the household
+      const canEdit = await storage.canUserEditHousehold(userId, parsed.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const corporation = await storage.createCorporation(parsed);
       res.json(corporation);
     } catch (error: any) {
@@ -379,11 +462,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/corporations/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/corporations/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const corporation = await storage.getCorporation(req.params.id);
+      if (!corporation) {
+        return res.status(404).json({ message: "Corporation not found" });
+      }
+      
+      // Verify user has edit access to the household
+      const canEdit = await storage.canUserEditHousehold(userId, corporation.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const parsed = insertCorporationSchema.partial().parse(req.body);
-      const corporation = await storage.updateCorporation(req.params.id, parsed);
-      res.json(corporation);
+      const updated = await storage.updateCorporation(req.params.id, parsed);
+      res.json(updated);
     } catch (error: any) {
       console.error("Error updating corporation:", error);
       if (error.name === 'ZodError') {
@@ -393,8 +488,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/corporations/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/corporations/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const corporation = await storage.getCorporation(req.params.id);
+      if (!corporation) {
+        return res.status(404).json({ message: "Corporation not found" });
+      }
+      
+      // Verify user has edit access to the household
+      const canEdit = await storage.canUserEditHousehold(userId, corporation.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       await storage.deleteCorporation(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -404,8 +511,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Individual account routes
-  app.get('/api/individuals/:individualId/accounts', isAuthenticated, async (req, res) => {
+  app.get('/api/individuals/:individualId/accounts', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const individual = await storage.getIndividual(req.params.individualId);
+      if (!individual) {
+        return res.status(404).json({ message: "Individual not found" });
+      }
+      
+      // Verify user has access to the household
+      const hasAccess = await storage.canUserAccessHousehold(userId, individual.householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const accounts = await storage.getIndividualAccountsByIndividual(req.params.individualId);
       res.json(accounts);
     } catch (error) {
@@ -414,12 +533,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/individual-accounts/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/individual-accounts/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const account = await storage.getIndividualAccount(req.params.id);
       if (!account) {
         return res.status(404).json({ message: "Account not found" });
       }
+      
+      // Get individual to verify household access
+      const individual = await storage.getIndividual(account.individualId);
+      if (!individual) {
+        return res.status(404).json({ message: "Individual not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, individual.householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       res.json(account);
     } catch (error) {
       console.error("Error fetching individual account:", error);
@@ -427,9 +559,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/individual-accounts', isAuthenticated, async (req, res) => {
+  app.post('/api/individual-accounts', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const parsed = insertIndividualAccountSchema.parse(req.body);
+      
+      // Get individual to verify household edit access
+      const individual = await storage.getIndividual(parsed.individualId);
+      if (!individual) {
+        return res.status(404).json({ message: "Individual not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, individual.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const account = await storage.createIndividualAccount(parsed);
       res.json(account);
     } catch (error: any) {
@@ -441,11 +586,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/individual-accounts/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/individual-accounts/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getIndividualAccount(req.params.id);
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Get individual to verify household edit access
+      const individual = await storage.getIndividual(account.individualId);
+      if (!individual) {
+        return res.status(404).json({ message: "Individual not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, individual.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const parsed = updateIndividualAccountSchema.parse(req.body);
-      const account = await storage.updateIndividualAccount(req.params.id, parsed);
-      res.json(account);
+      const updated = await storage.updateIndividualAccount(req.params.id, parsed);
+      res.json(updated);
     } catch (error: any) {
       console.error("Error updating individual account:", error);
       if (error.name === 'ZodError') {
@@ -455,8 +617,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/individual-accounts/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/individual-accounts/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getIndividualAccount(req.params.id);
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Get individual to verify household edit access
+      const individual = await storage.getIndividual(account.individualId);
+      if (!individual) {
+        return res.status(404).json({ message: "Individual not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, individual.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       await storage.deleteIndividualAccount(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -466,8 +645,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Corporate account routes
-  app.get('/api/corporations/:corporationId/accounts', isAuthenticated, async (req, res) => {
+  app.get('/api/corporations/:corporationId/accounts', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const corporation = await storage.getCorporation(req.params.corporationId);
+      if (!corporation) {
+        return res.status(404).json({ message: "Corporation not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, corporation.householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const accounts = await storage.getCorporateAccountsByCorporation(req.params.corporationId);
       res.json(accounts);
     } catch (error) {
@@ -476,12 +666,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/corporate-accounts/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/corporate-accounts/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const account = await storage.getCorporateAccount(req.params.id);
       if (!account) {
         return res.status(404).json({ message: "Account not found" });
       }
+      
+      const corporation = await storage.getCorporation(account.corporationId);
+      if (!corporation) {
+        return res.status(404).json({ message: "Corporation not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, corporation.householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       res.json(account);
     } catch (error) {
       console.error("Error fetching corporate account:", error);
@@ -489,9 +691,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/corporate-accounts', isAuthenticated, async (req, res) => {
+  app.post('/api/corporate-accounts', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const parsed = insertCorporateAccountSchema.parse(req.body);
+      
+      const corporation = await storage.getCorporation(parsed.corporationId);
+      if (!corporation) {
+        return res.status(404).json({ message: "Corporation not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, corporation.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const account = await storage.createCorporateAccount(parsed);
       res.json(account);
     } catch (error: any) {
@@ -503,11 +717,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/corporate-accounts/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/corporate-accounts/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getCorporateAccount(req.params.id);
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const corporation = await storage.getCorporation(account.corporationId);
+      if (!corporation) {
+        return res.status(404).json({ message: "Corporation not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, corporation.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const parsed = updateCorporateAccountSchema.parse(req.body);
-      const account = await storage.updateCorporateAccount(req.params.id, parsed);
-      res.json(account);
+      const updated = await storage.updateCorporateAccount(req.params.id, parsed);
+      res.json(updated);
     } catch (error: any) {
       console.error("Error updating corporate account:", error);
       if (error.name === 'ZodError') {
@@ -517,8 +747,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/corporate-accounts/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/corporate-accounts/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getCorporateAccount(req.params.id);
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const corporation = await storage.getCorporation(account.corporationId);
+      if (!corporation) {
+        return res.status(404).json({ message: "Corporation not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, corporation.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       await storage.deleteCorporateAccount(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -528,9 +774,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Joint account routes
-  app.get('/api/households/:householdId/joint-accounts', isAuthenticated, async (req, res) => {
+  app.get('/api/households/:householdId/joint-accounts', isAuthenticated, async (req: any, res) => {
     try {
-      const jointAccounts = await storage.getJointAccountsByHousehold(req.params.householdId);
+      const userId = req.user.claims.sub;
+      const householdId = req.params.householdId;
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const jointAccounts = await storage.getJointAccountsByHousehold(householdId);
       res.json(jointAccounts);
     } catch (error) {
       console.error("Error fetching joint accounts:", error);
@@ -538,12 +792,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/joint-accounts/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/joint-accounts/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const account = await storage.getJointAccount(req.params.id);
       if (!account) {
         return res.status(404).json({ message: "Account not found" });
       }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, account.householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       res.json(account);
     } catch (error) {
       console.error("Error fetching joint account:", error);
@@ -551,9 +812,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/joint-accounts', isAuthenticated, async (req, res) => {
+  app.post('/api/joint-accounts', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const parsed = insertJointAccountSchema.parse(req.body);
+      
+      const canEdit = await storage.canUserEditHousehold(userId, parsed.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const jointAccount = await storage.createJointAccount(parsed);
       res.json(jointAccount);
     } catch (error: any) {
@@ -565,11 +833,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/joint-accounts/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/joint-accounts/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getJointAccount(req.params.id);
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, account.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const parsed = updateJointAccountSchema.parse(req.body);
-      const jointAccount = await storage.updateJointAccount(req.params.id, parsed);
-      res.json(jointAccount);
+      const updated = await storage.updateJointAccount(req.params.id, parsed);
+      res.json(updated);
     } catch (error: any) {
       console.error("Error updating joint account:", error);
       if (error.name === 'ZodError') {
@@ -579,8 +858,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/joint-accounts/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/joint-accounts/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getJointAccount(req.params.id);
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, account.householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       await storage.deleteJointAccount(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -914,8 +1204,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Position routes
-  app.get('/api/individual-accounts/:accountId/positions', isAuthenticated, async (req, res) => {
+  app.get('/api/individual-accounts/:accountId/positions', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const householdId = await storage.getHouseholdIdFromAccount('individual', req.params.accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const positions = await storage.getPositionsByIndividualAccount(req.params.accountId);
       res.json(positions);
     } catch (error) {
@@ -924,8 +1225,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/corporate-accounts/:accountId/positions', isAuthenticated, async (req, res) => {
+  app.get('/api/corporate-accounts/:accountId/positions', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const householdId = await storage.getHouseholdIdFromAccount('corporate', req.params.accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const positions = await storage.getPositionsByCorporateAccount(req.params.accountId);
       res.json(positions);
     } catch (error) {
@@ -934,8 +1246,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/joint-accounts/:accountId/positions', isAuthenticated, async (req, res) => {
+  app.get('/api/joint-accounts/:accountId/positions', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const householdId = await storage.getHouseholdIdFromAccount('joint', req.params.accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const positions = await storage.getPositionsByJointAccount(req.params.accountId);
       res.json(positions);
     } catch (error) {
@@ -944,9 +1267,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/positions', isAuthenticated, async (req, res) => {
+  app.post('/api/positions', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const parsed = insertPositionSchema.parse(req.body);
+      
+      // Determine account type and get household ID
+      let householdId: string | null = null;
+      if (parsed.individualAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('individual', parsed.individualAccountId);
+      } else if (parsed.corporateAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('corporate', parsed.corporateAccountId);
+      } else if (parsed.jointAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('joint', parsed.jointAccountId);
+      }
+      
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const position = await storage.createPosition(parsed);
       res.json(position);
     } catch (error: any) {
@@ -958,8 +1302,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/positions/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/positions/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const householdId = await storage.getHouseholdIdFromPosition(req.params.id);
+      if (!householdId) {
+        return res.status(404).json({ message: "Position not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const parsed = updatePositionSchema.parse(req.body);
       const position = await storage.updatePosition(req.params.id, parsed);
       res.json(position);
@@ -972,8 +1327,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/positions/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/positions/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
+      const householdId = await storage.getHouseholdIdFromPosition(req.params.id);
+      if (!householdId) {
+        return res.status(404).json({ message: "Position not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       await storage.deletePosition(req.params.id);
       res.json({ success: true });
     } catch (error) {

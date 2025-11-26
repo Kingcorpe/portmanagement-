@@ -95,6 +95,9 @@ export interface IStorage {
   updateHousehold(id: string, household: Partial<InsertHousehold>): Promise<Household>;
   deleteHousehold(id: string): Promise<void>;
   canUserAccessHousehold(userId: string, householdId: string): Promise<boolean>;
+  canUserEditHousehold(userId: string, householdId: string): Promise<boolean>;
+  getHouseholdIdFromAccount(accountType: 'individual' | 'corporate' | 'joint', accountId: string): Promise<string | null>;
+  getHouseholdIdFromPosition(positionId: string): Promise<string | null>;
 
   // Individual operations
   createIndividual(individual: InsertIndividual): Promise<Individual>;
@@ -331,6 +334,58 @@ export class DatabaseStorage implements IStorage {
         eq(householdShares.sharedWithUserId, userId)
       ));
     return !!share;
+  }
+
+  async canUserEditHousehold(userId: string, householdId: string): Promise<boolean> {
+    // Check if user owns the household (owners have full edit access)
+    const [household] = await db
+      .select()
+      .from(households)
+      .where(and(eq(households.id, householdId), eq(households.userId, userId)));
+    if (household) return true;
+
+    // Check if household is shared with user with editor access
+    const [share] = await db
+      .select()
+      .from(householdShares)
+      .where(and(
+        eq(householdShares.householdId, householdId),
+        eq(householdShares.sharedWithUserId, userId),
+        eq(householdShares.accessLevel, 'editor')
+      ));
+    return !!share;
+  }
+
+  async getHouseholdIdFromAccount(accountType: 'individual' | 'corporate' | 'joint', accountId: string): Promise<string | null> {
+    if (accountType === 'individual') {
+      const [account] = await db.select().from(individualAccounts).where(eq(individualAccounts.id, accountId));
+      if (!account) return null;
+      const [individual] = await db.select().from(individuals).where(eq(individuals.id, account.individualId));
+      return individual?.householdId || null;
+    } else if (accountType === 'corporate') {
+      const [account] = await db.select().from(corporateAccounts).where(eq(corporateAccounts.id, accountId));
+      if (!account) return null;
+      const [corporation] = await db.select().from(corporations).where(eq(corporations.id, account.corporationId));
+      return corporation?.householdId || null;
+    } else if (accountType === 'joint') {
+      const [account] = await db.select().from(jointAccounts).where(eq(jointAccounts.id, accountId));
+      return account?.householdId || null;
+    }
+    return null;
+  }
+
+  async getHouseholdIdFromPosition(positionId: string): Promise<string | null> {
+    const [position] = await db.select().from(positions).where(eq(positions.id, positionId));
+    if (!position) return null;
+
+    if (position.individualAccountId) {
+      return this.getHouseholdIdFromAccount('individual', position.individualAccountId);
+    } else if (position.corporateAccountId) {
+      return this.getHouseholdIdFromAccount('corporate', position.corporateAccountId);
+    } else if (position.jointAccountId) {
+      return this.getHouseholdIdFromAccount('joint', position.jointAccountId);
+    }
+    return null;
   }
 
   // Household operations
