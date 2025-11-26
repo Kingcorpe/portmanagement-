@@ -1291,7 +1291,25 @@ export default function AccountDetails() {
               All positions with target allocation comparison
             </CardDescription>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDialogOpen(true)}
+              data-testid="button-add-position"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Position
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsCashDialogOpen(true)}
+              data-testid="button-add-cash"
+            >
+              <DollarSign className="h-4 w-4 mr-2" />
+              Add Cash
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -1665,16 +1683,9 @@ export default function AccountDetails() {
         </Button>
       </div>
 
-      {/* Footer Actions */}
-      <div className="flex items-center justify-center gap-3 pt-6">
-        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
-          <DialogTrigger asChild>
-            <Button variant="outline" data-testid="button-add-position">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Position
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
+      {/* Dialogs */}
+      <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
+        <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingPosition ? "Edit Position" : "Add New Position"}</DialogTitle>
               <DialogDescription>
@@ -1755,151 +1766,144 @@ export default function AccountDetails() {
                 </div>
               </form>
             </Form>
-          </DialogContent>
-        </Dialog>
+        </DialogContent>
+      </Dialog>
 
-        {/* Add Cash Dialog */}
-        <Dialog open={isCashDialogOpen} onOpenChange={(open) => {
-          setIsCashDialogOpen(open);
-          if (!open) setCashAmount("");
-        }}>
-          <DialogTrigger asChild>
-            <Button variant="outline" data-testid="button-add-cash">
-              <DollarSign className="mr-2 h-4 w-4" />
-              Add Cash
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Cash Deposit</DialogTitle>
-              <DialogDescription>
-                Enter the cash amount to add to this account.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <label htmlFor="cash-amount" className="text-sm font-medium">Amount (CAD)</label>
-                <Input
-                  id="cash-amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="1000.00"
-                  value={cashAmount}
-                  onChange={(e) => setCashAmount(e.target.value)}
-                  data-testid="input-cash-amount"
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setIsCashDialogOpen(false);
-                    setCashAmount("");
-                  }}
-                  data-testid="button-cancel-cash"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleAddCash}
-                  disabled={createMutation.isPending}
-                  data-testid="button-submit-cash"
-                >
-                  {createMutation.isPending ? "Adding..." : "Add Cash"}
-                </Button>
-              </div>
+      {/* Add Cash Dialog */}
+      <Dialog open={isCashDialogOpen} onOpenChange={(open) => {
+        setIsCashDialogOpen(open);
+        if (!open) setCashAmount("");
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Cash Deposit</DialogTitle>
+            <DialogDescription>
+              Enter the cash amount to add to this account.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <label htmlFor="cash-amount" className="text-sm font-medium">Amount (CAD)</label>
+              <Input
+                id="cash-amount"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="1000.00"
+                value={cashAmount}
+                onChange={(e) => setCashAmount(e.target.value)}
+                data-testid="input-cash-amount"
+              />
             </div>
-          </DialogContent>
-        </Dialog>
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsCashDialogOpen(false);
+                  setCashAmount("");
+                }}
+                data-testid="button-cancel-cash"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleAddCash}
+                disabled={createMutation.isPending}
+                data-testid="button-submit-cash"
+              >
+                {createMutation.isPending ? "Adding..." : "Add Cash"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-        {/* Email Report Dialog */}
-        <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Email Portfolio Report</DialogTitle>
-              <DialogDescription>
-                Send a PDF report of this portfolio's rebalancing actions to an email address.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">Email Address</label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="example@email.com"
-                  value={emailAddress}
-                  onChange={(e) => setEmailAddress(e.target.value)}
-                  data-testid="input-email-address"
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
+      {/* Email Report Dialog */}
+      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Email Portfolio Report</DialogTitle>
+            <DialogDescription>
+              Send a PDF report of this portfolio's rebalancing actions to an email address.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium">Email Address</label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="example@email.com"
+                value={emailAddress}
+                onChange={(e) => setEmailAddress(e.target.value)}
+                data-testid="input-email-address"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsEmailDialogOpen(false);
+                  setEmailAddress("");
+                }}
+                data-testid="button-cancel-email"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  if (!emailAddress || !emailAddress.includes('@')) {
+                    toast({
+                      title: "Invalid Email",
+                      description: "Please enter a valid email address",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  
+                  setIsSendingEmail(true);
+                  try {
+                    const response = await apiRequest(
+                      'POST',
+                      `/api/accounts/${accountType}/${accountId}/email-report`,
+                      { email: emailAddress }
+                    );
+                    
+                    toast({
+                      title: "Report Sent",
+                      description: `Portfolio report has been sent to ${emailAddress}`
+                    });
                     setIsEmailDialogOpen(false);
                     setEmailAddress("");
-                  }}
-                  data-testid="button-cancel-email"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={async () => {
-                    if (!emailAddress || !emailAddress.includes('@')) {
-                      toast({
-                        title: "Invalid Email",
-                        description: "Please enter a valid email address",
-                        variant: "destructive"
-                      });
-                      return;
-                    }
-                    
-                    setIsSendingEmail(true);
-                    try {
-                      const response = await apiRequest(
-                        'POST',
-                        `/api/accounts/${accountType}/${accountId}/email-report`,
-                        { email: emailAddress }
-                      );
-                      
-                      toast({
-                        title: "Report Sent",
-                        description: `Portfolio report has been sent to ${emailAddress}`
-                      });
-                      setIsEmailDialogOpen(false);
-                      setEmailAddress("");
-                    } catch (error: any) {
-                      toast({
-                        title: "Failed to Send",
-                        description: error.message || "Could not send the report. Please try again.",
-                        variant: "destructive"
-                      });
-                    } finally {
-                      setIsSendingEmail(false);
-                    }
-                  }}
-                  disabled={isSendingEmail || !emailAddress}
-                  data-testid="button-send-email"
-                >
-                  {isSendingEmail ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4 mr-2" />
-                      Send Report
-                    </>
-                  )}
-                </Button>
-              </div>
+                  } catch (error: any) {
+                    toast({
+                      title: "Failed to Send",
+                      description: error.message || "Could not send the report. Please try again.",
+                      variant: "destructive"
+                    });
+                  } finally {
+                    setIsSendingEmail(false);
+                  }
+                }}
+                disabled={isSendingEmail || !emailAddress}
+                data-testid="button-send-email"
+              >
+                {isSendingEmail ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Send Report
+                  </>
+                )}
+              </Button>
             </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
