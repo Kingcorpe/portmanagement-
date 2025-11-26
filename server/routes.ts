@@ -2308,6 +2308,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Utility endpoint to generate and email a task list PDF
+  app.post('/api/utility/send-task-list-pdf', isAuthenticated, async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email address is required" });
+      }
+      
+      // @ts-ignore
+      const PDFDocument = (await import('pdfkit')).default;
+      
+      const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+        const doc = new PDFDocument({ 
+          size: 'LETTER',
+          margins: { top: 50, bottom: 50, left: 50, right: 50 }
+        });
+        
+        const chunks: Buffer[] = [];
+        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+
+        // Title
+        doc.fontSize(24).font('Helvetica-Bold')
+           .text('SaaS Conversion Task List', { align: 'center' });
+        doc.moveDown(0.3);
+        doc.fontSize(12).font('Helvetica')
+           .fillColor('#666666')
+           .text('Investment Portfolio Management Platform', { align: 'center' });
+        doc.moveDown(0.3);
+        doc.fontSize(10)
+           .text(`Generated: ${new Date().toLocaleString('en-CA', { dateStyle: 'long', timeStyle: 'short' })}`, { align: 'center' });
+        doc.fillColor('#000000');
+        doc.moveDown(1);
+
+        // Separator
+        doc.moveTo(50, doc.y).lineTo(562, doc.y).stroke();
+        doc.moveDown(1);
+
+        // Phase 1
+        doc.fontSize(16).font('Helvetica-Bold').fillColor('#2563eb')
+           .text('Phase 1: Data Isolation (3-4 days)');
+        doc.moveDown(0.5);
+        doc.fontSize(11).font('Helvetica').fillColor('#000000');
+        
+        const phase1Tasks = [
+          'Add userId to households table and update schema',
+          'Create user_settings table for per-user configuration (email, webhook secret, plan type)',
+          'Update storage layer - Filter all queries by userId for data isolation',
+          'Update API routes to use authenticated user\'s ID for all operations'
+        ];
+        phase1Tasks.forEach((task, i) => {
+          doc.text(`${i + 1}. ${task}`, { indent: 20 });
+          doc.moveDown(0.3);
+        });
+        doc.moveDown(0.5);
+
+        // Phase 2
+        doc.fontSize(16).font('Helvetica-Bold').fillColor('#2563eb')
+           .text('Phase 2: User Experience (3-4 days)');
+        doc.moveDown(0.5);
+        doc.fontSize(11).font('Helvetica').fillColor('#000000');
+        
+        const phase2Tasks = [
+          'Create user settings page - Email configuration, webhook secret display/regenerate',
+          'Update webhook endpoint to route alerts to correct user based on secret',
+          'Create onboarding flow for new users (welcome screen, setup wizard)',
+          'Update navigation/UI for multi-tenant experience (user dashboard, account menu)'
+        ];
+        phase2Tasks.forEach((task, i) => {
+          doc.text(`${i + 5}. ${task}`, { indent: 20 });
+          doc.moveDown(0.3);
+        });
+        doc.moveDown(0.5);
+
+        // Phase 3
+        doc.fontSize(16).font('Helvetica-Bold').fillColor('#2563eb')
+           .text('Phase 3: Payments (3-5 days)');
+        doc.moveDown(0.5);
+        doc.fontSize(11).font('Helvetica').fillColor('#000000');
+        
+        const phase3Tasks = [
+          'Integrate Stripe for subscription payments (checkout, webhooks, portal)',
+          'Implement plan limits (free tier: 1 household, paid: unlimited)',
+          'Add subscription status checks to protected features'
+        ];
+        phase3Tasks.forEach((task, i) => {
+          doc.text(`${i + 9}. ${task}`, { indent: 20 });
+          doc.moveDown(0.3);
+        });
+        doc.moveDown(0.5);
+
+        // Phase 4
+        doc.fontSize(16).font('Helvetica-Bold').fillColor('#2563eb')
+           .text('Phase 4: Polish (2-3 days)');
+        doc.moveDown(0.5);
+        doc.fontSize(11).font('Helvetica').fillColor('#000000');
+        
+        const phase4Tasks = [
+          'Create landing/marketing page for new visitors',
+          'Add TradingView setup instructions page with user\'s unique webhook URL',
+          'Testing and polish - Verify data isolation, payment flow, alert routing'
+        ];
+        phase4Tasks.forEach((task, i) => {
+          doc.text(`${i + 12}. ${task}`, { indent: 20 });
+          doc.moveDown(0.3);
+        });
+        doc.moveDown(1);
+
+        // Summary section
+        doc.moveTo(50, doc.y).lineTo(562, doc.y).stroke();
+        doc.moveDown(0.5);
+        
+        doc.fontSize(14).font('Helvetica-Bold').fillColor('#000000')
+           .text('Estimated Timeline: 2-3 weeks');
+        doc.moveDown(0.3);
+        doc.fontSize(11).font('Helvetica')
+           .text('This plan converts your existing portfolio management platform into a multi-tenant SaaS product, allowing you to sell portfolio management and TradingView alert services to other users.');
+
+        doc.end();
+      });
+
+      // Send email
+      const subject = 'SaaS Conversion Task List - Investment Portfolio Platform';
+      const body = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">SaaS Conversion Task List</h2>
+          <p>Please find attached the detailed task list for converting your Investment Portfolio Management Platform to a multi-tenant SaaS product.</p>
+          <h3>Summary</h3>
+          <ul>
+            <li><strong>Phase 1:</strong> Data Isolation (3-4 days)</li>
+            <li><strong>Phase 2:</strong> User Experience (3-4 days)</li>
+            <li><strong>Phase 3:</strong> Payments (3-5 days)</li>
+            <li><strong>Phase 4:</strong> Polish (2-3 days)</li>
+          </ul>
+          <p><strong>Estimated Total:</strong> 2-3 weeks</p>
+          <p style="color: #666; font-size: 12px; margin-top: 30px;">
+            Generated on ${new Date().toLocaleString('en-CA', { dateStyle: 'long', timeStyle: 'short' })}
+          </p>
+        </div>
+      `;
+      
+      const fileName = `SaaS_Conversion_TaskList_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      await sendEmailWithAttachment(email, subject, body, pdfBuffer, fileName);
+      
+      res.json({ 
+        success: true, 
+        message: `Task list PDF sent successfully to ${email}` 
+      });
+    } catch (error: any) {
+      console.error("Error sending task list PDF:", error);
+      res.status(500).json({ message: error.message || "Failed to send task list PDF" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
