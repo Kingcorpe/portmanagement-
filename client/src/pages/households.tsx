@@ -5,6 +5,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { HouseholdCard, Household, HouseholdCategory, householdCategoryLabels, householdCategoryColors } from "@/components/household-card";
 import { HouseholdManagementDialogs } from "@/components/household-management-dialogs";
+import { ShareHouseholdDialog } from "@/components/share-household-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, LayoutList, LayoutGrid, ChevronRight } from "lucide-react";
@@ -45,7 +46,7 @@ import type { HouseholdWithDetails } from "@shared/schema";
 
 export default function Households() {
   const { toast } = useToast();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "grouped">("grouped");
@@ -75,6 +76,12 @@ export default function Households() {
   const [editingCategory, setEditingCategory] = useState<{
     householdId: string;
     currentCategory: HouseholdCategory | null;
+  } | null>(null);
+
+  // State for sharing household dialog
+  const [sharingHousehold, setSharingHousehold] = useState<{
+    id: string;
+    name: string;
   } | null>(null);
 
   // Form for creating households
@@ -196,7 +203,8 @@ export default function Households() {
       corporations,
       jointAccounts,
       totalValue,
-      totalPerformance
+      totalPerformance,
+      isOwner: h.userId === user?.id,
     };
   });
 
@@ -641,6 +649,10 @@ export default function Households() {
               onAddJointAccount={handleAddJointAccount}
               onEditHousehold={handleEditHousehold}
               onEditCategory={(householdId, currentCategory) => setEditingCategory({ householdId, currentCategory })}
+              onShareHousehold={(householdId) => {
+                const h = households.find(hh => hh.id === householdId);
+                if (h) setSharingHousehold({ id: householdId, name: h.name });
+              }}
               onDeleteHousehold={handleDeleteHousehold}
               onDeleteAccount={handleDeleteAccount}
               onEditIndividual={handleEditIndividual}
@@ -691,6 +703,10 @@ export default function Households() {
                         onAddJointAccount={handleAddJointAccount}
                         onEditHousehold={handleEditHousehold}
                         onEditCategory={(householdId, currentCategory) => setEditingCategory({ householdId, currentCategory })}
+                        onShareHousehold={(householdId) => {
+                          const h = households.find(hh => hh.id === householdId);
+                          if (h) setSharingHousehold({ id: householdId, name: h.name });
+                        }}
                         onDeleteHousehold={handleDeleteHousehold}
                         onDeleteAccount={handleDeleteAccount}
                         onEditIndividual={handleEditIndividual}
@@ -715,6 +731,16 @@ export default function Households() {
         dialogType={dialogState.type}
         onClose={handleCloseDialog}
       />
+
+      {/* Share Household Dialog */}
+      {sharingHousehold && (
+        <ShareHouseholdDialog
+          householdId={sharingHousehold.id}
+          householdName={sharingHousehold.name}
+          isOpen={true}
+          onClose={() => setSharingHousehold(null)}
+        />
+      )}
 
       {/* Edit Individual/Corporation/Household/Joint Account Dialog */}
       <Dialog open={editingEntity !== null} onOpenChange={(open) => !open && setEditingEntity(null)}>

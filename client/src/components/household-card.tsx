@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Users, Plus, UserPlus, Building2, Trash2, Edit, User } from "lucide-react";
+import { ChevronDown, ChevronRight, Users, Plus, UserPlus, Building2, Trash2, Edit, User, Share2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -61,6 +61,7 @@ export interface Household {
   jointAccounts: JointAccount[];
   totalValue: number;
   totalPerformance: number;
+  isOwner?: boolean;
 }
 
 export const householdCategoryLabels: Record<HouseholdCategory, string> = {
@@ -88,6 +89,7 @@ interface HouseholdCardProps {
   onAddJointAccount?: (householdId: string) => void;
   onEditHousehold?: (householdId: string, currentName: string) => void;
   onEditCategory?: (householdId: string, currentCategory: HouseholdCategory | null) => void;
+  onShareHousehold?: (householdId: string) => void;
   onDeleteHousehold?: (householdId: string) => void;
   onDeleteAccount?: (accountId: string, accountType: "individual" | "corporate" | "joint") => void;
   onEditIndividual?: (id: string, currentName: string) => void;
@@ -171,6 +173,7 @@ export function HouseholdCard({
   onAddJointAccount,
   onEditHousehold,
   onEditCategory,
+  onShareHousehold,
   onDeleteHousehold,
   onDeleteAccount,
   onEditIndividual,
@@ -249,6 +252,17 @@ export function HouseholdCard({
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {onShareHousehold && household.isOwner && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-muted-foreground"
+                  onClick={() => onShareHousehold(household.id)}
+                  data-testid={`button-share-household-${household.id}`}
+                >
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              )}
               {onEditHousehold && (
                 <Button 
                   variant="ghost" 
