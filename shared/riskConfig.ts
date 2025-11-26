@@ -1,21 +1,23 @@
-export type RiskTolerance = "conservative" | "moderate" | "aggressive" | "very_aggressive";
+export type RiskLevel = "medium" | "medium_high" | "high";
 export type HoldingCategory = "basket_etf" | "single_etf" | "double_long_etf" | "security" | "auto_added" | "misc";
 
-export const RISK_TOLERANCE_LABELS: Record<RiskTolerance, string> = {
-  conservative: "Low",
-  moderate: "Medium",
-  aggressive: "Medium/High",
-  very_aggressive: "High",
+export interface RiskAllocation {
+  medium: number;
+  mediumHigh: number;
+  high: number;
+}
+
+export const RISK_LEVEL_LABELS: Record<RiskLevel, string> = {
+  medium: "Medium",
+  medium_high: "Medium/High",
+  high: "High",
 };
 
-export const RISK_TOLERANCE_DESCRIPTIONS: Record<RiskTolerance, string> = {
-  conservative: "Low risk - Focus on capital preservation with stable, diversified investments",
-  moderate: "Balanced risk - Mix of growth and stability with some higher-risk holdings allowed",
-  aggressive: "Higher risk - Growth-focused with significant exposure to higher-risk assets",
-  very_aggressive: "Maximum risk - No restrictions, suitable for experienced investors",
+export const RISK_LEVEL_DESCRIPTIONS: Record<RiskLevel, string> = {
+  medium: "Balanced risk - Mix of growth and stability with some higher-risk holdings allowed",
+  medium_high: "Higher risk - Growth-focused with significant exposure to higher-risk assets",
+  high: "Maximum risk - No restrictions, suitable for experienced investors",
 };
-
-export const VISIBLE_RISK_TOLERANCES: RiskTolerance[] = ["moderate", "aggressive", "very_aggressive"];
 
 export const CATEGORY_RISK_SCORES: Record<HoldingCategory, number> = {
   basket_etf: 1,
@@ -41,28 +43,44 @@ export type RiskLimits = {
   single_etf: number;
 };
 
-export const RISK_LIMITS: Record<RiskTolerance, RiskLimits> = {
-  conservative: {
-    double_long_etf: 0,
-    security: 15,
-    single_etf: 30,
-  },
-  moderate: {
+export const RISK_LIMITS_BY_LEVEL: Record<RiskLevel, RiskLimits> = {
+  medium: {
     double_long_etf: 10,
     security: 30,
     single_etf: 50,
   },
-  aggressive: {
+  medium_high: {
     double_long_etf: 25,
     security: 50,
     single_etf: 100,
   },
-  very_aggressive: {
+  high: {
     double_long_etf: 100,
     security: 100,
     single_etf: 100,
   },
 };
+
+export function calculateBlendedLimits(allocation: RiskAllocation): RiskLimits {
+  const mediumPct = allocation.medium / 100;
+  const mediumHighPct = allocation.mediumHigh / 100;
+  const highPct = allocation.high / 100;
+
+  return {
+    double_long_etf: 
+      RISK_LIMITS_BY_LEVEL.medium.double_long_etf * mediumPct +
+      RISK_LIMITS_BY_LEVEL.medium_high.double_long_etf * mediumHighPct +
+      RISK_LIMITS_BY_LEVEL.high.double_long_etf * highPct,
+    security: 
+      RISK_LIMITS_BY_LEVEL.medium.security * mediumPct +
+      RISK_LIMITS_BY_LEVEL.medium_high.security * mediumHighPct +
+      RISK_LIMITS_BY_LEVEL.high.security * highPct,
+    single_etf: 
+      RISK_LIMITS_BY_LEVEL.medium.single_etf * mediumPct +
+      RISK_LIMITS_BY_LEVEL.medium_high.single_etf * mediumHighPct +
+      RISK_LIMITS_BY_LEVEL.high.single_etf * highPct,
+  };
+}
 
 export type RiskViolation = {
   category: HoldingCategory;
@@ -79,9 +97,9 @@ export type RiskValidationResult = {
 
 export function validateRiskLimits(
   allocations: { category: HoldingCategory; targetPercentage: number }[],
-  riskTolerance: RiskTolerance
+  riskAllocation: RiskAllocation
 ): RiskValidationResult {
-  const limits = RISK_LIMITS[riskTolerance];
+  const limits = calculateBlendedLimits(riskAllocation);
   const violations: RiskViolation[] = [];
   const warnings: RiskViolation[] = [];
 
@@ -93,7 +111,7 @@ export function validateRiskLimits(
 
   const checkCategory = (category: keyof RiskLimits, label: HoldingCategory) => {
     const total = categoryTotals[label] || 0;
-    const maxAllowed = limits[category];
+    const maxAllowed = Math.round(limits[category] * 10) / 10;
     
     if (total > maxAllowed) {
       violations.push({
@@ -153,4 +171,20 @@ export function getRiskScoreColor(score: number): string {
   if (score <= 2.5) return "text-yellow-600 dark:text-yellow-400";
   if (score <= 3) return "text-orange-600 dark:text-orange-400";
   return "text-red-600 dark:text-red-400";
+}
+
+export function formatRiskAllocation(allocation: RiskAllocation): string {
+  const parts: string[] = [];
+  if (allocation.medium > 0) parts.push(`${allocation.medium}% Medium`);
+  if (allocation.mediumHigh > 0) parts.push(`${allocation.mediumHigh}% Medium/High`);
+  if (allocation.high > 0) parts.push(`${allocation.high}% High`);
+  return parts.join(", ") || "100% Medium";
+}
+
+export function getRiskAllocationFromAccount(account: any): RiskAllocation {
+  return {
+    medium: parseFloat(account?.riskMediumPct || "100"),
+    mediumHigh: parseFloat(account?.riskMediumHighPct || "0"),
+    high: parseFloat(account?.riskHighPct || "0"),
+  };
 }

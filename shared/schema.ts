@@ -157,7 +157,7 @@ export const corporationsRelations = relations(corporations, ({ one, many }) => 
   accounts: many(corporateAccounts),
 }));
 
-// Risk tolerance enum for accounts
+// Risk tolerance enum for accounts (kept for backwards compatibility during migration)
 export const riskToleranceEnum = pgEnum("risk_tolerance", [
   "conservative",
   "moderate", 
@@ -196,7 +196,10 @@ export const individualAccounts = pgTable("individual_accounts", {
   nickname: varchar("nickname", { length: 100 }),
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'), // percentage
-  riskTolerance: riskToleranceEnum("risk_tolerance").default("moderate"),
+  // Risk tolerance as percentages (should sum to 100)
+  riskMediumPct: decimal("risk_medium_pct", { precision: 5, scale: 2 }).notNull().default('100'),
+  riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
+  riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -222,7 +225,10 @@ export const corporateAccounts = pgTable("corporate_accounts", {
   nickname: varchar("nickname", { length: 100 }),
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'), // percentage
-  riskTolerance: riskToleranceEnum("risk_tolerance").default("moderate"),
+  // Risk tolerance as percentages (should sum to 100)
+  riskMediumPct: decimal("risk_medium_pct", { precision: 5, scale: 2 }).notNull().default('100'),
+  riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
+  riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -248,7 +254,10 @@ export const jointAccounts = pgTable("joint_accounts", {
   nickname: varchar("nickname", { length: 100 }),
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'),
-  riskTolerance: riskToleranceEnum("risk_tolerance").default("moderate"),
+  // Risk tolerance as percentages (should sum to 100)
+  riskMediumPct: decimal("risk_medium_pct", { precision: 5, scale: 2 }).notNull().default('100'),
+  riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
+  riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
