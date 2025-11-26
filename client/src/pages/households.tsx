@@ -571,11 +571,11 @@ export default function Households() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="evergreen">{householdCategoryLabels.evergreen}</SelectItem>
                           <SelectItem value="anchor">{householdCategoryLabels.anchor}</SelectItem>
-                          <SelectItem value="pulse">{householdCategoryLabels.pulse}</SelectItem>
-                          <SelectItem value="emerging_pulse">{householdCategoryLabels.emerging_pulse}</SelectItem>
                           <SelectItem value="emerging_anchor">{householdCategoryLabels.emerging_anchor}</SelectItem>
+                          <SelectItem value="emerging_pulse">{householdCategoryLabels.emerging_pulse}</SelectItem>
+                          <SelectItem value="evergreen">{householdCategoryLabels.evergreen}</SelectItem>
+                          <SelectItem value="pulse">{householdCategoryLabels.pulse}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -666,7 +666,7 @@ export default function Households() {
       ) : (
         <div className="space-y-3">
           {/* Group households by category */}
-          {(["evergreen", "anchor", "pulse", "emerging_pulse", "emerging_anchor"] as HouseholdCategory[]).map(category => {
+          {(["anchor", "emerging_anchor", "emerging_pulse", "evergreen", "pulse"] as HouseholdCategory[]).map(category => {
             const categoryHouseholds = filteredHouseholds.filter(h => h.category === category);
             if (categoryHouseholds.length === 0) return null;
             const isExpanded = expandedCategories.has(category);
@@ -817,7 +817,7 @@ export default function Households() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-2">
-              {(["evergreen", "anchor", "pulse", "emerging_pulse", "emerging_anchor"] as HouseholdCategory[]).map((category) => (
+              {(["anchor", "emerging_anchor", "emerging_pulse", "evergreen", "pulse"] as HouseholdCategory[]).map((category) => (
                 <Button
                   key={category}
                   variant={editingCategory?.currentCategory === category ? "default" : "outline"}
