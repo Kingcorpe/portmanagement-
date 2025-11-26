@@ -1409,9 +1409,15 @@ export default function AccountDetails() {
                   
                   return (
                     <TableRow key={position.id} data-testid={`row-position-${position.id}`}>
-                      {/* Symbol */}
+                      {/* Symbol - color matches status */}
                       <TableCell data-testid={`text-symbol-${position.id}`}>
-                        <div className="font-medium">{position.symbol}</div>
+                        <div className={`font-medium ${
+                          comparison?.status === 'over' ? 'text-green-600 dark:text-green-400' :
+                          comparison?.status === 'under' ? 'text-red-600 dark:text-red-400' :
+                          comparison?.status === 'on-target' ? 'text-blue-600 dark:text-blue-400' :
+                          comparison?.status === 'unexpected' ? 'text-amber-600 dark:text-amber-400' :
+                          ''
+                        }`}>{position.symbol}</div>
                         {comparison && (
                           <div className="text-xs text-muted-foreground truncate max-w-[120px]">{comparison.name}</div>
                         )}
