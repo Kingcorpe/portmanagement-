@@ -60,7 +60,7 @@ import {
   type InsertLibraryDocument,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, desc, inArray, ilike, or, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -122,6 +122,7 @@ export interface IStorage {
   getPositionsByIndividualAccount(accountId: string): Promise<Position[]>;
   getPositionsByCorporateAccount(accountId: string): Promise<Position[]>;
   getPositionsByJointAccount(accountId: string): Promise<Position[]>;
+  getPositionsBySymbol(symbol: string): Promise<Position[]>;
   updatePosition(id: string, position: Partial<InsertPosition>): Promise<Position>;
   deletePosition(id: string): Promise<void>;
   calculateIndividualAccountBalance(accountId: string): Promise<number>;
@@ -661,6 +662,18 @@ export class DatabaseStorage implements IStorage {
 
   async getPositionsByJointAccount(accountId: string): Promise<Position[]> {
     return await db.select().from(positions).where(eq(positions.jointAccountId, accountId));
+  }
+
+  async getPositionsBySymbol(symbol: string): Promise<Position[]> {
+    // Normalize the input symbol (remove exchange suffixes)
+    const normalizedSymbol = symbol.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+    
+    // Get all positions and filter for matching symbols (case-insensitive, normalized)
+    const allPositions = await db.select().from(positions);
+    return allPositions.filter(pos => {
+      const normalizedPosSymbol = pos.symbol.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+      return normalizedPosSymbol === normalizedSymbol;
+    });
   }
 
   async updatePosition(id: string, positionData: Partial<InsertPosition>): Promise<Position> {

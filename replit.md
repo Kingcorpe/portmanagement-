@@ -49,7 +49,41 @@ The system uses a household-based hierarchy to organize client data, distinguish
 The API provides comprehensive CRUD operations for households, individuals, corporations, and various account types. It includes specialized endpoints for managing joint account ownership, positions, and trades. A bulk endpoint (`/api/households/:id/full`) fetches complete household data with all nested entities. Authentication endpoints handle user login, logout, and session management.
 
 ### TradingView Webhook Integration
-A dedicated webhook endpoint (`POST /api/webhooks/tradingview`) is available for receiving BUY/SELL alerts from TradingView. The system supports optional webhook secret validation for enhanced security.
+A dedicated webhook endpoint (`POST /api/webhooks/tradingview`) is available for receiving BUY/SELL alerts from TradingView.
+
+**Webhook Features:**
+- **Secret Validation**: Optional webhook secret via `TRADINGVIEW_WEBHOOK_SECRET` environment variable
+- **Automatic Report Generation**: When a BUY signal is received, the system automatically:
+  1. Finds all accounts holding positions in the alerted ticker
+  2. Identifies which accounts have the position below target allocation (underweight)
+  3. Generates PDF portfolio rebalancing reports for those accounts
+  4. Emails the reports to the configured address
+
+**Webhook Payload Format:**
+```json
+{
+  "symbol": "XIU.TO",
+  "signal": "BUY",
+  "price": 35.50,
+  "message": "Optional message",
+  "email": "optional@email.com",
+  "secret": "optional-secret"
+}
+```
+
+**Email Configuration:**
+- Reports are sent to the `email` in the webhook payload, or falls back to `TRADINGVIEW_REPORT_EMAIL` environment variable
+- Requires Gmail integration to be configured
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "alertId": "uuid",
+  "reportsSent": 2,
+  "accounts": ["TFSA - Retirement (Smith Household)", "RRSP - Growth (Smith Household)"]
+}
+```
 
 ### Yahoo Finance Integration
 The platform integrates with Yahoo Finance to fetch real-time market prices for positions and Universal Holdings:

@@ -601,6 +601,8 @@ export const tradingViewWebhookSchema = z.object({
   signal: z.enum(["BUY", "SELL"]),
   price: z.number().positive(),
   message: z.string().optional(),
+  email: z.string().email().optional(), // Optional email for report delivery
+  secret: z.string().optional(), // Optional secret for validation
 });
 
 // Export types
