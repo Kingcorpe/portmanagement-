@@ -597,7 +597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Find target allocation for this symbol
             const targetAlloc = targetAllocations.find(t => 
-              t.ticker && normalizeTicker(t.ticker) === normalizedAlertSymbol
+              t.holding?.ticker && normalizeTicker(t.holding.ticker) === normalizedAlertSymbol
             );
             const targetPercent = targetAlloc ? Number(targetAlloc.targetPercentage) : 0;
             
@@ -638,8 +638,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 
                 // First, add all target allocations
                 for (const allocation of targetAllocations) {
-                  if (!allocation.ticker) continue; // Skip allocations without tickers
-                  const displayTicker = allocation.ticker.toUpperCase();
+                  if (!allocation.holding?.ticker) continue; // Skip allocations without tickers
+                  const displayTicker = allocation.holding.ticker.toUpperCase();
                   const normalizedTicker = normalizeTicker(displayTicker);
                   processedNormalizedTickers.add(normalizedTicker);
                   
@@ -696,7 +696,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   joint_cash: 'Joint Cash', resp: 'RESP'
                 };
                 
-                const displayAccountType = accountTypeLabels[account.accountType] || account.accountType.toUpperCase();
+                const accountType = account.type || 'unknown';
+                const displayAccountType = accountTypeLabels[accountType] || accountType.toUpperCase();
                 const accountDisplayName = account.nickname || '';
                 
                 // Generate PDF
@@ -725,7 +726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   `Variance: ${(actualPercent - targetPercent).toFixed(2)}%\n\n` +
                   `Please see the attached PDF report for detailed rebalancing recommendations.`,
                   pdfBuffer,
-                  `Portfolio_Rebalancing_${householdName.replace(/\s+/g, '_')}_${account.accountType}_${new Date().toISOString().split('T')[0]}.pdf`
+                  `Portfolio_Rebalancing_${householdName.replace(/\s+/g, '_')}_${accountType}_${new Date().toISOString().split('T')[0]}.pdf`
                 );
                 
                 reportsSent.push(`${fullAccountName} (${householdName})`);
