@@ -4300,6 +4300,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Download tasks as PDF
+  app.get('/api/tasks/pdf', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const tasks = await storage.getAllTasksForUser(userId);
+      
+      // @ts-ignore
+      const PDFDocument = (await import('pdfkit')).default;
+      
+      const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+        const doc = new PDFDocument({ 
+          size: 'LETTER',
+          margins: { top: 50, bottom: 50, left: 50, right: 50 }
+        });
+        
+        const chunks: Buffer[] = [];
+        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+
+        // Title
+        doc.fontSize(20).font('Helvetica-Bold')
+           .text('Account Tasks Report', { align: 'center' });
+        doc.moveDown(0.3);
+        doc.fontSize(10).font('Helvetica')
+           .fillColor('#666666')
+           .text(`Generated: ${new Date().toLocaleString('en-CA', { dateStyle: 'long', timeStyle: 'short' })}`, { align: 'center' });
+        doc.fillColor('#000000');
+        doc.moveDown(0.5);
+
+        // Summary
+        const pendingTasks = tasks.filter(t => t.status !== 'completed');
+        const completedTasks = tasks.filter(t => t.status === 'completed');
+        const urgentTasks = pendingTasks.filter(t => t.priority === 'urgent');
+        const highTasks = pendingTasks.filter(t => t.priority === 'high');
+        
+        doc.fontSize(12).font('Helvetica-Bold').text('Summary');
+        doc.moveDown(0.3);
+        doc.fontSize(10).font('Helvetica')
+           .text(`Total Tasks: ${tasks.length}`)
+           .text(`Pending: ${pendingTasks.length}`)
+           .text(`Completed: ${completedTasks.length}`)
+           .text(`Urgent Priority: ${urgentTasks.length}`)
+           .text(`High Priority: ${highTasks.length}`);
+        doc.moveDown(0.5);
+
+        // Separator
+        doc.moveTo(50, doc.y).lineTo(562, doc.y).stroke();
+        doc.moveDown(0.5);
+
+        // Group tasks by household
+        const tasksByHousehold: Record<string, typeof tasks> = {};
+        for (const task of tasks) {
+          if (!tasksByHousehold[task.householdName]) {
+            tasksByHousehold[task.householdName] = [];
+          }
+          tasksByHousehold[task.householdName].push(task);
+        }
+
+        // Account type labels
+        const accountTypeLabels: Record<string, string> = {
+          cash: 'Cash', tfsa: 'TFSA', fhsa: 'FHSA', rrsp: 'RRSP', 
+          lira: 'LIRA', lif: 'LIF', rif: 'RIF',
+          corporate_cash: 'Corporate Cash', ipp: 'IPP',
+          joint_cash: 'Joint Cash', resp: 'RESP'
+        };
+
+        // Priority colors
+        const priorityLabels: Record<string, string> = {
+          urgent: 'URGENT', high: 'HIGH', medium: 'MEDIUM', low: 'LOW'
+        };
+
+        // Render each household
+        for (const [householdName, householdTasks] of Object.entries(tasksByHousehold)) {
+          if (doc.y > 650) {
+            doc.addPage();
+          }
+
+          doc.fontSize(14).font('Helvetica-Bold').fillColor('#2563eb')
+             .text(householdName);
+          doc.fillColor('#000000');
+          doc.moveDown(0.3);
+
+          // Sort tasks: pending first, then by priority
+          const sortedTasks = [...householdTasks].sort((a, b) => {
+            if (a.status === 'completed' && b.status !== 'completed') return 1;
+            if (b.status === 'completed' && a.status !== 'completed') return -1;
+            const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+            return (priorityOrder[a.priority] || 4) - (priorityOrder[b.priority] || 4);
+          });
+
+          for (const task of sortedTasks) {
+            if (doc.y > 700) {
+              doc.addPage();
+            }
+
+            const statusIcon = task.status === 'completed' ? '✓' : '○';
+            const accountLabel = accountTypeLabels[task.accountTypeLabel] || task.accountTypeLabel;
+            
+            doc.fontSize(10).font('Helvetica-Bold')
+               .text(`${statusIcon} ${task.title}`, { continued: false });
+            
+            doc.fontSize(9).font('Helvetica').fillColor('#666666');
+            let details = `   ${task.ownerName} • ${accountLabel}`;
+            if (task.accountNickname) details += ` - ${task.accountNickname}`;
+            details += ` • Priority: ${priorityLabels[task.priority]}`;
+            if (task.dueDate) {
+              const dueDate = new Date(task.dueDate);
+              details += ` • Due: ${dueDate.toLocaleDateString('en-CA')}`;
+            }
+            if (task.status === 'completed' && task.completedAt) {
+              const completedDate = new Date(task.completedAt);
+              details += ` • Completed: ${completedDate.toLocaleDateString('en-CA')}`;
+            }
+            doc.text(details);
+            
+            if (task.description) {
+              doc.fontSize(9).fillColor('#888888')
+                 .text(`   ${task.description}`);
+            }
+            
+            doc.fillColor('#000000');
+            doc.moveDown(0.4);
+          }
+
+          doc.moveDown(0.5);
+        }
+
+        doc.end();
+      });
+
+      const fileName = `Account_Tasks_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.send(pdfBuffer);
+      
+    } catch (error: any) {
+      console.error("Error generating tasks PDF:", error);
+      res.status(500).json({ message: error.message || "Failed to generate tasks PDF" });
+    }
+  });
+
   const httpServer = createServer(app);
   
   // Background job: Refresh Universal Holdings prices every 5 minutes

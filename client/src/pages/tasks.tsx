@@ -21,7 +21,8 @@ import {
   Calendar,
   Users,
   Briefcase,
-  Filter
+  Filter,
+  Download
 } from "lucide-react";
 import { Link } from "wouter";
 import { format, isToday, isTomorrow, isThisWeek, isPast, addDays } from "date-fns";
@@ -276,7 +277,7 @@ export default function Tasks() {
           </p>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2 text-sm">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Group by:</span>
@@ -307,6 +308,15 @@ export default function Tasks() {
               </Button>
             </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open('/api/tasks/pdf', '_blank')}
+            data-testid="button-download-pdf"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download PDF
+          </Button>
         </div>
       </div>
 
