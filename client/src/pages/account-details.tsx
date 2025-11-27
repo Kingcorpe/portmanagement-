@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send, DollarSign, Shield, StickyNote, Clock, Zap } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send, DollarSign, Shield, StickyNote, Clock, Zap, ListTodo, Calendar, Circle, CheckCircle2, AlertCircle, Flag } from "lucide-react";
 import { RichNotesEditor } from "@/components/rich-notes-editor";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -45,6 +45,7 @@ import { Badge } from "@/components/ui/badge";
 import { 
   insertPositionSchema, 
   insertAccountTargetAllocationSchema,
+  insertAccountTaskSchema,
   type InsertPosition, 
   type Position, 
   type UniversalHolding,
@@ -53,7 +54,9 @@ import {
   type AccountTargetAllocationWithHolding,
   type IndividualAccount,
   type CorporateAccount,
-  type JointAccount
+  type JointAccount,
+  type AccountTask,
+  type InsertAccountTask
 } from "@shared/schema";
 import type { z } from "zod";
 import {
@@ -93,6 +96,103 @@ interface PortfolioComparisonData {
   totalTargetPercentage: number;
 }
 
+interface TaskFormProps {
+  task: AccountTask | null;
+  accountType: "individual" | "corporate" | "joint";
+  accountId: string;
+  onSubmit: (data: Partial<InsertAccountTask>) => void;
+  isPending: boolean;
+}
+
+function TaskForm({ task, accountType, accountId, onSubmit, isPending }: TaskFormProps) {
+  const [title, setTitle] = useState(task?.title || "");
+  const [description, setDescription] = useState(task?.description || "");
+  const [status, setStatus] = useState<"pending" | "in_progress" | "completed">(task?.status || "pending");
+  const [priority, setPriority] = useState<"low" | "medium" | "high" | "urgent">(task?.priority || "medium");
+  const [dueDate, setDueDate] = useState(task?.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : "");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      title,
+      description: description || undefined,
+      status,
+      priority,
+      dueDate: dueDate ? new Date(dueDate) : undefined,
+      individualAccountId: accountType === "individual" ? accountId : undefined,
+      corporateAccountId: accountType === "corporate" ? accountId : undefined,
+      jointAccountId: accountType === "joint" ? accountId : undefined,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Title</label>
+        <Input 
+          value={title} 
+          onChange={(e) => setTitle(e.target.value)} 
+          placeholder="Task title" 
+          required
+          data-testid="input-task-title" 
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Description (Optional)</label>
+        <Input 
+          value={description} 
+          onChange={(e) => setDescription(e.target.value)} 
+          placeholder="Task description" 
+          data-testid="input-task-description" 
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Priority</label>
+          <Select value={priority} onValueChange={(v) => setPriority(v as typeof priority)}>
+            <SelectTrigger data-testid="select-task-priority">
+              <SelectValue placeholder="Select priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="urgent">Urgent</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Status</label>
+          <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+            <SelectTrigger data-testid="select-task-status">
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Due Date (Optional)</label>
+        <Input 
+          type="date" 
+          value={dueDate} 
+          onChange={(e) => setDueDate(e.target.value)}
+          data-testid="input-task-due-date" 
+        />
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <Button type="submit" disabled={isPending} data-testid="button-submit-task">
+          {isPending ? "Saving..." : (task ? "Update Task" : "Create Task")}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export default function AccountDetails() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -126,6 +226,10 @@ export default function AccountDetails() {
   const [upcomingNotes, setUpcomingNotes] = useState("");
   const [isNotesExpanded, setIsNotesExpanded] = useState(true);
   const [isHoldingsExpanded, setIsHoldingsExpanded] = useState(true);
+  const [isTasksExpanded, setIsTasksExpanded] = useState(true);
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<AccountTask | null>(null);
+  const [taskStatusFilter, setTaskStatusFilter] = useState<"all" | "pending" | "in_progress" | "completed">("all");
   const [notesAutoSaveStatus, setNotesAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const notesInitialLoadRef = useRef(true);
   const notesSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -175,8 +279,23 @@ export default function AccountDetails() {
     }
   };
 
+  const getTasksEndpoint = () => {
+    if (!accountType || !accountId) return null;
+    switch (accountType) {
+      case "individual":
+        return `/api/individual-accounts/${accountId}/tasks`;
+      case "corporate":
+        return `/api/corporate-accounts/${accountId}/tasks`;
+      case "joint":
+        return `/api/joint-accounts/${accountId}/tasks`;
+      default:
+        return null;
+    }
+  };
+
   const positionsEndpoint = getPositionsEndpoint();
   const accountEndpoint = getAccountEndpoint();
+  const tasksEndpoint = getTasksEndpoint();
 
   const { data: positions = [], isLoading } = useQuery<Position[]>({
     queryKey: [positionsEndpoint],
@@ -297,6 +416,12 @@ export default function AccountDetails() {
   const { data: freelancePortfolios = [] } = useQuery<FreelancePortfolioWithAllocations[]>({
     queryKey: ['/api/freelance-portfolios'],
     enabled: isAuthenticated,
+  });
+
+  // Fetch account tasks
+  const { data: tasks = [] } = useQuery<AccountTask[]>({
+    queryKey: [tasksEndpoint],
+    enabled: isAuthenticated && !!tasksEndpoint,
   });
 
   const form = useForm<PositionFormData>({
@@ -685,6 +810,91 @@ export default function AccountDetails() {
       toast({
         title: "Error",
         description: error.message || "Failed to save notes",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Task mutations
+  const createTaskMutation = useMutation({
+    mutationFn: async (data: InsertAccountTask) => {
+      return await apiRequest("POST", "/api/account-tasks", data);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [tasksEndpoint] });
+      toast({
+        title: "Task Created",
+        description: "Task has been created successfully.",
+      });
+      setIsTaskDialogOpen(false);
+      setEditingTask(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create task",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertAccountTask> }) => {
+      return await apiRequest("PATCH", `/api/account-tasks/${id}`, data);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [tasksEndpoint] });
+      toast({
+        title: "Task Updated",
+        description: "Task has been updated successfully.",
+      });
+      setIsTaskDialogOpen(false);
+      setEditingTask(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update task",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const completeTaskMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("POST", `/api/account-tasks/${id}/complete`, {});
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [tasksEndpoint] });
+      toast({
+        title: "Task Completed",
+        description: "Task has been marked as completed.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to complete task",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/account-tasks/${id}`, undefined);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [tasksEndpoint] });
+      toast({
+        title: "Task Deleted",
+        description: "Task has been deleted successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete task",
         variant: "destructive",
       });
     },
@@ -1957,6 +2167,213 @@ export default function AccountDetails() {
                   {notesAutoSaveStatus === "idle" && "Autosave enabled"}
                 </span>
               </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Account Tasks Section */}
+      <Collapsible open={isTasksExpanded} onOpenChange={setIsTasksExpanded}>
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity" data-testid="button-toggle-tasks">
+                  {isTasksExpanded ? (
+                    <ChevronDown className="h-5 w-5" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5" />
+                  )}
+                  <div className="flex items-center gap-2">
+                    <ListTodo className="h-5 w-5" />
+                    <CardTitle>Tasks</CardTitle>
+                    {tasks.filter(t => t.status !== "completed").length > 0 && (
+                      <Badge variant="secondary" className="ml-1">
+                        {tasks.filter(t => t.status !== "completed").length}
+                      </Badge>
+                    )}
+                  </div>
+                </button>
+              </CollapsibleTrigger>
+              <div className="flex items-center gap-2">
+                <Select value={taskStatusFilter} onValueChange={(v) => setTaskStatusFilter(v as typeof taskStatusFilter)}>
+                  <SelectTrigger className="h-8 w-[130px]" data-testid="select-task-filter">
+                    <SelectValue placeholder="Filter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tasks</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Dialog open={isTaskDialogOpen} onOpenChange={(open) => {
+                  setIsTaskDialogOpen(open);
+                  if (!open) setEditingTask(null);
+                }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" data-testid="button-add-task">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Task
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{editingTask ? "Edit Task" : "Add New Task"}</DialogTitle>
+                      <DialogDescription>
+                        {editingTask ? "Update the task details below." : "Create a new task for this account."}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <TaskForm
+                      task={editingTask}
+                      accountType={accountType!}
+                      accountId={accountId!}
+                      onSubmit={(data) => {
+                        if (editingTask) {
+                          updateTaskMutation.mutate({ id: editingTask.id, data });
+                        } else {
+                          createTaskMutation.mutate(data as InsertAccountTask);
+                        }
+                      }}
+                      isPending={createTaskMutation.isPending || updateTaskMutation.isPending}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              {(() => {
+                const filteredTasks = tasks.filter(task => {
+                  if (taskStatusFilter === "all") return true;
+                  return task.status === taskStatusFilter;
+                }).sort((a, b) => {
+                  // Sort by status (pending, in_progress first), then by priority, then by due date
+                  const statusOrder = { pending: 0, in_progress: 1, completed: 2 };
+                  const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+                  
+                  if (statusOrder[a.status] !== statusOrder[b.status]) {
+                    return statusOrder[a.status] - statusOrder[b.status];
+                  }
+                  if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                    return priorityOrder[a.priority] - priorityOrder[b.priority];
+                  }
+                  // Sort by due date (nulls last)
+                  if (a.dueDate && b.dueDate) {
+                    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+                  }
+                  if (a.dueDate) return -1;
+                  if (b.dueDate) return 1;
+                  return 0;
+                });
+
+                if (filteredTasks.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-muted-foreground">
+                      {taskStatusFilter === "all" 
+                        ? "No tasks yet. Add a task to track action items for this account."
+                        : `No ${taskStatusFilter.replace("_", " ")} tasks.`}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2">
+                    {filteredTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className={cn(
+                          "flex items-start gap-3 p-3 rounded-lg border hover-elevate",
+                          task.status === "completed" && "opacity-60"
+                        )}
+                        data-testid={`task-item-${task.id}`}
+                      >
+                        <button
+                          onClick={() => {
+                            if (task.status !== "completed") {
+                              completeTaskMutation.mutate(task.id);
+                            }
+                          }}
+                          disabled={task.status === "completed" || completeTaskMutation.isPending}
+                          className="mt-0.5 flex-shrink-0"
+                          data-testid={`button-complete-task-${task.id}`}
+                        >
+                          {task.status === "completed" ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          ) : task.status === "in_progress" ? (
+                            <AlertCircle className="h-5 w-5 text-blue-500" />
+                          ) : (
+                            <Circle className="h-5 w-5 text-muted-foreground hover:text-primary" />
+                          )}
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={cn(
+                              "font-medium",
+                              task.status === "completed" && "line-through text-muted-foreground"
+                            )}>
+                              {task.title}
+                            </span>
+                            <Badge
+                              variant={
+                                task.priority === "urgent" ? "destructive" :
+                                task.priority === "high" ? "default" :
+                                task.priority === "medium" ? "secondary" :
+                                "outline"
+                              }
+                              className="text-xs"
+                            >
+                              <Flag className="h-3 w-3 mr-1" />
+                              {task.priority}
+                            </Badge>
+                            {task.status === "in_progress" && (
+                              <Badge variant="outline" className="text-xs border-blue-300 text-blue-600">
+                                In Progress
+                              </Badge>
+                            )}
+                          </div>
+                          {task.description && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                              {task.description}
+                            </p>
+                          )}
+                          {task.dueDate && (
+                            <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                              <Calendar className="h-3 w-3" />
+                              Due: {new Date(task.dueDate).toLocaleDateString()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => {
+                              setEditingTask(task);
+                              setIsTaskDialogOpen(true);
+                            }}
+                            data-testid={`button-edit-task-${task.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => deleteTaskMutation.mutate(task.id)}
+                            disabled={deleteTaskMutation.isPending}
+                            data-testid={`button-delete-task-${task.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </CardContent>
           </CollapsibleContent>
         </Card>
