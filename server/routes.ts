@@ -4374,14 +4374,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Render each household
         for (const [householdName, householdTasks] of Object.entries(tasksByHousehold)) {
-          if (doc.y > 650) {
+          if (doc.y > 620) {
             doc.addPage();
           }
 
+          // Household header with underline
           doc.fontSize(14).font('Helvetica-Bold').fillColor('#2563eb')
              .text(householdName);
-          doc.fillColor('#000000');
-          doc.moveDown(0.3);
+          doc.moveTo(50, doc.y + 2).lineTo(200, doc.y + 2).strokeColor('#2563eb').lineWidth(1).stroke();
+          doc.fillColor('#000000').strokeColor('#000000');
+          doc.moveDown(0.6);
 
           // Sort tasks: pending first, then by priority
           const sortedTasks = [...householdTasks].sort((a, b) => {
@@ -4392,40 +4394,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           for (const task of sortedTasks) {
-            if (doc.y > 700) {
+            if (doc.y > 680) {
               doc.addPage();
             }
 
-            const statusIcon = task.status === 'completed' ? '[X]' : '[ ]';
+            const isCompleted = task.status === 'completed';
+            const statusIcon = isCompleted ? '[X]' : '[ ]';
             const accountLabel = accountTypeLabels[task.accountTypeLabel] || task.accountTypeLabel;
+            const titleColor = isCompleted ? '#666666' : '#000000';
             
-            doc.fontSize(10).font('Helvetica-Bold')
-               .text(`${statusIcon} ${task.title}`, { continued: false });
+            // Line 1: Status icon and task title
+            doc.fontSize(11).font('Helvetica-Bold').fillColor(titleColor)
+               .text(`${statusIcon} ${task.title}`);
             
-            doc.fontSize(9).font('Helvetica').fillColor('#666666');
-            let details = `   ${task.ownerName} | ${accountLabel}`;
-            if (task.accountNickname) details += ` - ${task.accountNickname}`;
-            details += ` | Priority: ${priorityLabels[task.priority]}`;
+            // Line 2: Account info
+            doc.fontSize(9).font('Helvetica').fillColor('#444444');
+            let accountInfo = `     Account: ${accountLabel}`;
+            if (task.accountNickname) accountInfo += ` - ${task.accountNickname}`;
+            doc.text(accountInfo);
+            
+            // Line 3: Owner
+            doc.fontSize(9).font('Helvetica').fillColor('#444444')
+               .text(`     Owner: ${task.ownerName}`);
+            
+            // Line 4: Priority and dates
+            doc.fontSize(9).font('Helvetica').fillColor('#444444');
+            let dateInfo = `     Priority: ${priorityLabels[task.priority]}`;
             if (task.dueDate) {
               const dueDate = new Date(task.dueDate);
-              details += ` | Due: ${dueDate.toLocaleDateString('en-CA')}`;
+              dateInfo += `   |   Due: ${dueDate.toLocaleDateString('en-CA')}`;
             }
-            if (task.status === 'completed' && task.completedAt) {
+            if (isCompleted && task.completedAt) {
               const completedDate = new Date(task.completedAt);
-              details += ` | Completed: ${completedDate.toLocaleDateString('en-CA')}`;
+              dateInfo += `   |   Completed: ${completedDate.toLocaleDateString('en-CA')}`;
             }
-            doc.text(details);
+            doc.text(dateInfo);
             
+            // Line 5: Description (if any)
             if (task.description) {
-              doc.fontSize(9).fillColor('#888888')
-                 .text(`   ${task.description}`);
+              doc.fontSize(9).font('Helvetica-Oblique').fillColor('#666666')
+                 .text(`     ${task.description}`);
             }
             
             doc.fillColor('#000000');
-            doc.moveDown(0.4);
+            doc.moveDown(0.8);
           }
 
-          doc.moveDown(0.5);
+          doc.moveDown(0.3);
         }
 
         doc.end();
