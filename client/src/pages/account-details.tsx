@@ -1193,29 +1193,19 @@ export default function AccountDetails() {
 
       </div>
 
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Market Value</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-total-value">
-              ${totalMarketValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CAD
+      <Card>
+        <CardContent className="py-4">
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">Market Value:</span>
+              <span className="text-xl font-bold" data-testid="text-total-value">
+                ${totalMarketValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} CAD
+              </span>
+              <span className="text-xs text-muted-foreground">
+                (Book: ${totalBookValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+              </span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Book Value: ${totalBookValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Risk Tolerance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+            <div className="h-6 w-px bg-border hidden sm:block" />
             {(() => {
               const currentAllocation = getRiskAllocationFromAccount(accountData);
               const total = parseFloat(riskMedium || "0") + parseFloat(riskMediumHigh || "0") + parseFloat(riskHigh || "0");
@@ -1241,94 +1231,94 @@ export default function AccountDetails() {
               
               if (!isEditingRisk) {
                 return (
-                  <div className="flex items-center justify-between">
-                    <div className="text-lg font-semibold" data-testid="text-risk-allocation">
+                  <div className="flex items-center gap-3">
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Risk:</span>
+                    <span className="font-medium" data-testid="text-risk-allocation">
                       {formatRiskAllocation(currentAllocation)}
-                    </div>
+                    </span>
                     <Button 
                       variant="ghost" 
-                      size="sm"
+                      size="icon"
+                      className="h-7 w-7"
                       onClick={() => setIsEditingRisk(true)}
                       data-testid="button-edit-risk"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-3 w-3" />
                     </Button>
                   </div>
                 );
               }
               
               return (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="text-xs text-muted-foreground">Medium %</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="5"
-                        value={riskMedium}
-                        onChange={(e) => setRiskMedium(e.target.value)}
-                        className="h-8"
-                        data-testid="input-risk-medium"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Med/High %</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="5"
-                        value={riskMediumHigh}
-                        onChange={(e) => setRiskMediumHigh(e.target.value)}
-                        className="h-8"
-                        data-testid="input-risk-medium-high"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">High %</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="5"
-                        value={riskHigh}
-                        onChange={(e) => setRiskHigh(e.target.value)}
-                        className="h-8"
-                        data-testid="input-risk-high"
-                      />
-                    </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-muted-foreground">M:</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={riskMedium}
+                      onChange={(e) => setRiskMedium(e.target.value)}
+                      className="h-7 w-14 text-sm"
+                      data-testid="input-risk-medium"
+                    />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className={cn("text-xs", isValid ? "text-muted-foreground" : "text-destructive font-medium")}>
-                      Total: {total.toFixed(0)}% {!isValid && "(must equal 100%)"}
-                    </span>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="ghost"
-                        size="sm" 
-                        onClick={handleCancel}
-                        data-testid="button-cancel-risk"
-                      >
-                        Cancel
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        onClick={handleSave}
-                        disabled={!isValid || updateRiskAllocationMutation.isPending}
-                        data-testid="button-save-risk"
-                      >
-                        {updateRiskAllocationMutation.isPending ? "Saving..." : "Save"}
-                      </Button>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-muted-foreground">M/H:</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={riskMediumHigh}
+                      onChange={(e) => setRiskMediumHigh(e.target.value)}
+                      className="h-7 w-14 text-sm"
+                      data-testid="input-risk-medium-high"
+                    />
                   </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-muted-foreground">H:</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={riskHigh}
+                      onChange={(e) => setRiskHigh(e.target.value)}
+                      className="h-7 w-14 text-sm"
+                      data-testid="input-risk-high"
+                    />
+                  </div>
+                  <span className={cn("text-xs", isValid ? "text-muted-foreground" : "text-destructive font-medium")}>
+                    {total.toFixed(0)}%{!isValid && " (must = 100%)"}
+                  </span>
+                  <Button 
+                    variant="ghost"
+                    size="sm"
+                    className="h-7"
+                    onClick={handleCancel}
+                    data-testid="button-cancel-risk"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    size="sm"
+                    className="h-7"
+                    onClick={handleSave}
+                    disabled={!isValid || updateRiskAllocationMutation.isPending}
+                    data-testid="button-save-risk"
+                  >
+                    {updateRiskAllocationMutation.isPending ? "Saving..." : "Save"}
+                  </Button>
                 </div>
               );
             })()}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Unified Holdings & Portfolio Comparison Section */}
       <Collapsible open={isHoldingsExpanded} onOpenChange={setIsHoldingsExpanded}>
