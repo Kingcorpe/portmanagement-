@@ -311,7 +311,7 @@ export function HouseholdCard({
         </CardHeader>
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-4">
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
               {onAddIndividual && (
                 <Button 
                   variant="outline" 
@@ -323,17 +323,6 @@ export function HouseholdCard({
                   Add Individual
                 </Button>
               )}
-              {onAddCorporation && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => onAddCorporation(household.id)}
-                  data-testid={`button-add-corporation-${household.id}`}
-                >
-                  <Building2 className="h-3 w-3 mr-1" />
-                  Add Corporation
-                </Button>
-              )}
               {onAddJointAccount && (
                 <Button 
                   variant="outline" 
@@ -343,6 +332,18 @@ export function HouseholdCard({
                 >
                   <Users className="h-3 w-3 mr-1" />
                   Add Joint Account
+                </Button>
+              )}
+              <div className="flex-1" />
+              {onAddCorporation && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => onAddCorporation(household.id)}
+                  data-testid={`button-add-corporation-${household.id}`}
+                >
+                  <Building2 className="h-3 w-3 mr-1" />
+                  Add Corporation
                 </Button>
               )}
             </div>
