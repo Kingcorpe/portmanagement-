@@ -316,6 +316,10 @@ export const positions = pgTable("positions", {
   currentPrice: decimal("current_price", { precision: 15, scale: 2 }).notNull(),
   priceUpdatedAt: timestamp("price_updated_at"),
   purchaseDate: timestamp("purchase_date"),
+  // Stop-limit protection fields (for tracking only)
+  protectionPercent: decimal("protection_percent", { precision: 5, scale: 2 }), // e.g., 50.00 for 50%
+  stopPrice: decimal("stop_price", { precision: 15, scale: 2 }), // Trigger price
+  limitPrice: decimal("limit_price", { precision: 15, scale: 2 }), // Minimum sell price
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
