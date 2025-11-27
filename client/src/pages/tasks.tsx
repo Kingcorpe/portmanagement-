@@ -22,7 +22,8 @@ import {
   Users,
   Briefcase,
   Filter,
-  Download
+  Download,
+  Printer
 } from "lucide-react";
 import { Link } from "wouter";
 import { format, isToday, isTomorrow, isThisWeek, isPast, addDays } from "date-fns";
@@ -107,6 +108,30 @@ export default function Tasks() {
       }
       return newSet;
     });
+  };
+
+  const handlePrintPdf = async () => {
+    try {
+      const response = await fetch('/api/tasks/pdf');
+      if (!response.ok) {
+        throw new Error('Failed to fetch PDF');
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      
+      const printWindow = window.open(url, '_blank');
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+        };
+      }
+    } catch (error) {
+      toast({
+        title: "Print failed",
+        description: "Could not generate PDF for printing",
+        variant: "destructive",
+      });
+    }
   };
 
   // Filter tasks based on active tab
@@ -308,15 +333,26 @@ export default function Tasks() {
               </Button>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open('/api/tasks/pdf', '_blank')}
-            data-testid="button-download-pdf"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Download PDF
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open('/api/tasks/pdf', '_blank')}
+              data-testid="button-download-pdf"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrintPdf}
+              data-testid="button-print-pdf"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print PDF
+            </Button>
+          </div>
         </div>
       </div>
 
