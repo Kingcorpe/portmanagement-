@@ -2553,145 +2553,6 @@ export default function AccountDetails() {
         </Card>
       </Collapsible>
 
-      {/* Audit Log Section - Collapsible, default closed, subtle styling */}
-      <Collapsible open={isAuditLogExpanded} onOpenChange={setIsAuditLogExpanded}>
-        <Card className="border-dashed">
-          <CardHeader className="py-3">
-            <CollapsibleTrigger asChild>
-              <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity w-full" data-testid="button-toggle-audit-log">
-                {isAuditLogExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                )}
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium text-muted-foreground">Change History</span>
-                  {auditLog.length > 0 && (
-                    <Badge variant="outline" className="text-xs">
-                      {auditLog.length}
-                    </Badge>
-                  )}
-                </div>
-              </button>
-            </CollapsibleTrigger>
-          </CardHeader>
-          <CollapsibleContent>
-            <CardContent className="pt-0">
-              {isAuditLogLoading ? (
-                <div className="text-center py-4 text-muted-foreground text-sm">Loading change history...</div>
-              ) : auditLog.length === 0 ? (
-                <div className="text-center py-4 text-muted-foreground text-sm">
-                  No changes recorded yet. Changes to account settings will appear here.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {auditLog.map((entry) => {
-                    const actionLabels: Record<string, string> = {
-                      create: "Created",
-                      update: "Updated Account",
-                      delete: "Deleted",
-                      position_add: "Added Position",
-                      position_update: "Updated Position",
-                      position_delete: "Deleted Position",
-                      position_bulk_upload: "Bulk Uploaded Positions",
-                      target_add: "Added Target Allocation",
-                      target_update: "Updated Target Allocation",
-                      target_delete: "Removed Target Allocation",
-                      task_add: "Added Task",
-                      task_complete: "Completed Task",
-                      task_delete: "Deleted Task",
-                      prices_refresh: "Refreshed Prices",
-                      copy_from_model: "Copied from Model Portfolio",
-                    };
-                    
-                    const actionColors: Record<string, string> = {
-                      position_add: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-                      position_delete: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-                      target_add: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-                      target_delete: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-                      task_complete: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-                      task_delete: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-                      prices_refresh: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-                      copy_from_model: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
-                    };
-                    
-                    return (
-                    <div key={entry.id} className="border rounded-md p-3 bg-muted/30" data-testid={`audit-entry-${entry.id}`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant="outline" className={`text-xs ${actionColors[entry.action] || ""}`}>
-                          {actionLabels[entry.action] || entry.action}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(entry.createdAt).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="space-y-1 text-sm">
-                        {Object.entries(entry.changes).map(([field, change]) => {
-                          const formatValue = (val: any) => {
-                            if (val === null || val === undefined || val === "") return "—";
-                            if (typeof val === "number") return val.toLocaleString();
-                            if (typeof val === "boolean") return val ? "Yes" : "No";
-                            return String(val);
-                          };
-                          const fieldLabels: Record<string, string> = {
-                            nickname: "Nickname",
-                            accountType: "Account Type",
-                            balance: "Balance",
-                            bookValue: "Book Value",
-                            riskMedium: "Medium Risk %",
-                            riskMediumHigh: "Med-High Risk %",
-                            riskHigh: "High Risk %",
-                            immediateNotes: "Immediate Changes",
-                            upcomingNotes: "Upcoming Notes",
-                            protectionPercent: "Protection %",
-                            stopPrice: "Stop Price",
-                            limitPrice: "Limit Price",
-                            symbol: "Symbol",
-                            ticker: "Ticker",
-                            quantity: "Quantity",
-                            entryPrice: "Entry Price",
-                            currentPrice: "Current Price",
-                            targetPercentage: "Target %",
-                            title: "Task",
-                            dueDate: "Due Date",
-                            count: "Count",
-                            symbols: "Symbols",
-                            positionsUpdated: "Positions Updated",
-                            portfolioName: "Portfolio",
-                            allocationsCount: "Allocations",
-                            autoAddedToUniversal: "Auto-added to Holdings",
-                          };
-                          
-                          // Handle simple values vs old/new pairs
-                          if (change && typeof change === "object" && "old" in change && "new" in change) {
-                            return (
-                              <div key={field} className="flex items-start gap-2 text-xs">
-                                <span className="font-medium min-w-[100px]">{fieldLabels[field] || field}:</span>
-                                <span className="text-muted-foreground line-through">{formatValue(change.old)}</span>
-                                <span className="text-muted-foreground">→</span>
-                                <span className="text-foreground">{formatValue(change.new)}</span>
-                              </div>
-                            );
-                          } else {
-                            return (
-                              <div key={field} className="flex items-start gap-2 text-xs">
-                                <span className="font-medium min-w-[100px]">{fieldLabels[field] || field}:</span>
-                                <span className="text-foreground">{formatValue(change)}</span>
-                              </div>
-                            );
-                          }
-                        })}
-                      </div>
-                    </div>
-                  )})}
-                </div>
-              )}
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
-
       {/* Target Allocations Management Section */}
       <Collapsible open={isTargetAllocationsOpen} onOpenChange={setIsTargetAllocationsOpen}>
         <Card>
@@ -3403,6 +3264,145 @@ export default function AccountDetails() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Change History Section - At bottom of page, collapsible, default closed */}
+      <Collapsible open={isAuditLogExpanded} onOpenChange={setIsAuditLogExpanded}>
+        <Card className="border-dashed">
+          <CardHeader className="py-3">
+            <CollapsibleTrigger asChild>
+              <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity w-full" data-testid="button-toggle-audit-log">
+                {isAuditLogExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                )}
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-muted-foreground">Change History</span>
+                  {auditLog.length > 0 && (
+                    <Badge variant="outline" className="text-xs">
+                      {auditLog.length}
+                    </Badge>
+                  )}
+                </div>
+              </button>
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              {isAuditLogLoading ? (
+                <div className="text-center py-4 text-muted-foreground text-sm">Loading change history...</div>
+              ) : auditLog.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground text-sm">
+                  No changes recorded yet. Changes to account settings will appear here.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {auditLog.map((entry) => {
+                    const actionLabels: Record<string, string> = {
+                      create: "Created",
+                      update: "Updated Account",
+                      delete: "Deleted",
+                      position_add: "Added Position",
+                      position_update: "Updated Position",
+                      position_delete: "Deleted Position",
+                      position_bulk_upload: "Bulk Uploaded Positions",
+                      target_add: "Added Target Allocation",
+                      target_update: "Updated Target Allocation",
+                      target_delete: "Removed Target Allocation",
+                      task_add: "Added Task",
+                      task_complete: "Completed Task",
+                      task_delete: "Deleted Task",
+                      prices_refresh: "Refreshed Prices",
+                      copy_from_model: "Copied from Model Portfolio",
+                    };
+                    
+                    const actionColors: Record<string, string> = {
+                      position_add: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+                      position_delete: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+                      target_add: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+                      target_delete: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+                      task_complete: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+                      task_delete: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+                      prices_refresh: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+                      copy_from_model: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
+                    };
+                    
+                    return (
+                    <div key={entry.id} className="border rounded-md p-3 bg-muted/30" data-testid={`audit-entry-${entry.id}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant="outline" className={`text-xs ${actionColors[entry.action] || ""}`}>
+                          {actionLabels[entry.action] || entry.action}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(entry.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        {Object.entries(entry.changes).map(([field, change]) => {
+                          const formatValue = (val: any) => {
+                            if (val === null || val === undefined || val === "") return "—";
+                            if (typeof val === "number") return val.toLocaleString();
+                            if (typeof val === "boolean") return val ? "Yes" : "No";
+                            return String(val);
+                          };
+                          const fieldLabels: Record<string, string> = {
+                            nickname: "Nickname",
+                            accountType: "Account Type",
+                            balance: "Balance",
+                            bookValue: "Book Value",
+                            riskMedium: "Medium Risk %",
+                            riskMediumHigh: "Med-High Risk %",
+                            riskHigh: "High Risk %",
+                            immediateNotes: "Immediate Changes",
+                            upcomingNotes: "Upcoming Notes",
+                            protectionPercent: "Protection %",
+                            stopPrice: "Stop Price",
+                            limitPrice: "Limit Price",
+                            symbol: "Symbol",
+                            ticker: "Ticker",
+                            quantity: "Quantity",
+                            entryPrice: "Entry Price",
+                            currentPrice: "Current Price",
+                            targetPercentage: "Target %",
+                            title: "Task",
+                            dueDate: "Due Date",
+                            count: "Count",
+                            symbols: "Symbols",
+                            positionsUpdated: "Positions Updated",
+                            portfolioName: "Portfolio",
+                            allocationsCount: "Allocations",
+                            autoAddedToUniversal: "Auto-added to Holdings",
+                          };
+                          
+                          // Handle simple values vs old/new pairs
+                          if (change && typeof change === "object" && "old" in change && "new" in change) {
+                            return (
+                              <div key={field} className="flex items-start gap-2 text-xs">
+                                <span className="font-medium min-w-[100px]">{fieldLabels[field] || field}:</span>
+                                <span className="text-muted-foreground line-through">{formatValue(change.old)}</span>
+                                <span className="text-muted-foreground">→</span>
+                                <span className="text-foreground">{formatValue(change.new)}</span>
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div key={field} className="flex items-start gap-2 text-xs">
+                                <span className="font-medium min-w-[100px]">{fieldLabels[field] || field}:</span>
+                                <span className="text-foreground">{formatValue(change)}</span>
+                              </div>
+                            );
+                          }
+                        })}
+                      </div>
+                    </div>
+                  )})}
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     </div>
   );
 }
