@@ -732,6 +732,36 @@ export default function AccountDetails() {
     return validateRiskLimits(allocations, riskAllocation);
   };
 
+  const computeCurrentAllocationsRiskStatus = () => {
+    const riskAllocation = getRiskAllocationFromAccount(accountData);
+    const limits = calculateBlendedLimits(riskAllocation);
+    
+    const categoryTotals: Record<string, number> = {
+      double_long_etf: 0,
+      security: 0,
+      single_etf: 0,
+    };
+    
+    for (const alloc of targetAllocations) {
+      const category = alloc.holding?.category;
+      if (category && category in categoryTotals) {
+        categoryTotals[category] += parseFloat(alloc.targetPercentage);
+      }
+    }
+    
+    const categories = [
+      { key: "double_long_etf", label: "Leveraged ETF", current: categoryTotals.double_long_etf, max: limits.double_long_etf },
+      { key: "security", label: "Individual Security", current: categoryTotals.security, max: limits.security },
+      { key: "single_etf", label: "Single ETF", current: categoryTotals.single_etf, max: limits.single_etf },
+    ];
+    
+    return categories.map(cat => ({
+      ...cat,
+      status: cat.current > cat.max ? "violation" as const : 
+              cat.current > cat.max * 0.8 ? "warning" as const : "ok" as const,
+    }));
+  };
+
   const handleCopyFromPortfolio = () => {
     if (selectedPortfolioId) {
       copyFromPortfolioMutation.mutate({ 
@@ -1562,11 +1592,70 @@ export default function AccountDetails() {
               </p>
             ) : (
               <>
+                {/* Risk Compliance Summary */}
+                {(() => {
+                  const riskStatus = computeCurrentAllocationsRiskStatus();
+                  const hasViolation = riskStatus.some(s => s.status === "violation");
+                  const hasWarning = riskStatus.some(s => s.status === "warning");
+                  const currentAllocation = getRiskAllocationFromAccount(accountData);
+                  
+                  return (
+                    <div className={cn(
+                      "mb-4 p-3 rounded-lg border",
+                      hasViolation ? "border-destructive bg-destructive/5" :
+                      hasWarning ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20" :
+                      "border-green-500 bg-green-50 dark:bg-green-950/20"
+                    )} data-testid="risk-compliance-summary">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Shield className={cn(
+                          "h-4 w-4",
+                          hasViolation ? "text-destructive" :
+                          hasWarning ? "text-yellow-600" :
+                          "text-green-600"
+                        )} />
+                        <span className={cn(
+                          "text-sm font-medium",
+                          hasViolation ? "text-destructive" :
+                          hasWarning ? "text-yellow-700 dark:text-yellow-400" :
+                          "text-green-700 dark:text-green-400"
+                        )}>
+                          Risk Compliance ({formatRiskAllocation(currentAllocation)})
+                        </span>
+                        {!hasViolation && !hasWarning && (
+                          <Check className="h-4 w-4 text-green-600 ml-auto" />
+                        )}
+                        {(hasViolation || hasWarning) && (
+                          <AlertTriangle className={cn(
+                            "h-4 w-4 ml-auto",
+                            hasViolation ? "text-destructive" : "text-yellow-600"
+                          )} />
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        {riskStatus.map((cat) => (
+                          <div key={cat.key} className="flex flex-col">
+                            <span className="text-muted-foreground">{cat.label}</span>
+                            <span className={cn(
+                              "font-medium",
+                              cat.status === "violation" ? "text-destructive" :
+                              cat.status === "warning" ? "text-yellow-700 dark:text-yellow-400" :
+                              "text-foreground"
+                            )}>
+                              {cat.current.toFixed(1)}% / {cat.max.toFixed(1)}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Ticker</TableHead>
                       <TableHead>Security</TableHead>
+                      <TableHead>Category</TableHead>
                       <TableHead className="text-right">Target %</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -1579,6 +1668,11 @@ export default function AccountDetails() {
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm" data-testid={`text-alloc-name-${allocation.id}`}>
                           {allocation.holding?.name}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {CATEGORY_LABELS[allocation.holding?.category as HoldingCategory] || allocation.holding?.category}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right" data-testid={`text-alloc-pct-${allocation.id}`}>
                           {Number(allocation.targetPercentage).toFixed(2)}%
