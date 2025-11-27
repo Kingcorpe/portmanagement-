@@ -234,6 +234,7 @@ export interface IStorage {
   getTasksByIndividualAccount(accountId: string): Promise<AccountTask[]>;
   getTasksByCorporateAccount(accountId: string): Promise<AccountTask[]>;
   getTasksByJointAccount(accountId: string): Promise<AccountTask[]>;
+  getAllTasksForUser(userId: string): Promise<any[]>;
   updateAccountTask(id: string, task: Partial<InsertAccountTask>): Promise<AccountTask>;
   deleteAccountTask(id: string): Promise<void>;
   completeAccountTask(id: string): Promise<AccountTask>;
@@ -1466,6 +1467,115 @@ export class DatabaseStorage implements IStorage {
       .from(accountTasks)
       .where(eq(accountTasks.jointAccountId, accountId))
       .orderBy(desc(accountTasks.createdAt));
+  }
+
+  async getAllTasksForUser(userId: string): Promise<any[]> {
+    // Get all households the user can access
+    const userHouseholds = await db.select({ id: households.id })
+      .from(households)
+      .leftJoin(householdShares, eq(households.id, householdShares.householdId))
+      .where(
+        or(
+          eq(households.userId, userId),
+          eq(householdShares.sharedWithUserId, userId)
+        )
+      );
+    
+    const householdIds = userHouseholds.map(h => h.id);
+    if (householdIds.length === 0) return [];
+
+    // Get all individual accounts with their tasks
+    const individualAccountsWithTasks = await db.select({
+      task: accountTasks,
+      account: individualAccounts,
+      individual: individuals,
+      household: households,
+    })
+      .from(accountTasks)
+      .innerJoin(individualAccounts, eq(accountTasks.individualAccountId, individualAccounts.id))
+      .innerJoin(individuals, eq(individualAccounts.individualId, individuals.id))
+      .innerJoin(households, eq(individuals.householdId, households.id))
+      .where(inArray(households.id, householdIds));
+
+    // Get all corporate accounts with their tasks
+    const corporateAccountsWithTasks = await db.select({
+      task: accountTasks,
+      account: corporateAccounts,
+      corporation: corporations,
+      household: households,
+    })
+      .from(accountTasks)
+      .innerJoin(corporateAccounts, eq(accountTasks.corporateAccountId, corporateAccounts.id))
+      .innerJoin(corporations, eq(corporateAccounts.corporationId, corporations.id))
+      .innerJoin(households, eq(corporations.householdId, households.id))
+      .where(inArray(households.id, householdIds));
+
+    // Get all joint accounts with their tasks
+    const jointAccountsWithTasks = await db.select({
+      task: accountTasks,
+      account: jointAccounts,
+      household: households,
+    })
+      .from(accountTasks)
+      .innerJoin(jointAccounts, eq(accountTasks.jointAccountId, jointAccounts.id))
+      .innerJoin(households, eq(jointAccounts.householdId, households.id))
+      .where(inArray(households.id, householdIds));
+
+    // Combine and format all tasks
+    const allTasks = [
+      ...individualAccountsWithTasks.map(row => ({
+        ...row.task,
+        accountType: 'individual' as const,
+        accountId: row.account.id,
+        accountNickname: row.account.nickname,
+        accountTypeLabel: row.account.type,
+        ownerName: row.individual.name,
+        householdId: row.household.id,
+        householdName: row.household.name,
+      })),
+      ...corporateAccountsWithTasks.map(row => ({
+        ...row.task,
+        accountType: 'corporate' as const,
+        accountId: row.account.id,
+        accountNickname: row.account.nickname,
+        accountTypeLabel: row.account.type,
+        ownerName: row.corporation.name,
+        householdId: row.household.id,
+        householdName: row.household.name,
+      })),
+      ...jointAccountsWithTasks.map(row => ({
+        ...row.task,
+        accountType: 'joint' as const,
+        accountId: row.account.id,
+        accountNickname: row.account.nickname,
+        accountTypeLabel: row.account.type,
+        ownerName: 'Joint Account',
+        householdId: row.household.id,
+        householdName: row.household.name,
+      })),
+    ];
+
+    // Sort by due date (nulls last), then by priority, then by created date
+    return allTasks.sort((a, b) => {
+      // Pending/in_progress first, then completed
+      if (a.status !== b.status) {
+        if (a.status === 'completed') return 1;
+        if (b.status === 'completed') return -1;
+      }
+      // Then by due date (nulls last)
+      if (a.dueDate && b.dueDate) {
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      }
+      if (a.dueDate) return -1;
+      if (b.dueDate) return 1;
+      // Then by priority
+      const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+      if (a.priority !== b.priority) {
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      }
+      // Finally by created date
+      return new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime();
+    });
   }
 
   async updateAccountTask(id: string, taskData: Partial<InsertAccountTask>): Promise<AccountTask> {

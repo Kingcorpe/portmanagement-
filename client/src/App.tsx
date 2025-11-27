@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Dashboard from "@/pages/dashboard";
 import Households from "@/pages/households";
 import ModelPortfolios from "@/pages/model-portfolios";
+import Tasks from "@/pages/tasks";
 import Alerts from "@/pages/alerts";
 import AccountDetails from "@/pages/account-details";
 import LibraryReports from "@/pages/library-reports";
@@ -24,6 +25,7 @@ function AuthenticatedRoutes() {
       <Route path="/" component={Dashboard} />
       <Route path="/households" component={Households} />
       <Route path="/model-portfolios" component={ModelPortfolios} />
+      <Route path="/tasks" component={Tasks} />
       <Route path="/account/:accountType/:accountId" component={AccountDetails} />
       <Route path="/library/reports" component={LibraryReports} />
       <Route path="/library/strategies" component={LibraryStrategies} />

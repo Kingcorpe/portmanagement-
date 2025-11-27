@@ -3871,6 +3871,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all tasks for the current user (across all accounts)
+  app.get('/api/tasks', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const tasks = await storage.getAllTasksForUser(userId);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching all tasks:", error);
+      res.status(500).json({ message: "Failed to fetch tasks" });
+    }
+  });
+
   // Account audit log routes
   app.get('/api/accounts/:accountType/:accountId/audit-log', isAuthenticated, async (req: any, res) => {
     try {

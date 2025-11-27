@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, Settings, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Users, Bell, Settings, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -33,6 +33,11 @@ const menuItems = [
     title: "Model Portfolios",
     url: "/model-portfolios",
     icon: Briefcase,
+  },
+  {
+    title: "Tasks",
+    url: "/tasks",
+    icon: ListTodo,
   },
 ];
 
