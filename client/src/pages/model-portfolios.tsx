@@ -593,6 +593,7 @@ export default function ModelPortfolios() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("holdings");
   const [isHoldingDialogOpen, setIsHoldingDialogOpen] = useState(false);
+  const [saveAndAddAnother, setSaveAndAddAnother] = useState(false);
   const [isPlannedDialogOpen, setIsPlannedDialogOpen] = useState(false);
   const [isFreelanceDialogOpen, setIsFreelanceDialogOpen] = useState(false);
   const [editingHolding, setEditingHolding] = useState<UniversalHolding | null>(null);
@@ -682,11 +683,15 @@ export default function ModelPortfolios() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/universal-holdings"] });
       toast({ title: "Success", description: "Holding created successfully" });
-      setIsHoldingDialogOpen(false);
       holdingForm.reset();
+      if (!saveAndAddAnother) {
+        setIsHoldingDialogOpen(false);
+      }
+      setSaveAndAddAnother(false);
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+      setSaveAndAddAnother(false);
     },
   });
 
@@ -1381,9 +1386,33 @@ export default function ModelPortfolios() {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full" disabled={createHoldingMutation.isPending || updateHoldingMutation.isPending} data-testid="button-submit-holding">
-                    {(createHoldingMutation.isPending || updateHoldingMutation.isPending) ? "Saving..." : (editingHolding ? "Update Holding" : "Add Holding")}
-                  </Button>
+                  <div className="flex gap-2">
+                    {!editingHolding && (
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        className="flex-1" 
+                        disabled={createHoldingMutation.isPending}
+                        onClick={() => {
+                          setSaveAndAddAnother(true);
+                          holdingForm.handleSubmit(onHoldingSubmit)();
+                        }}
+                        data-testid="button-save-add-another"
+                      >
+                        {createHoldingMutation.isPending && saveAndAddAnother ? "Saving..." : "Save & Add Another"}
+                      </Button>
+                    )}
+                    <Button 
+                      type="submit" 
+                      className={editingHolding ? "w-full" : "flex-1"} 
+                      disabled={createHoldingMutation.isPending || updateHoldingMutation.isPending} 
+                      data-testid="button-submit-holding"
+                    >
+                      {(createHoldingMutation.isPending && !saveAndAddAnother) || updateHoldingMutation.isPending 
+                        ? "Saving..." 
+                        : (editingHolding ? "Update Holding" : "Add Holding")}
+                    </Button>
+                  </div>
                 </form>
               </Form>
             </DialogContent>
