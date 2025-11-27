@@ -12,6 +12,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link, useLocation } from "wouter";
@@ -62,10 +63,26 @@ const bottomMenuItems = [
 ];
 
 export function AppSidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [libraryOpen, setLibraryOpen] = useState(location.startsWith("/library"));
+  const { setOpen, isMobile, setOpenMobile } = useSidebar();
 
   const isLibraryActive = location.startsWith("/library");
+
+  const closeSidebar = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    } else {
+      setOpen(false);
+    }
+  };
+
+  const handleNavigation = (url: string, shouldClose: boolean = false) => {
+    setLocation(url);
+    if (shouldClose) {
+      closeSidebar();
+    }
+  };
 
   const handleLogout = () => {
     window.location.href = "/api/logout";
@@ -80,16 +97,21 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location === item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
-                    <Link href={item.url}>
+              {menuItems.map((item) => {
+                const shouldClose = item.url === "/households" || item.url === "/model-portfolios";
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      isActive={location === item.url} 
+                      data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+                      onClick={() => handleNavigation(item.url, shouldClose)}
+                    >
                       <item.icon />
                       <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
 
               {/* Library with sub-items */}
               <Collapsible open={libraryOpen} onOpenChange={setLibraryOpen} className="group/collapsible">
@@ -105,11 +127,13 @@ export function AppSidebar() {
                     <SidebarMenuSub>
                       {librarySubItems.map((subItem) => (
                         <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton asChild isActive={location === subItem.url} data-testid={`link-${subItem.title.toLowerCase().replace(/\s+/g, '-')}`}>
-                            <Link href={subItem.url}>
-                              <subItem.icon className="h-4 w-4" />
-                              <span>{subItem.title}</span>
-                            </Link>
+                          <SidebarMenuSubButton 
+                            isActive={location === subItem.url} 
+                            data-testid={`link-${subItem.title.toLowerCase().replace(/\s+/g, '-')}`}
+                            onClick={() => handleNavigation(subItem.url, true)}
+                          >
+                            <subItem.icon className="h-4 w-4" />
+                            <span>{subItem.title}</span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       ))}
