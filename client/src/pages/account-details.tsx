@@ -815,34 +815,33 @@ export default function AccountDetails() {
     return validateRiskLimits(allocations, riskAllocation);
   };
 
-  const computeCurrentAllocationsRiskStatus = () => {
-    const riskAllocation = getRiskAllocationFromAccount(accountData);
-    
-    const riskLevelTotals: Record<RiskLevel, number> = {
-      medium: 0,
-      medium_high: 0,
-      high: 0,
+  const computeCategoryTotals = () => {
+    const categoryTotals: Record<string, number> = {
+      basket_etf: 0,
+      single_etf: 0,
+      double_long_etf: 0,
+      security: 0,
+      misc: 0,
     };
     
     for (const alloc of targetAllocations) {
       const category = alloc.holding?.category as HoldingCategory;
-      if (category && CATEGORY_TO_RISK_LEVEL[category]) {
-        const riskLevel = CATEGORY_TO_RISK_LEVEL[category];
-        riskLevelTotals[riskLevel] += parseFloat(alloc.targetPercentage);
+      if (category) {
+        if (category === "auto_added") {
+          categoryTotals.misc += parseFloat(alloc.targetPercentage);
+        } else if (categoryTotals[category] !== undefined) {
+          categoryTotals[category] += parseFloat(alloc.targetPercentage);
+        }
       }
     }
     
-    const riskLevels = [
-      { key: "medium" as RiskLevel, label: "Medium Risk", current: riskLevelTotals.medium, allowed: riskAllocation.medium },
-      { key: "medium_high" as RiskLevel, label: "Medium/High Risk", current: riskLevelTotals.medium_high, allowed: riskAllocation.mediumHigh },
-      { key: "high" as RiskLevel, label: "High Risk", current: riskLevelTotals.high, allowed: riskAllocation.high },
+    return [
+      { key: "basket_etf", label: "Basket ETF", total: categoryTotals.basket_etf },
+      { key: "single_etf", label: "Single ETF", total: categoryTotals.single_etf },
+      { key: "double_long_etf", label: "Leveraged ETF", total: categoryTotals.double_long_etf },
+      { key: "security", label: "Security", total: categoryTotals.security },
+      { key: "misc", label: "Misc", total: categoryTotals.misc },
     ];
-    
-    return riskLevels.map(level => ({
-      ...level,
-      status: level.current > level.allowed ? "violation" as const : 
-              level.allowed > 0 && level.current > level.allowed * 0.8 ? "warning" as const : "ok" as const,
-    }));
   };
 
   const handleCopyFromPortfolio = () => {
@@ -2154,56 +2153,28 @@ export default function AccountDetails() {
               </p>
             ) : (
               <>
-                {/* Risk Compliance Summary */}
+                {/* Category Totals Summary */}
                 {(() => {
-                  const riskStatus = computeCurrentAllocationsRiskStatus();
-                  const hasViolation = riskStatus.some(s => s.status === "violation");
-                  const hasWarning = riskStatus.some(s => s.status === "warning");
-                  const currentAllocation = getRiskAllocationFromAccount(accountData);
+                  const categoryTotals = computeCategoryTotals();
+                  const grandTotal = categoryTotals.reduce((sum, cat) => sum + cat.total, 0);
                   
                   return (
-                    <div className={cn(
-                      "mb-4 p-3 rounded-lg border",
-                      hasViolation ? "border-destructive bg-destructive/5" :
-                      hasWarning ? "border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20" :
-                      "border-green-500 bg-green-50 dark:bg-green-950/20"
-                    )} data-testid="risk-compliance-summary">
+                    <div className="mb-4 p-3 rounded-lg border bg-muted/30" data-testid="category-totals-summary">
                       <div className="flex items-center gap-2 mb-2">
-                        <Shield className={cn(
-                          "h-4 w-4",
-                          hasViolation ? "text-destructive" :
-                          hasWarning ? "text-yellow-600" :
-                          "text-green-600"
-                        )} />
-                        <span className={cn(
-                          "text-sm font-medium",
-                          hasViolation ? "text-destructive" :
-                          hasWarning ? "text-yellow-700 dark:text-yellow-400" :
-                          "text-green-700 dark:text-green-400"
-                        )}>
-                          Risk Compliance ({formatRiskAllocation(currentAllocation)})
+                        <Shield className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">
+                          Category Breakdown
                         </span>
-                        {!hasViolation && !hasWarning && (
-                          <Check className="h-4 w-4 text-green-600 ml-auto" />
-                        )}
-                        {(hasViolation || hasWarning) && (
-                          <AlertTriangle className={cn(
-                            "h-4 w-4 ml-auto",
-                            hasViolation ? "text-destructive" : "text-yellow-600"
-                          )} />
-                        )}
+                        <Badge variant="outline" className="ml-auto text-xs">
+                          Total: {grandTotal.toFixed(1)}%
+                        </Badge>
                       </div>
-                      <div className="grid grid-cols-3 gap-2 text-xs">
-                        {riskStatus.map((cat) => (
+                      <div className="grid grid-cols-5 gap-2 text-xs">
+                        {categoryTotals.map((cat) => (
                           <div key={cat.key} className="flex flex-col">
                             <span className="text-muted-foreground">{cat.label}</span>
-                            <span className={cn(
-                              "font-medium",
-                              cat.status === "violation" ? "text-destructive" :
-                              cat.status === "warning" ? "text-yellow-700 dark:text-yellow-400" :
-                              "text-foreground"
-                            )}>
-                              {cat.current.toFixed(1)}% / {cat.allowed.toFixed(1)}%
+                            <span className="font-medium">
+                              {cat.total.toFixed(1)}%
                             </span>
                           </div>
                         ))}
