@@ -63,11 +63,13 @@ export default function Households() {
     type: "individual" | "corporation" | "individual-account" | "corporate-account" | "joint-account" | null;
     householdId: string | null;
     individualId: string | null;
+    individualDateOfBirth: Date | null;
     corporationId: string | null;
   }>({
     type: null,
     householdId: null,
     individualId: null,
+    individualDateOfBirth: null,
     corporationId: null,
   });
 
@@ -286,23 +288,23 @@ export default function Households() {
 
   // Handlers for opening dialogs
   const handleAddIndividual = (householdId: string) => {
-    setDialogState({ type: "individual", householdId, individualId: null, corporationId: null });
+    setDialogState({ type: "individual", householdId, individualId: null, individualDateOfBirth: null, corporationId: null });
   };
 
   const handleAddCorporation = (householdId: string) => {
-    setDialogState({ type: "corporation", householdId, individualId: null, corporationId: null });
+    setDialogState({ type: "corporation", householdId, individualId: null, individualDateOfBirth: null, corporationId: null });
   };
 
-  const handleAddAccount = (entityId: string, entityType: "individual" | "corporate") => {
+  const handleAddAccount = (entityId: string, entityType: "individual" | "corporate", dateOfBirth?: Date | null) => {
     if (entityType === "individual") {
-      setDialogState({ type: "individual-account", householdId: null, individualId: entityId, corporationId: null });
+      setDialogState({ type: "individual-account", householdId: null, individualId: entityId, individualDateOfBirth: dateOfBirth || null, corporationId: null });
     } else {
-      setDialogState({ type: "corporate-account", householdId: null, individualId: null, corporationId: entityId });
+      setDialogState({ type: "corporate-account", householdId: null, individualId: null, individualDateOfBirth: null, corporationId: entityId });
     }
   };
 
   const handleAddJointAccount = (householdId: string) => {
-    setDialogState({ type: "joint-account", householdId, individualId: null, corporationId: null });
+    setDialogState({ type: "joint-account", householdId, individualId: null, individualDateOfBirth: null, corporationId: null });
   };
 
   const handleDeleteHousehold = (householdId: string) => {
@@ -468,7 +470,7 @@ export default function Households() {
   };
 
   const handleCloseDialog = () => {
-    setDialogState({ type: null, householdId: null, individualId: null, corporationId: null });
+    setDialogState({ type: null, householdId: null, individualId: null, individualDateOfBirth: null, corporationId: null });
   };
 
   const toggleCategory = (category: string) => {
@@ -779,6 +781,7 @@ export default function Households() {
       <HouseholdManagementDialogs
         householdId={dialogState.householdId}
         individualId={dialogState.individualId}
+        individualDateOfBirth={dialogState.individualDateOfBirth}
         corporationId={dialogState.corporationId}
         dialogType={dialogState.type}
         onClose={handleCloseDialog}

@@ -123,7 +123,7 @@ interface HouseholdCardProps {
   onClick?: (id: string) => void;
   onAddIndividual?: (householdId: string) => void;
   onAddCorporation?: (householdId: string) => void;
-  onAddAccount?: (entityId: string, entityType: "individual" | "corporate") => void;
+  onAddAccount?: (entityId: string, entityType: "individual" | "corporate", dateOfBirth?: Date | null) => void;
   onAddJointAccount?: (householdId: string) => void;
   onEditHousehold?: (householdId: string, currentName: string) => void;
   onShareHousehold?: (householdId: string) => void;
@@ -376,7 +376,7 @@ export function HouseholdCard({
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6"
-                        onClick={() => onAddAccount(individual.id, "individual")}
+                        onClick={() => onAddAccount(individual.id, "individual", individual.dateOfBirth)}
                         data-testid={`button-add-account-individual-${individual.id}`}
                       >
                         <Plus className="h-3.5 w-3.5" />

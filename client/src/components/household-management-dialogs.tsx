@@ -46,6 +46,7 @@ import { Button } from "@/components/ui/button";
 interface HouseholdManagementDialogsProps {
   householdId: string | null;
   individualId: string | null;
+  individualDateOfBirth?: Date | null;
   corporationId: string | null;
   dialogType: "individual" | "corporation" | "individual-account" | "corporate-account" | "joint-account" | null;
   onClose: () => void;
@@ -54,6 +55,7 @@ interface HouseholdManagementDialogsProps {
 export function HouseholdManagementDialogs({
   householdId,
   individualId,
+  individualDateOfBirth,
   corporationId,
   dialogType,
   onClose,
@@ -451,7 +453,8 @@ export function HouseholdManagementDialogs({
                     createIndividualMutation.isPending || 
                     !individualAccountType || 
                     individualAccountType === "none" ||
-                    (individualRiskMedium + individualRiskMediumHigh + individualRiskHigh) !== 100
+                    (individualRiskMedium + individualRiskMediumHigh + individualRiskHigh) !== 100 ||
+                    (individualAccountType === "rif" && !individualForm.watch("dateOfBirth"))
                   }
                 >
                   {createIndividualMutation.isPending ? "Creating..." : "Create Individual & Account"}
@@ -623,6 +626,19 @@ export function HouseholdManagementDialogs({
                 )}
               />
               
+              {/* RIF requires Date of Birth warning */}
+              {individualAccountForm.watch("type") === "rif" && !individualDateOfBirth && (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                  <p className="text-sm text-destructive font-medium">
+                    Date of Birth Required for RIF
+                  </p>
+                  <p className="text-xs text-destructive/80 mt-1">
+                    This individual must have a date of birth set before creating a RIF account. 
+                    Please edit the individual's profile first.
+                  </p>
+                </div>
+              )}
+
               {/* Risk Category Section */}
               <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-between">
@@ -715,7 +731,8 @@ export function HouseholdManagementDialogs({
                     createIndividualAccountMutation.isPending ||
                     (Number(individualAccountForm.watch("riskMediumPct") || 0) + 
                      Number(individualAccountForm.watch("riskMediumHighPct") || 0) + 
-                     Number(individualAccountForm.watch("riskHighPct") || 0)) !== 100
+                     Number(individualAccountForm.watch("riskHighPct") || 0)) !== 100 ||
+                    (individualAccountForm.watch("type") === "rif" && !individualDateOfBirth)
                   }
                 >
                   {createIndividualAccountMutation.isPending ? "Creating..." : "Create Account"}
