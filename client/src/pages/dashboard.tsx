@@ -8,7 +8,7 @@ import { MetricCard } from "@/components/metric-card";
 import { AlertCard, Alert } from "@/components/alert-card";
 import { PositionsTable, Position } from "@/components/positions-table";
 import { Button } from "@/components/ui/button";
-import { Users, Bell, Upload, UserPlus, Briefcase, BookOpen } from "lucide-react";
+import { Users, Bell, Upload, UserPlus, Briefcase, BookOpen, ListTodo } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
 import type { Household, Alert as AlertType } from "@shared/schema";
@@ -158,7 +158,7 @@ export default function Dashboard() {
           <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
             <Button variant="outline" className="justify-start gap-2 h-auto py-3" data-testid="button-import-holdings">
               <Upload className="h-4 w-4" />
               <span>Import Holdings</span>
@@ -167,6 +167,12 @@ export default function Dashboard() {
               <Button variant="outline" className="justify-start gap-2 h-auto py-3 w-full" data-testid="button-add-household">
                 <UserPlus className="h-4 w-4" />
                 <span>Add Household</span>
+              </Button>
+            </Link>
+            <Link href="/tasks">
+              <Button variant="outline" className="justify-start gap-2 h-auto py-3 w-full" data-testid="button-view-tasks">
+                <ListTodo className="h-4 w-4" />
+                <span>View Tasks</span>
               </Button>
             </Link>
             <Link href="/model-portfolios">
