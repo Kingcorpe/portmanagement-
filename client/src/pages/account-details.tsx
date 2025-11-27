@@ -1770,8 +1770,9 @@ export default function AccountDetails() {
                   {comparisonData?.hasTargetAllocations && (
                     <>
                       <TableHead className="text-right">Variance</TableHead>
-                      <TableHead className="text-right">$ Change</TableHead>
-                      <TableHead className="text-right">Shares to Trade</TableHead>
+                      <TableHead className="text-center">Action</TableHead>
+                      <TableHead className="text-right">$ Amount</TableHead>
+                      <TableHead className="text-right">Shares</TableHead>
                     </>
                   )}
                   <TableHead className="text-right">Protect %</TableHead>
@@ -1942,19 +1943,12 @@ export default function AccountDetails() {
                         )}
                       </TableCell>
                       
-                      {/* Variance, $ Change, Shares to Trade, Status (only when target allocations exist) */}
+                      {/* Variance, Action, $ Amount, Shares (only when target allocations exist) */}
                       {comparisonData?.hasTargetAllocations && (() => {
-                        const currentPrice = Number(position.currentPrice);
-                        const quantity = Number(position.quantity);
-                        
-                        // If no target or target is 0%, position should be liquidated (sell all)
-                        const hasTarget = comparison && comparison.targetPercentage > 0;
-                        const changeNeeded = hasTarget 
-                          ? comparison.targetValue - comparison.actualValue 
-                          : -marketValue; // Sell entire position value
-                        const sharesToTrade = hasTarget
-                          ? (currentPrice > 0 ? changeNeeded / currentPrice : 0)
-                          : -quantity; // Sell all shares
+                        // Use backend-calculated values, with fallback for positions without a target
+                        const actionType = comparison?.actionType || (comparison?.status === 'unexpected' ? 'sell' : 'hold');
+                        const actionDollarAmount = comparison?.actionDollarAmount ?? (comparison?.status === 'unexpected' ? -marketValue : 0);
+                        const actionShares = comparison?.actionShares ?? (comparison?.status === 'unexpected' ? Number(position.quantity) : 0);
                         
                         return (
                           <>
@@ -1971,30 +1965,49 @@ export default function AccountDetails() {
                               ) : '-'}
                             </TableCell>
                             
-                            {/* $ Change - show liquidation value for positions with no target */}
-                            <TableCell 
-                              className={`text-right font-medium ${
-                                changeNeeded > 0 ? 'text-green-600 dark:text-green-400' : 
-                                changeNeeded < 0 ? 'text-red-600 dark:text-red-400' : ''
-                              }`}
-                              data-testid={`text-change-needed-${position.id}`}
-                            >
-                              {changeNeeded > 0 ? '+' : ''}
-                              ${changeNeeded.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            {/* Action Badge */}
+                            <TableCell className="text-center" data-testid={`badge-action-${position.id}`}>
+                              {actionType === 'buy' && (
+                                <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                  <TrendingUp className="h-3 w-3 mr-1" />
+                                  Buy
+                                </Badge>
+                              )}
+                              {actionType === 'sell' && (
+                                <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                  <TrendingDown className="h-3 w-3 mr-1" />
+                                  Sell
+                                </Badge>
+                              )}
+                              {actionType === 'hold' && (
+                                <Badge variant="secondary" className="bg-muted text-muted-foreground">
+                                  <Minus className="h-3 w-3 mr-1" />
+                                  Hold
+                                </Badge>
+                              )}
                             </TableCell>
                             
-                            {/* Shares to Trade - show full liquidation for positions with no target */}
+                            {/* $ Amount */}
                             <TableCell 
                               className={`text-right font-medium ${
-                                sharesToTrade > 0 ? 'text-green-600 dark:text-green-400' : 
-                                sharesToTrade < 0 ? 'text-red-600 dark:text-red-400' : ''
+                                actionDollarAmount > 0 ? 'text-green-600 dark:text-green-400' : 
+                                actionDollarAmount < 0 ? 'text-red-600 dark:text-red-400' : ''
                               }`}
-                              data-testid={`text-shares-to-trade-${position.id}`}
+                              data-testid={`text-action-amount-${position.id}`}
                             >
-                              <div className="font-semibold">
-                                {sharesToTrade > 0 ? 'Buy ' : sharesToTrade < 0 ? 'Sell ' : ''}
-                                {Math.abs(sharesToTrade).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                              </div>
+                              {actionDollarAmount > 0 ? '+' : ''}
+                              ${actionDollarAmount.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            </TableCell>
+                            
+                            {/* Shares */}
+                            <TableCell 
+                              className={`text-right font-medium ${
+                                actionType === 'buy' ? 'text-green-600 dark:text-green-400' : 
+                                actionType === 'sell' ? 'text-red-600 dark:text-red-400' : ''
+                              }`}
+                              data-testid={`text-action-shares-${position.id}`}
+                            >
+                              {actionShares.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                             </TableCell>
                           </>
                         );
