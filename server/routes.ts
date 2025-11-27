@@ -2358,6 +2358,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Identify tickers that need price lookups (new positions without existing holdings)
+      const tickersNeedingPrices: string[] = [];
+      for (const allocation of targetAllocations) {
+        const holding = allocation.holding;
+        if (!holding) continue;
+        
+        const displayTicker = holding.ticker.toUpperCase();
+        const normalizedTicker = normalizeTicker(displayTicker);
+        const actual = actualByTicker.get(normalizedTicker);
+        
+        // If no existing position and no price in universal holdings, we need to fetch
+        if (!actual && (!holding.price || Number(holding.price) === 0)) {
+          tickersNeedingPrices.push(displayTicker);
+        }
+      }
+      
+      // Fetch prices from Yahoo Finance for tickers that need them
+      const fetchedPrices = new Map<string, number>();
+      if (tickersNeedingPrices.length > 0) {
+        try {
+          const yahooFinance = await import('yahoo-finance2').then(m => m.default);
+          
+          // Helper to try different exchange suffixes for Canadian tickers
+          const tryGetQuote = async (symbol: string): Promise<number> => {
+            const suffixes = ['', '.TO', '.V', '.CN'];
+            const baseSymbol = symbol.replace(/\.(TO|V|CN|NE)$/i, '');
+            
+            for (const suffix of suffixes) {
+              try {
+                const testSymbol = baseSymbol + suffix;
+                const quote = await yahooFinance.quote(testSymbol) as any;
+                if (quote?.regularMarketPrice) {
+                  return quote.regularMarketPrice;
+                }
+              } catch (e) {
+                continue;
+              }
+            }
+            return 0;
+          };
+          
+          // Fetch prices in parallel (with deduplication)
+          const uniqueTickers = Array.from(new Set(tickersNeedingPrices));
+          const pricePromises = uniqueTickers.map(async (ticker) => {
+            const price = await tryGetQuote(ticker);
+            return { ticker, price };
+          });
+          
+          const results = await Promise.all(pricePromises);
+          for (const { ticker, price } of results) {
+            if (price > 0) {
+              fetchedPrices.set(normalizeTicker(ticker), price);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching prices from Yahoo Finance:", error);
+          // Continue without fetched prices - will show 0 shares for those tickers
+        }
+      }
+      
       // Build comparison entries
       const comparison = [];
       const processedNormalizedTickers = new Set<string>();
@@ -2380,7 +2440,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Calculate action required
         const actionDollarAmount = targetValue - actualValue;
-        const currentPrice = actual?.currentPrice || Number(holding.currentPrice) || 0;
+        // Try: 1) existing position price, 2) universal holdings price, 3) fetched Yahoo price
+        const currentPrice = actual?.currentPrice || Number(holding.price) || fetchedPrices.get(normalizedTicker) || 0;
         const actionShares = currentPrice > 0 ? Math.abs(actionDollarAmount) / currentPrice : 0;
         
         // Determine action type: buy if positive, sell if negative, hold if within $50 threshold
