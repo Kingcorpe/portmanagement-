@@ -33,7 +33,19 @@ export interface Account {
 export interface Individual {
   id: string;
   name: string;
+  dateOfBirth?: Date | string | null;
   accounts: Account[];
+}
+
+function calculateRifConversionDate(dateOfBirth: Date | string): Date {
+  const dob = new Date(dateOfBirth);
+  return new Date(dob.getFullYear() + 71, 11, 31);
+}
+
+function formatRifConversionDate(dateOfBirth: Date | string | null | undefined): string | null {
+  if (!dateOfBirth) return null;
+  const conversionDate = calculateRifConversionDate(dateOfBirth);
+  return conversionDate.toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 export interface Corporation {
@@ -356,10 +368,17 @@ export function HouseholdCard({
                       <User className="h-4 w-4 text-primary" />
                     </div>
                     <div>
-                      <span className="font-medium" data-testid={`text-individual-name-${individual.id}`}>
-                        {individual.name}
-                      </span>
-                      <span className="text-xs text-muted-foreground ml-2">Individual</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium" data-testid={`text-individual-name-${individual.id}`}>
+                          {individual.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">Individual</span>
+                      </div>
+                      {individual.dateOfBirth && (
+                        <div className="text-xs text-muted-foreground" data-testid={`text-rif-conversion-${individual.id}`}>
+                          RIF Conversion: {formatRifConversionDate(individual.dateOfBirth)}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1">

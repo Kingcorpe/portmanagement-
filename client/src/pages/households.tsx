@@ -134,6 +134,7 @@ export default function Households() {
     const individuals = h.individuals.map((individual) => ({
       id: individual.id,
       name: individual.name,
+      dateOfBirth: individual.dateOfBirth,
       accounts: individual.accounts.map((account: any) => ({
         id: account.id,
         type: account.type,
