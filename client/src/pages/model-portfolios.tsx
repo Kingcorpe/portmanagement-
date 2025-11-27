@@ -363,10 +363,10 @@ function SortablePlannedPortfolioCard({
                       );
                     })}
                     <TableRow className="border-t-2 font-semibold bg-muted/50">
-                      <TableCell>Total</TableCell>
+                      <TableCell></TableCell>
                       <TableCell className="text-right font-mono">
                         <span className={totalAllocation === 100 ? "text-green-600" : "text-destructive"}>
-                          {totalAllocation.toFixed(2)}%
+                          Total: {totalAllocation.toFixed(2)}%
                         </span>
                       </TableCell>
                       <TableCell></TableCell>
@@ -592,10 +592,10 @@ function SortableFreelancePortfolioCard({
                       );
                     })}
                     <TableRow className="border-t-2 font-semibold bg-muted/50">
-                      <TableCell>Total</TableCell>
+                      <TableCell></TableCell>
                       <TableCell className="text-right font-mono">
                         <span className={totalAllocation === 100 ? "text-green-600" : "text-destructive"}>
-                          {totalAllocation.toFixed(2)}%
+                          Total: {totalAllocation.toFixed(2)}%
                         </span>
                       </TableCell>
                       <TableCell></TableCell>
