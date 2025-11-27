@@ -71,7 +71,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X, RefreshCw, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X, RefreshCw, ChevronDown, ChevronRight, GripVertical, Pencil } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -165,6 +165,7 @@ interface SortablePlannedPortfolioCardProps {
   isOpen: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onEdit: () => void;
   onAddAllocation: () => void;
   inlineEditingAllocation: { id: string; type: "planned" | "freelance" } | null;
   inlineAllocationValue: string;
@@ -181,6 +182,7 @@ function SortablePlannedPortfolioCard({
   isOpen,
   onToggle,
   onDelete,
+  onEdit,
   onAddAllocation,
   inlineEditingAllocation,
   inlineAllocationValue,
@@ -238,6 +240,15 @@ function SortablePlannedPortfolioCard({
               <span className="text-sm text-muted-foreground">
                 {portfolio.allocations.length} holding{portfolio.allocations.length !== 1 ? 's' : ''}
               </span>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-muted-foreground hover:text-primary" 
+                onClick={onEdit}
+                data-testid={`button-edit-planned-${portfolio.id}`}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" data-testid={`button-delete-planned-${portfolio.id}`}>
@@ -379,6 +390,7 @@ interface SortableFreelancePortfolioCardProps {
   isOpen: boolean;
   onToggle: () => void;
   onDelete: () => void;
+  onEdit: () => void;
   onAddAllocation: () => void;
   inlineEditingAllocation: { id: string; type: "planned" | "freelance" } | null;
   inlineAllocationValue: string;
@@ -395,6 +407,7 @@ function SortableFreelancePortfolioCard({
   isOpen,
   onToggle,
   onDelete,
+  onEdit,
   onAddAllocation,
   inlineEditingAllocation,
   inlineAllocationValue,
@@ -452,6 +465,15 @@ function SortableFreelancePortfolioCard({
               <span className="text-sm text-muted-foreground">
                 {portfolio.allocations.length} holding{portfolio.allocations.length !== 1 ? 's' : ''}
               </span>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-muted-foreground hover:text-primary" 
+                onClick={onEdit}
+                data-testid={`button-edit-freelance-${portfolio.id}`}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" data-testid={`button-delete-freelance-${portfolio.id}`}>
@@ -599,6 +621,8 @@ export default function ModelPortfolios() {
   const [editingHolding, setEditingHolding] = useState<UniversalHolding | null>(null);
   const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);
   const [allocationTarget, setAllocationTarget] = useState<{ type: "planned" | "freelance"; portfolioId: string } | null>(null);
+  const [editingPlannedPortfolio, setEditingPlannedPortfolio] = useState<{ id: string; name: string; description?: string } | null>(null);
+  const [editingFreelancePortfolio, setEditingFreelancePortfolio] = useState<{ id: string; name: string; description?: string } | null>(null);
   const [editingAllocation, setEditingAllocation] = useState<{ id: string; type: "planned" | "freelance"; universalHoldingId: string; targetPercentage: number } | null>(null);
   const [isLookingUpTicker, setIsLookingUpTicker] = useState(false);
   const [holdingsSortColumn, setHoldingsSortColumn] = useState<"ticker" | "name" | "category" | "riskLevel" | "price" | "dividendRate">("ticker");
@@ -759,6 +783,19 @@ export default function ModelPortfolios() {
     },
   });
 
+  const updatePlannedPortfolioMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: PortfolioFormData }) => 
+      apiRequest("PATCH", `/api/planned-portfolios/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/planned-portfolios"] });
+      toast({ title: "Success", description: "Portfolio updated successfully" });
+      setEditingPlannedPortfolio(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   const createFreelancePortfolioMutation = useMutation({
     mutationFn: (data: PortfolioFormData) => apiRequest("POST", "/api/freelance-portfolios", data),
     onSuccess: () => {
@@ -777,6 +814,19 @@ export default function ModelPortfolios() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/freelance-portfolios"] });
       toast({ title: "Success", description: "Freelance portfolio deleted successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateFreelancePortfolioMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: PortfolioFormData }) => 
+      apiRequest("PATCH", `/api/freelance-portfolios/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/freelance-portfolios"] });
+      toast({ title: "Success", description: "Portfolio updated successfully" });
+      setEditingFreelancePortfolio(null);
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -1639,6 +1689,7 @@ export default function ModelPortfolios() {
                         isOpen={isOpen}
                         onToggle={() => togglePlannedPortfolio(portfolio.id)}
                         onDelete={() => deletePlannedPortfolioMutation.mutate(portfolio.id)}
+                        onEdit={() => setEditingPlannedPortfolio({ id: portfolio.id, name: portfolio.name, description: portfolio.description || "" })}
                         onAddAllocation={() => handleAddAllocation("planned", portfolio.id)}
                         inlineEditingAllocation={inlineEditingAllocation}
                         inlineAllocationValue={inlineAllocationValue}
@@ -1654,6 +1705,53 @@ export default function ModelPortfolios() {
               </SortableContext>
             </DndContext>
           )}
+
+          {/* Edit Planned Portfolio Dialog */}
+          <Dialog open={!!editingPlannedPortfolio} onOpenChange={(open) => !open && setEditingPlannedPortfolio(null)}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Edit Portfolio</DialogTitle>
+                <DialogDescription>
+                  Update the portfolio name and description
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Portfolio Name</label>
+                  <Input
+                    value={editingPlannedPortfolio?.name || ""}
+                    onChange={(e) => setEditingPlannedPortfolio(prev => prev ? { ...prev, name: e.target.value } : null)}
+                    placeholder="Portfolio name"
+                    data-testid="input-edit-planned-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Description</label>
+                  <Textarea
+                    value={editingPlannedPortfolio?.description || ""}
+                    onChange={(e) => setEditingPlannedPortfolio(prev => prev ? { ...prev, description: e.target.value } : null)}
+                    placeholder="Brief description..."
+                    data-testid="input-edit-planned-description"
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    if (editingPlannedPortfolio) {
+                      updatePlannedPortfolioMutation.mutate({
+                        id: editingPlannedPortfolio.id,
+                        data: { name: editingPlannedPortfolio.name, description: editingPlannedPortfolio.description }
+                      });
+                    }
+                  }}
+                  disabled={updatePlannedPortfolioMutation.isPending || !editingPlannedPortfolio?.name}
+                  data-testid="button-save-planned-portfolio"
+                >
+                  {updatePlannedPortfolioMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="freelance" className="space-y-4">
@@ -1734,6 +1832,7 @@ export default function ModelPortfolios() {
                         isOpen={isOpen}
                         onToggle={() => toggleFreelancePortfolio(portfolio.id)}
                         onDelete={() => deleteFreelancePortfolioMutation.mutate(portfolio.id)}
+                        onEdit={() => setEditingFreelancePortfolio({ id: portfolio.id, name: portfolio.name, description: portfolio.description || "" })}
                         onAddAllocation={() => handleAddAllocation("freelance", portfolio.id)}
                         inlineEditingAllocation={inlineEditingAllocation}
                         inlineAllocationValue={inlineAllocationValue}
@@ -1749,6 +1848,53 @@ export default function ModelPortfolios() {
               </SortableContext>
             </DndContext>
           )}
+
+          {/* Edit Freelance Portfolio Dialog */}
+          <Dialog open={!!editingFreelancePortfolio} onOpenChange={(open) => !open && setEditingFreelancePortfolio(null)}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Edit Portfolio</DialogTitle>
+                <DialogDescription>
+                  Update the portfolio name and description
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Portfolio Name</label>
+                  <Input
+                    value={editingFreelancePortfolio?.name || ""}
+                    onChange={(e) => setEditingFreelancePortfolio(prev => prev ? { ...prev, name: e.target.value } : null)}
+                    placeholder="Portfolio name"
+                    data-testid="input-edit-freelance-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Description</label>
+                  <Textarea
+                    value={editingFreelancePortfolio?.description || ""}
+                    onChange={(e) => setEditingFreelancePortfolio(prev => prev ? { ...prev, description: e.target.value } : null)}
+                    placeholder="Brief description..."
+                    data-testid="input-edit-freelance-description"
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    if (editingFreelancePortfolio) {
+                      updateFreelancePortfolioMutation.mutate({
+                        id: editingFreelancePortfolio.id,
+                        data: { name: editingFreelancePortfolio.name, description: editingFreelancePortfolio.description }
+                      });
+                    }
+                  }}
+                  disabled={updateFreelancePortfolioMutation.isPending || !editingFreelancePortfolio?.name}
+                  data-testid="button-save-freelance-portfolio"
+                >
+                  {updateFreelancePortfolioMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
 
