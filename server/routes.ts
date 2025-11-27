@@ -2814,7 +2814,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 // Get most recent ex-dividend date
                 const sortedDivs = divEvents.sort((a: any, b: any) => b.date - a.date);
                 if (sortedDivs.length > 0 && sortedDivs[0].date) {
-                  exDate = new Date(sortedDivs[0].date * 1000);
+                  // Yahoo Finance returns Unix timestamp in seconds
+                  const timestamp = sortedDivs[0].date;
+                  // Validate timestamp is reasonable (between year 2000 and 2100)
+                  if (timestamp > 946684800 && timestamp < 4102444800) {
+                    exDate = new Date(timestamp * 1000);
+                  } else if (timestamp > 946684800000 && timestamp < 4102444800000) {
+                    // Already in milliseconds
+                    exDate = new Date(timestamp);
+                  }
+                  // If neither condition is met, exDate stays null (invalid date)
                 }
                 
                 console.log(`[Dividend Refresh] Found dividend info for ${workingSymbol}:`, {
