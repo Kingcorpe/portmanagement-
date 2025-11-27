@@ -240,31 +240,6 @@ export function HouseholdCard({
                   <h3 className="font-semibold text-lg" data-testid={`text-household-name-${household.id}`}>
                     {household.name}
                   </h3>
-                  {household.category && (
-                    <Badge 
-                      className={`text-xs cursor-pointer ${householdCategoryColors[household.category]}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditCategory?.(household.id, household.category || null);
-                      }}
-                      data-testid={`badge-category-${household.id}`}
-                    >
-                      {householdCategoryLabels[household.category]}
-                    </Badge>
-                  )}
-                  {!household.category && onEditCategory && (
-                    <Badge 
-                      variant="outline"
-                      className="text-xs cursor-pointer text-muted-foreground border-dashed"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditCategory(household.id, null);
-                      }}
-                      data-testid={`badge-set-category-${household.id}`}
-                    >
-                      Set Category
-                    </Badge>
-                  )}
                   {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                 </div>
               </div>
