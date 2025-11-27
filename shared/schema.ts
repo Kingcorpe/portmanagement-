@@ -128,6 +128,7 @@ export const individuals = pgTable("individuals", {
   householdId: varchar("household_id").notNull().references(() => households.id, { onDelete: 'cascade' }),
   name: text("name").notNull(),
   dateOfBirth: timestamp("date_of_birth"), // Used for RIF conversion date calculation (age 71)
+  spouseDateOfBirth: timestamp("spouse_date_of_birth"), // Optional: younger spouse's DOB for RIF minimum withdrawal calculations
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

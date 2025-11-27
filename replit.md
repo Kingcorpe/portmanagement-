@@ -118,10 +118,13 @@ The platform integrates with Yahoo Finance to fetch real-time market prices and 
   - `POST /api/universal-holdings/refresh-prices` - Refresh all Universal Holdings prices from Yahoo Finance
   - `POST /api/universal-holdings/refresh-dividends` - Refresh dividend data (yield, rate, ex-date, payout frequency) for all Universal Holdings
 
-### Individual Date of Birth
+### Individual Date of Birth & Spouse DOB
 - **Date of Birth Field**: Individuals can have an optional date of birth (DOB) stored.
-- **RIF Conversion Date**: For RIF accounts, the conversion date is calculated based on the individual's DOB (typically age 71 in Canada).
-- The DOB is stored on the individual, not the account, since RIF conversion is person-specific.
+- **Spouse Date of Birth**: Optional field for a younger spouse's DOB, used for RIF minimum withdrawal calculations.
+- **RIF Conversion Date**: For RIF accounts, the conversion date is calculated based on age 71 in Canada.
+  - If a spouse DOB is provided and the spouse is younger, their age is used instead.
+  - Display shows "(spouse)" indicator when using spouse's DOB for the calculation.
+- Both DOB fields are stored on the individual, not the account, since RIF calculations are person-specific.
 
 ## External Dependencies
 - **Replit Auth**: Used for user authentication, supporting OIDC providers like Google, GitHub, X, Apple, and email/password.

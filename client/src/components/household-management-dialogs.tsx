@@ -300,25 +300,45 @@ export function HouseholdManagementDialogs({
                 </Select>
               </div>
               {individualAccountType === "rif" && (
-                <FormField
-                  control={individualForm.control}
-                  name="dateOfBirth"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date of Birth</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="date"
-                          data-testid="input-individual-dob" 
-                          value={field.value ? new Date(field.value).toISOString().split('T')[0] : ""}
-                          onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
-                        />
-                      </FormControl>
-                      <p className="text-xs text-muted-foreground">Used to calculate RIF conversion date (age 71)</p>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
+                  <FormField
+                    control={individualForm.control}
+                    name="dateOfBirth"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date of Birth</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="date"
+                            data-testid="input-individual-dob" 
+                            value={field.value ? new Date(field.value).toISOString().split('T')[0] : ""}
+                            onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={individualForm.control}
+                    name="spouseDateOfBirth"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Spouse Date of Birth <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="date"
+                            data-testid="input-spouse-dob" 
+                            value={field.value ? new Date(field.value).toISOString().split('T')[0] : ""}
+                            onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                          />
+                        </FormControl>
+                        <p className="text-xs text-muted-foreground">If spouse is younger, their age can be used for RIF minimum withdrawals</p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               )}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">

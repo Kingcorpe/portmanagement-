@@ -40,6 +40,7 @@ export interface Individual {
   id: string;
   name: string;
   dateOfBirth?: Date | string | null;
+  spouseDateOfBirth?: Date | string | null;
   accounts: Account[];
 }
 
@@ -48,10 +49,29 @@ function calculateRifConversionDate(dateOfBirth: Date | string): Date {
   return new Date(dob.getFullYear() + 71, 11, 31);
 }
 
-function formatRifConversionDate(dateOfBirth: Date | string | null | undefined): string | null {
+function formatRifConversionDate(
+  dateOfBirth: Date | string | null | undefined,
+  spouseDateOfBirth?: Date | string | null
+): { date: string; isSpouse: boolean } | null {
   if (!dateOfBirth) return null;
-  const conversionDate = calculateRifConversionDate(dateOfBirth);
-  return conversionDate.toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' });
+  
+  const holderConversion = calculateRifConversionDate(dateOfBirth);
+  
+  // If spouse DOB is provided and spouse is younger, use their conversion date
+  if (spouseDateOfBirth) {
+    const spouseConversion = calculateRifConversionDate(spouseDateOfBirth);
+    if (spouseConversion > holderConversion) {
+      return {
+        date: spouseConversion.toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' }),
+        isSpouse: true
+      };
+    }
+  }
+  
+  return {
+    date: holderConversion.toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' }),
+    isSpouse: false
+  };
 }
 
 export interface Corporation {
@@ -379,11 +399,14 @@ export function HouseholdCard({
                       {individual.name}
                     </span>
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0">Individual</Badge>
-                    {individual.dateOfBirth && (
-                      <span className="text-[10px] text-muted-foreground" data-testid={`text-rif-conversion-${individual.id}`}>
-                        RIF: {formatRifConversionDate(individual.dateOfBirth)}
-                      </span>
-                    )}
+                    {individual.dateOfBirth && (() => {
+                      const rifInfo = formatRifConversionDate(individual.dateOfBirth, individual.spouseDateOfBirth);
+                      return rifInfo ? (
+                        <span className="text-[10px] text-muted-foreground" data-testid={`text-rif-conversion-${individual.id}`}>
+                          RIF: {rifInfo.date}{rifInfo.isSpouse ? " (spouse)" : ""}
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
                   <div className="flex items-center gap-0.5">
                     {onAddAccount && (
