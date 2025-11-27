@@ -455,12 +455,9 @@ export function HouseholdCard({
                       <div className="space-y-0.5 pl-3">
                         {group.accounts.map((account) => (
                           <div key={account.id} className="flex items-center text-sm group" data-testid={`row-account-${account.id}`}>
-                            <Link href={`/account/individual/${account.id}`} className="flex items-center justify-between flex-1 py-1 px-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
+                            <Link href={`/account/individual/${account.id}`} className="flex items-center flex-1 py-1 px-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
                               <span className="text-xs font-medium">
                                 {formatAccountDisplayName(account.type, account.nickname)}
-                              </span>
-                              <span className="font-mono text-xs tabular-nums">
-                                CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             </Link>
                             {onDeleteAccount && (
@@ -581,12 +578,9 @@ export function HouseholdCard({
                       <div className="space-y-0.5 pl-3">
                         {group.accounts.map((account) => (
                           <div key={account.id} className="flex items-center text-sm group" data-testid={`row-account-${account.id}`}>
-                            <Link href={`/account/corporate/${account.id}`} className="flex items-center justify-between flex-1 py-1 px-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
+                            <Link href={`/account/corporate/${account.id}`} className="flex items-center flex-1 py-1 px-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
                               <span className="text-xs font-medium">
                                 {formatAccountDisplayName(account.type, account.nickname)}
-                              </span>
-                              <span className="font-mono text-xs tabular-nums">
-                                CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             </Link>
                             {onDeleteAccount && (
@@ -642,12 +636,9 @@ export function HouseholdCard({
                   {household.jointAccounts.map((account) => {
                     return (
                       <div key={account.id} className="flex items-center text-sm group" data-testid={`row-joint-account-${account.id}`}>
-                        <Link href={`/account/joint/${account.id}`} className="flex items-center justify-between flex-1 py-1 px-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
+                        <Link href={`/account/joint/${account.id}`} className="flex items-center flex-1 py-1 px-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
                           <span className="text-xs font-medium">
                             {formatAccountDisplayName(account.type, account.nickname)}
-                          </span>
-                          <span className="font-mono text-xs tabular-nums">
-                            CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         </Link>
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
