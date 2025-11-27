@@ -111,7 +111,7 @@ export default function AccountDetails() {
   const [editingInlineTarget, setEditingInlineTarget] = useState<string | null>(null);
   const [inlineTargetValue, setInlineTargetValue] = useState<string>("");
   const [holdingComboboxOpen, setHoldingComboboxOpen] = useState(false);
-  const [isTargetAllocationsOpen, setIsTargetAllocationsOpen] = useState(false);
+  const [isTargetAllocationsOpen, setIsTargetAllocationsOpen] = useState(true);
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   const [emailAddress, setEmailAddress] = useState("");
   const [isSendingEmail, setIsSendingEmail] = useState(false);
