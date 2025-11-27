@@ -21,6 +21,7 @@ import {
   accountTargetAllocations,
   libraryDocuments,
   accountTasks,
+  accountAuditLog,
   type User,
   type UpsertUser,
   type Household,
@@ -67,6 +68,8 @@ import {
   type InsertLibraryDocument,
   type AccountTask,
   type InsertAccountTask,
+  type AccountAuditLog,
+  type InsertAccountAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, inArray, ilike, or, and, sql } from "drizzle-orm";
@@ -234,6 +237,12 @@ export interface IStorage {
   updateAccountTask(id: string, task: Partial<InsertAccountTask>): Promise<AccountTask>;
   deleteAccountTask(id: string): Promise<void>;
   completeAccountTask(id: string): Promise<AccountTask>;
+
+  // Account audit log operations
+  createAuditLogEntry(entry: InsertAccountAuditLog): Promise<AccountAuditLog>;
+  getAuditLogByIndividualAccount(accountId: string, limit?: number): Promise<AccountAuditLog[]>;
+  getAuditLogByCorporateAccount(accountId: string, limit?: number): Promise<AccountAuditLog[]>;
+  getAuditLogByJointAccount(accountId: string, limit?: number): Promise<AccountAuditLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1483,6 +1492,36 @@ export class DatabaseStorage implements IStorage {
       .where(eq(accountTasks.id, id))
       .returning();
     return task;
+  }
+
+  // Account audit log operations
+  async createAuditLogEntry(entry: InsertAccountAuditLog): Promise<AccountAuditLog> {
+    const [log] = await db.insert(accountAuditLog).values(entry).returning();
+    return log;
+  }
+
+  async getAuditLogByIndividualAccount(accountId: string, limit: number = 50): Promise<AccountAuditLog[]> {
+    return await db.select()
+      .from(accountAuditLog)
+      .where(eq(accountAuditLog.individualAccountId, accountId))
+      .orderBy(desc(accountAuditLog.createdAt))
+      .limit(limit);
+  }
+
+  async getAuditLogByCorporateAccount(accountId: string, limit: number = 50): Promise<AccountAuditLog[]> {
+    return await db.select()
+      .from(accountAuditLog)
+      .where(eq(accountAuditLog.corporateAccountId, accountId))
+      .orderBy(desc(accountAuditLog.createdAt))
+      .limit(limit);
+  }
+
+  async getAuditLogByJointAccount(accountId: string, limit: number = 50): Promise<AccountAuditLog[]> {
+    return await db.select()
+      .from(accountAuditLog)
+      .where(eq(accountAuditLog.jointAccountId, accountId))
+      .orderBy(desc(accountAuditLog.createdAt))
+      .limit(limit);
   }
 }
 
