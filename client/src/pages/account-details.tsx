@@ -1256,6 +1256,16 @@ export default function AccountDetails() {
                 );
               }
               
+              const handleKeyDown = (e: React.KeyboardEvent) => {
+                if (e.key === "Enter" && isValid && !updateRiskAllocationMutation.isPending) {
+                  e.preventDefault();
+                  handleSave();
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  handleCancel();
+                }
+              };
+              
               return (
                 <div className="flex flex-wrap items-center gap-3">
                   <Shield className="h-4 w-4 text-muted-foreground" />
@@ -1268,6 +1278,7 @@ export default function AccountDetails() {
                       step="5"
                       value={riskMedium}
                       onChange={(e) => setRiskMedium(e.target.value)}
+                      onKeyDown={handleKeyDown}
                       className="h-7 w-14 text-sm"
                       data-testid="input-risk-medium"
                     />
@@ -1281,6 +1292,7 @@ export default function AccountDetails() {
                       step="5"
                       value={riskMediumHigh}
                       onChange={(e) => setRiskMediumHigh(e.target.value)}
+                      onKeyDown={handleKeyDown}
                       className="h-7 w-14 text-sm"
                       data-testid="input-risk-medium-high"
                     />
@@ -1294,6 +1306,7 @@ export default function AccountDetails() {
                       step="5"
                       value={riskHigh}
                       onChange={(e) => setRiskHigh(e.target.value)}
+                      onKeyDown={handleKeyDown}
                       className="h-7 w-14 text-sm"
                       data-testid="input-risk-high"
                     />
