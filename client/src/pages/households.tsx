@@ -8,7 +8,7 @@ import { HouseholdManagementDialogs } from "@/components/household-management-di
 import { ShareHouseholdDialog } from "@/components/share-household-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, LayoutList, LayoutGrid, ChevronRight, Eye, EyeOff } from "lucide-react";
+import { Plus, Search, LayoutList, LayoutGrid, ChevronRight, Eye, EyeOff, Folder, FolderOpen } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -706,12 +706,28 @@ export default function Households() {
           ))}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {/* Group households by category */}
           {(["anchor", "emerging_anchor", "emerging_pulse", "evergreen", "pulse"] as HouseholdCategory[]).map(category => {
             const categoryHouseholds = filteredHouseholds.filter(h => h.category === category);
             if (categoryHouseholds.length === 0) return null;
             const isExpanded = expandedCategories.has(category);
+            
+            const categoryBorderColors: Record<HouseholdCategory, string> = {
+              evergreen: "border-l-emerald-500",
+              anchor: "border-l-blue-500",
+              pulse: "border-l-purple-500",
+              emerging_pulse: "border-l-orange-500",
+              emerging_anchor: "border-l-cyan-500",
+            };
+            
+            const categoryIconColors: Record<HouseholdCategory, string> = {
+              evergreen: "text-emerald-500",
+              anchor: "text-blue-500",
+              pulse: "text-purple-500",
+              emerging_pulse: "text-orange-500",
+              emerging_anchor: "text-cyan-500",
+            };
             
             return (
               <Collapsible
@@ -721,20 +737,24 @@ export default function Households() {
               >
                 <CollapsibleTrigger asChild>
                   <div 
-                    className="flex items-center gap-3 p-3 rounded-lg border bg-card hover-elevate cursor-pointer"
+                    className={`flex items-center gap-3 p-3 rounded-lg border border-l-4 ${categoryBorderColors[category]} bg-card hover-elevate cursor-pointer`}
                     data-testid={`folder-category-${category}`}
                   >
-                    <ChevronRight className={`h-5 w-5 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                    {isExpanded ? (
+                      <FolderOpen className={`h-5 w-5 ${categoryIconColors[category]}`} />
+                    ) : (
+                      <Folder className={`h-5 w-5 ${categoryIconColors[category]}`} />
+                    )}
                     <h2 className="text-lg font-semibold flex-1">
                       {householdCategoryLabels[category]}
                     </h2>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${householdCategoryColors[category]}`}>
-                      {categoryHouseholds.length} {categoryHouseholds.length === 1 ? "household" : "households"}
+                      {categoryHouseholds.length}
                     </span>
                   </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="grid gap-4 mt-3 pl-8">
+                  <div className={`grid gap-3 mt-2 ml-3 pl-4 border-l-2 ${categoryBorderColors[category].replace('border-l-', 'border-')}`}>
                     {categoryHouseholds.map(household => (
                       <HouseholdCard 
                         key={household.id} 
