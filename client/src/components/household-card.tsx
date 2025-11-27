@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Users, Plus, UserPlus, Building2, Trash2, Edit, User, Share2, Tag } from "lucide-react";
+import { ChevronDown, ChevronRight, Users, Plus, UserPlus, Building2, Trash2, Edit, User, Share2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -126,7 +126,6 @@ interface HouseholdCardProps {
   onAddAccount?: (entityId: string, entityType: "individual" | "corporate") => void;
   onAddJointAccount?: (householdId: string) => void;
   onEditHousehold?: (householdId: string, currentName: string) => void;
-  onEditCategory?: (householdId: string, currentCategory: HouseholdCategory | null) => void;
   onShareHousehold?: (householdId: string) => void;
   onDeleteHousehold?: (householdId: string) => void;
   onDeleteAccount?: (accountId: string, accountType: "individual" | "corporate" | "joint") => void;
@@ -210,7 +209,6 @@ export function HouseholdCard({
   onAddAccount,
   onAddJointAccount,
   onEditHousehold,
-  onEditCategory,
   onShareHousehold,
   onDeleteHousehold,
   onDeleteAccount,
@@ -240,32 +238,14 @@ export function HouseholdCard({
                   <h3 className="font-semibold text-lg" data-testid={`text-household-name-${household.id}`}>
                     {household.name}
                   </h3>
-                  {household.category ? (
+                  {household.category && (
                     <Badge 
                       variant="secondary" 
-                      className={`${householdCategoryColors[household.category]} cursor-pointer hover:opacity-80`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditCategory?.(household.id, household.category ?? null);
-                      }}
+                      className={householdCategoryColors[household.category]}
                       data-testid={`badge-category-${household.id}`}
                     >
                       {householdCategoryLabels[household.category]}
                     </Badge>
-                  ) : onEditCategory && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-muted-foreground hover:text-foreground"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditCategory(household.id, null);
-                      }}
-                      data-testid={`button-set-category-${household.id}`}
-                    >
-                      <Tag className="h-3 w-3 mr-1" />
-                      <span className="text-xs">Set Category</span>
-                    </Button>
                   )}
                   {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                 </div>

@@ -76,12 +76,7 @@ export default function Households() {
     type: "individual" | "corporation" | "household" | "joint-account";
     id: string;
     name: string;
-  } | null>(null);
-
-  // State for editing household category
-  const [editingCategory, setEditingCategory] = useState<{
-    householdId: string;
-    currentCategory: HouseholdCategory | null;
+    category?: HouseholdCategory | null;
   } | null>(null);
 
   // State for sharing household dialog
@@ -259,28 +254,6 @@ export default function Households() {
     },
   });
 
-  // Update household category mutation
-  const updateCategoryMutation = useMutation({
-    mutationFn: async ({ householdId, category }: { householdId: string; category: HouseholdCategory | null }) => {
-      return await apiRequest("PATCH", `/api/households/${householdId}`, { category });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
-      toast({
-        title: "Success",
-        description: "Category updated successfully",
-      });
-      setEditingCategory(null);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update category",
-        variant: "destructive",
-      });
-    },
-  });
-
   // Delete account mutation
   const deleteAccountMutation = useMutation({
     mutationFn: async ({ accountId, accountType }: { accountId: string; accountType: "individual" | "corporate" | "joint" }) => {
@@ -428,8 +401,8 @@ export default function Households() {
 
   // Update household mutation
   const updateHouseholdMutation = useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      return await apiRequest("PATCH", `/api/households/${id}`, { name });
+    mutationFn: async ({ id, name, category }: { id: string; name: string; category?: HouseholdCategory | null }) => {
+      return await apiRequest("PATCH", `/api/households/${id}`, { name, category });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
@@ -470,8 +443,8 @@ export default function Households() {
     },
   });
 
-  const handleEditHousehold = (id: string, currentName: string) => {
-    setEditingEntity({ type: "household", id, name: currentName });
+  const handleEditHousehold = (id: string, currentName: string, currentCategory?: HouseholdCategory | null) => {
+    setEditingEntity({ type: "household", id, name: currentName, category: currentCategory });
   };
 
   const handleEditIndividual = (id: string, currentName: string) => {
@@ -708,8 +681,7 @@ export default function Households() {
               onAddCorporation={handleAddCorporation}
               onAddAccount={handleAddAccount}
               onAddJointAccount={handleAddJointAccount}
-              onEditHousehold={handleEditHousehold}
-              onEditCategory={(householdId, currentCategory) => setEditingCategory({ householdId, currentCategory })}
+              onEditHousehold={(id, name) => handleEditHousehold(id, name, household.category)}
               onShareHousehold={(householdId) => {
                 const h = households.find(hh => hh.id === householdId);
                 if (h) setSharingHousehold({ id: householdId, name: h.name });
@@ -782,8 +754,7 @@ export default function Households() {
                         onAddCorporation={handleAddCorporation}
                         onAddAccount={handleAddAccount}
                         onAddJointAccount={handleAddJointAccount}
-                        onEditHousehold={handleEditHousehold}
-                        onEditCategory={(householdId, currentCategory) => setEditingCategory({ householdId, currentCategory })}
+                        onEditHousehold={(id, name) => handleEditHousehold(id, name, household.category)}
                         onShareHousehold={(householdId) => {
                           const h = households.find(hh => hh.id === householdId);
                           if (h) setSharingHousehold({ id: householdId, name: h.name });
@@ -835,8 +806,9 @@ export default function Households() {
             <DialogDescription>
               {editingEntity?.type === "joint-account" 
                 ? "Update the nickname for this joint account."
-                : `Update the name of this ${editingEntity?.type === "individual" ? "individual" : 
-                   editingEntity?.type === "corporation" ? "corporation" : "household"}.`}
+                : editingEntity?.type === "household"
+                ? "Update the name and category of this household."
+                : `Update the name of this ${editingEntity?.type === "individual" ? "individual" : "corporation"}.`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -853,6 +825,41 @@ export default function Households() {
                 data-testid="input-edit-entity-name"
               />
             </div>
+            
+            {/* Category selection for households only */}
+            {editingEntity?.type === "household" && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Category</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["anchor", "emerging_anchor", "emerging_pulse", "evergreen", "pulse"] as HouseholdCategory[]).map((category) => (
+                    <Button
+                      key={category}
+                      type="button"
+                      size="sm"
+                      variant={editingEntity?.category === category ? "default" : "outline"}
+                      className={`justify-start ${editingEntity?.category === category ? "" : householdCategoryColors[category]}`}
+                      onClick={() => setEditingEntity(prev => prev ? { ...prev, category } : null)}
+                      data-testid={`button-category-${category}`}
+                    >
+                      {householdCategoryLabels[category]}
+                    </Button>
+                  ))}
+                  {editingEntity?.category && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="justify-start text-muted-foreground"
+                      onClick={() => setEditingEntity(prev => prev ? { ...prev, category: null } : null)}
+                      data-testid="button-clear-category"
+                    >
+                      Clear Category
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+            
             <div className="flex justify-end gap-2">
               <Button 
                 type="button" 
@@ -873,7 +880,7 @@ export default function Households() {
                     } else if (editingEntity.type === "joint-account") {
                       updateJointAccountMutation.mutate({ id: editingEntity.id, nickname: editingEntity.name || null });
                     } else {
-                      updateHouseholdMutation.mutate({ id: editingEntity.id, name: editingEntity.name });
+                      updateHouseholdMutation.mutate({ id: editingEntity.id, name: editingEntity.name, category: editingEntity.category });
                     }
                   }
                 }}
@@ -887,67 +894,6 @@ export default function Households() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Category Dialog */}
-      <Dialog open={editingCategory !== null} onOpenChange={(open) => !open && setEditingCategory(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Set Household Category</DialogTitle>
-            <DialogDescription>
-              Choose a category for this household to help organize your clients.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-2">
-              {(["anchor", "emerging_anchor", "emerging_pulse", "evergreen", "pulse"] as HouseholdCategory[]).map((category) => (
-                <Button
-                  key={category}
-                  variant={editingCategory?.currentCategory === category ? "default" : "outline"}
-                  className={`justify-start ${editingCategory?.currentCategory === category ? "" : householdCategoryColors[category]}`}
-                  onClick={() => {
-                    if (editingCategory) {
-                      updateCategoryMutation.mutate({ 
-                        householdId: editingCategory.householdId, 
-                        category 
-                      });
-                    }
-                  }}
-                  disabled={updateCategoryMutation.isPending}
-                  data-testid={`button-category-${category}`}
-                >
-                  {householdCategoryLabels[category]}
-                </Button>
-              ))}
-              {editingCategory?.currentCategory && (
-                <Button
-                  variant="ghost"
-                  className="justify-start text-muted-foreground"
-                  onClick={() => {
-                    if (editingCategory) {
-                      updateCategoryMutation.mutate({ 
-                        householdId: editingCategory.householdId, 
-                        category: null 
-                      });
-                    }
-                  }}
-                  disabled={updateCategoryMutation.isPending}
-                  data-testid="button-clear-category"
-                >
-                  Clear Category
-                </Button>
-              )}
-            </div>
-            <div className="flex justify-end">
-              <Button 
-                variant="outline" 
-                onClick={() => setEditingCategory(null)}
-                data-testid="button-cancel-category"
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
