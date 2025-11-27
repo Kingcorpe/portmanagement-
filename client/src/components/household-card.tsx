@@ -472,10 +472,10 @@ export function HouseholdCard({
                       <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">
                         {group.category}
                       </div>
-                      <div className="space-y-0.5">
+                      <div className="space-y-0.5 pl-3">
                         {group.accounts.map((account) => (
                           <div key={account.id} className="flex items-center text-sm group" data-testid={`row-account-${account.id}`}>
-                            <Link href={`/account/individual/${account.id}`} className="flex items-center justify-between flex-1 py-1 px-2 -mx-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
+                            <Link href={`/account/individual/${account.id}`} className="flex items-center justify-between flex-1 py-1 px-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
                               <span className="text-xs font-medium">
                                 {formatAccountDisplayName(account.type, account.nickname)}
                               </span>
@@ -598,10 +598,10 @@ export function HouseholdCard({
                       <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">
                         {group.category}
                       </div>
-                      <div className="space-y-0.5">
+                      <div className="space-y-0.5 pl-3">
                         {group.accounts.map((account) => (
                           <div key={account.id} className="flex items-center text-sm group" data-testid={`row-account-${account.id}`}>
-                            <Link href={`/account/corporate/${account.id}`} className="flex items-center justify-between flex-1 py-1 px-2 -mx-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
+                            <Link href={`/account/corporate/${account.id}`} className="flex items-center justify-between flex-1 py-1 px-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
                               <span className="text-xs font-medium">
                                 {formatAccountDisplayName(account.type, account.nickname)}
                               </span>
@@ -658,11 +658,11 @@ export function HouseholdCard({
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-500/30 text-green-700 dark:text-green-400">Shared</Badge>
                 </div>
                 
-                <div className="px-3 py-2 space-y-0.5">
+                <div className="px-3 py-2 space-y-0.5 pl-3">
                   {household.jointAccounts.map((account) => {
                     return (
                       <div key={account.id} className="flex items-center text-sm group" data-testid={`row-joint-account-${account.id}`}>
-                        <Link href={`/account/joint/${account.id}`} className="flex items-center justify-between flex-1 py-1 px-2 -mx-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
+                        <Link href={`/account/joint/${account.id}`} className="flex items-center justify-between flex-1 py-1 px-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
                           <span className="text-xs font-medium">
                             {formatAccountDisplayName(account.type, account.nickname)}
                           </span>
