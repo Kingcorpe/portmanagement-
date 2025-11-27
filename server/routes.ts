@@ -3563,6 +3563,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Account audit log routes
+  app.get('/api/accounts/:accountType/:accountId/audit-log', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { accountType, accountId } = req.params;
+      
+      // Check authorization
+      const householdId = await storage.getHouseholdIdFromAccount(accountType as 'individual' | 'corporate' | 'joint', accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      let logs: any[];
+      switch (accountType) {
+        case 'individual':
+          logs = await storage.getAuditLogByIndividualAccount(accountId);
+          break;
+        case 'corporate':
+          logs = await storage.getAuditLogByCorporateAccount(accountId);
+          break;
+        case 'joint':
+          logs = await storage.getAuditLogByJointAccount(accountId);
+          break;
+        default:
+          return res.status(400).json({ message: "Invalid account type" });
+      }
+      
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit log:", error);
+      res.status(500).json({ message: "Failed to fetch audit log" });
+    }
+  });
+
   // Email portfolio rebalancing report
   app.post('/api/accounts/:accountType/:accountId/email-report', isAuthenticated, async (req: any, res) => {
     try {
