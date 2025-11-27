@@ -199,7 +199,7 @@ export const individualAccounts = pgTable("individual_accounts", {
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'), // percentage
   // Risk tolerance as percentages (should sum to 100)
-  riskMediumPct: decimal("risk_medium_pct", { precision: 5, scale: 2 }).notNull().default('100'),
+  riskMediumPct: decimal("risk_medium_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
@@ -230,7 +230,7 @@ export const corporateAccounts = pgTable("corporate_accounts", {
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'), // percentage
   // Risk tolerance as percentages (should sum to 100)
-  riskMediumPct: decimal("risk_medium_pct", { precision: 5, scale: 2 }).notNull().default('100'),
+  riskMediumPct: decimal("risk_medium_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
@@ -261,7 +261,7 @@ export const jointAccounts = pgTable("joint_accounts", {
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'),
   // Risk tolerance as percentages (should sum to 100)
-  riskMediumPct: decimal("risk_medium_pct", { precision: 5, scale: 2 }).notNull().default('100'),
+  riskMediumPct: decimal("risk_medium_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
