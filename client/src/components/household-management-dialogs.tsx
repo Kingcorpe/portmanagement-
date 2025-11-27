@@ -292,25 +292,6 @@ export function HouseholdManagementDialogs({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={individualForm.control}
-                name="dateOfBirth"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date of Birth (Optional)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="date"
-                        data-testid="input-individual-dob" 
-                        value={field.value ? new Date(field.value).toISOString().split('T')[0] : ""}
-                        onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
-                      />
-                    </FormControl>
-                    <p className="text-xs text-muted-foreground">Used to calculate RIF conversion date (age 71)</p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <div className="space-y-2">
                 <label className="text-sm font-medium">Account Type (Optional)</label>
                 <Select value={individualAccountType} onValueChange={setIndividualAccountType}>
@@ -330,6 +311,27 @@ export function HouseholdManagementDialogs({
                 </Select>
                 <p className="text-xs text-muted-foreground">Optionally create an account for this individual at the same time.</p>
               </div>
+              {individualAccountType === "rif" && (
+                <FormField
+                  control={individualForm.control}
+                  name="dateOfBirth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Birth</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="date"
+                          data-testid="input-individual-dob" 
+                          value={field.value ? new Date(field.value).toISOString().split('T')[0] : ""}
+                          onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                        />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">Used to calculate RIF conversion date (age 71)</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
