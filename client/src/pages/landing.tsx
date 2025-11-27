@@ -50,7 +50,7 @@ export default function Landing() {
           <div className="relative z-10 container mx-auto px-4 py-20">
             <div className="max-w-4xl mx-auto text-center space-y-6">
               <h2 className="text-5xl font-bold text-white">
-                Canadian Investment Portfolio Management
+                Investment Management
               </h2>
               <p className="text-xl text-white/80 italic">
                 Stop watching the market. Let the market come to you.
