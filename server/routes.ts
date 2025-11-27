@@ -2559,8 +2559,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ success: true, updated: 0, message: "No holdings to update" });
       }
       
-      // Dynamically import yahoo-finance2
-      const yahooFinance = (await import('yahoo-finance2')).default;
+      // Dynamically import yahoo-finance2 with new API
+      const YahooFinance = (await import('yahoo-finance2')).default;
+      const yahooFinance = new (YahooFinance as any)({ suppressNotices: ['yahooSurvey', 'ripHistorical'] });
       
       const errors: string[] = [];
       const now = new Date();
@@ -2568,6 +2569,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Cache for dividend data to avoid duplicate API calls
       const dividendCache: Record<string, { rate: number | null; yield: number | null; exDate: Date | null; frequency: string | null }> = {};
+      
+      // Calculate date range for historical dividends (1 year)
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
       
       for (const holding of holdings) {
         try {
@@ -2596,7 +2601,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Try the symbol as-is first, then with Canadian/US exchange suffixes
-          let summary = null;
           const symbolsToTry = [holding.ticker];
           
           if (!holding.ticker.includes('.')) {
@@ -2608,18 +2612,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`[Dividend Refresh] Trying symbols for ${holding.ticker}:`, symbolsToTry);
           
+          let chartData = null;
+          let workingSymbol = null;
+          
           for (const symbol of symbolsToTry) {
             try {
-              const result = await yahooFinance.quoteSummary(symbol, {
-                modules: ['summaryDetail']
-              }) as any;
-              if (result && result.summaryDetail) {
-                summary = result.summaryDetail as any;
-                console.log(`[Dividend Refresh] Found dividend info for ${symbol}:`, {
-                  rate: summary.dividendRate,
-                  yield: summary.dividendYield,
-                  exDate: summary.exDividendDate
-                });
+              const result = await yahooFinance.chart(symbol, {
+                period1: oneYearAgo,
+                period2: new Date(),
+                events: 'div'
+              });
+              if (result && result.meta) {
+                chartData = result;
+                workingSymbol = symbol;
                 break;
               }
             } catch (e) {
@@ -2627,22 +2632,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
-          if (summary) {
-            const dividendRate = summary.dividendRate || 0;
-            const dividendYield = summary.dividendYield ? summary.dividendYield * 100 : 0; // Convert to percentage
-            const exDate = summary.exDividendDate ? new Date(summary.exDividendDate) : null;
-            
-            // Determine payout frequency by analyzing historical dividends
-            // For now, we'll set it based on common patterns or leave as none if no dividend
+          if (chartData) {
+            const price = chartData.meta?.regularMarketPrice || 0;
+            let dividendRate = 0;
+            let dividendYield = 0;
             let payoutFrequency: "monthly" | "quarterly" | "semi_annual" | "annual" | "none" = "none";
-            if (dividendRate > 0) {
-              // Most Canadian ETFs pay monthly, US stocks typically quarterly
-              // This is a heuristic - could be improved with historical data
-              const ticker = holding.ticker.toUpperCase();
-              if (ticker.endsWith('.TO') || !ticker.includes('.')) {
-                payoutFrequency = "monthly"; // Default Canadian to monthly (common for income ETFs)
-              } else {
-                payoutFrequency = "quarterly"; // Default US to quarterly
+            let exDate: Date | null = null;
+            
+            // Calculate from historical dividend events
+            if (chartData.events && chartData.events.dividends) {
+              const divEvents = Object.values(chartData.events.dividends) as any[];
+              if (divEvents.length > 0) {
+                // Sum all dividends in the past year
+                dividendRate = divEvents.reduce((sum: number, d: any) => sum + (d.amount || 0), 0);
+                dividendYield = price > 0 ? (dividendRate / price) * 100 : 0;
+                
+                // Determine frequency based on payment count
+                if (divEvents.length >= 12) payoutFrequency = "monthly";
+                else if (divEvents.length >= 4) payoutFrequency = "quarterly";
+                else if (divEvents.length >= 2) payoutFrequency = "semi_annual";
+                else if (divEvents.length >= 1) payoutFrequency = "annual";
+                
+                // Get most recent ex-dividend date
+                const sortedDivs = divEvents.sort((a: any, b: any) => b.date - a.date);
+                if (sortedDivs.length > 0 && sortedDivs[0].date) {
+                  exDate = new Date(sortedDivs[0].date * 1000);
+                }
+                
+                console.log(`[Dividend Refresh] Found dividend info for ${workingSymbol}:`, {
+                  rate: dividendRate.toFixed(4),
+                  yield: dividendYield.toFixed(2) + '%',
+                  payments: divEvents.length,
+                  frequency: payoutFrequency
+                });
               }
             }
             
