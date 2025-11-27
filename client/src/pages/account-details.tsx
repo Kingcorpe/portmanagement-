@@ -1281,6 +1281,416 @@ export default function AccountDetails() {
         </Card>
       </div>
 
+      {/* Unified Holdings & Portfolio Comparison Section */}
+      <Collapsible open={isHoldingsExpanded} onOpenChange={setIsHoldingsExpanded}>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+            <CollapsibleTrigger asChild>
+              <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity" data-testid="button-toggle-holdings">
+                {isHoldingsExpanded ? (
+                  <ChevronDown className="h-5 w-5" />
+                ) : (
+                  <ChevronRight className="h-5 w-5" />
+                )}
+                <div>
+                  <CardTitle>Holdings & Portfolio Analysis</CardTitle>
+                  <CardDescription>
+                    All positions with target allocation comparison
+                  </CardDescription>
+                </div>
+              </button>
+            </CollapsibleTrigger>
+            <div className="flex gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDialogOpen(true)}
+              data-testid="button-add-position"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Position
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsCashDialogOpen(true)}
+              data-testid="button-add-cash"
+            >
+              <DollarSign className="h-4 w-4 mr-2" />
+              Add Cash
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEmailDialogOpen(true)}
+              disabled={positions.length === 0}
+              data-testid="button-email-report"
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Email Report
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refreshPricesMutation.mutate()}
+              disabled={refreshPricesMutation.isPending || positions.length === 0}
+              data-testid="button-refresh-prices"
+            >
+              {refreshPricesMutation.isPending ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh Prices
+                </>
+              )}
+            </Button>
+          </div>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="space-y-4">
+              {/* Summary Stats */}
+          {comparisonData?.hasTargetAllocations && comparisonData.comparison.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Portfolio Value</div>
+                <div className="font-semibold">${comparisonData.totalActualValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">On Target</div>
+                <div className="font-semibold text-blue-600 dark:text-blue-400">
+                  {comparisonData.comparison.filter(c => c.status === 'on-target').length}
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Over/Under</div>
+                <div className="font-semibold">
+                  <span className="text-green-600 dark:text-green-400">{comparisonData.comparison.filter(c => c.status === 'over').length}</span>
+                  {' / '}
+                  <span className="text-red-600 dark:text-red-400">{comparisonData.comparison.filter(c => c.status === 'under').length}</span>
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground">Untracked</div>
+                <div className="font-semibold text-amber-600 dark:text-amber-400">
+                  {comparisonData.comparison.filter(c => c.status === 'unexpected').length}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {positions.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              No positions yet. Click "Add Position" to get started.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Symbol</TableHead>
+                  {comparisonData?.hasTargetAllocations && (
+                    <TableHead className="text-center">Status</TableHead>
+                  )}
+                  <TableHead className="text-right">Qty</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
+                  <TableHead className="text-right">Book Value</TableHead>
+                  <TableHead className="text-right">Market Value</TableHead>
+                  <TableHead className="text-right">U/R Gain $</TableHead>
+                  {comparisonData?.hasTargetAllocations && (
+                    <TableHead className="text-right">Actual %</TableHead>
+                  )}
+                  <TableHead className="text-right">Target %</TableHead>
+                  {comparisonData?.hasTargetAllocations && (
+                    <>
+                      <TableHead className="text-right">Variance</TableHead>
+                      <TableHead className="text-right">$ Change</TableHead>
+                      <TableHead className="text-right">Shares to Trade</TableHead>
+                    </>
+                  )}
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {positions.map((position) => {
+                  // Use normalized ticker comparison to match "XIC.TO" with "XIC" etc.
+                  const normalizedPositionSymbol = normalizeTicker(position.symbol);
+                  const comparison = comparisonData?.comparison.find(c => normalizeTicker(c.ticker) === normalizedPositionSymbol);
+                  const marketValue = Number(position.quantity) * Number(position.currentPrice);
+                  const isEditingTarget = editingInlineTarget === position.id;
+                  
+                  return (
+                    <TableRow key={position.id} data-testid={`row-position-${position.id}`}>
+                      {/* Symbol - color reflects action needed (green=buy, red=sell) */}
+                      <TableCell data-testid={`text-symbol-${position.id}`}>
+                        <div className={`font-medium ${
+                          comparison?.status === 'under' ? 'text-green-600 dark:text-green-400' :
+                          comparison?.status === 'over' ? 'text-red-600 dark:text-red-400' :
+                          comparison?.status === 'on-target' ? 'text-blue-600 dark:text-blue-400' :
+                          comparison?.status === 'unexpected' ? 'text-amber-600 dark:text-amber-400' :
+                          ''
+                        }`}>{position.symbol}</div>
+                        {comparison && (
+                          <div className="text-xs text-muted-foreground truncate max-w-[120px]">{comparison.name}</div>
+                        )}
+                      </TableCell>
+                      
+                      {/* Status - moved to column 2 */}
+                      {comparisonData?.hasTargetAllocations && (
+                        <TableCell className="text-center" data-testid={`badge-status-${position.id}`}>
+                          {comparison?.status === 'over' && (
+                            <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                              <TrendingUp className="h-3 w-3 mr-1" />
+                              Over
+                            </Badge>
+                          )}
+                          {comparison?.status === 'under' && (
+                            <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              <TrendingDown className="h-3 w-3 mr-1" />
+                              Under
+                            </Badge>
+                          )}
+                          {comparison?.status === 'on-target' && (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                              <Minus className="h-3 w-3 mr-1" />
+                              On Target
+                            </Badge>
+                          )}
+                          {comparison?.status === 'unexpected' && (
+                            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              No Target
+                            </Badge>
+                          )}
+                          {!comparison && (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
+                        </TableCell>
+                      )}
+                      
+                      {/* Qty */}
+                      <TableCell className="text-right" data-testid={`text-quantity-${position.id}`}>
+                        {Number(position.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      
+                      {/* Price */}
+                      <TableCell className="text-right" data-testid={`text-current-price-${position.id}`}>
+                        <div>${Number(position.currentPrice).toFixed(2)}</div>
+                        {position.priceUpdatedAt && (
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(position.priceUpdatedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}
+                          </div>
+                        )}
+                      </TableCell>
+                      
+                      {/* Book Value */}
+                      <TableCell className="text-right" data-testid={`text-book-value-${position.id}`}>
+                        ${(Number(position.quantity) * Number(position.entryPrice)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      
+                      {/* Market Value */}
+                      <TableCell className="text-right font-medium" data-testid={`text-market-value-${position.id}`}>
+                        ${marketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      
+                      {/* U/R Cap Gain $ */}
+                      {(() => {
+                        const bookValue = Number(position.quantity) * Number(position.entryPrice);
+                        const unrealizedGain = marketValue - bookValue;
+                        return (
+                          <TableCell 
+                            className={`text-right font-medium ${
+                              unrealizedGain > 0 ? 'text-green-600 dark:text-green-400' : 
+                              unrealizedGain < 0 ? 'text-red-600 dark:text-red-400' : ''
+                            }`}
+                            data-testid={`text-unrealized-gain-${position.id}`}
+                          >
+                            {unrealizedGain >= 0 ? '+' : ''}${unrealizedGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </TableCell>
+                        );
+                      })()}
+                      
+                      {/* Actual % (only when target allocations exist) */}
+                      {comparisonData?.hasTargetAllocations && (
+                        <TableCell className="text-right" data-testid={`text-actual-pct-${position.id}`}>
+                          {comparison ? `${comparison.actualPercentage.toFixed(1)}%` : '-'}
+                        </TableCell>
+                      )}
+                      
+                      {/* Target % (always visible, inline editable) */}
+                      <TableCell className="text-right" data-testid={`text-target-pct-${position.id}`}>
+                        {isEditingTarget ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              max="100"
+                              value={inlineTargetValue}
+                              onChange={(e) => setInlineTargetValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleInlineTargetSave(position);
+                                if (e.key === 'Escape') handleInlineTargetCancel();
+                              }}
+                              className="w-16 h-7 text-right text-sm"
+                              data-testid={`input-target-${position.id}`}
+                              autoFocus
+                            />
+                            <span className="text-muted-foreground">%</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleInlineTargetSave(position)}
+                              disabled={inlineTargetMutation.isPending}
+                              data-testid={`button-save-target-${position.id}`}
+                            >
+                              {inlineTargetMutation.isPending ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Target className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleInlineTargetEdit(position)}
+                            className="text-right hover:bg-muted/50 px-2 py-1 rounded cursor-pointer w-full"
+                            data-testid={`button-edit-target-${position.id}`}
+                          >
+                            {comparison && comparison.targetPercentage > 0 
+                              ? `${comparison.targetPercentage.toFixed(1)}%` 
+                              : <span className="text-muted-foreground">-</span>
+                            }
+                          </button>
+                        )}
+                      </TableCell>
+                      
+                      {/* Variance, $ Change, Shares to Trade, Status (only when target allocations exist) */}
+                      {comparisonData?.hasTargetAllocations && (() => {
+                        const currentPrice = Number(position.currentPrice);
+                        const quantity = Number(position.quantity);
+                        
+                        // If no target or target is 0%, position should be liquidated (sell all)
+                        const hasTarget = comparison && comparison.targetPercentage > 0;
+                        const changeNeeded = hasTarget 
+                          ? comparison.targetValue - comparison.actualValue 
+                          : -marketValue; // Sell entire position value
+                        const sharesToTrade = hasTarget
+                          ? (currentPrice > 0 ? changeNeeded / currentPrice : 0)
+                          : -quantity; // Sell all shares
+                        
+                        return (
+                          <>
+                            {/* Variance */}
+                            <TableCell 
+                              className={`text-right font-medium ${
+                                comparison && comparison.variance > 0 ? 'text-green-600 dark:text-green-400' : 
+                                comparison && comparison.variance < 0 ? 'text-red-600 dark:text-red-400' : ''
+                              }`}
+                              data-testid={`text-variance-${position.id}`}
+                            >
+                              {comparison ? (
+                                <>{comparison.variance > 0 ? '+' : ''}{comparison.variance.toFixed(1)}%</>
+                              ) : '-'}
+                            </TableCell>
+                            
+                            {/* $ Change - show liquidation value for positions with no target */}
+                            <TableCell 
+                              className={`text-right font-medium ${
+                                changeNeeded > 0 ? 'text-green-600 dark:text-green-400' : 
+                                changeNeeded < 0 ? 'text-red-600 dark:text-red-400' : ''
+                              }`}
+                              data-testid={`text-change-needed-${position.id}`}
+                            >
+                              {changeNeeded > 0 ? '+' : ''}
+                              ${changeNeeded.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            </TableCell>
+                            
+                            {/* Shares to Trade - show full liquidation for positions with no target */}
+                            <TableCell 
+                              className={`text-right font-medium ${
+                                sharesToTrade > 0 ? 'text-green-600 dark:text-green-400' : 
+                                sharesToTrade < 0 ? 'text-red-600 dark:text-red-400' : ''
+                              }`}
+                              data-testid={`text-shares-to-trade-${position.id}`}
+                            >
+                              <div className="font-semibold">
+                                {sharesToTrade > 0 ? 'Buy ' : sharesToTrade < 0 ? 'Sell ' : ''}
+                                {Math.abs(sharesToTrade).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                              </div>
+                            </TableCell>
+                          </>
+                        );
+                      })()}
+                      
+                      {/* Actions */}
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(position)}
+                            data-testid={`button-edit-${position.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(position.id)}
+                            data-testid={`button-delete-${position.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+
+          {/* Show positions that are in targets but not held */}
+          {comparisonData?.hasTargetAllocations && (
+            (() => {
+              const missingPositions = comparisonData.comparison.filter(
+                c => c.targetPercentage > 0 && c.actualPercentage === 0
+              );
+              if (missingPositions.length === 0) return null;
+              
+              return (
+                <div className="mt-4 p-3 border border-dashed rounded-lg">
+                  <div className="text-sm font-medium mb-2 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    Missing Positions (In Target but Not Held)
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {missingPositions.map((item) => (
+                      <Badge key={item.ticker} variant="outline" className="text-xs">
+                        {item.ticker}: {item.targetPercentage.toFixed(1)}%
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()
+          )}
+
+          {/* Hint to set up target allocations if none exist */}
+              {!comparisonData?.hasTargetAllocations && positions.length > 0 && (
+                <div className="p-3 bg-muted/50 rounded-lg text-center text-sm text-muted-foreground">
+                  Set up target allocations below to see portfolio comparison analysis.
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
       {/* Account Notes Section */}
       <Collapsible open={isNotesExpanded} onOpenChange={setIsNotesExpanded}>
         <Card>
@@ -1820,416 +2230,6 @@ export default function AccountDetails() {
             )}
           </CardContent>
         </CollapsibleContent>
-        </Card>
-      </Collapsible>
-
-      {/* Unified Holdings & Portfolio Comparison Section */}
-      <Collapsible open={isHoldingsExpanded} onOpenChange={setIsHoldingsExpanded}>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
-            <CollapsibleTrigger asChild>
-              <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity" data-testid="button-toggle-holdings">
-                {isHoldingsExpanded ? (
-                  <ChevronDown className="h-5 w-5" />
-                ) : (
-                  <ChevronRight className="h-5 w-5" />
-                )}
-                <div>
-                  <CardTitle>Holdings & Portfolio Analysis</CardTitle>
-                  <CardDescription>
-                    All positions with target allocation comparison
-                  </CardDescription>
-                </div>
-              </button>
-            </CollapsibleTrigger>
-            <div className="flex gap-2 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsDialogOpen(true)}
-              data-testid="button-add-position"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Position
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsCashDialogOpen(true)}
-              data-testid="button-add-cash"
-            >
-              <DollarSign className="h-4 w-4 mr-2" />
-              Add Cash
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsEmailDialogOpen(true)}
-              disabled={positions.length === 0}
-              data-testid="button-email-report"
-            >
-              <Mail className="h-4 w-4 mr-2" />
-              Email Report
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refreshPricesMutation.mutate()}
-              disabled={refreshPricesMutation.isPending || positions.length === 0}
-              data-testid="button-refresh-prices"
-            >
-              {refreshPricesMutation.isPending ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Refreshing...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh Prices
-                </>
-              )}
-            </Button>
-          </div>
-          </CardHeader>
-          <CollapsibleContent>
-            <CardContent className="space-y-4">
-              {/* Summary Stats */}
-          {comparisonData?.hasTargetAllocations && comparisonData.comparison.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-muted/50 rounded-lg">
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground">Portfolio Value</div>
-                <div className="font-semibold">${comparisonData.totalActualValue.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground">On Target</div>
-                <div className="font-semibold text-blue-600 dark:text-blue-400">
-                  {comparisonData.comparison.filter(c => c.status === 'on-target').length}
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground">Over/Under</div>
-                <div className="font-semibold">
-                  <span className="text-green-600 dark:text-green-400">{comparisonData.comparison.filter(c => c.status === 'over').length}</span>
-                  {' / '}
-                  <span className="text-red-600 dark:text-red-400">{comparisonData.comparison.filter(c => c.status === 'under').length}</span>
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground">Untracked</div>
-                <div className="font-semibold text-amber-600 dark:text-amber-400">
-                  {comparisonData.comparison.filter(c => c.status === 'unexpected').length}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {positions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              No positions yet. Click "Add Position" to get started.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Symbol</TableHead>
-                  {comparisonData?.hasTargetAllocations && (
-                    <TableHead className="text-center">Status</TableHead>
-                  )}
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead className="text-right">Book Value</TableHead>
-                  <TableHead className="text-right">Market Value</TableHead>
-                  <TableHead className="text-right">U/R Gain $</TableHead>
-                  {comparisonData?.hasTargetAllocations && (
-                    <TableHead className="text-right">Actual %</TableHead>
-                  )}
-                  <TableHead className="text-right">Target %</TableHead>
-                  {comparisonData?.hasTargetAllocations && (
-                    <>
-                      <TableHead className="text-right">Variance</TableHead>
-                      <TableHead className="text-right">$ Change</TableHead>
-                      <TableHead className="text-right">Shares to Trade</TableHead>
-                    </>
-                  )}
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {positions.map((position) => {
-                  // Use normalized ticker comparison to match "XIC.TO" with "XIC" etc.
-                  const normalizedPositionSymbol = normalizeTicker(position.symbol);
-                  const comparison = comparisonData?.comparison.find(c => normalizeTicker(c.ticker) === normalizedPositionSymbol);
-                  const marketValue = Number(position.quantity) * Number(position.currentPrice);
-                  const isEditingTarget = editingInlineTarget === position.id;
-                  
-                  return (
-                    <TableRow key={position.id} data-testid={`row-position-${position.id}`}>
-                      {/* Symbol - color reflects action needed (green=buy, red=sell) */}
-                      <TableCell data-testid={`text-symbol-${position.id}`}>
-                        <div className={`font-medium ${
-                          comparison?.status === 'under' ? 'text-green-600 dark:text-green-400' :
-                          comparison?.status === 'over' ? 'text-red-600 dark:text-red-400' :
-                          comparison?.status === 'on-target' ? 'text-blue-600 dark:text-blue-400' :
-                          comparison?.status === 'unexpected' ? 'text-amber-600 dark:text-amber-400' :
-                          ''
-                        }`}>{position.symbol}</div>
-                        {comparison && (
-                          <div className="text-xs text-muted-foreground truncate max-w-[120px]">{comparison.name}</div>
-                        )}
-                      </TableCell>
-                      
-                      {/* Status - moved to column 2 */}
-                      {comparisonData?.hasTargetAllocations && (
-                        <TableCell className="text-center" data-testid={`badge-status-${position.id}`}>
-                          {comparison?.status === 'over' && (
-                            <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                              <TrendingUp className="h-3 w-3 mr-1" />
-                              Over
-                            </Badge>
-                          )}
-                          {comparison?.status === 'under' && (
-                            <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                              <TrendingDown className="h-3 w-3 mr-1" />
-                              Under
-                            </Badge>
-                          )}
-                          {comparison?.status === 'on-target' && (
-                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                              <Minus className="h-3 w-3 mr-1" />
-                              On Target
-                            </Badge>
-                          )}
-                          {comparison?.status === 'unexpected' && (
-                            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              No Target
-                            </Badge>
-                          )}
-                          {!comparison && (
-                            <span className="text-muted-foreground text-xs">-</span>
-                          )}
-                        </TableCell>
-                      )}
-                      
-                      {/* Qty */}
-                      <TableCell className="text-right" data-testid={`text-quantity-${position.id}`}>
-                        {Number(position.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </TableCell>
-                      
-                      {/* Price */}
-                      <TableCell className="text-right" data-testid={`text-current-price-${position.id}`}>
-                        <div>${Number(position.currentPrice).toFixed(2)}</div>
-                        {position.priceUpdatedAt && (
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(position.priceUpdatedAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}
-                          </div>
-                        )}
-                      </TableCell>
-                      
-                      {/* Book Value */}
-                      <TableCell className="text-right" data-testid={`text-book-value-${position.id}`}>
-                        ${(Number(position.quantity) * Number(position.entryPrice)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </TableCell>
-                      
-                      {/* Market Value */}
-                      <TableCell className="text-right font-medium" data-testid={`text-market-value-${position.id}`}>
-                        ${marketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </TableCell>
-                      
-                      {/* U/R Cap Gain $ */}
-                      {(() => {
-                        const bookValue = Number(position.quantity) * Number(position.entryPrice);
-                        const unrealizedGain = marketValue - bookValue;
-                        return (
-                          <TableCell 
-                            className={`text-right font-medium ${
-                              unrealizedGain > 0 ? 'text-green-600 dark:text-green-400' : 
-                              unrealizedGain < 0 ? 'text-red-600 dark:text-red-400' : ''
-                            }`}
-                            data-testid={`text-unrealized-gain-${position.id}`}
-                          >
-                            {unrealizedGain >= 0 ? '+' : ''}${unrealizedGain.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </TableCell>
-                        );
-                      })()}
-                      
-                      {/* Actual % (only when target allocations exist) */}
-                      {comparisonData?.hasTargetAllocations && (
-                        <TableCell className="text-right" data-testid={`text-actual-pct-${position.id}`}>
-                          {comparison ? `${comparison.actualPercentage.toFixed(1)}%` : '-'}
-                        </TableCell>
-                      )}
-                      
-                      {/* Target % (always visible, inline editable) */}
-                      <TableCell className="text-right" data-testid={`text-target-pct-${position.id}`}>
-                        {isEditingTarget ? (
-                          <div className="flex items-center justify-end gap-1">
-                            <Input
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              max="100"
-                              value={inlineTargetValue}
-                              onChange={(e) => setInlineTargetValue(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleInlineTargetSave(position);
-                                if (e.key === 'Escape') handleInlineTargetCancel();
-                              }}
-                              className="w-16 h-7 text-right text-sm"
-                              data-testid={`input-target-${position.id}`}
-                              autoFocus
-                            />
-                            <span className="text-muted-foreground">%</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => handleInlineTargetSave(position)}
-                              disabled={inlineTargetMutation.isPending}
-                              data-testid={`button-save-target-${position.id}`}
-                            >
-                              {inlineTargetMutation.isPending ? (
-                                <RefreshCw className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Target className="h-3 w-3" />
-                              )}
-                            </Button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => handleInlineTargetEdit(position)}
-                            className="text-right hover:bg-muted/50 px-2 py-1 rounded cursor-pointer w-full"
-                            data-testid={`button-edit-target-${position.id}`}
-                          >
-                            {comparison && comparison.targetPercentage > 0 
-                              ? `${comparison.targetPercentage.toFixed(1)}%` 
-                              : <span className="text-muted-foreground">-</span>
-                            }
-                          </button>
-                        )}
-                      </TableCell>
-                      
-                      {/* Variance, $ Change, Shares to Trade, Status (only when target allocations exist) */}
-                      {comparisonData?.hasTargetAllocations && (() => {
-                        const currentPrice = Number(position.currentPrice);
-                        const quantity = Number(position.quantity);
-                        
-                        // If no target or target is 0%, position should be liquidated (sell all)
-                        const hasTarget = comparison && comparison.targetPercentage > 0;
-                        const changeNeeded = hasTarget 
-                          ? comparison.targetValue - comparison.actualValue 
-                          : -marketValue; // Sell entire position value
-                        const sharesToTrade = hasTarget
-                          ? (currentPrice > 0 ? changeNeeded / currentPrice : 0)
-                          : -quantity; // Sell all shares
-                        
-                        return (
-                          <>
-                            {/* Variance */}
-                            <TableCell 
-                              className={`text-right font-medium ${
-                                comparison && comparison.variance > 0 ? 'text-green-600 dark:text-green-400' : 
-                                comparison && comparison.variance < 0 ? 'text-red-600 dark:text-red-400' : ''
-                              }`}
-                              data-testid={`text-variance-${position.id}`}
-                            >
-                              {comparison ? (
-                                <>{comparison.variance > 0 ? '+' : ''}{comparison.variance.toFixed(1)}%</>
-                              ) : '-'}
-                            </TableCell>
-                            
-                            {/* $ Change - show liquidation value for positions with no target */}
-                            <TableCell 
-                              className={`text-right font-medium ${
-                                changeNeeded > 0 ? 'text-green-600 dark:text-green-400' : 
-                                changeNeeded < 0 ? 'text-red-600 dark:text-red-400' : ''
-                              }`}
-                              data-testid={`text-change-needed-${position.id}`}
-                            >
-                              {changeNeeded > 0 ? '+' : ''}
-                              ${changeNeeded.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                            </TableCell>
-                            
-                            {/* Shares to Trade - show full liquidation for positions with no target */}
-                            <TableCell 
-                              className={`text-right font-medium ${
-                                sharesToTrade > 0 ? 'text-green-600 dark:text-green-400' : 
-                                sharesToTrade < 0 ? 'text-red-600 dark:text-red-400' : ''
-                              }`}
-                              data-testid={`text-shares-to-trade-${position.id}`}
-                            >
-                              <div className="font-semibold">
-                                {sharesToTrade > 0 ? 'Buy ' : sharesToTrade < 0 ? 'Sell ' : ''}
-                                {Math.abs(sharesToTrade).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                              </div>
-                            </TableCell>
-                          </>
-                        );
-                      })()}
-                      
-                      {/* Actions */}
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(position)}
-                            data-testid={`button-edit-${position.id}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(position.id)}
-                            data-testid={`button-delete-${position.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-
-          {/* Show positions that are in targets but not held */}
-          {comparisonData?.hasTargetAllocations && (
-            (() => {
-              const missingPositions = comparisonData.comparison.filter(
-                c => c.targetPercentage > 0 && c.actualPercentage === 0
-              );
-              if (missingPositions.length === 0) return null;
-              
-              return (
-                <div className="mt-4 p-3 border border-dashed rounded-lg">
-                  <div className="text-sm font-medium mb-2 flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    Missing Positions (In Target but Not Held)
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {missingPositions.map((item) => (
-                      <Badge key={item.ticker} variant="outline" className="text-xs">
-                        {item.ticker}: {item.targetPercentage.toFixed(1)}%
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()
-          )}
-
-          {/* Hint to set up target allocations if none exist */}
-              {!comparisonData?.hasTargetAllocations && positions.length > 0 && (
-                <div className="p-3 bg-muted/50 rounded-lg text-center text-sm text-muted-foreground">
-                  Set up target allocations above to see portfolio comparison analysis.
-                </div>
-              )}
-            </CardContent>
-          </CollapsibleContent>
         </Card>
       </Collapsible>
 
