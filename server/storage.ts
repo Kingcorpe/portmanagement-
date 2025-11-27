@@ -20,6 +20,7 @@ import {
   freelancePortfolioAllocations,
   accountTargetAllocations,
   libraryDocuments,
+  accountTasks,
   type User,
   type UpsertUser,
   type Household,
@@ -64,6 +65,8 @@ import {
   type AccountTargetAllocationWithHolding,
   type LibraryDocument,
   type InsertLibraryDocument,
+  type AccountTask,
+  type InsertAccountTask,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, inArray, ilike, or, and, sql } from "drizzle-orm";
@@ -221,6 +224,16 @@ export interface IStorage {
   getLibraryDocumentsByCategory(category: 'reports' | 'strategies', userId?: string): Promise<LibraryDocument[]>;
   updateLibraryDocument(id: string, document: Partial<InsertLibraryDocument>): Promise<LibraryDocument>;
   deleteLibraryDocument(id: string): Promise<void>;
+
+  // Account task operations
+  createAccountTask(task: InsertAccountTask): Promise<AccountTask>;
+  getAccountTask(id: string): Promise<AccountTask | undefined>;
+  getTasksByIndividualAccount(accountId: string): Promise<AccountTask[]>;
+  getTasksByCorporateAccount(accountId: string): Promise<AccountTask[]>;
+  getTasksByJointAccount(accountId: string): Promise<AccountTask[]>;
+  updateAccountTask(id: string, task: Partial<InsertAccountTask>): Promise<AccountTask>;
+  deleteAccountTask(id: string): Promise<void>;
+  completeAccountTask(id: string): Promise<AccountTask>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1412,6 +1425,64 @@ export class DatabaseStorage implements IStorage {
 
   async deleteLibraryDocument(id: string): Promise<void> {
     await db.delete(libraryDocuments).where(eq(libraryDocuments.id, id));
+  }
+
+  // Account task operations
+  async createAccountTask(taskData: InsertAccountTask): Promise<AccountTask> {
+    const [task] = await db.insert(accountTasks).values(taskData).returning();
+    return task;
+  }
+
+  async getAccountTask(id: string): Promise<AccountTask | undefined> {
+    const [task] = await db.select().from(accountTasks).where(eq(accountTasks.id, id));
+    return task;
+  }
+
+  async getTasksByIndividualAccount(accountId: string): Promise<AccountTask[]> {
+    return await db.select()
+      .from(accountTasks)
+      .where(eq(accountTasks.individualAccountId, accountId))
+      .orderBy(desc(accountTasks.createdAt));
+  }
+
+  async getTasksByCorporateAccount(accountId: string): Promise<AccountTask[]> {
+    return await db.select()
+      .from(accountTasks)
+      .where(eq(accountTasks.corporateAccountId, accountId))
+      .orderBy(desc(accountTasks.createdAt));
+  }
+
+  async getTasksByJointAccount(accountId: string): Promise<AccountTask[]> {
+    return await db.select()
+      .from(accountTasks)
+      .where(eq(accountTasks.jointAccountId, accountId))
+      .orderBy(desc(accountTasks.createdAt));
+  }
+
+  async updateAccountTask(id: string, taskData: Partial<InsertAccountTask>): Promise<AccountTask> {
+    const [task] = await db
+      .update(accountTasks)
+      .set({ ...taskData, updatedAt: new Date() })
+      .where(eq(accountTasks.id, id))
+      .returning();
+    return task;
+  }
+
+  async deleteAccountTask(id: string): Promise<void> {
+    await db.delete(accountTasks).where(eq(accountTasks.id, id));
+  }
+
+  async completeAccountTask(id: string): Promise<AccountTask> {
+    const [task] = await db
+      .update(accountTasks)
+      .set({ 
+        status: "completed", 
+        completedAt: new Date(),
+        updatedAt: new Date() 
+      })
+      .where(eq(accountTasks.id, id))
+      .returning();
+    return task;
   }
 }
 
