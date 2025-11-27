@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRoute, Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -123,6 +123,9 @@ export default function AccountDetails() {
   const [upcomingNotes, setUpcomingNotes] = useState("");
   const [isNotesExpanded, setIsNotesExpanded] = useState(true);
   const [isHoldingsExpanded, setIsHoldingsExpanded] = useState(true);
+  const [notesAutoSaveStatus, setNotesAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const notesInitialLoadRef = useRef(true);
+  const notesSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const accountType = params?.accountType as "individual" | "corporate" | "joint" | undefined;
   const accountId = params?.accountId;
@@ -206,8 +209,54 @@ export default function AccountDetails() {
       setRiskHigh(allocation.high.toString());
       setImmediateNotes(accountData.immediateNotes || "");
       setUpcomingNotes(accountData.upcomingNotes || "");
+      // Mark initial load complete after a short delay to avoid triggering autosave
+      setTimeout(() => {
+        notesInitialLoadRef.current = false;
+      }, 100);
     }
   }, [accountData]);
+
+  // Autosave notes with debounce
+  useEffect(() => {
+    // Skip if this is the initial load
+    if (notesInitialLoadRef.current) return;
+    // Skip if no account endpoint
+    if (!accountEndpoint) return;
+
+    // Clear any existing timeout
+    if (notesSaveTimeoutRef.current) {
+      clearTimeout(notesSaveTimeoutRef.current);
+    }
+
+    // Set a new timeout to save after 1 second of no changes
+    notesSaveTimeoutRef.current = setTimeout(async () => {
+      setNotesAutoSaveStatus("saving");
+      try {
+        await apiRequest("PATCH", accountEndpoint, { immediateNotes, upcomingNotes });
+        await queryClient.invalidateQueries({ 
+          queryKey: [accountEndpoint],
+          refetchType: 'active',
+        });
+        setNotesAutoSaveStatus("saved");
+        // Reset to idle after showing "saved" for 2 seconds
+        setTimeout(() => setNotesAutoSaveStatus("idle"), 2000);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to save notes",
+          variant: "destructive",
+        });
+        setNotesAutoSaveStatus("idle");
+      }
+    }, 1000);
+
+    // Cleanup timeout on unmount or when dependencies change
+    return () => {
+      if (notesSaveTimeoutRef.current) {
+        clearTimeout(notesSaveTimeoutRef.current);
+      }
+    };
+  }, [immediateNotes, upcomingNotes, accountEndpoint, toast]);
 
   // Fetch portfolio comparison data
   const comparisonEndpoint = accountType && accountId 
@@ -1741,14 +1790,22 @@ export default function AccountDetails() {
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end mt-4">
-                <Button
-                  onClick={() => updateNotesMutation.mutate({ immediateNotes, upcomingNotes })}
-                  disabled={updateNotesMutation.isPending}
-                  data-testid="button-save-notes"
-                >
-                  {updateNotesMutation.isPending ? "Saving..." : "Save Notes"}
-                </Button>
+              <div className="flex justify-end mt-2">
+                <span className="text-xs text-muted-foreground flex items-center gap-1" data-testid="notes-autosave-status">
+                  {notesAutoSaveStatus === "saving" && (
+                    <>
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      Saving...
+                    </>
+                  )}
+                  {notesAutoSaveStatus === "saved" && (
+                    <>
+                      <Check className="h-3 w-3 text-green-600" />
+                      Saved
+                    </>
+                  )}
+                  {notesAutoSaveStatus === "idle" && "Autosave enabled"}
+                </span>
               </div>
             </CardContent>
           </CollapsibleContent>
