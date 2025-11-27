@@ -788,6 +788,7 @@ export type InsertPosition = z.infer<typeof insertPositionSchema>;
 export type Position = typeof positions.$inferSelect;
 
 export type InsertAlert = z.infer<typeof insertAlertSchema>;
+export type UpdateAlert = z.infer<typeof updateAlertSchema>;
 export type Alert = typeof alerts.$inferSelect;
 
 export type InsertTrade = z.infer<typeof insertTradeSchema>;

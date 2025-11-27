@@ -1075,6 +1075,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dismiss all pending alerts
+  app.post('/api/alerts/dismiss-all', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get all pending alerts for this user
+      const allAlerts = await storage.getAlertsByStatus("pending");
+      const userPendingAlerts = allAlerts.filter(alert => !alert.userId || alert.userId === userId);
+      
+      // Dismiss each one
+      let dismissedCount = 0;
+      for (const alert of userPendingAlerts) {
+        await storage.updateAlert(alert.id, { status: "dismissed" });
+        dismissedCount++;
+      }
+      
+      res.json({ message: `Dismissed ${dismissedCount} alerts`, count: dismissedCount });
+    } catch (error: any) {
+      console.error("Error dismissing all alerts:", error);
+      res.status(500).json({ message: "Failed to dismiss alerts" });
+    }
+  });
+
   // Get accounts affected by a symbol (for alert details)
   app.get('/api/symbols/:symbol/affected-accounts', isAuthenticated, async (req: any, res) => {
     try {

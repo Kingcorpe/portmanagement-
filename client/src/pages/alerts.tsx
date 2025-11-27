@@ -6,6 +6,8 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { AlertCard, Alert } from "@/components/alert-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { XCircle } from "lucide-react";
 import type { Alert as AlertType } from "@shared/schema";
 
 export default function Alerts() {
@@ -75,6 +77,38 @@ export default function Alerts() {
     },
   });
 
+  // Dismiss all alerts mutation
+  const dismissAllMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/alerts/dismiss-all");
+    },
+    onSuccess: (_, __, context) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
+      toast({
+        title: "All alerts dismissed",
+        description: "All pending alerts have been dismissed",
+      });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to dismiss alerts",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Transform backend alerts to component format
   const alerts: Alert[] = alertsData.map(a => ({
     id: a.id,
@@ -134,14 +168,28 @@ export default function Alerts() {
               No pending alerts
             </p>
           ) : (
-            pendingAlerts.map(alert => (
-              <AlertCard
-                key={alert.id}
-                alert={alert}
-                onExecute={handleExecuteAlert}
-                onDismiss={handleDismissAlert}
-              />
-            ))
+            <>
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => dismissAllMutation.mutate()}
+                  disabled={dismissAllMutation.isPending}
+                  data-testid="button-dismiss-all"
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  {dismissAllMutation.isPending ? "Dismissing..." : "Dismiss All"}
+                </Button>
+              </div>
+              {pendingAlerts.map(alert => (
+                <AlertCard
+                  key={alert.id}
+                  alert={alert}
+                  onExecute={handleExecuteAlert}
+                  onDismiss={handleDismissAlert}
+                />
+              ))}
+            </>
           )}
         </TabsContent>
 

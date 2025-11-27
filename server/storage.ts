@@ -46,6 +46,7 @@ import {
   type InsertPosition,
   type Alert,
   type InsertAlert,
+  type UpdateAlert,
   type Trade,
   type InsertTrade,
   type HouseholdWithDetails,
@@ -165,7 +166,7 @@ export interface IStorage {
   getAlert(id: string): Promise<Alert | undefined>;
   getAllAlerts(): Promise<Alert[]>;
   getAlertsByStatus(status: "pending" | "executed" | "dismissed"): Promise<Alert[]>;
-  updateAlert(id: string, alert: Partial<InsertAlert>): Promise<Alert>;
+  updateAlert(id: string, alert: UpdateAlert): Promise<Alert>;
   deleteAlert(id: string): Promise<void>;
 
   // Trade operations
@@ -1039,7 +1040,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(alerts).where(eq(alerts.status, status)).orderBy(desc(alerts.createdAt));
   }
 
-  async updateAlert(id: string, alertData: Partial<InsertAlert>): Promise<Alert> {
+  async updateAlert(id: string, alertData: UpdateAlert): Promise<Alert> {
     const [alert] = await db
       .update(alerts)
       .set({ ...alertData, updatedAt: new Date() })
