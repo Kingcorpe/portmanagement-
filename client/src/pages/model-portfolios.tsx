@@ -212,7 +212,7 @@ function SortablePlannedPortfolioCard({
       <Collapsible open={isOpen} onOpenChange={onToggle}>
         <Card data-testid={`card-planned-portfolio-${portfolio.id}`}>
           <CardHeader className="flex flex-row items-start justify-between gap-2 pb-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <button
                 className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none"
                 {...attributes}
@@ -221,6 +221,14 @@ function SortablePlannedPortfolioCard({
               >
                 <GripVertical className="h-5 w-5 text-muted-foreground" />
               </button>
+              <Badge 
+                variant={totalAllocation === 100 ? "default" : "destructive"}
+                className={totalAllocation === 100 ? "bg-green-600 hover:bg-green-700" : ""}
+                data-testid={`badge-status-planned-${portfolio.id}`}
+              >
+                <Percent className="h-3 w-3 mr-1" />
+                {totalAllocation.toFixed(1)}%
+              </Badge>
               <CollapsibleTrigger className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors" data-testid={`toggle-planned-${portfolio.id}`}>
                 {isOpen ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                 <div className="text-left">
@@ -230,13 +238,6 @@ function SortablePlannedPortfolioCard({
               </CollapsibleTrigger>
             </div>
             <div className="flex items-center gap-2">
-              <Badge 
-                variant={totalAllocation === 100 ? "default" : "destructive"}
-                className={totalAllocation === 100 ? "bg-green-600 hover:bg-green-700" : ""}
-              >
-                <Percent className="h-3 w-3 mr-1" />
-                {totalAllocation.toFixed(1)}% Allocated
-              </Badge>
               <span className="text-sm text-muted-foreground">
                 {portfolio.allocations.length} holding{portfolio.allocations.length !== 1 ? 's' : ''}
               </span>
@@ -437,7 +438,7 @@ function SortableFreelancePortfolioCard({
       <Collapsible open={isOpen} onOpenChange={onToggle}>
         <Card data-testid={`card-freelance-portfolio-${portfolio.id}`}>
           <CardHeader className="flex flex-row items-start justify-between gap-2 pb-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <button
                 className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded touch-none"
                 {...attributes}
@@ -446,6 +447,14 @@ function SortableFreelancePortfolioCard({
               >
                 <GripVertical className="h-5 w-5 text-muted-foreground" />
               </button>
+              <Badge 
+                variant={totalAllocation === 100 ? "default" : "destructive"}
+                className={totalAllocation === 100 ? "bg-green-600 hover:bg-green-700" : ""}
+                data-testid={`badge-status-freelance-${portfolio.id}`}
+              >
+                <Percent className="h-3 w-3 mr-1" />
+                {totalAllocation.toFixed(1)}%
+              </Badge>
               <CollapsibleTrigger className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors" data-testid={`toggle-freelance-${portfolio.id}`}>
                 {isOpen ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                 <div className="text-left">
@@ -455,13 +464,6 @@ function SortableFreelancePortfolioCard({
               </CollapsibleTrigger>
             </div>
             <div className="flex items-center gap-2">
-              <Badge 
-                variant={totalAllocation === 100 ? "default" : "destructive"}
-                className={totalAllocation === 100 ? "bg-green-600 hover:bg-green-700" : ""}
-              >
-                <Percent className="h-3 w-3 mr-1" />
-                {totalAllocation.toFixed(1)}% Allocated
-              </Badge>
               <span className="text-sm text-muted-foreground">
                 {portfolio.allocations.length} holding{portfolio.allocations.length !== 1 ? 's' : ''}
               </span>
