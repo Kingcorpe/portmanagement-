@@ -721,7 +721,10 @@ export const updateJointAccountSchema = insertJointAccountSchema.partial().refin
   { message: "Risk percentages must sum to 100%" }
 );
 export const updatePositionSchema = insertPositionSchema.partial();
-export const updateAlertSchema = insertAlertSchema.partial();
+export const updateAlertSchema = z.object({
+  status: z.enum(["pending", "executed", "dismissed"]).optional(),
+  message: z.string().optional(),
+});
 export const updateUniversalHoldingSchema = insertUniversalHoldingSchema.partial();
 export const updatePlannedPortfolioSchema = insertPlannedPortfolioSchema.partial();
 export const updatePlannedPortfolioAllocationSchema = insertPlannedPortfolioAllocationSchema.partial();
