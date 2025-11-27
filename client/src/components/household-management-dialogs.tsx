@@ -62,7 +62,7 @@ export function HouseholdManagementDialogs({
 
   // Optional account type selection when creating individual or corporation
   const [individualAccountType, setIndividualAccountType] = useState<string>("");
-  const [corporateAccountType, setCorporateAccountType] = useState<string>("none");
+  const [corporateAccountType, setCorporateAccountType] = useState<string>("");
 
   // Reset account type selections when dialog closes
   useEffect(() => {
@@ -70,7 +70,7 @@ export function HouseholdManagementDialogs({
       setIndividualAccountType("");
     }
     if (dialogType !== "corporation") {
-      setCorporateAccountType("none");
+      setCorporateAccountType("");
     }
   }, [dialogType]);
 
@@ -199,25 +199,20 @@ export function HouseholdManagementDialogs({
       const response = await apiRequest("POST", "/api/corporations", data);
       const corporation = await response.json() as Corporation;
       
-      // If account type is selected, create the account
-      if (corporateAccountType && corporateAccountType !== "none") {
-        await apiRequest("POST", "/api/corporate-accounts", {
-          corporationId: corporation.id,
-          type: corporateAccountType,
-        });
-      }
+      // Create the account
+      await apiRequest("POST", "/api/corporate-accounts", {
+        corporationId: corporation.id,
+        type: corporateAccountType,
+      });
       
       return corporation;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
-      const message = corporateAccountType !== "none" 
-        ? "Corporation and account created successfully" 
-        : "Corporation created successfully";
-      toast({ title: "Success", description: message });
+      toast({ title: "Success", description: "Corporation and account created successfully" });
       onClose();
       corporationForm.reset();
-      setCorporateAccountType("none");
+      setCorporateAccountType("");
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message || "Failed to create corporation", variant: "destructive" });
@@ -343,7 +338,7 @@ export function HouseholdManagementDialogs({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Corporation</DialogTitle>
-            <DialogDescription>Add a new corporation to this household with an optional account.</DialogDescription>
+            <DialogDescription>Add a new corporation and account to this household.</DialogDescription>
           </DialogHeader>
           <Form {...corporationForm}>
             <form onSubmit={corporationForm.handleSubmit((data) => createCorporationMutation.mutate(data))} className="space-y-4">
@@ -361,25 +356,23 @@ export function HouseholdManagementDialogs({
                 )}
               />
               <div className="space-y-2">
-                <label className="text-sm font-medium">Account Type (Optional)</label>
+                <label className="text-sm font-medium">Account Type</label>
                 <Select value={corporateAccountType} onValueChange={setCorporateAccountType}>
                   <SelectTrigger data-testid="select-corporate-account-type">
-                    <SelectValue placeholder="No account" />
+                    <SelectValue placeholder="Select account type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No account</SelectItem>
                     <SelectItem value="cash">Cash</SelectItem>
                     <SelectItem value="ipp">IPP (Individual Pension Plan)</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">Optionally create an account for this corporation at the same time.</p>
               </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
                 </Button>
-                <Button type="submit" data-testid="button-submit" disabled={createCorporationMutation.isPending}>
-                  {createCorporationMutation.isPending ? "Creating..." : corporateAccountType !== "none" ? "Create Corporation & Account" : "Create Corporation"}
+                <Button type="submit" data-testid="button-submit" disabled={createCorporationMutation.isPending || !corporateAccountType || corporateAccountType === "none"}>
+                  {createCorporationMutation.isPending ? "Creating..." : "Create Corporation & Account"}
                 </Button>
               </div>
             </form>
