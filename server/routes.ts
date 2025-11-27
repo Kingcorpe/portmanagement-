@@ -2342,17 +2342,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Create a map of actual allocations by normalized ticker
-      // Store both normalized and original ticker for display
-      const actualByTicker = new Map<string, { value: number; quantity: number; originalTicker: string }>();
+      // Store both normalized and original ticker for display, plus current price for action calculations
+      const actualByTicker = new Map<string, { value: number; quantity: number; originalTicker: string; currentPrice: number }>();
       for (const pos of positions) {
         const originalTicker = pos.symbol.toUpperCase();
         const normalizedTicker = normalizeTicker(originalTicker);
-        const value = Number(pos.quantity) * Number(pos.currentPrice);
-        const existing = actualByTicker.get(normalizedTicker) || { value: 0, quantity: 0, originalTicker };
+        const currentPrice = Number(pos.currentPrice);
+        const value = Number(pos.quantity) * currentPrice;
+        const existing = actualByTicker.get(normalizedTicker) || { value: 0, quantity: 0, originalTicker, currentPrice };
         actualByTicker.set(normalizedTicker, {
           value: existing.value + value,
           quantity: existing.quantity + Number(pos.quantity),
-          originalTicker: existing.originalTicker
+          originalTicker: existing.originalTicker,
+          currentPrice: currentPrice || existing.currentPrice // Use most recent price
         });
       }
       
@@ -2374,6 +2376,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const actualPercentage = totalActualValue > 0 ? (actualValue / totalActualValue) * 100 : 0;
         const targetPercentage = Number(allocation.targetPercentage);
         const variance = actualPercentage - targetPercentage;
+        const targetValue = totalActualValue > 0 ? (targetPercentage / 100) * totalActualValue : 0;
+        
+        // Calculate action required
+        const actionDollarAmount = targetValue - actualValue;
+        const currentPrice = actual?.currentPrice || Number(holding.currentPrice) || 0;
+        const actionShares = currentPrice > 0 ? Math.abs(actionDollarAmount) / currentPrice : 0;
+        
+        // Determine action type: buy if positive, sell if negative, hold if within $50 threshold
+        let actionType: 'buy' | 'sell' | 'hold' = 'hold';
+        if (actionDollarAmount > 50) {
+          actionType = 'buy';
+        } else if (actionDollarAmount < -50) {
+          actionType = 'sell';
+        }
         
         comparison.push({
           allocationId: allocation.id,
@@ -2383,9 +2399,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           actualPercentage: Math.round(actualPercentage * 100) / 100,
           variance: Math.round(variance * 100) / 100,
           actualValue: Math.round(actualValue * 100) / 100,
-          targetValue: totalActualValue > 0 ? Math.round((targetPercentage / 100) * totalActualValue * 100) / 100 : 0,
+          targetValue: Math.round(targetValue * 100) / 100,
           quantity: actual?.quantity || 0,
-          status: variance > 2 ? 'over' : variance < -2 ? 'under' : 'on-target'
+          status: variance > 2 ? 'over' : variance < -2 ? 'under' : 'on-target',
+          actionType,
+          actionDollarAmount: Math.round(actionDollarAmount * 100) / 100,
+          actionShares: Math.round(actionShares * 100) / 100,
+          currentPrice: Math.round(currentPrice * 100) / 100
         });
       }
       
@@ -2393,6 +2413,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const [normalizedTicker, data] of Array.from(actualByTicker)) {
         if (!processedNormalizedTickers.has(normalizedTicker)) {
           const actualPercentage = totalActualValue > 0 ? (data.value / totalActualValue) * 100 : 0;
+          // Unexpected holdings should be sold (target is 0)
           comparison.push({
             allocationId: null,
             ticker: data.originalTicker,
@@ -2403,7 +2424,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             actualValue: Math.round(data.value * 100) / 100,
             targetValue: 0,
             quantity: data.quantity,
-            status: 'unexpected'
+            status: 'unexpected',
+            actionType: data.value > 50 ? 'sell' : 'hold' as 'buy' | 'sell' | 'hold',
+            actionDollarAmount: Math.round(-data.value * 100) / 100, // Negative = sell
+            actionShares: Math.round(data.quantity * 100) / 100,
+            currentPrice: Math.round(data.currentPrice * 100) / 100
           });
         }
       }
