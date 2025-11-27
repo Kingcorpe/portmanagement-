@@ -40,10 +40,10 @@ export const CATEGORY_TO_RISK_LEVEL: Record<HoldingCategory, RiskLevel> = {
 export const CATEGORY_LABELS: Record<HoldingCategory, string> = {
   basket_etf: "Basket ETF",
   single_etf: "Single ETF",
-  double_long_etf: "Leveraged ETF",
-  security: "Individual Security",
+  double_long_etf: "Double Long",
+  security: "Security",
   auto_added: "Auto Added",
-  misc: "Miscellaneous",
+  misc: "Misc",
 };
 
 export type RiskLimits = {

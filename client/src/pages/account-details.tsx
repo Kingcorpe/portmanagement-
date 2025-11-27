@@ -838,7 +838,7 @@ export default function AccountDetails() {
     return [
       { key: "basket_etf", label: "Basket ETF", total: categoryTotals.basket_etf },
       { key: "single_etf", label: "Single ETF", total: categoryTotals.single_etf },
-      { key: "double_long_etf", label: "Leveraged ETF", total: categoryTotals.double_long_etf },
+      { key: "double_long_etf", label: "Double Long", total: categoryTotals.double_long_etf },
       { key: "security", label: "Security", total: categoryTotals.security },
       { key: "misc", label: "Misc", total: categoryTotals.misc },
     ];
