@@ -815,32 +815,25 @@ export default function AccountDetails() {
     return validateRiskLimits(allocations, riskAllocation);
   };
 
-  const computeCategoryTotals = () => {
-    const categoryTotals: Record<string, number> = {
-      basket_etf: 0,
-      single_etf: 0,
-      double_long_etf: 0,
-      security: 0,
-      misc: 0,
+  const computeRiskTotals = () => {
+    const riskTotals: Record<RiskLevel, number> = {
+      medium: 0,
+      medium_high: 0,
+      high: 0,
     };
     
     for (const alloc of targetAllocations) {
       const category = alloc.holding?.category as HoldingCategory;
-      if (category) {
-        if (category === "auto_added") {
-          categoryTotals.misc += parseFloat(alloc.targetPercentage);
-        } else if (categoryTotals[category] !== undefined) {
-          categoryTotals[category] += parseFloat(alloc.targetPercentage);
-        }
+      if (category && CATEGORY_TO_RISK_LEVEL[category]) {
+        const riskLevel = CATEGORY_TO_RISK_LEVEL[category];
+        riskTotals[riskLevel] += parseFloat(alloc.targetPercentage);
       }
     }
     
     return [
-      { key: "basket_etf", label: "Basket ETF", total: categoryTotals.basket_etf },
-      { key: "single_etf", label: "Single ETF", total: categoryTotals.single_etf },
-      { key: "double_long_etf", label: "Double Long", total: categoryTotals.double_long_etf },
-      { key: "security", label: "Security", total: categoryTotals.security },
-      { key: "misc", label: "Misc", total: categoryTotals.misc },
+      { key: "medium", label: "Medium", total: riskTotals.medium },
+      { key: "medium_high", label: "Medium/High", total: riskTotals.medium_high },
+      { key: "high", label: "High", total: riskTotals.high },
     ];
   };
 
@@ -2166,28 +2159,28 @@ export default function AccountDetails() {
               </p>
             ) : (
               <>
-                {/* Category Totals Summary */}
+                {/* Risk Level Totals Summary */}
                 {(() => {
-                  const categoryTotals = computeCategoryTotals();
-                  const grandTotal = categoryTotals.reduce((sum, cat) => sum + cat.total, 0);
+                  const riskTotals = computeRiskTotals();
+                  const grandTotal = riskTotals.reduce((sum, r) => sum + r.total, 0);
                   
                   return (
-                    <div className="mb-4 p-3 rounded-lg border bg-muted/30" data-testid="category-totals-summary">
+                    <div className="mb-4 p-3 rounded-lg border bg-muted/30" data-testid="risk-totals-summary">
                       <div className="flex items-center gap-2 mb-2">
                         <Shield className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium">
-                          Category Breakdown
+                          Risk Breakdown
                         </span>
                         <Badge variant="outline" className="ml-auto text-xs">
                           Total: {grandTotal.toFixed(1)}%
                         </Badge>
                       </div>
-                      <div className="grid grid-cols-5 gap-2 text-xs">
-                        {categoryTotals.map((cat) => (
-                          <div key={cat.key} className="flex flex-col">
-                            <span className="text-muted-foreground">{cat.label}</span>
+                      <div className="grid grid-cols-3 gap-4 text-xs">
+                        {riskTotals.map((risk) => (
+                          <div key={risk.key} className="flex flex-col">
+                            <span className="text-muted-foreground">{risk.label}</span>
                             <span className="font-medium">
-                              {cat.total.toFixed(1)}%
+                              {risk.total.toFixed(1)}%
                             </span>
                           </div>
                         ))}
