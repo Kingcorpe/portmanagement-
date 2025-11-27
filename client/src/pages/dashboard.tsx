@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { MetricCard } from "@/components/metric-card";
 import { AlertCard, Alert } from "@/components/alert-card";
 import { PositionsTable, Position } from "@/components/positions-table";
@@ -77,12 +78,44 @@ export default function Dashboard() {
       status: a.status
     }));
 
+  // Alert update mutation
+  const updateAlertMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "executed" | "dismissed" }) => {
+      await apiRequest("PATCH", `/api/alerts/${id}`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
+      toast({
+        title: "Alert Updated",
+        description: "Alert status has been updated.",
+      });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update alert",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleExecuteAlert = (id: string) => {
-    console.log('Execute alert:', id);
+    updateAlertMutation.mutate({ id, status: "executed" });
   };
 
   const handleDismissAlert = (id: string) => {
-    console.log('Dismiss alert:', id);
+    updateAlertMutation.mutate({ id, status: "dismissed" });
   };
 
   if (authLoading || householdsLoading) {
