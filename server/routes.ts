@@ -1103,10 +1103,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        // Format account name - use type field and format nicely
+        let displayName = 'Account';
+        if (account.type) {
+          // Format type like "tfsa" -> "TFSA", "rrsp" -> "RRSP"
+          displayName = account.type.toUpperCase();
+        } else if (account.name) {
+          displayName = account.name;
+        }
+        // Add nickname if available
+        if (account.nickname) {
+          displayName = `${displayName} - ${account.nickname}`;
+        }
+        
         affectedAccounts.push({
           accountId,
           accountType,
-          accountName: account.accountType || account.name || 'Account',
+          accountName: displayName,
           householdName,
           ownerName,
           currentValue,

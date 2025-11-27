@@ -167,7 +167,7 @@ export function AlertCard({ alert, onExecute, onDismiss }: AlertCardProps) {
                   {sortedAccounts.map((account) => (
                     <Link
                       key={`${account.accountType}-${account.accountId}`}
-                      href={`/accounts/${account.accountType}/${account.accountId}`}
+                      href={`/account/${account.accountType}/${account.accountId}`}
                     >
                       <div 
                         className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover-elevate cursor-pointer"
