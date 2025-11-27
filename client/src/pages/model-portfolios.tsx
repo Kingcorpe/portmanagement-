@@ -374,10 +374,12 @@ function SortablePlannedPortfolioCard({
                   </TableBody>
                 </Table>
               )}
-              <Button variant="outline" size="sm" className="mt-4" onClick={onAddAllocation} data-testid={`button-add-allocation-${portfolio.id}`}>
-                <Plus className="h-3 w-3 mr-1" />
-                Add Allocation
-              </Button>
+              <div className="flex justify-end mt-4">
+                <Button variant="outline" size="sm" onClick={onAddAllocation} data-testid={`button-add-allocation-${portfolio.id}`}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Allocation
+                </Button>
+              </div>
             </CardContent>
           </CollapsibleContent>
         </Card>
@@ -601,10 +603,12 @@ function SortableFreelancePortfolioCard({
                   </TableBody>
                 </Table>
               )}
-              <Button variant="outline" size="sm" className="mt-4" onClick={onAddAllocation} data-testid={`button-add-allocation-${portfolio.id}`}>
-                <Plus className="h-3 w-3 mr-1" />
-                Add Allocation
-              </Button>
+              <div className="flex justify-end mt-4">
+                <Button variant="outline" size="sm" onClick={onAddAllocation} data-testid={`button-add-allocation-${portfolio.id}`}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Allocation
+                </Button>
+              </div>
             </CardContent>
           </CollapsibleContent>
         </Card>
