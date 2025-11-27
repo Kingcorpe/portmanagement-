@@ -962,8 +962,20 @@ export type LibraryDocument = typeof libraryDocuments.$inferSelect;
 // Account audit action enum
 export const auditActionEnum = pgEnum("audit_action", [
   "create",
-  "update",
+  "update", 
   "delete",
+  "position_add",
+  "position_update",
+  "position_delete",
+  "position_bulk_upload",
+  "target_add",
+  "target_update",
+  "target_delete",
+  "task_add",
+  "task_complete",
+  "task_delete",
+  "prices_refresh",
+  "copy_from_model",
 ]);
 
 // Account audit log table

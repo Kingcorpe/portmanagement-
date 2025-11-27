@@ -2586,11 +2586,41 @@ export default function AccountDetails() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {auditLog.map((entry) => (
+                  {auditLog.map((entry) => {
+                    const actionLabels: Record<string, string> = {
+                      create: "Created",
+                      update: "Updated Account",
+                      delete: "Deleted",
+                      position_add: "Added Position",
+                      position_update: "Updated Position",
+                      position_delete: "Deleted Position",
+                      position_bulk_upload: "Bulk Uploaded Positions",
+                      target_add: "Added Target Allocation",
+                      target_update: "Updated Target Allocation",
+                      target_delete: "Removed Target Allocation",
+                      task_add: "Added Task",
+                      task_complete: "Completed Task",
+                      task_delete: "Deleted Task",
+                      prices_refresh: "Refreshed Prices",
+                      copy_from_model: "Copied from Model Portfolio",
+                    };
+                    
+                    const actionColors: Record<string, string> = {
+                      position_add: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+                      position_delete: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+                      target_add: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+                      target_delete: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+                      task_complete: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+                      task_delete: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+                      prices_refresh: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+                      copy_from_model: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
+                    };
+                    
+                    return (
                     <div key={entry.id} className="border rounded-md p-3 bg-muted/30" data-testid={`audit-entry-${entry.id}`}>
                       <div className="flex items-center justify-between mb-2">
-                        <Badge variant="outline" className="text-xs">
-                          {entry.action === "update" ? "Updated" : entry.action}
+                        <Badge variant="outline" className={`text-xs ${actionColors[entry.action] || ""}`}>
+                          {actionLabels[entry.action] || entry.action}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
                           {new Date(entry.createdAt).toLocaleString()}
@@ -2601,6 +2631,7 @@ export default function AccountDetails() {
                           const formatValue = (val: any) => {
                             if (val === null || val === undefined || val === "") return "—";
                             if (typeof val === "number") return val.toLocaleString();
+                            if (typeof val === "boolean") return val ? "Yes" : "No";
                             return String(val);
                           };
                           const fieldLabels: Record<string, string> = {
@@ -2616,19 +2647,44 @@ export default function AccountDetails() {
                             protectionPercent: "Protection %",
                             stopPrice: "Stop Price",
                             limitPrice: "Limit Price",
+                            symbol: "Symbol",
+                            ticker: "Ticker",
+                            quantity: "Quantity",
+                            entryPrice: "Entry Price",
+                            currentPrice: "Current Price",
+                            targetPercentage: "Target %",
+                            title: "Task",
+                            dueDate: "Due Date",
+                            count: "Count",
+                            symbols: "Symbols",
+                            positionsUpdated: "Positions Updated",
+                            portfolioName: "Portfolio",
+                            allocationsCount: "Allocations",
+                            autoAddedToUniversal: "Auto-added to Holdings",
                           };
-                          return (
-                            <div key={field} className="flex items-start gap-2 text-xs">
-                              <span className="font-medium min-w-[100px]">{fieldLabels[field] || field}:</span>
-                              <span className="text-muted-foreground line-through">{formatValue(change.old)}</span>
-                              <span className="text-muted-foreground">→</span>
-                              <span className="text-foreground">{formatValue(change.new)}</span>
-                            </div>
-                          );
+                          
+                          // Handle simple values vs old/new pairs
+                          if (change && typeof change === "object" && "old" in change && "new" in change) {
+                            return (
+                              <div key={field} className="flex items-start gap-2 text-xs">
+                                <span className="font-medium min-w-[100px]">{fieldLabels[field] || field}:</span>
+                                <span className="text-muted-foreground line-through">{formatValue(change.old)}</span>
+                                <span className="text-muted-foreground">→</span>
+                                <span className="text-foreground">{formatValue(change.new)}</span>
+                              </div>
+                            );
+                          } else {
+                            return (
+                              <div key={field} className="flex items-start gap-2 text-xs">
+                                <span className="font-medium min-w-[100px]">{fieldLabels[field] || field}:</span>
+                                <span className="text-foreground">{formatValue(change)}</span>
+                              </div>
+                            );
+                          }
                         })}
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
             </CardContent>

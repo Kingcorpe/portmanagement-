@@ -1608,6 +1608,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const position = await storage.createPosition(parsed);
+      
+      // Create audit log entry
+      await storage.createAuditLogEntry({
+        individualAccountId: parsed.individualAccountId || undefined,
+        corporateAccountId: parsed.corporateAccountId || undefined,
+        jointAccountId: parsed.jointAccountId || undefined,
+        userId,
+        action: "position_add",
+        changes: { 
+          symbol: position.symbol, 
+          quantity: position.quantity,
+          entryPrice: position.entryPrice,
+          currentPrice: position.currentPrice
+        },
+      });
+      
       res.json(position);
     } catch (error: any) {
       console.error("Error creating position:", error);
@@ -1631,8 +1647,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
+      // Get existing position for audit log
+      const existingPosition = await storage.getPosition(req.params.id);
+      
       const parsed = updatePositionSchema.parse(req.body);
       const position = await storage.updatePosition(req.params.id, parsed);
+      
+      // Create audit log entry
+      if (existingPosition) {
+        const changes: Record<string, { old: any; new: any }> = {};
+        if (parsed.quantity !== undefined && parsed.quantity !== existingPosition.quantity) {
+          changes.quantity = { old: existingPosition.quantity, new: parsed.quantity };
+        }
+        if (parsed.entryPrice !== undefined && parsed.entryPrice !== existingPosition.entryPrice) {
+          changes.entryPrice = { old: existingPosition.entryPrice, new: parsed.entryPrice };
+        }
+        if (parsed.currentPrice !== undefined && parsed.currentPrice !== existingPosition.currentPrice) {
+          changes.currentPrice = { old: existingPosition.currentPrice, new: parsed.currentPrice };
+        }
+        if (parsed.stopPrice !== undefined && parsed.stopPrice !== existingPosition.stopPrice) {
+          changes.stopPrice = { old: existingPosition.stopPrice, new: parsed.stopPrice };
+        }
+        if (parsed.limitPrice !== undefined && parsed.limitPrice !== existingPosition.limitPrice) {
+          changes.limitPrice = { old: existingPosition.limitPrice, new: parsed.limitPrice };
+        }
+        
+        if (Object.keys(changes).length > 0) {
+          await storage.createAuditLogEntry({
+            individualAccountId: existingPosition.individualAccountId || undefined,
+            corporateAccountId: existingPosition.corporateAccountId || undefined,
+            jointAccountId: existingPosition.jointAccountId || undefined,
+            userId,
+            action: "position_update",
+            changes: { symbol: existingPosition.symbol, ...changes },
+          });
+        }
+      }
+      
       res.json(position);
     } catch (error: any) {
       console.error("Error updating position:", error);
@@ -1656,7 +1707,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
+      // Get position for audit log before deletion
+      const position = await storage.getPosition(req.params.id);
+      
       await storage.deletePosition(req.params.id);
+      
+      // Create audit log entry
+      if (position) {
+        await storage.createAuditLogEntry({
+          individualAccountId: position.individualAccountId || undefined,
+          corporateAccountId: position.corporateAccountId || undefined,
+          jointAccountId: position.jointAccountId || undefined,
+          userId,
+          action: "position_delete",
+          changes: { 
+            symbol: position.symbol, 
+            quantity: position.quantity,
+            entryPrice: position.entryPrice
+          },
+        });
+      }
+      
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting position:", error);
@@ -1745,6 +1816,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (error: any) {
           errors.push({ row: i + 1, symbol: pos.symbol, error: error.message });
         }
+      }
+      
+      // Create audit log entry for bulk upload
+      if (createdPositions.length > 0) {
+        const auditLogData: any = {
+          userId,
+          action: "position_bulk_upload",
+          changes: { 
+            count: createdPositions.length,
+            symbols: createdPositions.map(p => p.symbol).join(', ')
+          },
+        };
+        
+        switch (accountType) {
+          case 'individual':
+            auditLogData.individualAccountId = accountId;
+            break;
+          case 'corporate':
+            auditLogData.corporateAccountId = accountId;
+            break;
+          case 'joint':
+            auditLogData.jointAccountId = accountId;
+            break;
+        }
+        
+        await storage.createAuditLogEntry(auditLogData);
       }
       
       res.json({
@@ -1936,6 +2033,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           updatedCount++;
         }
+      }
+      
+      // Create audit log entry for price refresh
+      if (updatedCount > 0) {
+        const auditData: any = {
+          userId,
+          action: "prices_refresh",
+          changes: { 
+            positionsUpdated: updatedCount,
+            symbolsNotFound: errors.length > 0 ? errors : undefined
+          },
+        };
+        switch (accountType) {
+          case 'individual': auditData.individualAccountId = accountId; break;
+          case 'corporate': auditData.corporateAccountId = accountId; break;
+          case 'joint': auditData.jointAccountId = accountId; break;
+        }
+        await storage.createAuditLogEntry(auditData);
       }
       
       res.json({
@@ -2157,10 +2272,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingAllocation = holding ? existingAllocations?.find(a => a.universalHoldingId === holding!.id) : undefined;
       
       let allocation;
+      // Helper to create audit entry
+      const createTargetAuditEntry = async (action: "target_add" | "target_update" | "target_delete", changes: any) => {
+        const auditData: any = {
+          userId,
+          action,
+          changes,
+        };
+        switch (accountType) {
+          case 'individual': auditData.individualAccountId = accountId; break;
+          case 'corporate': auditData.corporateAccountId = accountId; break;
+          case 'joint': auditData.jointAccountId = accountId; break;
+        }
+        await storage.createAuditLogEntry(auditData);
+      };
+      
       if (targetPct <= 0) {
         // If target is 0 or less, delete the allocation if it exists
         if (existingAllocation) {
+          const oldPct = existingAllocation.targetPercentage;
           await storage.deleteAccountTargetAllocation(existingAllocation.id);
+          
+          // Audit log
+          await createTargetAuditEntry("target_delete", { 
+            ticker: ticker.toUpperCase(), 
+            targetPercentage: oldPct 
+          });
+          
           return res.json({ 
             success: true, 
             action: 'deleted',
@@ -2175,9 +2313,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } else if (existingAllocation) {
         // Update existing allocation
+        const oldPct = existingAllocation.targetPercentage;
         allocation = await storage.updateAccountTargetAllocation(existingAllocation.id, {
           targetPercentage: targetPct.toString(),
         });
+        
+        // Audit log
+        await createTargetAuditEntry("target_update", { 
+          ticker: ticker.toUpperCase(), 
+          targetPercentage: { old: oldPct, new: targetPct.toString() }
+        });
+        
         return res.json({
           success: true,
           action: 'updated',
@@ -2193,6 +2339,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           corporateAccountId: accountType === 'corporate' ? accountId : null,
           jointAccountId: accountType === 'joint' ? accountId : null,
         });
+        
+        // Audit log
+        await createTargetAuditEntry("target_add", { 
+          ticker: ticker.toUpperCase(), 
+          targetPercentage: targetPct.toString(),
+          autoAddedToUniversal: wasAutoAdded
+        });
+        
         return res.json({
           success: true,
           action: 'created',
@@ -2269,6 +2423,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         createdAllocations.push(newAllocation);
       }
+      
+      // Create audit log entry for copy from model
+      const auditData: any = {
+        userId,
+        action: "copy_from_model",
+        changes: { 
+          portfolioName: portfolio.name,
+          allocationsCount: createdAllocations.length
+        },
+      };
+      switch (accountType) {
+        case 'individual': auditData.individualAccountId = accountId; break;
+        case 'corporate': auditData.corporateAccountId = accountId; break;
+        case 'joint': auditData.jointAccountId = accountId; break;
+      }
+      await storage.createAuditLogEntry(auditData);
       
       res.json({
         success: true,
@@ -3539,6 +3709,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const task = await storage.createAccountTask(parsed);
+      
+      // Create audit log entry
+      await storage.createAuditLogEntry({
+        individualAccountId: parsed.individualAccountId || undefined,
+        corporateAccountId: parsed.corporateAccountId || undefined,
+        jointAccountId: parsed.jointAccountId || undefined,
+        userId,
+        action: "task_add",
+        changes: { 
+          title: task.title,
+          dueDate: task.dueDate
+        },
+      });
+      
       res.json(task);
     } catch (error: any) {
       console.error("Error creating task:", error);
@@ -3618,6 +3802,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const task = await storage.completeAccountTask(req.params.id);
+      
+      // Create audit log entry
+      await storage.createAuditLogEntry({
+        individualAccountId: existing.individualAccountId || undefined,
+        corporateAccountId: existing.corporateAccountId || undefined,
+        jointAccountId: existing.jointAccountId || undefined,
+        userId,
+        action: "task_complete",
+        changes: { 
+          title: existing.title
+        },
+      });
+      
       res.json(task);
     } catch (error) {
       console.error("Error completing task:", error);
@@ -3654,6 +3851,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       await storage.deleteAccountTask(req.params.id);
+      
+      // Create audit log entry
+      await storage.createAuditLogEntry({
+        individualAccountId: existing.individualAccountId || undefined,
+        corporateAccountId: existing.corporateAccountId || undefined,
+        jointAccountId: existing.jointAccountId || undefined,
+        userId,
+        action: "task_delete",
+        changes: { 
+          title: existing.title
+        },
+      });
+      
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting task:", error);
