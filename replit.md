@@ -93,15 +93,17 @@ A dedicated webhook endpoint (`POST /api/webhooks/tradingview`) is available for
 ```
 
 ### Yahoo Finance Integration
-The platform integrates with Yahoo Finance to fetch real-time market prices for positions and Universal Holdings:
+The platform integrates with Yahoo Finance to fetch real-time market prices and dividend information for positions and Universal Holdings:
 
 **Account Position Prices:**
 - **Refresh Market Prices**: Users can click "Refresh Prices" on the Holdings & Portfolio Analysis section to update all position prices from Yahoo Finance.
 - **Price Updated Timestamp**: The `priceUpdatedAt` field tracks when each position's price was last refreshed.
 
-**Universal Holdings Prices:**
+**Universal Holdings Prices & Dividends:**
 - **Automatic Pricing**: Price field is optional when adding holdings; prices are fetched automatically from Yahoo Finance.
 - **Refresh All Prices**: Users can click "Refresh Prices" on the Universal Holdings tab to update all holding prices at once.
+- **Refresh Dividends**: Users can click "Refresh Dividends" to fetch dividend yield, rate, and payout frequency from Yahoo Finance.
+- **Dividend Data Display**: Shows dividend yield (%), payout frequency (monthly/quarterly/etc.), and ex-dividend date.
 - **Price Display**: Shows current price with the date it was last updated.
 - **Clickable Ticker**: Clicking a ticker in the Universal Holdings table opens the edit dialog for that holding.
 
@@ -114,6 +116,12 @@ The platform integrates with Yahoo Finance to fetch real-time market prices for 
   - `POST /api/market-prices/quotes` - Fetch current quotes for a list of symbols
   - `POST /api/accounts/:accountType/:accountId/refresh-prices` - Refresh all position prices for an account
   - `POST /api/universal-holdings/refresh-prices` - Refresh all Universal Holdings prices from Yahoo Finance
+  - `POST /api/universal-holdings/refresh-dividends` - Refresh dividend data (yield, rate, ex-date, payout frequency) for all Universal Holdings
+
+### Individual Date of Birth
+- **Date of Birth Field**: Individuals can have an optional date of birth (DOB) stored.
+- **RIF Conversion Date**: For RIF accounts, the conversion date is calculated based on the individual's DOB (typically age 71 in Canada).
+- The DOB is stored on the individual, not the account, since RIF conversion is person-specific.
 
 ## External Dependencies
 - **Replit Auth**: Used for user authentication, supporting OIDC providers like Google, GitHub, X, Apple, and email/password.

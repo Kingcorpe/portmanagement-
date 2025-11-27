@@ -634,7 +634,7 @@ export default function ModelPortfolios() {
   const [editingFreelancePortfolio, setEditingFreelancePortfolio] = useState<{ id: string; name: string; description?: string } | null>(null);
   const [editingAllocation, setEditingAllocation] = useState<{ id: string; type: "planned" | "freelance"; universalHoldingId: string; targetPercentage: number } | null>(null);
   const [isLookingUpTicker, setIsLookingUpTicker] = useState(false);
-  const [holdingsSortColumn, setHoldingsSortColumn] = useState<"ticker" | "name" | "category" | "riskLevel" | "price" | "dividendRate">("ticker");
+  const [holdingsSortColumn, setHoldingsSortColumn] = useState<"ticker" | "name" | "category" | "riskLevel" | "price" | "dividendRate" | "dividendYield">("ticker");
   const [holdingsSortDirection, setHoldingsSortDirection] = useState<"asc" | "desc">("asc");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [inlineEditingAllocation, setInlineEditingAllocation] = useState<{ id: string; type: "planned" | "freelance" } | null>(null);
@@ -761,6 +761,20 @@ export default function ModelPortfolios() {
       toast({ 
         title: "Prices Updated", 
         description: data.message || `Updated ${data.updated} holdings` 
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const refreshDividendsMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/universal-holdings/refresh-dividends"),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/universal-holdings"] });
+      toast({ 
+        title: "Dividends Updated", 
+        description: data.message || `Updated dividend data for ${data.updated} holdings` 
       });
     },
     onError: (error: Error) => {
@@ -1241,6 +1255,9 @@ export default function ModelPortfolios() {
         case "dividendRate":
           comparison = Number(a.dividendRate) - Number(b.dividendRate);
           break;
+        case "dividendYield":
+          comparison = Number(a.dividendYield || 0) - Number(b.dividendYield || 0);
+          break;
       }
       return holdingsSortDirection === "asc" ? comparison : -comparison;
     });
@@ -1270,7 +1287,6 @@ export default function ModelPortfolios() {
         </div>
         {activeTab === "holdings" && (
           <div className="flex items-center gap-2">
-            {/* Hidden for future use: Refresh Prices button
             <Button 
               variant="outline" 
               size="sm"
@@ -1285,7 +1301,20 @@ export default function ModelPortfolios() {
               )}
               Refresh Prices
             </Button>
-            */}
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => refreshDividendsMutation.mutate()}
+              disabled={refreshDividendsMutation.isPending}
+              data-testid="button-refresh-dividends"
+            >
+              {refreshDividendsMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Refresh Dividends
+            </Button>
             <Dialog open={isHoldingDialogOpen} onOpenChange={(open) => {
               setIsHoldingDialogOpen(open);
               if (!open) {
@@ -1546,11 +1575,9 @@ export default function ModelPortfolios() {
                     <SortableHeader column="ticker">Ticker</SortableHeader>
                     <SortableHeader column="name">Name</SortableHeader>
                     <SortableHeader column="category">Category</SortableHeader>
-                    {/* Hidden for future use: Price and Dividend columns
                     <SortableHeader column="price">Price</SortableHeader>
-                    <SortableHeader column="dividendRate">Dividend</SortableHeader>
+                    <SortableHeader column="dividendYield">Yield</SortableHeader>
                     <TableHead>Payout</TableHead>
-                    */}
                     <SortableHeader column="riskLevel">Risk</SortableHeader>
                     <TableHead className="w-[100px]"></TableHead>
                   </TableRow>
@@ -1571,10 +1598,9 @@ export default function ModelPortfolios() {
                           {categoryLabels[holding.category]}
                         </Badge>
                       </TableCell>
-                      {/* Hidden for future use: Price and Dividend data cells
                       <TableCell className="text-right">
                         <div className="font-mono">
-                          CA${Number(holding.price).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          CA${Number(holding.price || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         {holding.priceUpdatedAt && (
                           <div className="text-xs text-muted-foreground">
@@ -1583,12 +1609,11 @@ export default function ModelPortfolios() {
                         )}
                       </TableCell>
                       <TableCell className="text-right font-mono">
-                        {Number(holding.dividendRate).toFixed(2)}%
+                        {Number(holding.dividendYield || 0).toFixed(2)}%
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{dividendPayoutLabels[holding.dividendPayout]}</Badge>
                       </TableCell>
-                      */}
                       <TableCell>
                         <Badge className={riskLevelColors[holding.riskLevel]}>
                           {riskLevelLabels[holding.riskLevel]}

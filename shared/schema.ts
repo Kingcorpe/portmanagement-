@@ -127,6 +127,7 @@ export const individuals = pgTable("individuals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   householdId: varchar("household_id").notNull().references(() => households.id, { onDelete: 'cascade' }),
   name: text("name").notNull(),
+  dateOfBirth: timestamp("date_of_birth"), // Used for RIF conversion date calculation (age 71)
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -343,8 +344,11 @@ export const universalHoldings = pgTable("universal_holdings", {
   name: text("name").notNull(),
   category: holdingCategoryEnum("category").notNull().default("basket_etf"),
   riskLevel: riskLevelEnum("risk_level").notNull(),
-  dividendRate: decimal("dividend_rate", { precision: 8, scale: 4 }).default('0'), // as percentage
+  dividendRate: decimal("dividend_rate", { precision: 8, scale: 4 }).default('0'), // Annual dividend per share
+  dividendYield: decimal("dividend_yield", { precision: 8, scale: 4 }).default('0'), // Dividend yield as percentage
   dividendPayout: dividendPayoutEnum("dividend_payout").notNull().default("none"),
+  exDividendDate: timestamp("ex_dividend_date"), // Next ex-dividend date
+  dividendUpdatedAt: timestamp("dividend_updated_at"), // When dividend data was last fetched
   price: decimal("price", { precision: 15, scale: 2 }).default('0'), // Current price (auto-updated from Yahoo Finance)
   priceUpdatedAt: timestamp("price_updated_at"), // When price was last fetched
   description: text("description"),
@@ -539,6 +543,7 @@ export const insertHouseholdSchema = createInsertSchema(households).pick({
 export const insertIndividualSchema = createInsertSchema(individuals).pick({
   householdId: true,
   name: true,
+  dateOfBirth: true,
 });
 
 export const insertCorporationSchema = createInsertSchema(corporations).pick({

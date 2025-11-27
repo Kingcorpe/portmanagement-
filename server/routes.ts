@@ -2511,6 +2511,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Refresh dividend data for all Universal Holdings from Yahoo Finance
+  app.post('/api/universal-holdings/refresh-dividends', isAuthenticated, async (req, res) => {
+    try {
+      const holdings = await storage.getAllUniversalHoldings();
+      
+      if (!holdings || holdings.length === 0) {
+        return res.json({ success: true, updated: 0, message: "No holdings to update" });
+      }
+      
+      // Dynamically import yahoo-finance2
+      const yahooFinance = (await import('yahoo-finance2')).default;
+      
+      const errors: string[] = [];
+      const now = new Date();
+      let updatedCount = 0;
+      
+      // Cache for dividend data to avoid duplicate API calls
+      const dividendCache: Record<string, { rate: number | null; yield: number | null; exDate: Date | null; frequency: string | null }> = {};
+      
+      for (const holding of holdings) {
+        try {
+          const upperSymbol = holding.ticker.toUpperCase().trim();
+          
+          // Skip cash positions - no dividends
+          if (upperSymbol === 'CASH' || upperSymbol === 'CAD' || upperSymbol === 'USD' || 
+              upperSymbol.includes('CASH') || upperSymbol.includes('MONEY MARKET')) {
+            continue;
+          }
+          
+          // Check cache first
+          if (dividendCache[holding.ticker] !== undefined) {
+            const cached = dividendCache[holding.ticker];
+            if (cached.rate !== null) {
+              await storage.updateUniversalHolding(holding.id, { 
+                dividendRate: cached.rate?.toFixed(4) || "0",
+                dividendYield: cached.yield?.toFixed(4) || "0",
+                exDividendDate: cached.exDate || undefined,
+                dividendPayout: cached.frequency as any || "none",
+                dividendUpdatedAt: now
+              });
+              updatedCount++;
+            }
+            continue;
+          }
+          
+          // Try the symbol as-is first, then with Canadian/US exchange suffixes
+          let summary = null;
+          const symbolsToTry = [holding.ticker];
+          
+          if (!holding.ticker.includes('.')) {
+            symbolsToTry.push(`${holding.ticker}.TO`);   // TSX
+            symbolsToTry.push(`${holding.ticker}.V`);    // TSX Venture
+            symbolsToTry.push(`${holding.ticker}.CN`);   // CSE
+            symbolsToTry.push(`${holding.ticker}.NE`);   // NEO Exchange
+          }
+          
+          console.log(`[Dividend Refresh] Trying symbols for ${holding.ticker}:`, symbolsToTry);
+          
+          for (const symbol of symbolsToTry) {
+            try {
+              const result = await yahooFinance.quoteSummary(symbol, {
+                modules: ['summaryDetail']
+              }) as any;
+              if (result && result.summaryDetail) {
+                summary = result.summaryDetail as any;
+                console.log(`[Dividend Refresh] Found dividend info for ${symbol}:`, {
+                  rate: summary.dividendRate,
+                  yield: summary.dividendYield,
+                  exDate: summary.exDividendDate
+                });
+                break;
+              }
+            } catch (e) {
+              // Try next suffix
+            }
+          }
+          
+          if (summary) {
+            const dividendRate = summary.dividendRate || 0;
+            const dividendYield = summary.dividendYield ? summary.dividendYield * 100 : 0; // Convert to percentage
+            const exDate = summary.exDividendDate ? new Date(summary.exDividendDate) : null;
+            
+            // Determine payout frequency by analyzing historical dividends
+            // For now, we'll set it based on common patterns or leave as none if no dividend
+            let payoutFrequency: "monthly" | "quarterly" | "semi_annual" | "annual" | "none" = "none";
+            if (dividendRate > 0) {
+              // Most Canadian ETFs pay monthly, US stocks typically quarterly
+              // This is a heuristic - could be improved with historical data
+              const ticker = holding.ticker.toUpperCase();
+              if (ticker.endsWith('.TO') || !ticker.includes('.')) {
+                payoutFrequency = "monthly"; // Default Canadian to monthly (common for income ETFs)
+              } else {
+                payoutFrequency = "quarterly"; // Default US to quarterly
+              }
+            }
+            
+            dividendCache[holding.ticker] = {
+              rate: dividendRate,
+              yield: dividendYield,
+              exDate,
+              frequency: payoutFrequency
+            };
+            
+            await storage.updateUniversalHolding(holding.id, { 
+              dividendRate: dividendRate.toFixed(4),
+              dividendYield: dividendYield.toFixed(4),
+              exDividendDate: exDate || undefined,
+              dividendPayout: payoutFrequency,
+              dividendUpdatedAt: now
+            });
+            updatedCount++;
+          } else {
+            console.log(`[Dividend Refresh] Could not find dividend info for ${holding.ticker}`);
+            dividendCache[holding.ticker] = { rate: null, yield: null, exDate: null, frequency: null };
+            if (!errors.includes(holding.ticker)) {
+              errors.push(holding.ticker);
+            }
+          }
+        } catch (error: any) {
+          console.error(`Error fetching dividend data for ${holding.ticker}:`, error);
+          dividendCache[holding.ticker] = { rate: null, yield: null, exDate: null, frequency: null };
+          if (!errors.includes(holding.ticker)) {
+            errors.push(holding.ticker);
+          }
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        updated: updatedCount,
+        errors: errors.length > 0 ? errors : undefined,
+        message: `Updated dividend data for ${updatedCount} holdings${errors.length > 0 ? `, ${errors.length} symbols not found` : ''}`
+      });
+    } catch (error: any) {
+      console.error("Error refreshing dividend data:", error);
+      res.status(500).json({ message: "Failed to refresh dividend data", error: error.message });
+    }
+  });
+
   app.get('/api/universal-holdings/:id', isAuthenticated, async (req, res) => {
     try {
       const holding = await storage.getUniversalHolding(req.params.id);

@@ -80,6 +80,7 @@ export function HouseholdManagementDialogs({
     defaultValues: {
       householdId: "",
       name: "",
+      dateOfBirth: undefined,
     },
   });
 
@@ -291,6 +292,25 @@ export function HouseholdManagementDialogs({
                   </FormItem>
                 )}
               />
+              <FormField
+                control={individualForm.control}
+                name="dateOfBirth"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date of Birth (Optional)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="date"
+                        data-testid="input-individual-dob" 
+                        value={field.value ? new Date(field.value).toISOString().split('T')[0] : ""}
+                        onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">Used to calculate RIF conversion date (age 71)</p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <div className="space-y-2">
                 <label className="text-sm font-medium">Account Type (Optional)</label>
                 <Select value={individualAccountType} onValueChange={setIndividualAccountType}>
@@ -439,7 +459,11 @@ export function HouseholdManagementDialogs({
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
                 </Button>
-                <Button type="submit" data-testid="button-submit" disabled={createIndividualAccountMutation.isPending}>
+                <Button 
+                  type="submit" 
+                  data-testid="button-submit" 
+                  disabled={createIndividualAccountMutation.isPending}
+                >
                   {createIndividualAccountMutation.isPending ? "Creating..." : "Create Account"}
                 </Button>
               </div>
