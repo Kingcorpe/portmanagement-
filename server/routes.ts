@@ -2375,12 +2375,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Fetch prices from Yahoo Finance for tickers that need them
+      // Fetch prices from Yahoo Finance for tickers that need them (fallback for on-demand lookup)
       const fetchedPrices = new Map<string, number>();
       if (tickersNeedingPrices.length > 0) {
-        console.log("Tickers needing price fetch:", tickersNeedingPrices);
         try {
-          const yahooFinance = await import('yahoo-finance2').then(m => m.default);
+          // Use yahoo-finance2 v3 API
+          const YahooFinance = (await import('yahoo-finance2')).default;
+          const yahooFinance = new (YahooFinance as any)({ suppressNotices: ['yahooSurvey', 'ripHistorical'] });
           
           // Helper to try different exchange suffixes for Canadian tickers
           const tryGetQuote = async (symbol: string): Promise<number> => {
@@ -2390,14 +2391,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             for (const suffix of suffixes) {
               try {
                 const testSymbol = baseSymbol + suffix;
-                console.log(`Trying to fetch price for: ${testSymbol}`);
                 const quote = await yahooFinance.quote(testSymbol) as any;
                 if (quote?.regularMarketPrice) {
-                  console.log(`Got price for ${testSymbol}: ${quote.regularMarketPrice}`);
                   return quote.regularMarketPrice;
                 }
               } catch (e: any) {
-                console.log(`Failed to fetch ${baseSymbol}${suffix}: ${e.message}`);
                 continue;
               }
             }
@@ -2412,13 +2410,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           const results = await Promise.all(pricePromises);
-          console.log("Fetched prices results:", results);
           for (const { ticker, price } of results) {
             if (price > 0) {
               fetchedPrices.set(normalizeTicker(ticker), price);
             }
           }
-          console.log("Final fetchedPrices map:", Array.from(fetchedPrices.entries()));
         } catch (error) {
           console.error("Error fetching prices from Yahoo Finance:", error);
           // Continue without fetched prices - will show 0 shares for those tickers
@@ -4074,5 +4070,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Background job: Refresh Universal Holdings prices every 5 minutes
+  const PRICE_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
+  
+  async function refreshUniversalHoldingsPrices() {
+    console.log("[Background Job] Starting Universal Holdings price refresh...");
+    try {
+      const holdings = await storage.getAllUniversalHoldings();
+      
+      if (!holdings || holdings.length === 0) {
+        console.log("[Background Job] No holdings to update");
+        return;
+      }
+      
+      // Use yahoo-finance2 v3 API
+      const YahooFinance = (await import('yahoo-finance2')).default;
+      const yahooFinance = new (YahooFinance as any)({ suppressNotices: ['yahooSurvey', 'ripHistorical'] });
+      
+      const tickerPriceCache: Record<string, number | null> = {};
+      const now = new Date();
+      let updatedCount = 0;
+      let errorCount = 0;
+      
+      for (const holding of holdings) {
+        try {
+          const upperSymbol = holding.ticker.toUpperCase().trim();
+          
+          // Handle cash positions
+          if (upperSymbol === 'CASH' || upperSymbol === 'CAD' || upperSymbol === 'USD' || 
+              upperSymbol.includes('CASH') || upperSymbol.includes('MONEY MARKET')) {
+            await storage.updateUniversalHolding(holding.id, { 
+              price: "1.00",
+              priceUpdatedAt: now
+            });
+            updatedCount++;
+            continue;
+          }
+          
+          // Check cache first
+          if (tickerPriceCache[holding.ticker] !== undefined) {
+            const cachedPrice = tickerPriceCache[holding.ticker];
+            if (cachedPrice !== null) {
+              await storage.updateUniversalHolding(holding.id, { 
+                price: cachedPrice.toFixed(2),
+                priceUpdatedAt: now
+              });
+              updatedCount++;
+            }
+            continue;
+          }
+          
+          // Try the symbol as-is first, then with Canadian/US exchange suffixes
+          let quote = null;
+          const symbolsToTry = [holding.ticker];
+          
+          if (!holding.ticker.includes('.')) {
+            symbolsToTry.push(`${holding.ticker}.TO`);
+            symbolsToTry.push(`${holding.ticker}.V`);
+            symbolsToTry.push(`${holding.ticker}.CN`);
+            symbolsToTry.push(`${holding.ticker}.NE`);
+          }
+          
+          for (const symbol of symbolsToTry) {
+            try {
+              const result = await yahooFinance.quote(symbol);
+              if (result && (result as any).regularMarketPrice) {
+                quote = result as any;
+                break;
+              }
+            } catch (e) {
+              // Try next suffix
+            }
+          }
+          
+          if (quote && quote.regularMarketPrice) {
+            const price = quote.regularMarketPrice;
+            tickerPriceCache[holding.ticker] = price;
+            await storage.updateUniversalHolding(holding.id, { 
+              price: price.toFixed(2),
+              priceUpdatedAt: now
+            });
+            updatedCount++;
+          } else {
+            tickerPriceCache[holding.ticker] = null;
+            errorCount++;
+          }
+        } catch (error) {
+          tickerPriceCache[holding.ticker] = null;
+          errorCount++;
+        }
+      }
+      
+      console.log(`[Background Job] Price refresh complete: ${updatedCount} updated, ${errorCount} errors`);
+    } catch (error) {
+      console.error("[Background Job] Error refreshing prices:", error);
+    }
+  }
+  
+  // Run initial refresh after 30 seconds (let server fully start)
+  setTimeout(() => {
+    refreshUniversalHoldingsPrices();
+  }, 30 * 1000);
+  
+  // Then run every 5 minutes
+  setInterval(() => {
+    refreshUniversalHoldingsPrices();
+  }, PRICE_REFRESH_INTERVAL);
+  
+  console.log("[Background Job] Price refresh scheduler started (every 5 minutes)");
+  
   return httpServer;
 }
