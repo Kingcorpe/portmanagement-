@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, Shield, Users, BarChart3 } from "lucide-react";
+import heroImage from "@assets/dennis-mita-N7u1Prj3O-E-unsplash_1764220477796.jpg";
 
 export default function Landing() {
   const handleLogin = () => {
@@ -9,32 +10,42 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b">
+      <header className="absolute top-0 left-0 right-0 z-10 border-b border-white/10">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <TrendingUp className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold">Portfolio Manager</h1>
+            <TrendingUp className="h-8 w-8 text-white" />
+            <h1 className="text-2xl font-bold text-white">Portfolio Manager</h1>
           </div>
-          <Button onClick={handleLogin} data-testid="button-login">
+          <Button variant="outline" onClick={handleLogin} className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm" data-testid="button-login">
             Sign In
           </Button>
         </div>
       </header>
 
       <main className="flex-1">
-        <section className="container mx-auto px-4 py-20">
-          <div className="max-w-4xl mx-auto text-center space-y-6">
-            <h2 className="text-5xl font-bold">
-              Canadian Investment Portfolio Management
-            </h2>
-            <p className="text-xl text-muted-foreground">
-              Professional portfolio management for Canadian client accounts. 
-              Track TFSA, RRSP, RESP, and other registered accounts with ease.
-            </p>
-            <div className="pt-4">
-              <Button size="lg" onClick={handleLogin} data-testid="button-get-started">
-                Get Started
-              </Button>
+        <section 
+          className="relative min-h-[70vh] flex items-center justify-center"
+          style={{
+            backgroundImage: `url(${heroImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80" />
+          <div className="relative z-10 container mx-auto px-4 py-20">
+            <div className="max-w-4xl mx-auto text-center space-y-6">
+              <h2 className="text-5xl font-bold text-white">
+                Canadian Investment Portfolio Management
+              </h2>
+              <p className="text-xl text-white/80">
+                Professional portfolio management for Canadian client accounts. 
+                Track TFSA, RRSP, RESP, and other registered accounts with ease.
+              </p>
+              <div className="pt-4">
+                <Button size="lg" onClick={handleLogin} data-testid="button-get-started">
+                  Get Started
+                </Button>
+              </div>
             </div>
           </div>
         </section>
