@@ -1577,7 +1577,9 @@ export default function ModelPortfolios() {
                     <SortableHeader column="category">Category</SortableHeader>
                     <SortableHeader column="price">Price</SortableHeader>
                     <SortableHeader column="dividendYield">Yield</SortableHeader>
+                    <SortableHeader column="dividendRate">Annual Div</SortableHeader>
                     <TableHead>Payout</TableHead>
+                    <TableHead>Ex-Date</TableHead>
                     <SortableHeader column="riskLevel">Risk</SortableHeader>
                     <TableHead className="w-[100px]"></TableHead>
                   </TableRow>
@@ -1611,8 +1613,20 @@ export default function ModelPortfolios() {
                       <TableCell className="text-right font-mono">
                         {Number(holding.dividendYield || 0).toFixed(2)}%
                       </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {Number(holding.dividendRate || 0) > 0 
+                          ? `$${Number(holding.dividendRate).toFixed(2)}`
+                          : '-'
+                        }
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline">{dividendPayoutLabels[holding.dividendPayout]}</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {holding.exDividendDate 
+                          ? new Date(holding.exDividendDate).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
+                          : '-'
+                        }
                       </TableCell>
                       <TableCell>
                         <Badge className={riskLevelColors[holding.riskLevel]}>
