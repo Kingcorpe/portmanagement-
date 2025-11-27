@@ -57,12 +57,14 @@ import {
 import type { z } from "zod";
 import {
   CATEGORY_LABELS,
+  CATEGORY_TO_RISK_LEVEL,
   validateRiskLimits,
   calculateBlendedLimits,
   formatRiskAllocation,
   getRiskAllocationFromAccount,
   type RiskAllocation,
   type HoldingCategory,
+  type RiskLevel,
   type RiskValidationResult,
 } from "@shared/riskConfig";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -734,31 +736,31 @@ export default function AccountDetails() {
 
   const computeCurrentAllocationsRiskStatus = () => {
     const riskAllocation = getRiskAllocationFromAccount(accountData);
-    const limits = calculateBlendedLimits(riskAllocation);
     
-    const categoryTotals: Record<string, number> = {
-      double_long_etf: 0,
-      security: 0,
-      single_etf: 0,
+    const riskLevelTotals: Record<RiskLevel, number> = {
+      medium: 0,
+      medium_high: 0,
+      high: 0,
     };
     
     for (const alloc of targetAllocations) {
-      const category = alloc.holding?.category;
-      if (category && category in categoryTotals) {
-        categoryTotals[category] += parseFloat(alloc.targetPercentage);
+      const category = alloc.holding?.category as HoldingCategory;
+      if (category && CATEGORY_TO_RISK_LEVEL[category]) {
+        const riskLevel = CATEGORY_TO_RISK_LEVEL[category];
+        riskLevelTotals[riskLevel] += parseFloat(alloc.targetPercentage);
       }
     }
     
-    const categories = [
-      { key: "double_long_etf", label: "Leveraged ETF", current: categoryTotals.double_long_etf, max: limits.double_long_etf },
-      { key: "security", label: "Individual Security", current: categoryTotals.security, max: limits.security },
-      { key: "single_etf", label: "Single ETF", current: categoryTotals.single_etf, max: limits.single_etf },
+    const riskLevels = [
+      { key: "medium" as RiskLevel, label: "Medium Risk", current: riskLevelTotals.medium, allowed: riskAllocation.medium },
+      { key: "medium_high" as RiskLevel, label: "Medium/High Risk", current: riskLevelTotals.medium_high, allowed: riskAllocation.mediumHigh },
+      { key: "high" as RiskLevel, label: "High Risk", current: riskLevelTotals.high, allowed: riskAllocation.high },
     ];
     
-    return categories.map(cat => ({
-      ...cat,
-      status: cat.current > cat.max ? "violation" as const : 
-              cat.current > cat.max * 0.8 ? "warning" as const : "ok" as const,
+    return riskLevels.map(level => ({
+      ...level,
+      status: level.current > level.allowed ? "violation" as const : 
+              level.allowed > 0 && level.current > level.allowed * 0.8 ? "warning" as const : "ok" as const,
     }));
   };
 
@@ -1641,7 +1643,7 @@ export default function AccountDetails() {
                               cat.status === "warning" ? "text-yellow-700 dark:text-yellow-400" :
                               "text-foreground"
                             )}>
-                              {cat.current.toFixed(1)}% / {cat.max.toFixed(1)}%
+                              {cat.current.toFixed(1)}% / {cat.allowed.toFixed(1)}%
                             </span>
                           </div>
                         ))}

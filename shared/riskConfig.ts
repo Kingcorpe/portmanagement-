@@ -28,6 +28,15 @@ export const CATEGORY_RISK_SCORES: Record<HoldingCategory, number> = {
   double_long_etf: 4,
 };
 
+export const CATEGORY_TO_RISK_LEVEL: Record<HoldingCategory, RiskLevel> = {
+  basket_etf: "medium",
+  single_etf: "medium_high",
+  misc: "medium",
+  auto_added: "medium",
+  security: "high",
+  double_long_etf: "high",
+};
+
 export const CATEGORY_LABELS: Record<HoldingCategory, string> = {
   basket_etf: "Basket ETF",
   single_etf: "Single ETF",
