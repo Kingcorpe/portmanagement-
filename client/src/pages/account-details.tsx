@@ -1804,12 +1804,15 @@ export default function AccountDetails() {
                             </div>
                             <div className="text-right text-sm">
                               <div className="font-medium text-green-700 dark:text-green-400" data-testid={`text-buy-shares-${trade.ticker}`}>
-                                {trade.actionShares.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} shares
+                                {trade.actionShares.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} shares
                               </div>
                               <div className="text-xs text-muted-foreground" data-testid={`text-buy-amount-${trade.ticker}`}>
-                                ${trade.actionDollarAmount.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                                {trade.currentPrice > 0 && (
-                                  <span data-testid={`text-buy-price-${trade.ticker}`}> @ ${trade.currentPrice.toFixed(2)}</span>
+                                {trade.currentPrice > 0 ? (
+                                  <span data-testid={`text-buy-price-${trade.ticker}`}>
+                                    @ ${trade.currentPrice.toFixed(2)} = ${trade.actionDollarAmount.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                  </span>
+                                ) : (
+                                  <span>${trade.actionDollarAmount.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                                 )}
                               </div>
                             </div>
@@ -1845,12 +1848,15 @@ export default function AccountDetails() {
                             </div>
                             <div className="text-right text-sm">
                               <div className="font-medium text-red-700 dark:text-red-400" data-testid={`text-sell-shares-${trade.ticker}`}>
-                                {trade.actionShares.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} shares
+                                {trade.actionShares.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} shares
                               </div>
                               <div className="text-xs text-muted-foreground" data-testid={`text-sell-amount-${trade.ticker}`}>
-                                ${Math.abs(trade.actionDollarAmount).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                                {trade.currentPrice > 0 && (
-                                  <span data-testid={`text-sell-price-${trade.ticker}`}> @ ${trade.currentPrice.toFixed(2)}</span>
+                                {trade.currentPrice > 0 ? (
+                                  <span data-testid={`text-sell-price-${trade.ticker}`}>
+                                    @ ${trade.currentPrice.toFixed(2)} = ${Math.abs(trade.actionDollarAmount).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                  </span>
+                                ) : (
+                                  <span>${Math.abs(trade.actionDollarAmount).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                                 )}
                               </div>
                             </div>
