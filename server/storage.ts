@@ -951,15 +951,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPositionsByIndividualAccount(accountId: string): Promise<Position[]> {
-    return await db.select().from(positions).where(eq(positions.individualAccountId, accountId));
+    return await db.select().from(positions)
+      .where(eq(positions.individualAccountId, accountId))
+      .orderBy(positions.symbol);
   }
 
   async getPositionsByCorporateAccount(accountId: string): Promise<Position[]> {
-    return await db.select().from(positions).where(eq(positions.corporateAccountId, accountId));
+    return await db.select().from(positions)
+      .where(eq(positions.corporateAccountId, accountId))
+      .orderBy(positions.symbol);
   }
 
   async getPositionsByJointAccount(accountId: string): Promise<Position[]> {
-    return await db.select().from(positions).where(eq(positions.jointAccountId, accountId));
+    return await db.select().from(positions)
+      .where(eq(positions.jointAccountId, accountId))
+      .orderBy(positions.symbol);
   }
 
   async getPositionsBySymbol(symbol: string): Promise<Position[]> {

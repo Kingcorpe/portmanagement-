@@ -1903,7 +1903,7 @@ export default function AccountDetails() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {positions.map((position) => {
+                {[...positions].sort((a, b) => a.symbol.localeCompare(b.symbol)).map((position) => {
                   // Use normalized ticker comparison to match "XIC.TO" with "XIC" etc.
                   const normalizedPositionSymbol = normalizeTicker(position.symbol);
                   const comparison = comparisonData?.comparison.find(c => normalizeTicker(c.ticker) === normalizedPositionSymbol);
