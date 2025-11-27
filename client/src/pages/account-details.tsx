@@ -115,6 +115,7 @@ export default function AccountDetails() {
   const [riskMedium, setRiskMedium] = useState("100");
   const [riskMediumHigh, setRiskMediumHigh] = useState("0");
   const [riskHigh, setRiskHigh] = useState("0");
+  const [isEditingRisk, setIsEditingRisk] = useState(false);
 
   const accountType = params?.accountType as "individual" | "corporate" | "joint" | undefined;
   const accountId = params?.accountId;
@@ -1114,14 +1115,37 @@ export default function AccountDetails() {
                     mediumHigh: parseFloat(riskMediumHigh || "0"),
                     high: parseFloat(riskHigh || "0"),
                   });
+                  setIsEditingRisk(false);
                 }
               };
               
+              const handleCancel = () => {
+                setRiskMedium(currentAllocation.medium.toString());
+                setRiskMediumHigh(currentAllocation.mediumHigh.toString());
+                setRiskHigh(currentAllocation.high.toString());
+                setIsEditingRisk(false);
+              };
+              
+              if (!isEditingRisk) {
+                return (
+                  <div className="flex items-center justify-between">
+                    <div className="text-lg font-semibold" data-testid="text-risk-allocation">
+                      {formatRiskAllocation(currentAllocation)}
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setIsEditingRisk(true)}
+                      data-testid="button-edit-risk"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              }
+              
               return (
                 <div className="space-y-3">
-                  <div className="text-sm font-medium mb-2">
-                    {formatRiskAllocation(currentAllocation)}
-                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="text-xs text-muted-foreground">Medium %</label>
@@ -1167,14 +1191,24 @@ export default function AccountDetails() {
                     <span className={cn("text-xs", isValid ? "text-muted-foreground" : "text-destructive font-medium")}>
                       Total: {total.toFixed(0)}% {!isValid && "(must equal 100%)"}
                     </span>
-                    <Button 
-                      size="sm" 
-                      onClick={handleSave}
-                      disabled={!isValid || updateRiskAllocationMutation.isPending}
-                      data-testid="button-save-risk"
-                    >
-                      {updateRiskAllocationMutation.isPending ? "Saving..." : "Save"}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="ghost"
+                        size="sm" 
+                        onClick={handleCancel}
+                        data-testid="button-cancel-risk"
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        onClick={handleSave}
+                        disabled={!isValid || updateRiskAllocationMutation.isPending}
+                        data-testid="button-save-risk"
+                      >
+                        {updateRiskAllocationMutation.isPending ? "Saving..." : "Save"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
