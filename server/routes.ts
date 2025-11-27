@@ -130,6 +130,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const parsed = insertHouseholdSchema.parse(req.body);
+      
+      // Check for duplicate household name
+      const nameExists = await storage.checkHouseholdNameExists(parsed.name, userId);
+      if (nameExists) {
+        return res.status(400).json({ message: "A household with this name already exists" });
+      }
+      
       // Create household with the current user as owner
       const household = await storage.createHousehold({ ...parsed, userId });
       res.json(household);
@@ -198,6 +205,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const parsed = updateHouseholdSchema.parse(req.body);
+      
+      // Check for duplicate household name (excluding current household)
+      if (parsed.name) {
+        const nameExists = await storage.checkHouseholdNameExists(parsed.name, userId, householdId);
+        if (nameExists) {
+          return res.status(400).json({ message: "A household with this name already exists" });
+        }
+      }
+      
       const household = await storage.updateHousehold(householdId, parsed);
       res.json(household);
     } catch (error: any) {

@@ -443,6 +443,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Household operations
+  async checkHouseholdNameExists(name: string, userId: string, excludeId?: string): Promise<boolean> {
+    const normalizedName = name.trim().toLowerCase();
+    const userHouseholds = await db
+      .select()
+      .from(households)
+      .where(eq(households.userId, userId));
+    
+    return userHouseholds.some(h => 
+      h.name.trim().toLowerCase() === normalizedName && 
+      (excludeId ? h.id !== excludeId : true)
+    );
+  }
+
   async createHousehold(householdData: InsertHousehold & { userId?: string }): Promise<Household> {
     const [household] = await db.insert(households).values(householdData).returning();
     return household;
