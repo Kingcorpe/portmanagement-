@@ -122,6 +122,7 @@ export default function AccountDetails() {
   const [immediateNotes, setImmediateNotes] = useState("");
   const [upcomingNotes, setUpcomingNotes] = useState("");
   const [isNotesExpanded, setIsNotesExpanded] = useState(true);
+  const [isHoldingsExpanded, setIsHoldingsExpanded] = useState(true);
 
   const accountType = params?.accountType as "individual" | "corporate" | "joint" | undefined;
   const accountId = params?.accountId;
@@ -1823,15 +1824,25 @@ export default function AccountDetails() {
       </Collapsible>
 
       {/* Unified Holdings & Portfolio Comparison Section */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
-          <div>
-            <CardTitle>Holdings & Portfolio Analysis</CardTitle>
-            <CardDescription>
-              All positions with target allocation comparison
-            </CardDescription>
-          </div>
-          <div className="flex gap-2 flex-wrap">
+      <Collapsible open={isHoldingsExpanded} onOpenChange={setIsHoldingsExpanded}>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+            <CollapsibleTrigger asChild>
+              <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity" data-testid="button-toggle-holdings">
+                {isHoldingsExpanded ? (
+                  <ChevronDown className="h-5 w-5" />
+                ) : (
+                  <ChevronRight className="h-5 w-5" />
+                )}
+                <div>
+                  <CardTitle>Holdings & Portfolio Analysis</CardTitle>
+                  <CardDescription>
+                    All positions with target allocation comparison
+                  </CardDescription>
+                </div>
+              </button>
+            </CollapsibleTrigger>
+            <div className="flex gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -1880,9 +1891,10 @@ export default function AccountDetails() {
               )}
             </Button>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Summary Stats */}
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="space-y-4">
+              {/* Summary Stats */}
           {comparisonData?.hasTargetAllocations && comparisonData.comparison.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-muted/50 rounded-lg">
               <div className="text-center">
@@ -2211,13 +2223,15 @@ export default function AccountDetails() {
           )}
 
           {/* Hint to set up target allocations if none exist */}
-          {!comparisonData?.hasTargetAllocations && positions.length > 0 && (
-            <div className="p-3 bg-muted/50 rounded-lg text-center text-sm text-muted-foreground">
-              Set up target allocations above to see portfolio comparison analysis.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              {!comparisonData?.hasTargetAllocations && positions.length > 0 && (
+                <div className="p-3 bg-muted/50 rounded-lg text-center text-sm text-muted-foreground">
+                  Set up target allocations above to see portfolio comparison analysis.
+                </div>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Drag and Drop Zone */}
       <div
