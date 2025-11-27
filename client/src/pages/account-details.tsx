@@ -1540,6 +1540,7 @@ export default function AccountDetails() {
                     </>
                   )}
                   <TableHead className="text-right">Protect %</TableHead>
+                  <TableHead className="text-right">Protect Shares</TableHead>
                   <TableHead className="text-right">Stop $</TableHead>
                   <TableHead className="text-right">Limit $</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -1804,6 +1805,17 @@ export default function AccountDetails() {
                               : <span className="text-muted-foreground">-</span>
                             }
                           </button>
+                        )}
+                      </TableCell>
+                      
+                      {/* Protect Shares - calculated from protectionPercent * quantity */}
+                      <TableCell className="text-right" data-testid={`text-protect-shares-${position.id}`}>
+                        {position.protectionPercent ? (
+                          <span className="text-amber-600 dark:text-amber-400 font-medium">
+                            {Math.round((Number(position.protectionPercent) / 100) * Number(position.quantity)).toLocaleString()}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       
