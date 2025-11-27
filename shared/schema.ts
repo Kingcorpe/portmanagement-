@@ -563,37 +563,80 @@ export const insertCorporationSchema = createInsertSchema(corporations).pick({
   name: true,
 });
 
-export const insertIndividualAccountSchema = createInsertSchema(individualAccounts).omit({
+// Helper function to validate risk allocation sum equals 100%
+function validateRiskAllocationSumEquals100(data: Record<string, any>): boolean {
+  const medium = parseFloat(String(data.riskMediumPct ?? 0));
+  const mediumHigh = parseFloat(String(data.riskMediumHighPct ?? 0));
+  const high = parseFloat(String(data.riskHighPct ?? 0));
+  const total = medium + mediumHigh + high;
+  return Math.abs(total - 100) < 0.01;
+}
+
+// Base schemas without refine (for creating update schemas)
+const baseIndividualAccountSchema = createInsertSchema(individualAccounts).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
   balance: true,
   performance: true,
+  riskMediumPct: true,
+  riskMediumHighPct: true,
+  riskHighPct: true,
 }).extend({
   balance: z.coerce.number().nonnegative().default(0).transform(val => val.toString()),
   performance: z.coerce.number().optional().transform(val => val !== undefined ? val.toString() : undefined),
+  riskMediumPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
+  riskMediumHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
+  riskHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
 });
 
-export const insertCorporateAccountSchema = createInsertSchema(corporateAccounts).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-  balance: true,
-  performance: true,
-}).extend({
-  balance: z.coerce.number().nonnegative().default(0).transform(val => val.toString()),
-  performance: z.coerce.number().optional().transform(val => val !== undefined ? val.toString() : undefined),
+export const insertIndividualAccountSchema = baseIndividualAccountSchema.refine(validateRiskAllocationSumEquals100, {
+  message: "Risk percentages must sum to 100%",
+  path: ["riskMediumPct"],
 });
 
-export const insertJointAccountSchema = createInsertSchema(jointAccounts).omit({
+const baseCorporateAccountSchema = createInsertSchema(corporateAccounts).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
   balance: true,
   performance: true,
+  riskMediumPct: true,
+  riskMediumHighPct: true,
+  riskHighPct: true,
 }).extend({
   balance: z.coerce.number().nonnegative().default(0).transform(val => val.toString()),
   performance: z.coerce.number().optional().transform(val => val !== undefined ? val.toString() : undefined),
+  riskMediumPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
+  riskMediumHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
+  riskHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
+});
+
+export const insertCorporateAccountSchema = baseCorporateAccountSchema.refine(validateRiskAllocationSumEquals100, {
+  message: "Risk percentages must sum to 100%",
+  path: ["riskMediumPct"],
+});
+
+const baseJointAccountSchema = createInsertSchema(jointAccounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  balance: true,
+  performance: true,
+  riskMediumPct: true,
+  riskMediumHighPct: true,
+  riskHighPct: true,
+}).extend({
+  balance: z.coerce.number().nonnegative().default(0).transform(val => val.toString()),
+  performance: z.coerce.number().optional().transform(val => val !== undefined ? val.toString() : undefined),
+  riskMediumPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
+  riskMediumHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
+  riskHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
+});
+
+export const insertJointAccountSchema = baseJointAccountSchema.refine(validateRiskAllocationSumEquals100, {
+  message: "Risk percentages must sum to 100%",
+  path: ["riskMediumPct"],
 });
 
 export const insertJointAccountOwnershipSchema = createInsertSchema(jointAccountOwnership).pick({
@@ -728,15 +771,15 @@ function validateRiskAllocationSum(data: Record<string, any>): boolean {
   return true;
 }
 
-export const updateIndividualAccountSchema = insertIndividualAccountSchema.partial().refine(
+export const updateIndividualAccountSchema = baseIndividualAccountSchema.partial().refine(
   validateRiskAllocationSum,
   { message: "Risk percentages must sum to 100%" }
 );
-export const updateCorporateAccountSchema = insertCorporateAccountSchema.partial().refine(
+export const updateCorporateAccountSchema = baseCorporateAccountSchema.partial().refine(
   validateRiskAllocationSum,
   { message: "Risk percentages must sum to 100%" }
 );
-export const updateJointAccountSchema = insertJointAccountSchema.partial().refine(
+export const updateJointAccountSchema = baseJointAccountSchema.partial().refine(
   validateRiskAllocationSum,
   { message: "Risk percentages must sum to 100%" }
 );

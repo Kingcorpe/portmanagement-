@@ -63,14 +63,30 @@ export function HouseholdManagementDialogs({
   // Optional account type selection when creating individual or corporation
   const [individualAccountType, setIndividualAccountType] = useState<string>("");
   const [corporateAccountType, setCorporateAccountType] = useState<string>("");
+  
+  // Risk percentage state for individual creation with account
+  const [individualRiskMedium, setIndividualRiskMedium] = useState<number>(0);
+  const [individualRiskMediumHigh, setIndividualRiskMediumHigh] = useState<number>(0);
+  const [individualRiskHigh, setIndividualRiskHigh] = useState<number>(0);
+  
+  // Risk percentage state for corporation creation with account
+  const [corporateRiskMedium, setCorporateRiskMedium] = useState<number>(0);
+  const [corporateRiskMediumHigh, setCorporateRiskMediumHigh] = useState<number>(0);
+  const [corporateRiskHigh, setCorporateRiskHigh] = useState<number>(0);
 
-  // Reset account type selections when dialog closes
+  // Reset account type selections and risk percentages when dialog closes
   useEffect(() => {
     if (dialogType !== "individual") {
       setIndividualAccountType("");
+      setIndividualRiskMedium(0);
+      setIndividualRiskMediumHigh(0);
+      setIndividualRiskHigh(0);
     }
     if (dialogType !== "corporation") {
       setCorporateAccountType("");
+      setCorporateRiskMedium(0);
+      setCorporateRiskMediumHigh(0);
+      setCorporateRiskHigh(0);
     }
   }, [dialogType]);
 
@@ -112,12 +128,16 @@ export function HouseholdManagementDialogs({
   }, [householdId, dialogType, corporationForm]);
 
   // Individual account form
-  const individualAccountForm = useForm<InsertIndividualAccount>({
+  const individualAccountForm = useForm({
     resolver: zodResolver(insertIndividualAccountSchema),
     defaultValues: {
       individualId: "",
-      type: "cash",
+      type: "cash" as const,
       nickname: undefined,
+      balance: 0,
+      riskMediumPct: 0,
+      riskMediumHighPct: 0,
+      riskHighPct: 0,
     },
   });
 
@@ -131,12 +151,16 @@ export function HouseholdManagementDialogs({
   }, [individualId, dialogType, individualAccountForm]);
 
   // Corporate account form
-  const corporateAccountForm = useForm<InsertCorporateAccount>({
+  const corporateAccountForm = useForm({
     resolver: zodResolver(insertCorporateAccountSchema),
     defaultValues: {
       corporationId: "",
-      type: "cash",
+      type: "cash" as const,
       nickname: undefined,
+      balance: 0,
+      riskMediumPct: 0,
+      riskMediumHighPct: 0,
+      riskHighPct: 0,
     },
   });
 
@@ -150,12 +174,16 @@ export function HouseholdManagementDialogs({
   }, [corporationId, dialogType, corporateAccountForm]);
 
   // Joint account form
-  const jointAccountForm = useForm<InsertJointAccount>({
+  const jointAccountForm = useForm({
     resolver: zodResolver(insertJointAccountSchema),
     defaultValues: {
       householdId: "",
-      type: "joint_cash",
+      type: "joint_cash" as const,
       nickname: undefined,
+      balance: 0,
+      riskMediumPct: 0,
+      riskMediumHighPct: 0,
+      riskHighPct: 0,
     },
   });
 
@@ -174,10 +202,13 @@ export function HouseholdManagementDialogs({
       const response = await apiRequest("POST", "/api/individuals", data);
       const individual = await response.json() as Individual;
       
-      // Create the account
+      // Create the account with risk percentages
       await apiRequest("POST", "/api/individual-accounts", {
         individualId: individual.id,
         type: individualAccountType,
+        riskMediumPct: individualRiskMedium,
+        riskMediumHighPct: individualRiskMediumHigh,
+        riskHighPct: individualRiskHigh,
       });
       
       return individual;
@@ -188,6 +219,9 @@ export function HouseholdManagementDialogs({
       onClose();
       individualForm.reset();
       setIndividualAccountType("");
+      setIndividualRiskMedium(0);
+      setIndividualRiskMediumHigh(0);
+      setIndividualRiskHigh(0);
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message || "Failed to create individual", variant: "destructive" });
@@ -199,10 +233,13 @@ export function HouseholdManagementDialogs({
       const response = await apiRequest("POST", "/api/corporations", data);
       const corporation = await response.json() as Corporation;
       
-      // Create the account
+      // Create the account with risk percentages
       await apiRequest("POST", "/api/corporate-accounts", {
         corporationId: corporation.id,
         type: corporateAccountType,
+        riskMediumPct: corporateRiskMedium,
+        riskMediumHighPct: corporateRiskMediumHigh,
+        riskHighPct: corporateRiskHigh,
       });
       
       return corporation;
@@ -213,6 +250,9 @@ export function HouseholdManagementDialogs({
       onClose();
       corporationForm.reset();
       setCorporateAccountType("");
+      setCorporateRiskMedium(0);
+      setCorporateRiskMediumHigh(0);
+      setCorporateRiskHigh(0);
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message || "Failed to create corporation", variant: "destructive" });
@@ -309,6 +349,56 @@ export function HouseholdManagementDialogs({
                   </SelectContent>
                 </Select>
               </div>
+              
+              {/* Risk Category Section */}
+              <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Risk Category (Required)</span>
+                  <span className="text-xs text-muted-foreground">
+                    Total: {individualRiskMedium + individualRiskMediumHigh + individualRiskHigh}%
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Medium %</label>
+                    <Input 
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      data-testid="input-ind-risk-medium"
+                      value={individualRiskMedium}
+                      onChange={(e) => setIndividualRiskMedium(Number(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Med-High %</label>
+                    <Input 
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      data-testid="input-ind-risk-medium-high"
+                      value={individualRiskMediumHigh}
+                      onChange={(e) => setIndividualRiskMediumHigh(Number(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">High %</label>
+                    <Input 
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      data-testid="input-ind-risk-high"
+                      value={individualRiskHigh}
+                      onChange={(e) => setIndividualRiskHigh(Number(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Risk percentages must sum to 100%</p>
+              </div>
+
               {individualAccountType === "rif" && (
                 <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
                   <FormField
@@ -354,7 +444,16 @@ export function HouseholdManagementDialogs({
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
                 </Button>
-                <Button type="submit" data-testid="button-submit" disabled={createIndividualMutation.isPending || !individualAccountType || individualAccountType === "none"}>
+                <Button 
+                  type="submit" 
+                  data-testid="button-submit" 
+                  disabled={
+                    createIndividualMutation.isPending || 
+                    !individualAccountType || 
+                    individualAccountType === "none" ||
+                    (individualRiskMedium + individualRiskMediumHigh + individualRiskHigh) !== 100
+                  }
+                >
                   {createIndividualMutation.isPending ? "Creating..." : "Create Individual & Account"}
                 </Button>
               </div>
@@ -397,11 +496,70 @@ export function HouseholdManagementDialogs({
                   </SelectContent>
                 </Select>
               </div>
+              
+              {/* Risk Category Section */}
+              <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Risk Category (Required)</span>
+                  <span className="text-xs text-muted-foreground">
+                    Total: {corporateRiskMedium + corporateRiskMediumHigh + corporateRiskHigh}%
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Medium %</label>
+                    <Input 
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      data-testid="input-corp-risk-medium"
+                      value={corporateRiskMedium}
+                      onChange={(e) => setCorporateRiskMedium(Number(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Med-High %</label>
+                    <Input 
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      data-testid="input-corp-risk-medium-high"
+                      value={corporateRiskMediumHigh}
+                      onChange={(e) => setCorporateRiskMediumHigh(Number(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">High %</label>
+                    <Input 
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="1"
+                      data-testid="input-corp-risk-high"
+                      value={corporateRiskHigh}
+                      onChange={(e) => setCorporateRiskHigh(Number(e.target.value) || 0)}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Risk percentages must sum to 100%</p>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
                 </Button>
-                <Button type="submit" data-testid="button-submit" disabled={createCorporationMutation.isPending || !corporateAccountType || corporateAccountType === "none"}>
+                <Button 
+                  type="submit" 
+                  data-testid="button-submit" 
+                  disabled={
+                    createCorporationMutation.isPending || 
+                    !corporateAccountType || 
+                    corporateAccountType === "none" ||
+                    (corporateRiskMedium + corporateRiskMediumHigh + corporateRiskHigh) !== 100
+                  }
+                >
                   {createCorporationMutation.isPending ? "Creating..." : "Create Corporation & Account"}
                 </Button>
               </div>
@@ -458,21 +616,94 @@ export function HouseholdManagementDialogs({
                         {...field} 
                         value={field.value ?? ""} 
                         onChange={(e) => field.onChange(e.target.value || undefined)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            const accountType = individualAccountForm.getValues("type");
-                            if (accountType) {
-                              individualAccountForm.handleSubmit((data) => createIndividualAccountMutation.mutate(data))();
-                            }
-                          }
-                        }}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
+              {/* Risk Category Section */}
+              <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Risk Category (Required)</span>
+                  <span className="text-xs text-muted-foreground">
+                    Total: {(Number(individualAccountForm.watch("riskMediumPct") || 0) + 
+                            Number(individualAccountForm.watch("riskMediumHighPct") || 0) + 
+                            Number(individualAccountForm.watch("riskHighPct") || 0))}%
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField
+                    control={individualAccountForm.control}
+                    name="riskMediumPct"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Medium %</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="1"
+                            data-testid="input-risk-medium"
+                            {...field}
+                            value={field.value ?? 0}
+                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={individualAccountForm.control}
+                    name="riskMediumHighPct"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Med-High %</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="1"
+                            data-testid="input-risk-medium-high"
+                            {...field}
+                            value={field.value ?? 0}
+                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={individualAccountForm.control}
+                    name="riskHighPct"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">High %</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="1"
+                            data-testid="input-risk-high"
+                            {...field}
+                            value={field.value ?? 0}
+                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Risk percentages must sum to 100%</p>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
@@ -480,7 +711,12 @@ export function HouseholdManagementDialogs({
                 <Button 
                   type="submit" 
                   data-testid="button-submit" 
-                  disabled={createIndividualAccountMutation.isPending}
+                  disabled={
+                    createIndividualAccountMutation.isPending ||
+                    (Number(individualAccountForm.watch("riskMediumPct") || 0) + 
+                     Number(individualAccountForm.watch("riskMediumHighPct") || 0) + 
+                     Number(individualAccountForm.watch("riskHighPct") || 0)) !== 100
+                  }
                 >
                   {createIndividualAccountMutation.isPending ? "Creating..." : "Create Account"}
                 </Button>
@@ -533,26 +769,108 @@ export function HouseholdManagementDialogs({
                         {...field} 
                         value={field.value ?? ""} 
                         onChange={(e) => field.onChange(e.target.value || undefined)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            const accountType = corporateAccountForm.getValues("type");
-                            if (accountType) {
-                              corporateAccountForm.handleSubmit((data) => createCorporateAccountMutation.mutate(data))();
-                            }
-                          }
-                        }}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
+              {/* Risk Category Section */}
+              <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Risk Category (Required)</span>
+                  <span className="text-xs text-muted-foreground">
+                    Total: {(Number(corporateAccountForm.watch("riskMediumPct") || 0) + 
+                            Number(corporateAccountForm.watch("riskMediumHighPct") || 0) + 
+                            Number(corporateAccountForm.watch("riskHighPct") || 0))}%
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField
+                    control={corporateAccountForm.control}
+                    name="riskMediumPct"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Medium %</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="1"
+                            data-testid="input-risk-medium"
+                            {...field}
+                            value={field.value ?? 0}
+                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={corporateAccountForm.control}
+                    name="riskMediumHighPct"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Med-High %</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="1"
+                            data-testid="input-risk-medium-high"
+                            {...field}
+                            value={field.value ?? 0}
+                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={corporateAccountForm.control}
+                    name="riskHighPct"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">High %</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="1"
+                            data-testid="input-risk-high"
+                            {...field}
+                            value={field.value ?? 0}
+                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Risk percentages must sum to 100%</p>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
                 </Button>
-                <Button type="submit" data-testid="button-submit" disabled={createCorporateAccountMutation.isPending}>
+                <Button 
+                  type="submit" 
+                  data-testid="button-submit" 
+                  disabled={
+                    createCorporateAccountMutation.isPending ||
+                    (Number(corporateAccountForm.watch("riskMediumPct") || 0) + 
+                     Number(corporateAccountForm.watch("riskMediumHighPct") || 0) + 
+                     Number(corporateAccountForm.watch("riskHighPct") || 0)) !== 100
+                  }
+                >
                   {createCorporateAccountMutation.isPending ? "Creating..." : "Create Account"}
                 </Button>
               </div>
@@ -604,26 +922,108 @@ export function HouseholdManagementDialogs({
                         {...field} 
                         value={field.value ?? ""} 
                         onChange={(e) => field.onChange(e.target.value || undefined)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            const accountType = jointAccountForm.getValues("type");
-                            if (accountType) {
-                              jointAccountForm.handleSubmit((data) => createJointAccountMutation.mutate(data))();
-                            }
-                          }
-                        }}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+              
+              {/* Risk Category Section */}
+              <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Risk Category (Required)</span>
+                  <span className="text-xs text-muted-foreground">
+                    Total: {(Number(jointAccountForm.watch("riskMediumPct") || 0) + 
+                            Number(jointAccountForm.watch("riskMediumHighPct") || 0) + 
+                            Number(jointAccountForm.watch("riskHighPct") || 0))}%
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <FormField
+                    control={jointAccountForm.control}
+                    name="riskMediumPct"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Medium %</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="1"
+                            data-testid="input-risk-medium"
+                            {...field}
+                            value={field.value ?? 0}
+                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={jointAccountForm.control}
+                    name="riskMediumHighPct"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Med-High %</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="1"
+                            data-testid="input-risk-medium-high"
+                            {...field}
+                            value={field.value ?? 0}
+                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={jointAccountForm.control}
+                    name="riskHighPct"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">High %</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="1"
+                            data-testid="input-risk-high"
+                            {...field}
+                            value={field.value ?? 0}
+                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Risk percentages must sum to 100%</p>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
                 </Button>
-                <Button type="submit" data-testid="button-submit" disabled={createJointAccountMutation.isPending}>
+                <Button 
+                  type="submit" 
+                  data-testid="button-submit" 
+                  disabled={
+                    createJointAccountMutation.isPending ||
+                    (Number(jointAccountForm.watch("riskMediumPct") || 0) + 
+                     Number(jointAccountForm.watch("riskMediumHighPct") || 0) + 
+                     Number(jointAccountForm.watch("riskHighPct") || 0)) !== 100
+                  }
+                >
                   {createJointAccountMutation.isPending ? "Creating..." : "Create Account"}
                 </Button>
               </div>
