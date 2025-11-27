@@ -609,6 +609,9 @@ export const insertPositionSchema = createInsertSchema(positions).omit({
   entryPrice: true,
   currentPrice: true,
   purchaseDate: true,
+  protectionPercent: true,
+  stopPrice: true,
+  limitPrice: true,
 }).extend({
   quantity: z.coerce.number().positive().transform(val => val.toString()),
   entryPrice: z.coerce.number().positive().transform(val => val.toString()),
@@ -617,6 +620,18 @@ export const insertPositionSchema = createInsertSchema(positions).omit({
     if (!val) return undefined;
     if (typeof val === 'string') return new Date(val);
     return val;
+  }),
+  protectionPercent: z.union([z.coerce.number(), z.string(), z.null()]).optional().transform(val => {
+    if (val === null || val === undefined || val === '') return null;
+    return String(val);
+  }),
+  stopPrice: z.union([z.coerce.number(), z.string(), z.null()]).optional().transform(val => {
+    if (val === null || val === undefined || val === '') return null;
+    return String(val);
+  }),
+  limitPrice: z.union([z.coerce.number(), z.string(), z.null()]).optional().transform(val => {
+    if (val === null || val === undefined || val === '') return null;
+    return String(val);
   }),
 });
 
