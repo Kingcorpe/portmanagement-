@@ -276,7 +276,17 @@ export function HouseholdManagementDialogs({
                   <FormItem>
                     <FormLabel>Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="John Smith" data-testid="input-individual-name" {...field} />
+                      <Input 
+                        placeholder="John Smith" 
+                        data-testid="input-individual-name" 
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            onClose();
+                          }
+                        }}
+                        {...field} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
