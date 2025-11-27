@@ -61,13 +61,13 @@ export function HouseholdManagementDialogs({
   const { toast } = useToast();
 
   // Optional account type selection when creating individual or corporation
-  const [individualAccountType, setIndividualAccountType] = useState<string>("none");
+  const [individualAccountType, setIndividualAccountType] = useState<string>("");
   const [corporateAccountType, setCorporateAccountType] = useState<string>("none");
 
   // Reset account type selections when dialog closes
   useEffect(() => {
     if (dialogType !== "individual") {
-      setIndividualAccountType("none");
+      setIndividualAccountType("");
     }
     if (dialogType !== "corporation") {
       setCorporateAccountType("none");
@@ -174,25 +174,20 @@ export function HouseholdManagementDialogs({
       const response = await apiRequest("POST", "/api/individuals", data);
       const individual = await response.json() as Individual;
       
-      // If account type is selected, create the account
-      if (individualAccountType && individualAccountType !== "none") {
-        await apiRequest("POST", "/api/individual-accounts", {
-          individualId: individual.id,
-          type: individualAccountType,
-        });
-      }
+      // Create the account
+      await apiRequest("POST", "/api/individual-accounts", {
+        individualId: individual.id,
+        type: individualAccountType,
+      });
       
       return individual;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
-      const message = individualAccountType !== "none" 
-        ? "Individual and account created successfully" 
-        : "Individual created successfully";
-      toast({ title: "Success", description: message });
+      toast({ title: "Success", description: "Individual and account created successfully" });
       onClose();
       individualForm.reset();
-      setIndividualAccountType("none");
+      setIndividualAccountType("");
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message || "Failed to create individual", variant: "destructive" });
@@ -275,7 +270,7 @@ export function HouseholdManagementDialogs({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Individual</DialogTitle>
-            <DialogDescription>Add a new individual to this household with an optional account.</DialogDescription>
+            <DialogDescription>Add a new individual and account to this household.</DialogDescription>
           </DialogHeader>
           <Form {...individualForm}>
             <form onSubmit={individualForm.handleSubmit((data) => createIndividualMutation.mutate(data))} className="space-y-4">
@@ -293,13 +288,12 @@ export function HouseholdManagementDialogs({
                 )}
               />
               <div className="space-y-2">
-                <label className="text-sm font-medium">Account Type (Optional)</label>
+                <label className="text-sm font-medium">Account Type</label>
                 <Select value={individualAccountType} onValueChange={setIndividualAccountType}>
                   <SelectTrigger data-testid="select-individual-account-type">
-                    <SelectValue placeholder="No account" />
+                    <SelectValue placeholder="Select account type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">No account</SelectItem>
                     <SelectItem value="cash">Cash</SelectItem>
                     <SelectItem value="fhsa">FHSA</SelectItem>
                     <SelectItem value="liff">LIFF</SelectItem>
@@ -309,7 +303,6 @@ export function HouseholdManagementDialogs({
                     <SelectItem value="tfsa">TFSA</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">Optionally create an account for this individual at the same time.</p>
               </div>
               {individualAccountType === "rif" && (
                 <FormField
@@ -336,8 +329,8 @@ export function HouseholdManagementDialogs({
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
                   Cancel
                 </Button>
-                <Button type="submit" data-testid="button-submit" disabled={createIndividualMutation.isPending}>
-                  {createIndividualMutation.isPending ? "Creating..." : individualAccountType !== "none" ? "Create Individual & Account" : "Create Individual"}
+                <Button type="submit" data-testid="button-submit" disabled={createIndividualMutation.isPending || !individualAccountType || individualAccountType === "none"}>
+                  {createIndividualMutation.isPending ? "Creating..." : "Create Individual & Account"}
                 </Button>
               </div>
             </form>
