@@ -622,6 +622,7 @@ export default function ModelPortfolios() {
   const [isFreelanceDialogOpen, setIsFreelanceDialogOpen] = useState(false);
   const [editingHolding, setEditingHolding] = useState<UniversalHolding | null>(null);
   const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);
+  const [allocationSaveAndAddAnother, setAllocationSaveAndAddAnother] = useState(false);
   const [allocationTarget, setAllocationTarget] = useState<{ type: "planned" | "freelance"; portfolioId: string } | null>(null);
   const [editingPlannedPortfolio, setEditingPlannedPortfolio] = useState<{ id: string; name: string; description?: string } | null>(null);
   const [editingFreelancePortfolio, setEditingFreelancePortfolio] = useState<{ id: string; name: string; description?: string } | null>(null);
@@ -841,9 +842,14 @@ export default function ModelPortfolios() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/planned-portfolios"] });
       toast({ title: "Success", description: "Allocation added successfully" });
-      setIsAllocationDialogOpen(false);
-      setAllocationTarget(null);
-      allocationForm.reset();
+      if (allocationSaveAndAddAnother) {
+        allocationForm.reset({ universalHoldingId: "", targetPercentage: 0 });
+        setAllocationSaveAndAddAnother(false);
+      } else {
+        setIsAllocationDialogOpen(false);
+        setAllocationTarget(null);
+        allocationForm.reset();
+      }
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -867,9 +873,14 @@ export default function ModelPortfolios() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/freelance-portfolios"] });
       toast({ title: "Success", description: "Allocation added successfully" });
-      setIsAllocationDialogOpen(false);
-      setAllocationTarget(null);
-      allocationForm.reset();
+      if (allocationSaveAndAddAnother) {
+        allocationForm.reset({ universalHoldingId: "", targetPercentage: 0 });
+        setAllocationSaveAndAddAnother(false);
+      } else {
+        setIsAllocationDialogOpen(false);
+        setAllocationTarget(null);
+        allocationForm.reset();
+      }
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -1973,11 +1984,28 @@ export default function ModelPortfolios() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={createPlannedAllocationMutation.isPending || createFreelanceAllocationMutation.isPending || updatePlannedAllocationMutation.isPending || updateFreelanceAllocationMutation.isPending} data-testid="button-submit-allocation">
-                {(createPlannedAllocationMutation.isPending || createFreelanceAllocationMutation.isPending || updatePlannedAllocationMutation.isPending || updateFreelanceAllocationMutation.isPending) 
-                  ? (editingAllocation ? "Saving..." : "Adding...") 
-                  : (editingAllocation ? "Save Changes" : "Add Allocation")}
-              </Button>
+              <div className="flex gap-2">
+                <Button type="submit" className="flex-1" disabled={createPlannedAllocationMutation.isPending || createFreelanceAllocationMutation.isPending || updatePlannedAllocationMutation.isPending || updateFreelanceAllocationMutation.isPending} data-testid="button-submit-allocation">
+                  {(createPlannedAllocationMutation.isPending || createFreelanceAllocationMutation.isPending || updatePlannedAllocationMutation.isPending || updateFreelanceAllocationMutation.isPending) 
+                    ? (editingAllocation ? "Saving..." : "Adding...") 
+                    : (editingAllocation ? "Save Changes" : "Add Allocation")}
+                </Button>
+                {!editingAllocation && (
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    disabled={createPlannedAllocationMutation.isPending || createFreelanceAllocationMutation.isPending}
+                    onClick={() => {
+                      setAllocationSaveAndAddAnother(true);
+                      allocationForm.handleSubmit(onAllocationSubmit)();
+                    }}
+                    data-testid="button-save-add-another-allocation"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Save & Add Another
+                  </Button>
+                )}
+              </div>
             </form>
           </Form>
         </DialogContent>
