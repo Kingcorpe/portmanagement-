@@ -56,13 +56,11 @@ import {
 } from "@shared/schema";
 import type { z } from "zod";
 import {
-  RISK_LEVEL_LABELS,
   CATEGORY_LABELS,
   validateRiskLimits,
   calculateBlendedLimits,
   formatRiskAllocation,
   getRiskAllocationFromAccount,
-  type RiskLevel,
   type RiskAllocation,
   type HoldingCategory,
   type RiskValidationResult,

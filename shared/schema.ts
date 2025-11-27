@@ -680,9 +680,34 @@ export const insertAccountTargetAllocationSchema = createInsertSchema(accountTar
 export const updateHouseholdSchema = insertHouseholdSchema.partial();
 export const updateIndividualSchema = insertIndividualSchema.partial();
 export const updateCorporationSchema = insertCorporationSchema.partial();
-export const updateIndividualAccountSchema = insertIndividualAccountSchema.partial();
-export const updateCorporateAccountSchema = insertCorporateAccountSchema.partial();
-export const updateJointAccountSchema = insertJointAccountSchema.partial();
+
+function validateRiskAllocationSum(data: Record<string, any>): boolean {
+  const medium = data.riskMediumPct != null ? parseFloat(String(data.riskMediumPct)) : undefined;
+  const mediumHigh = data.riskMediumHighPct != null ? parseFloat(String(data.riskMediumHighPct)) : undefined;
+  const high = data.riskHighPct != null ? parseFloat(String(data.riskHighPct)) : undefined;
+  
+  if (medium !== undefined || mediumHigh !== undefined || high !== undefined) {
+    const m = medium ?? 100;
+    const mh = mediumHigh ?? 0;
+    const h = high ?? 0;
+    const total = m + mh + h;
+    return Math.abs(total - 100) < 0.01;
+  }
+  return true;
+}
+
+export const updateIndividualAccountSchema = insertIndividualAccountSchema.partial().refine(
+  validateRiskAllocationSum,
+  { message: "Risk percentages must sum to 100%" }
+);
+export const updateCorporateAccountSchema = insertCorporateAccountSchema.partial().refine(
+  validateRiskAllocationSum,
+  { message: "Risk percentages must sum to 100%" }
+);
+export const updateJointAccountSchema = insertJointAccountSchema.partial().refine(
+  validateRiskAllocationSum,
+  { message: "Risk percentages must sum to 100%" }
+);
 export const updatePositionSchema = insertPositionSchema.partial();
 export const updateAlertSchema = insertAlertSchema.partial();
 export const updateUniversalHoldingSchema = insertUniversalHoldingSchema.partial();

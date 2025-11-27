@@ -182,9 +182,13 @@ export function formatRiskAllocation(allocation: RiskAllocation): string {
 }
 
 export function getRiskAllocationFromAccount(account: any): RiskAllocation {
+  const mediumVal = account?.riskMediumPct;
+  const mediumHighVal = account?.riskMediumHighPct;
+  const highVal = account?.riskHighPct;
+  
   return {
-    medium: parseFloat(account?.riskMediumPct || "100"),
-    mediumHigh: parseFloat(account?.riskMediumHighPct || "0"),
-    high: parseFloat(account?.riskHighPct || "0"),
+    medium: parseFloat(mediumVal != null ? String(mediumVal) : "100"),
+    mediumHigh: parseFloat(mediumHighVal != null ? String(mediumHighVal) : "0"),
+    high: parseFloat(highVal != null ? String(highVal) : "0"),
   };
 }
