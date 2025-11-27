@@ -267,26 +267,6 @@ export function HouseholdCard({
                   )}
                   {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                 </div>
-                <div className="flex items-center gap-3 mt-1 flex-wrap">
-                  <Badge variant="secondary" className="text-xs">
-                    {household.individuals.length} Individual{household.individuals.length !== 1 ? 's' : ''}
-                  </Badge>
-                  {household.corporations.length > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {household.corporations.length} Corporate
-                    </Badge>
-                  )}
-                  {household.jointAccounts.length > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {household.jointAccounts.length} Joint
-                    </Badge>
-                  )}
-                </div>
-                <div className="mt-3">
-                  <div className="text-2xl font-bold font-mono tabular-nums" data-testid={`text-household-value-${household.id}`}>
-                    CA${household.totalValue.toLocaleString()}
-                  </div>
-                </div>
               </div>
             </div>
             <div className="flex items-center gap-1">
