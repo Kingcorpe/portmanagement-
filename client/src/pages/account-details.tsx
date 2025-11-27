@@ -231,6 +231,7 @@ export default function AccountDetails() {
   const [editingTask, setEditingTask] = useState<AccountTask | null>(null);
   const [taskStatusFilter, setTaskStatusFilter] = useState<"all" | "pending" | "in_progress" | "completed">("all");
   const [notesAutoSaveStatus, setNotesAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [isAuditLogExpanded, setIsAuditLogExpanded] = useState(false);
   const notesInitialLoadRef = useRef(true);
   const notesSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -293,9 +294,15 @@ export default function AccountDetails() {
     }
   };
 
+  const getAuditLogEndpoint = () => {
+    if (!accountType || !accountId) return null;
+    return `/api/accounts/${accountType}/${accountId}/audit-log`;
+  };
+
   const positionsEndpoint = getPositionsEndpoint();
   const accountEndpoint = getAccountEndpoint();
   const tasksEndpoint = getTasksEndpoint();
+  const auditLogEndpoint = getAuditLogEndpoint();
 
   const { data: positions = [], isLoading } = useQuery<Position[]>({
     queryKey: [positionsEndpoint],
@@ -422,6 +429,20 @@ export default function AccountDetails() {
   const { data: tasks = [] } = useQuery<AccountTask[]>({
     queryKey: [tasksEndpoint],
     enabled: isAuthenticated && !!tasksEndpoint,
+  });
+
+  // Fetch audit log for this account
+  interface AuditLogEntry {
+    id: string;
+    userId: string;
+    action: string;
+    changes: Record<string, { old: any; new: any }>;
+    createdAt: string;
+  }
+  
+  const { data: auditLog = [], isLoading: isAuditLogLoading } = useQuery<AuditLogEntry[]>({
+    queryKey: [auditLogEndpoint],
+    enabled: isAuthenticated && !!auditLogEndpoint && isAuditLogExpanded,
   });
 
   const form = useForm<PositionFormData>({
@@ -2388,6 +2409,89 @@ export default function AccountDetails() {
                   </div>
                 );
               })()}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Audit Log Section - Collapsible, default closed, subtle styling */}
+      <Collapsible open={isAuditLogExpanded} onOpenChange={setIsAuditLogExpanded}>
+        <Card className="border-dashed">
+          <CardHeader className="py-3">
+            <CollapsibleTrigger asChild>
+              <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity w-full" data-testid="button-toggle-audit-log">
+                {isAuditLogExpanded ? (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                )}
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium text-muted-foreground">Change History</span>
+                  {auditLog.length > 0 && (
+                    <Badge variant="outline" className="text-xs">
+                      {auditLog.length}
+                    </Badge>
+                  )}
+                </div>
+              </button>
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              {isAuditLogLoading ? (
+                <div className="text-center py-4 text-muted-foreground text-sm">Loading change history...</div>
+              ) : auditLog.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground text-sm">
+                  No changes recorded yet. Changes to account settings will appear here.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {auditLog.map((entry) => (
+                    <div key={entry.id} className="border rounded-md p-3 bg-muted/30" data-testid={`audit-entry-${entry.id}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant="outline" className="text-xs">
+                          {entry.action === "update" ? "Updated" : entry.action}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(entry.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        {Object.entries(entry.changes).map(([field, change]) => {
+                          const formatValue = (val: any) => {
+                            if (val === null || val === undefined || val === "") return "—";
+                            if (typeof val === "number") return val.toLocaleString();
+                            return String(val);
+                          };
+                          const fieldLabels: Record<string, string> = {
+                            nickname: "Nickname",
+                            accountType: "Account Type",
+                            balance: "Balance",
+                            bookValue: "Book Value",
+                            riskMedium: "Medium Risk %",
+                            riskMediumHigh: "Med-High Risk %",
+                            riskHigh: "High Risk %",
+                            immediateNotes: "Immediate Changes",
+                            upcomingNotes: "Upcoming Notes",
+                            protectionPercent: "Protection %",
+                            stopPrice: "Stop Price",
+                            limitPrice: "Limit Price",
+                          };
+                          return (
+                            <div key={field} className="flex items-start gap-2 text-xs">
+                              <span className="font-medium min-w-[100px]">{fieldLabels[field] || field}:</span>
+                              <span className="text-muted-foreground line-through">{formatValue(change.old)}</span>
+                              <span className="text-muted-foreground">→</span>
+                              <span className="text-foreground">{formatValue(change.new)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </CollapsibleContent>
         </Card>
