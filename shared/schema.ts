@@ -958,3 +958,52 @@ export const updateLibraryDocumentSchema = insertLibraryDocumentSchema.partial()
 // Library document types
 export type InsertLibraryDocument = z.infer<typeof insertLibraryDocumentSchema>;
 export type LibraryDocument = typeof libraryDocuments.$inferSelect;
+
+// Account audit action enum
+export const auditActionEnum = pgEnum("audit_action", [
+  "create",
+  "update",
+  "delete",
+]);
+
+// Account audit log table
+export const accountAuditLog = pgTable("account_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // One of these will be set depending on account type
+  individualAccountId: varchar("individual_account_id").references(() => individualAccounts.id, { onDelete: 'cascade' }),
+  corporateAccountId: varchar("corporate_account_id").references(() => corporateAccounts.id, { onDelete: 'cascade' }),
+  jointAccountId: varchar("joint_account_id").references(() => jointAccounts.id, { onDelete: 'cascade' }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
+  action: auditActionEnum("action").notNull(),
+  changes: jsonb("changes").notNull(), // { field: { old: value, new: value } }
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const accountAuditLogRelations = relations(accountAuditLog, ({ one }) => ({
+  individualAccount: one(individualAccounts, {
+    fields: [accountAuditLog.individualAccountId],
+    references: [individualAccounts.id],
+  }),
+  corporateAccount: one(corporateAccounts, {
+    fields: [accountAuditLog.corporateAccountId],
+    references: [corporateAccounts.id],
+  }),
+  jointAccount: one(jointAccounts, {
+    fields: [accountAuditLog.jointAccountId],
+    references: [jointAccounts.id],
+  }),
+  user: one(users, {
+    fields: [accountAuditLog.userId],
+    references: [users.id],
+  }),
+}));
+
+// Account audit log insert schema
+export const insertAccountAuditLogSchema = createInsertSchema(accountAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Account audit log types
+export type InsertAccountAuditLog = z.infer<typeof insertAccountAuditLogSchema>;
+export type AccountAuditLog = typeof accountAuditLog.$inferSelect;
