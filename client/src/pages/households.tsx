@@ -517,13 +517,22 @@ export default function Households() {
   };
 
   // Filter households based on search and privacy mode
-  // In privacy mode, show nothing unless there's a search query
+  // In privacy mode, only show households when search query is at least 80% of the name length
   const filteredHouseholds = (privacyMode && searchQuery.trim() === "")
     ? []
     : households
-      .filter(household =>
-        household.name.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      .filter(household => {
+        const query = searchQuery.toLowerCase().trim();
+        const name = household.name.toLowerCase();
+        
+        // Must match the name
+        if (!name.includes(query)) return false;
+        
+        // In privacy mode, require query to be at least 80% of the household name length
+        if (privacyMode && query.length < name.length * 0.8) return false;
+        
+        return true;
+      })
       .sort((a, b) => a.name.localeCompare(b.name));
 
   if (authLoading || isLoading) {
