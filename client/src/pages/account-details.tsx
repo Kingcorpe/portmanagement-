@@ -2515,7 +2515,10 @@ export default function AccountDetails() {
                           {task.dueDate && (
                             <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                               <Calendar className="h-3 w-3" />
-                              Due: {new Date(task.dueDate).toLocaleDateString()}
+                              Due: {(() => {
+                                const d = new Date(task.dueDate);
+                                return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;
+                              })()}
                             </div>
                           )}
                         </div>

@@ -131,7 +131,10 @@ export default function Tasks() {
           label = "No Due Date";
           color = "text-muted-foreground";
         } else {
-          const dueDate = new Date(task.dueDate);
+          // Parse as UTC and create local date to avoid timezone shifting
+          const utcDate = new Date(task.dueDate);
+          const dueDate = new Date(utcDate.getUTCFullYear(), utcDate.getUTCMonth(), utcDate.getUTCDate());
+          
           if (isPast(dueDate) && !isToday(dueDate) && task.status !== "completed") {
             groupKey = "overdue";
             label = "Overdue";
@@ -245,12 +248,12 @@ export default function Tasks() {
 
   const pendingCount = tasks.filter(t => t.status !== "completed").length;
   const completedCount = tasks.filter(t => t.status === "completed").length;
-  const overdueCount = tasks.filter(t => 
-    t.status !== "completed" && 
-    t.dueDate && 
-    isPast(new Date(t.dueDate)) && 
-    !isToday(new Date(t.dueDate))
-  ).length;
+  const overdueCount = tasks.filter(t => {
+    if (t.status === "completed" || !t.dueDate) return false;
+    const utcDate = new Date(t.dueDate);
+    const localDueDate = new Date(utcDate.getUTCFullYear(), utcDate.getUTCMonth(), utcDate.getUTCDate());
+    return isPast(localDueDate) && !isToday(localDueDate);
+  }).length;
 
   if (authLoading || !isAuthenticated) {
     return (
@@ -464,16 +467,24 @@ export default function Tasks() {
                                   </span>
                                   
                                   {task.dueDate && (
-                                    <span className={`flex items-center gap-1 ${
-                                      task.status !== "completed" && isPast(new Date(task.dueDate)) && !isToday(new Date(task.dueDate))
-                                        ? "text-red-500 font-medium"
-                                        : isToday(new Date(task.dueDate))
-                                        ? "text-orange-500 font-medium"
-                                        : ""
-                                    }`}>
-                                      <Calendar className="h-3 w-3" />
-                                      {format(new Date(task.dueDate), "MMM d, yyyy")}
-                                    </span>
+                                    (() => {
+                                      const utcDate = new Date(task.dueDate);
+                                      const localDueDate = new Date(utcDate.getUTCFullYear(), utcDate.getUTCMonth(), utcDate.getUTCDate());
+                                      const isOverdue = task.status !== "completed" && isPast(localDueDate) && !isToday(localDueDate);
+                                      const isDueToday = isToday(localDueDate);
+                                      return (
+                                        <span className={`flex items-center gap-1 ${
+                                          isOverdue
+                                            ? "text-red-500 font-medium"
+                                            : isDueToday
+                                            ? "text-orange-500 font-medium"
+                                            : ""
+                                        }`}>
+                                          <Calendar className="h-3 w-3" />
+                                          {format(localDueDate, "MMM d, yyyy")}
+                                        </span>
+                                      );
+                                    })()
                                   )}
                                 </div>
                               </div>
