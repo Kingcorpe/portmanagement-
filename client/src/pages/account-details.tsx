@@ -110,6 +110,9 @@ export default function AccountDetails() {
   const [cashAmount, setCashAmount] = useState("");
   const [editingInlineTarget, setEditingInlineTarget] = useState<string | null>(null);
   const [inlineTargetValue, setInlineTargetValue] = useState<string>("");
+  // Protection inline editing state (which position and field is being edited)
+  const [editingProtection, setEditingProtection] = useState<{ positionId: string; field: 'protectionPercent' | 'stopPrice' | 'limitPrice' } | null>(null);
+  const [protectionValue, setProtectionValue] = useState<string>("");
   const [holdingComboboxOpen, setHoldingComboboxOpen] = useState(false);
   const [isTargetAllocationsOpen, setIsTargetAllocationsOpen] = useState(true);
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
@@ -605,6 +608,34 @@ export default function AccountDetails() {
     },
   });
 
+  // Protection update mutation
+  const updateProtectionMutation = useMutation({
+    mutationFn: async ({ positionId, field, value }: { positionId: string; field: 'protectionPercent' | 'stopPrice' | 'limitPrice'; value: string }) => {
+      const updateData: Record<string, string | null> = {};
+      updateData[field] = value === "" ? null : value;
+      return await apiRequest("PATCH", `/api/positions/${positionId}`, updateData);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ 
+        queryKey: [positionsEndpoint],
+        refetchType: 'active',
+      });
+      setEditingProtection(null);
+      setProtectionValue("");
+      toast({
+        title: "Protection Updated",
+        description: "Position protection settings have been saved.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update protection settings",
+        variant: "destructive",
+      });
+    },
+  });
+
   const updateRiskAllocationMutation = useMutation({
     mutationFn: async (allocation: RiskAllocation) => {
       const endpoint = accountEndpoint;
@@ -737,6 +768,53 @@ export default function AccountDetails() {
   const handleInlineTargetCancel = () => {
     setEditingInlineTarget(null);
     setInlineTargetValue("");
+  };
+
+  // Protection inline editing handlers
+  const handleProtectionEdit = (position: Position, field: 'protectionPercent' | 'stopPrice' | 'limitPrice') => {
+    setEditingProtection({ positionId: position.id, field });
+    const currentValue = position[field];
+    setProtectionValue(currentValue ? String(currentValue) : "");
+  };
+
+  const handleProtectionSave = (position: Position) => {
+    if (!editingProtection) return;
+    
+    const trimmedValue = protectionValue.trim();
+    
+    // Validate the value if not empty
+    if (trimmedValue !== "") {
+      const numValue = parseFloat(trimmedValue);
+      if (isNaN(numValue) || numValue < 0) {
+        toast({
+          title: "Invalid Value",
+          description: "Please enter a valid positive number",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Validate protection percent is between 0-100
+      if (editingProtection.field === 'protectionPercent' && numValue > 100) {
+        toast({
+          title: "Invalid Value",
+          description: "Protection percentage must be between 0 and 100",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
+    updateProtectionMutation.mutate({
+      positionId: position.id,
+      field: editingProtection.field,
+      value: trimmedValue,
+    });
+  };
+
+  const handleProtectionCancel = () => {
+    setEditingProtection(null);
+    setProtectionValue("");
   };
 
   const onAllocationSubmit = (data: AllocationFormData) => {
@@ -1461,6 +1539,9 @@ export default function AccountDetails() {
                       <TableHead className="text-right">Shares to Trade</TableHead>
                     </>
                   )}
+                  <TableHead className="text-right">Protect %</TableHead>
+                  <TableHead className="text-right">Stop $</TableHead>
+                  <TableHead className="text-right">Limit $</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1676,6 +1757,151 @@ export default function AccountDetails() {
                           </>
                         );
                       })()}
+                      
+                      {/* Protection % - inline editable */}
+                      <TableCell className="text-right" data-testid={`text-protection-pct-${position.id}`}>
+                        {editingProtection?.positionId === position.id && editingProtection?.field === 'protectionPercent' ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <Input
+                              type="number"
+                              step="1"
+                              min="0"
+                              max="100"
+                              value={protectionValue}
+                              onChange={(e) => setProtectionValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleProtectionSave(position);
+                                if (e.key === 'Escape') handleProtectionCancel();
+                              }}
+                              className="w-14 h-7 text-right text-sm"
+                              data-testid={`input-protection-pct-${position.id}`}
+                              autoFocus
+                            />
+                            <span className="text-muted-foreground text-xs">%</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleProtectionSave(position)}
+                              disabled={updateProtectionMutation.isPending}
+                              data-testid={`button-save-protection-pct-${position.id}`}
+                            >
+                              {updateProtectionMutation.isPending ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleProtectionEdit(position, 'protectionPercent')}
+                            className="text-right hover:bg-muted/50 px-2 py-1 rounded cursor-pointer w-full"
+                            data-testid={`button-edit-protection-pct-${position.id}`}
+                          >
+                            {position.protectionPercent 
+                              ? <span className="text-amber-600 dark:text-amber-400">{Number(position.protectionPercent).toFixed(0)}%</span>
+                              : <span className="text-muted-foreground">-</span>
+                            }
+                          </button>
+                        )}
+                      </TableCell>
+                      
+                      {/* Stop Price - inline editable */}
+                      <TableCell className="text-right" data-testid={`text-stop-price-${position.id}`}>
+                        {editingProtection?.positionId === position.id && editingProtection?.field === 'stopPrice' ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="text-muted-foreground text-xs">$</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={protectionValue}
+                              onChange={(e) => setProtectionValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleProtectionSave(position);
+                                if (e.key === 'Escape') handleProtectionCancel();
+                              }}
+                              className="w-16 h-7 text-right text-sm"
+                              data-testid={`input-stop-price-${position.id}`}
+                              autoFocus
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleProtectionSave(position)}
+                              disabled={updateProtectionMutation.isPending}
+                              data-testid={`button-save-stop-price-${position.id}`}
+                            >
+                              {updateProtectionMutation.isPending ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleProtectionEdit(position, 'stopPrice')}
+                            className="text-right hover:bg-muted/50 px-2 py-1 rounded cursor-pointer w-full"
+                            data-testid={`button-edit-stop-price-${position.id}`}
+                          >
+                            {position.stopPrice 
+                              ? <span className="text-red-600 dark:text-red-400">${Number(position.stopPrice).toFixed(2)}</span>
+                              : <span className="text-muted-foreground">-</span>
+                            }
+                          </button>
+                        )}
+                      </TableCell>
+                      
+                      {/* Limit Price - inline editable */}
+                      <TableCell className="text-right" data-testid={`text-limit-price-${position.id}`}>
+                        {editingProtection?.positionId === position.id && editingProtection?.field === 'limitPrice' ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="text-muted-foreground text-xs">$</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={protectionValue}
+                              onChange={(e) => setProtectionValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleProtectionSave(position);
+                                if (e.key === 'Escape') handleProtectionCancel();
+                              }}
+                              className="w-16 h-7 text-right text-sm"
+                              data-testid={`input-limit-price-${position.id}`}
+                              autoFocus
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleProtectionSave(position)}
+                              disabled={updateProtectionMutation.isPending}
+                              data-testid={`button-save-limit-price-${position.id}`}
+                            >
+                              {updateProtectionMutation.isPending ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleProtectionEdit(position, 'limitPrice')}
+                            className="text-right hover:bg-muted/50 px-2 py-1 rounded cursor-pointer w-full"
+                            data-testid={`button-edit-limit-price-${position.id}`}
+                          >
+                            {position.limitPrice 
+                              ? <span className="text-orange-600 dark:text-orange-400">${Number(position.limitPrice).toFixed(2)}</span>
+                              : <span className="text-muted-foreground">-</span>
+                            }
+                          </button>
+                        )}
+                      </TableCell>
                       
                       {/* Actions */}
                       <TableCell className="text-right">
