@@ -1746,6 +1746,124 @@ export default function AccountDetails() {
             </div>
           )}
 
+          {/* Trades Needed Section - Shows all buy/sell actions including for missing positions */}
+          {comparisonData?.hasTargetAllocations && (() => {
+            const tradesNeeded = comparisonData.comparison.filter(c => c.actionType !== 'hold');
+            const buyTrades = tradesNeeded.filter(c => c.actionType === 'buy').sort((a, b) => b.actionDollarAmount - a.actionDollarAmount);
+            const sellTrades = tradesNeeded.filter(c => c.actionType === 'sell').sort((a, b) => a.actionDollarAmount - b.actionDollarAmount);
+            const totalBuyAmount = buyTrades.reduce((sum, t) => sum + t.actionDollarAmount, 0);
+            const totalSellAmount = sellTrades.reduce((sum, t) => sum + Math.abs(t.actionDollarAmount), 0);
+            
+            if (tradesNeeded.length === 0) return null;
+            
+            return (
+              <div className="border rounded-lg p-4 bg-card" data-testid="trades-needed-section">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    <h4 className="font-medium">Trades Needed to Reach Target</h4>
+                  </div>
+                  <div className="flex gap-3 text-sm">
+                    {buyTrades.length > 0 && (
+                      <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" data-testid="badge-total-buy">
+                        Buy: ${totalBuyAmount.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </Badge>
+                    )}
+                    {sellTrades.length > 0 && (
+                      <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" data-testid="badge-total-sell">
+                        Sell: ${totalSellAmount.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Buy Orders */}
+                  {buyTrades.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-green-700 dark:text-green-400 uppercase tracking-wide">
+                        Buy Orders ({buyTrades.length})
+                      </div>
+                      <div className="space-y-1">
+                        {buyTrades.map((trade) => (
+                          <div 
+                            key={trade.ticker} 
+                            className="flex items-center justify-between p-2 rounded bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900"
+                            data-testid={`trade-buy-${trade.ticker}`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-xs">
+                                Buy
+                              </Badge>
+                              <div>
+                                <span className="font-medium" data-testid={`text-buy-ticker-${trade.ticker}`}>{trade.ticker}</span>
+                                {trade.quantity === 0 && (
+                                  <span className="ml-1 text-xs text-muted-foreground">(new)</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right text-sm">
+                              <div className="font-medium text-green-700 dark:text-green-400" data-testid={`text-buy-shares-${trade.ticker}`}>
+                                {trade.actionShares.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} shares
+                              </div>
+                              <div className="text-xs text-muted-foreground" data-testid={`text-buy-amount-${trade.ticker}`}>
+                                ${trade.actionDollarAmount.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                {trade.currentPrice > 0 && (
+                                  <span data-testid={`text-buy-price-${trade.ticker}`}> @ ${trade.currentPrice.toFixed(2)}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Sell Orders */}
+                  {sellTrades.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-red-700 dark:text-red-400 uppercase tracking-wide">
+                        Sell Orders ({sellTrades.length})
+                      </div>
+                      <div className="space-y-1">
+                        {sellTrades.map((trade) => (
+                          <div 
+                            key={trade.ticker} 
+                            className="flex items-center justify-between p-2 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900"
+                            data-testid={`trade-sell-${trade.ticker}`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-xs">
+                                Sell
+                              </Badge>
+                              <div>
+                                <span className="font-medium" data-testid={`text-sell-ticker-${trade.ticker}`}>{trade.ticker}</span>
+                                {trade.status === 'unexpected' && (
+                                  <span className="ml-1 text-xs text-amber-600">(untracked)</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right text-sm">
+                              <div className="font-medium text-red-700 dark:text-red-400" data-testid={`text-sell-shares-${trade.ticker}`}>
+                                {trade.actionShares.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} shares
+                              </div>
+                              <div className="text-xs text-muted-foreground" data-testid={`text-sell-amount-${trade.ticker}`}>
+                                ${Math.abs(trade.actionDollarAmount).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                {trade.currentPrice > 0 && (
+                                  <span data-testid={`text-sell-price-${trade.ticker}`}> @ ${trade.currentPrice.toFixed(2)}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
           {positions.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
               No positions yet. Click "Add Position" to get started.
