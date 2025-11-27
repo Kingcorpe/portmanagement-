@@ -8,7 +8,7 @@ import { HouseholdManagementDialogs } from "@/components/household-management-di
 import { ShareHouseholdDialog } from "@/components/share-household-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, LayoutList, LayoutGrid, ChevronRight } from "lucide-react";
+import { Plus, Search, LayoutList, LayoutGrid, ChevronRight, Eye, EyeOff } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -50,6 +50,12 @@ export default function Households() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "grouped">("grouped");
+  const [privacyMode, setPrivacyMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('households-privacy-mode') === 'true';
+    }
+    return false;
+  });
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
   // Dialog state for household management
@@ -504,11 +510,21 @@ export default function Households() {
     });
   };
 
-  const filteredHouseholds = households
-    .filter(household =>
-      household.name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const togglePrivacyMode = () => {
+    const newValue = !privacyMode;
+    setPrivacyMode(newValue);
+    localStorage.setItem('households-privacy-mode', String(newValue));
+  };
+
+  // Filter households based on search and privacy mode
+  // In privacy mode, show nothing unless there's a search query
+  const filteredHouseholds = (privacyMode && searchQuery.trim() === "")
+    ? []
+    : households
+      .filter(household =>
+        household.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
 
   if (authLoading || isLoading) {
     return (
@@ -630,13 +646,38 @@ export default function Households() {
             By Category
           </Button>
         </div>
+        <Button
+          variant={privacyMode ? "default" : "outline"}
+          size="sm"
+          onClick={togglePrivacyMode}
+          className="gap-1"
+          data-testid="button-privacy-mode"
+          title={privacyMode ? "Privacy mode on - search to reveal households" : "Privacy mode off - all households visible"}
+        >
+          {privacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          Privacy
+        </Button>
       </div>
 
       {filteredHouseholds.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground" data-testid="text-no-households">
-            {searchQuery ? "No households found matching your search" : "No households yet. Click 'Add Household' to get started."}
-          </p>
+          {privacyMode && searchQuery.trim() === "" ? (
+            <div className="flex flex-col items-center gap-3">
+              <EyeOff className="h-12 w-12 text-muted-foreground/50" />
+              <div>
+                <p className="text-muted-foreground font-medium" data-testid="text-privacy-mode-active">
+                  Privacy mode is enabled
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  Search for a household name to view it
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-muted-foreground" data-testid="text-no-households">
+              {searchQuery ? "No households found matching your search" : "No households yet. Click 'Add Household' to get started."}
+            </p>
+          )}
         </div>
       ) : viewMode === "list" ? (
         <div className="grid gap-6">
