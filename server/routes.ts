@@ -4396,23 +4396,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
               doc.addPage();
             }
 
-            const statusIcon = task.status === 'completed' ? '✓' : '○';
+            const statusIcon = task.status === 'completed' ? '[X]' : '[ ]';
             const accountLabel = accountTypeLabels[task.accountTypeLabel] || task.accountTypeLabel;
             
             doc.fontSize(10).font('Helvetica-Bold')
                .text(`${statusIcon} ${task.title}`, { continued: false });
             
             doc.fontSize(9).font('Helvetica').fillColor('#666666');
-            let details = `   ${task.ownerName} • ${accountLabel}`;
+            let details = `   ${task.ownerName} | ${accountLabel}`;
             if (task.accountNickname) details += ` - ${task.accountNickname}`;
-            details += ` • Priority: ${priorityLabels[task.priority]}`;
+            details += ` | Priority: ${priorityLabels[task.priority]}`;
             if (task.dueDate) {
               const dueDate = new Date(task.dueDate);
-              details += ` • Due: ${dueDate.toLocaleDateString('en-CA')}`;
+              details += ` | Due: ${dueDate.toLocaleDateString('en-CA')}`;
             }
             if (task.status === 'completed' && task.completedAt) {
               const completedDate = new Date(task.completedAt);
-              details += ` • Completed: ${completedDate.toLocaleDateString('en-CA')}`;
+              details += ` | Completed: ${completedDate.toLocaleDateString('en-CA')}`;
             }
             doc.text(details);
             
