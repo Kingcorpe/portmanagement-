@@ -87,6 +87,10 @@ interface PortfolioComparisonItem {
   targetValue: number;
   quantity: number;
   status: 'over' | 'under' | 'on-target' | 'unexpected';
+  actionType: 'buy' | 'sell' | 'hold';
+  actionDollarAmount: number;
+  actionShares: number;
+  currentPrice: number;
 }
 
 interface PortfolioComparisonData {
