@@ -31,7 +31,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send, DollarSign, Shield } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send, DollarSign, Shield, StickyNote, Clock, Zap } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -118,6 +119,9 @@ export default function AccountDetails() {
   const [riskMediumHigh, setRiskMediumHigh] = useState("0");
   const [riskHigh, setRiskHigh] = useState("0");
   const [isEditingRisk, setIsEditingRisk] = useState(false);
+  const [immediateNotes, setImmediateNotes] = useState("");
+  const [upcomingNotes, setUpcomingNotes] = useState("");
+  const [isNotesExpanded, setIsNotesExpanded] = useState(true);
 
   const accountType = params?.accountType as "individual" | "corporate" | "joint" | undefined;
   const accountId = params?.accountId;
@@ -192,13 +196,15 @@ export default function AccountDetails() {
     enabled: isAuthenticated && !!accountEndpoint,
   });
 
-  // Sync risk allocation state with account data when it loads
+  // Sync risk allocation and notes state with account data when it loads
   useEffect(() => {
     if (accountData) {
       const allocation = getRiskAllocationFromAccount(accountData);
       setRiskMedium(allocation.medium.toString());
       setRiskMediumHigh(allocation.mediumHigh.toString());
       setRiskHigh(allocation.high.toString());
+      setImmediateNotes(accountData.immediateNotes || "");
+      setUpcomingNotes(accountData.upcomingNotes || "");
     }
   }, [accountData]);
 
@@ -573,6 +579,31 @@ export default function AccountDetails() {
       toast({
         title: "Error",
         description: error.message || "Failed to update risk tolerance",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateNotesMutation = useMutation({
+    mutationFn: async (notes: { immediateNotes?: string; upcomingNotes?: string }) => {
+      const endpoint = accountEndpoint;
+      if (!endpoint) throw new Error("Account endpoint not available");
+      return await apiRequest("PATCH", endpoint, notes);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ 
+        queryKey: [accountEndpoint],
+        refetchType: 'active',
+      });
+      toast({
+        title: "Notes Saved",
+        description: "Account notes have been saved successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save notes",
         variant: "destructive",
       });
     },
@@ -1248,6 +1279,68 @@ export default function AccountDetails() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Account Notes Section */}
+      <Collapsible open={isNotesExpanded} onOpenChange={setIsNotesExpanded}>
+        <Card>
+          <CardHeader className="pb-3">
+            <CollapsibleTrigger asChild>
+              <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity w-full" data-testid="button-toggle-notes">
+                {isNotesExpanded ? (
+                  <ChevronDown className="h-5 w-5" />
+                ) : (
+                  <ChevronRight className="h-5 w-5" />
+                )}
+                <div className="flex items-center gap-2">
+                  <StickyNote className="h-5 w-5" />
+                  <CardTitle>Account Notes</CardTitle>
+                </div>
+              </button>
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-amber-500" />
+                    <label className="text-sm font-medium">Immediate Changes</label>
+                  </div>
+                  <Textarea
+                    placeholder="Notes for immediate action items..."
+                    value={immediateNotes}
+                    onChange={(e) => setImmediateNotes(e.target.value)}
+                    className="min-h-[120px] resize-y"
+                    data-testid="textarea-immediate-notes"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-blue-500" />
+                    <label className="text-sm font-medium">Upcoming / In Progress</label>
+                  </div>
+                  <Textarea
+                    placeholder="Notes for upcoming or in-progress items..."
+                    value={upcomingNotes}
+                    onChange={(e) => setUpcomingNotes(e.target.value)}
+                    className="min-h-[120px] resize-y"
+                    data-testid="textarea-upcoming-notes"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end mt-4">
+                <Button
+                  onClick={() => updateNotesMutation.mutate({ immediateNotes, upcomingNotes })}
+                  disabled={updateNotesMutation.isPending}
+                  data-testid="button-save-notes"
+                >
+                  {updateNotesMutation.isPending ? "Saving..." : "Save Notes"}
+                </Button>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
 
       {/* Target Allocations Management Section */}
       <Collapsible open={isTargetAllocationsOpen} onOpenChange={setIsTargetAllocationsOpen}>

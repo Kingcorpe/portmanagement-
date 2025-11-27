@@ -203,6 +203,8 @@ export const individualAccounts = pgTable("individual_accounts", {
   riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
+  immediateNotes: text("immediate_notes"),
+  upcomingNotes: text("upcoming_notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -232,6 +234,8 @@ export const corporateAccounts = pgTable("corporate_accounts", {
   riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
+  immediateNotes: text("immediate_notes"),
+  upcomingNotes: text("upcoming_notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -261,6 +265,8 @@ export const jointAccounts = pgTable("joint_accounts", {
   riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
+  immediateNotes: text("immediate_notes"),
+  upcomingNotes: text("upcoming_notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
