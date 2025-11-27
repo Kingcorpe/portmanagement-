@@ -301,12 +301,12 @@ export function HouseholdManagementDialogs({
                   <SelectContent>
                     <SelectItem value="none">No account</SelectItem>
                     <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="tfsa">TFSA</SelectItem>
                     <SelectItem value="fhsa">FHSA</SelectItem>
-                    <SelectItem value="rrsp">RRSP</SelectItem>
-                    <SelectItem value="lira">LIRA</SelectItem>
                     <SelectItem value="liff">LIFF</SelectItem>
+                    <SelectItem value="lira">LIRA</SelectItem>
                     <SelectItem value="rif">RIF</SelectItem>
+                    <SelectItem value="rrsp">RRSP</SelectItem>
+                    <SelectItem value="tfsa">TFSA</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">Optionally create an account for this individual at the same time.</p>
