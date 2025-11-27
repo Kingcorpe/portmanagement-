@@ -150,6 +150,12 @@ const portfolioFormSchema = z.object({
   description: z.string().optional(),
 });
 
+const freelancePortfolioFormSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional(),
+  portfolioType: z.enum(["standard", "watchlist"]).default("standard"),
+});
+
 const allocationFormSchema = z.object({
   universalHoldingId: z.string().min(1, "Please select a holding"),
   targetPercentage: z.coerce.number().positive().max(100, "Percentage cannot exceed 100"),
@@ -157,6 +163,7 @@ const allocationFormSchema = z.object({
 
 type HoldingFormData = z.infer<typeof holdingFormSchema>;
 type PortfolioFormData = z.infer<typeof portfolioFormSchema>;
+type FreelancePortfolioFormData = z.infer<typeof freelancePortfolioFormSchema>;
 type AllocationFormData = z.infer<typeof allocationFormSchema>;
 
 interface SortablePlannedPortfolioCardProps {
@@ -453,7 +460,14 @@ function SortableFreelancePortfolioCard({
               <CollapsibleTrigger className="flex items-center gap-2 cursor-pointer hover:text-primary transition-colors" data-testid={`toggle-freelance-${portfolio.id}`}>
                 {isOpen ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
                 <div className="text-left">
-                  <CardTitle>{portfolio.name}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <CardTitle>{portfolio.name}</CardTitle>
+                    {(portfolio as any).portfolioType === "watchlist" && (
+                      <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                        Watchlist
+                      </Badge>
+                    )}
+                  </div>
                   {portfolio.description && <CardDescription>{portfolio.description}</CardDescription>}
                 </div>
               </CollapsibleTrigger>
@@ -594,9 +608,15 @@ function SortableFreelancePortfolioCard({
                     <TableRow className="border-t-2 font-semibold bg-muted/50">
                       <TableCell></TableCell>
                       <TableCell className="text-right font-mono pr-9">
-                        <span className={totalAllocation === 100 ? "text-green-600" : "text-destructive"}>
-                          Total: {totalAllocation.toFixed(2)}%
-                        </span>
+                        {(portfolio as any).portfolioType === "watchlist" ? (
+                          <span className="text-amber-600 dark:text-amber-400">
+                            Total: {totalAllocation.toFixed(2)}%
+                          </span>
+                        ) : (
+                          <span className={totalAllocation === 100 ? "text-green-600" : "text-destructive"}>
+                            Total: {totalAllocation.toFixed(2)}%
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell></TableCell>
                     </TableRow>
@@ -660,6 +680,15 @@ export default function ModelPortfolios() {
     defaultValues: {
       name: "",
       description: "",
+    },
+  });
+
+  const freelancePortfolioForm = useForm<FreelancePortfolioFormData>({
+    resolver: zodResolver(freelancePortfolioFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      portfolioType: "standard",
     },
   });
 
@@ -820,12 +849,12 @@ export default function ModelPortfolios() {
   });
 
   const createFreelancePortfolioMutation = useMutation({
-    mutationFn: (data: PortfolioFormData) => apiRequest("POST", "/api/freelance-portfolios", data),
+    mutationFn: (data: FreelancePortfolioFormData) => apiRequest("POST", "/api/freelance-portfolios", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/freelance-portfolios"] });
       toast({ title: "Success", description: "Freelance portfolio created successfully" });
       setIsFreelanceDialogOpen(false);
-      portfolioForm.reset();
+      freelancePortfolioForm.reset();
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -1015,7 +1044,7 @@ export default function ModelPortfolios() {
     createPlannedPortfolioMutation.mutate(data);
   };
 
-  const onFreelancePortfolioSubmit = (data: PortfolioFormData) => {
+  const onFreelancePortfolioSubmit = (data: FreelancePortfolioFormData) => {
     createFreelancePortfolioMutation.mutate(data);
   };
 
@@ -1828,10 +1857,10 @@ export default function ModelPortfolios() {
                     Create a custom one-off portfolio for specific client situations
                   </DialogDescription>
                 </DialogHeader>
-                <Form {...portfolioForm}>
-                  <form onSubmit={portfolioForm.handleSubmit(onFreelancePortfolioSubmit)} className="space-y-4">
+                <Form {...freelancePortfolioForm}>
+                  <form onSubmit={freelancePortfolioForm.handleSubmit(onFreelancePortfolioSubmit)} className="space-y-4">
                     <FormField
-                      control={portfolioForm.control}
+                      control={freelancePortfolioForm.control}
                       name="name"
                       render={({ field }) => (
                         <FormItem>
@@ -1844,7 +1873,7 @@ export default function ModelPortfolios() {
                       )}
                     />
                     <FormField
-                      control={portfolioForm.control}
+                      control={freelancePortfolioForm.control}
                       name="description"
                       render={({ field }) => (
                         <FormItem>
@@ -1852,6 +1881,27 @@ export default function ModelPortfolios() {
                           <FormControl>
                             <Textarea placeholder="Brief description..." {...field} data-testid="input-freelance-description" />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={freelancePortfolioForm.control}
+                      name="portfolioType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Portfolio Type</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-portfolio-type">
+                                <SelectValue placeholder="Select type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="standard">Standard Portfolio (must equal 100%)</SelectItem>
+                              <SelectItem value="watchlist">Opportunity Watchlist (can exceed 100%)</SelectItem>
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}

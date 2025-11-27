@@ -408,6 +408,7 @@ export const freelancePortfolios = pgTable("freelance_portfolios", {
   userId: varchar("user_id"), // Multi-tenant: owner of this portfolio
   name: text("name").notNull(),
   description: text("description"),
+  portfolioType: text("portfolio_type").default("standard").notNull(), // "standard" (must equal 100%) or "watchlist" (can exceed 100%)
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -731,9 +732,11 @@ export const insertFreelancePortfolioSchema = createInsertSchema(freelancePortfo
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  portfolioType: z.enum(["standard", "watchlist"]).default("standard"),
 });
 
-// Freelance Portfolio Allocation insert schema
+// Freelance Portfolio Allocation insert schema (allows up to 100% per holding, total validated at portfolio level)
 export const insertFreelancePortfolioAllocationSchema = createInsertSchema(freelancePortfolioAllocations).omit({
   id: true,
   createdAt: true,
