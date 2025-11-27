@@ -245,6 +245,46 @@ export function HouseholdCard({
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {(onAddIndividual || onAddCorporation || onAddJointAccount) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" data-testid={`button-add-menu-${household.id}`}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add New
+                      <ChevronDown className="h-3 w-3 ml-1" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {onAddIndividual && (
+                      <DropdownMenuItem 
+                        onClick={() => onAddIndividual(household.id)}
+                        data-testid={`button-add-individual-${household.id}`}
+                      >
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Individual
+                      </DropdownMenuItem>
+                    )}
+                    {onAddCorporation && (
+                      <DropdownMenuItem 
+                        onClick={() => onAddCorporation(household.id)}
+                        data-testid={`button-add-corporation-${household.id}`}
+                      >
+                        <Building2 className="h-4 w-4 mr-2" />
+                        Corporation
+                      </DropdownMenuItem>
+                    )}
+                    {onAddJointAccount && (
+                      <DropdownMenuItem 
+                        onClick={() => onAddJointAccount(household.id)}
+                        data-testid={`button-add-joint-account-${household.id}`}
+                      >
+                        <Users className="h-4 w-4 mr-2" />
+                        Joint Account
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
               {onShareHousehold && household.isOwner && (
                 <Button 
                   variant="ghost" 
@@ -304,46 +344,6 @@ export function HouseholdCard({
         </CardHeader>
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-4">
-            {(onAddIndividual || onAddCorporation || onAddJointAccount) && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" data-testid={`button-add-menu-${household.id}`}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add New
-                    <ChevronDown className="h-3 w-3 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  {onAddIndividual && (
-                    <DropdownMenuItem 
-                      onClick={() => onAddIndividual(household.id)}
-                      data-testid={`button-add-individual-${household.id}`}
-                    >
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Individual
-                    </DropdownMenuItem>
-                  )}
-                  {onAddCorporation && (
-                    <DropdownMenuItem 
-                      onClick={() => onAddCorporation(household.id)}
-                      data-testid={`button-add-corporation-${household.id}`}
-                    >
-                      <Building2 className="h-4 w-4 mr-2" />
-                      Corporation
-                    </DropdownMenuItem>
-                  )}
-                  {onAddJointAccount && (
-                    <DropdownMenuItem 
-                      onClick={() => onAddJointAccount(household.id)}
-                      data-testid={`button-add-joint-account-${household.id}`}
-                    >
-                      <Users className="h-4 w-4 mr-2" />
-                      Joint Account
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
 
             {household.individuals.map((individual) => (
               <div key={individual.id} className="border rounded-lg overflow-hidden bg-muted/30">
