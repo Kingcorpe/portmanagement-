@@ -74,3 +74,4 @@ integrations = ["javascript_database:1.0.0", "javascript_log_in_with_replit:1.0.
 [userenv.shared]
 TRADINGVIEW_REPORT_EMAIL = "ryan@crsolutions.ca"
 TRADINGVIEW_WEBHOOK_SECRET = "2e3cb66bdc008494d7d7c989072760e3"
+TZ = "America/Denver"
