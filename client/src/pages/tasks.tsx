@@ -410,67 +410,75 @@ export default function Tasks() {
                     <CardContent className="pt-0">
                       <div className="space-y-2">
                         {group.tasks.map(task => (
-                          <div 
+                          <Link 
                             key={task.id}
-                            className="flex items-start gap-3 p-3 rounded-md border bg-card hover:bg-muted/30 transition-colors"
-                            data-testid={`task-item-${task.id}`}
+                            href={`/account/${task.accountType}/${task.accountId}`}
+                            className="block"
                           >
-                            <button
-                              onClick={() => task.status !== "completed" && completeTaskMutation.mutate(task.id)}
-                              disabled={task.status === "completed" || completeTaskMutation.isPending}
-                              className="mt-0.5 hover:scale-110 transition-transform disabled:cursor-not-allowed"
-                              data-testid={`button-complete-task-${task.id}`}
+                            <div 
+                              className="flex items-start gap-3 p-3 rounded-md border bg-card hover:bg-muted/50 hover:border-primary/30 transition-colors cursor-pointer"
+                              data-testid={`task-item-${task.id}`}
                             >
-                              {getStatusIcon(task.status)}
-                            </button>
-                            
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className={task.status === "completed" ? "line-through text-muted-foreground" : ""}>
-                                  <span className="font-medium">{task.title}</span>
-                                  {task.description && (
-                                    <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
-                                      {task.description}
-                                    </p>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (task.status !== "completed") {
+                                    completeTaskMutation.mutate(task.id);
+                                  }
+                                }}
+                                disabled={task.status === "completed" || completeTaskMutation.isPending}
+                                className="mt-0.5 hover:scale-110 transition-transform disabled:cursor-not-allowed"
+                                data-testid={`button-complete-task-${task.id}`}
+                              >
+                                {getStatusIcon(task.status)}
+                              </button>
+                              
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className={task.status === "completed" ? "line-through text-muted-foreground" : ""}>
+                                    <span className="font-medium">{task.title}</span>
+                                    {task.description && (
+                                      <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
+                                        {task.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <Badge variant="outline" className={getPriorityBadge(task.priority)}>
+                                    {task.priority}
+                                  </Badge>
+                                </div>
+                                
+                                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+                                  <span className="flex items-center gap-1">
+                                    <Briefcase className="h-3 w-3" />
+                                    <span>
+                                      {task.ownerName} - {task.accountNickname || task.accountTypeLabel.toUpperCase()}
+                                    </span>
+                                    <ExternalLink className="h-3 w-3" />
+                                  </span>
+                                  
+                                  <span className="flex items-center gap-1">
+                                    <Users className="h-3 w-3" />
+                                    {task.householdName}
+                                  </span>
+                                  
+                                  {task.dueDate && (
+                                    <span className={`flex items-center gap-1 ${
+                                      task.status !== "completed" && isPast(new Date(task.dueDate)) && !isToday(new Date(task.dueDate))
+                                        ? "text-red-500 font-medium"
+                                        : isToday(new Date(task.dueDate))
+                                        ? "text-orange-500 font-medium"
+                                        : ""
+                                    }`}>
+                                      <Calendar className="h-3 w-3" />
+                                      {format(new Date(task.dueDate), "MMM d, yyyy")}
+                                    </span>
                                   )}
                                 </div>
-                                <Badge variant="outline" className={getPriorityBadge(task.priority)}>
-                                  {task.priority}
-                                </Badge>
-                              </div>
-                              
-                              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
-                                <Link 
-                                  href={`/account/${task.accountType}/${task.accountId}`}
-                                  className="flex items-center gap-1 hover:text-primary transition-colors"
-                                >
-                                  <Briefcase className="h-3 w-3" />
-                                  <span>
-                                    {task.ownerName} - {task.accountNickname || task.accountTypeLabel.toUpperCase()}
-                                  </span>
-                                  <ExternalLink className="h-3 w-3" />
-                                </Link>
-                                
-                                <span className="flex items-center gap-1">
-                                  <Users className="h-3 w-3" />
-                                  {task.householdName}
-                                </span>
-                                
-                                {task.dueDate && (
-                                  <span className={`flex items-center gap-1 ${
-                                    task.status !== "completed" && isPast(new Date(task.dueDate)) && !isToday(new Date(task.dueDate))
-                                      ? "text-red-500 font-medium"
-                                      : isToday(new Date(task.dueDate))
-                                      ? "text-orange-500 font-medium"
-                                      : ""
-                                  }`}>
-                                    <Calendar className="h-3 w-3" />
-                                    {format(new Date(task.dueDate), "MMM d, yyyy")}
-                                  </span>
-                                )}
                               </div>
                             </div>
-                          </div>
+                          </Link>
                         ))}
                       </div>
                     </CardContent>
