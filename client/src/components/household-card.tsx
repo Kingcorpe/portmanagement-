@@ -20,6 +20,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export type AccountType = "cash" | "tfsa" | "fhsa" | "rrsp" | "lira" | "liff" | "rif" | "joint_cash" | "resp" | "ipp";
 
@@ -323,41 +329,46 @@ export function HouseholdCard({
         </CardHeader>
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-4">
-            <div className="flex gap-2 flex-wrap">
-              {onAddIndividual && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => onAddIndividual(household.id)}
-                  data-testid={`button-add-individual-${household.id}`}
-                >
-                  <UserPlus className="h-3 w-3 mr-1" />
-                  Add Individual
-                </Button>
-              )}
-              {onAddCorporation && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => onAddCorporation(household.id)}
-                  data-testid={`button-add-corporation-${household.id}`}
-                >
-                  <Building2 className="h-3 w-3 mr-1" />
-                  Add Corporation
-                </Button>
-              )}
-              {onAddJointAccount && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => onAddJointAccount(household.id)}
-                  data-testid={`button-add-joint-account-${household.id}`}
-                >
-                  <Users className="h-3 w-3 mr-1" />
-                  Add Joint Account
-                </Button>
-              )}
-            </div>
+            {(onAddIndividual || onAddCorporation || onAddJointAccount) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" data-testid={`button-add-menu-${household.id}`}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add New
+                    <ChevronDown className="h-3 w-3 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {onAddIndividual && (
+                    <DropdownMenuItem 
+                      onClick={() => onAddIndividual(household.id)}
+                      data-testid={`button-add-individual-${household.id}`}
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Individual
+                    </DropdownMenuItem>
+                  )}
+                  {onAddCorporation && (
+                    <DropdownMenuItem 
+                      onClick={() => onAddCorporation(household.id)}
+                      data-testid={`button-add-corporation-${household.id}`}
+                    >
+                      <Building2 className="h-4 w-4 mr-2" />
+                      Corporation
+                    </DropdownMenuItem>
+                  )}
+                  {onAddJointAccount && (
+                    <DropdownMenuItem 
+                      onClick={() => onAddJointAccount(household.id)}
+                      data-testid={`button-add-joint-account-${household.id}`}
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Joint Account
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             {household.individuals.map((individual) => (
               <div key={individual.id} className="border rounded-lg p-3 space-y-3 bg-muted/30">
