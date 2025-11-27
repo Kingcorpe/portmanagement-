@@ -126,6 +126,24 @@ The platform integrates with Yahoo Finance to fetch real-time market prices and 
   - Display shows "(spouse)" indicator when using spouse's DOB for the calculation.
 - Both DOB fields are stored on the individual, not the account, since RIF calculations are person-specific.
 
+### Change History / Audit Trail
+Each account (individual, corporate, or joint) has a collapsible Change History section at the bottom of its detail page that tracks all modifications.
+
+**Tracked Actions:**
+- **Account Setup**: When an account is created, the initial settings (account type, nickname, risk percentages) are logged
+- **Account Updates**: Changes to account fields (nickname, risk allocations, notes, protection settings)
+- **Position Actions**: Adding, updating, or deleting positions, including bulk uploads
+- **Target Allocation Changes**: Adding, updating, or removing target allocations
+- **Task Management**: Creating, completing, or deleting tasks
+- **Price Refresh**: When market prices are manually refreshed
+- **Model Portfolio Copy**: When allocations are copied from a model portfolio
+
+**Display Features:**
+- Color-coded badges for each action type (emerald for account setup, green for additions, red for deletions)
+- Old/new value comparisons for field updates
+- Timestamps for all entries
+- Collapsible card that defaults to closed to reduce visual clutter
+
 ## External Dependencies
 - **Replit Auth**: Used for user authentication, supporting OIDC providers like Google, GitHub, X, Apple, and email/password.
 - **Neon (PostgreSQL)**: Cloud-hosted PostgreSQL database for persistent data storage.

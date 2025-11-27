@@ -3306,6 +3306,7 @@ export default function AccountDetails() {
                       create: "Created",
                       update: "Updated Account",
                       delete: "Deleted",
+                      account_setup: "Account Setup",
                       position_add: "Added Position",
                       position_update: "Updated Position",
                       position_delete: "Deleted Position",
@@ -3321,6 +3322,7 @@ export default function AccountDetails() {
                     };
                     
                     const actionColors: Record<string, string> = {
+                      account_setup: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
                       position_add: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
                       position_delete: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
                       target_add: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
@@ -3357,6 +3359,9 @@ export default function AccountDetails() {
                             riskMedium: "Medium Risk %",
                             riskMediumHigh: "Med-High Risk %",
                             riskHigh: "High Risk %",
+                            riskMediumPct: "Medium Risk %",
+                            riskMediumHighPct: "Med-High Risk %",
+                            riskHighPct: "High Risk %",
                             immediateNotes: "Immediate Changes",
                             upcomingNotes: "Upcoming Notes",
                             protectionPercent: "Protection %",

@@ -641,6 +641,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const account = await storage.createIndividualAccount(parsed);
+      
+      // Create audit log entry for account setup
+      await storage.createAuditLogEntry({
+        individualAccountId: account.id,
+        userId,
+        action: "account_setup",
+        changes: { 
+          accountType: account.type,
+          nickname: account.nickname || null,
+          riskMediumPct: account.riskMediumPct,
+          riskMediumHighPct: account.riskMediumHighPct,
+          riskHighPct: account.riskHighPct,
+        },
+      });
+      
       res.json(account);
     } catch (error: any) {
       console.error("Error creating individual account:", error);
@@ -792,6 +807,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const account = await storage.createCorporateAccount(parsed);
+      
+      // Create audit log entry for account setup
+      await storage.createAuditLogEntry({
+        corporateAccountId: account.id,
+        userId,
+        action: "account_setup",
+        changes: { 
+          accountType: account.type,
+          nickname: account.nickname || null,
+          riskMediumPct: account.riskMediumPct,
+          riskMediumHighPct: account.riskMediumHighPct,
+          riskHighPct: account.riskHighPct,
+        },
+      });
+      
       res.json(account);
     } catch (error: any) {
       console.error("Error creating corporate account:", error);
@@ -929,6 +959,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const jointAccount = await storage.createJointAccount(parsed);
+      
+      // Create audit log entry for account setup
+      await storage.createAuditLogEntry({
+        jointAccountId: jointAccount.id,
+        userId,
+        action: "account_setup",
+        changes: { 
+          accountType: jointAccount.type,
+          nickname: jointAccount.nickname || null,
+          riskMediumPct: jointAccount.riskMediumPct,
+          riskMediumHighPct: jointAccount.riskMediumHighPct,
+          riskHighPct: jointAccount.riskHighPct,
+        },
+      });
+      
       res.json(jointAccount);
     } catch (error: any) {
       console.error("Error creating joint account:", error);
