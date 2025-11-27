@@ -560,7 +560,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      res.json(account);
+      // Get household name for display
+      const household = await storage.getHousehold(individual.householdId);
+      
+      res.json({
+        ...account,
+        ownerName: individual.name,
+        householdName: household?.name || 'Unknown',
+        householdId: individual.householdId,
+      });
     } catch (error) {
       console.error("Error fetching individual account:", error);
       res.status(500).json({ message: "Failed to fetch account" });
@@ -692,7 +700,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      res.json(account);
+      // Get household name for display
+      const household = await storage.getHousehold(corporation.householdId);
+      
+      res.json({
+        ...account,
+        ownerName: corporation.name,
+        householdName: household?.name || 'Unknown',
+        householdId: corporation.householdId,
+      });
     } catch (error) {
       console.error("Error fetching corporate account:", error);
       res.status(500).json({ message: "Failed to fetch account" });
@@ -813,7 +829,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      res.json(account);
+      // Get household name and owners for display
+      const household = await storage.getHousehold(account.householdId);
+      const owners = await storage.getJointAccountOwners(account.id);
+      const ownerName = owners.map((o: any) => o.name).join(' & ');
+      
+      res.json({
+        ...account,
+        ownerName,
+        householdName: household?.name || 'Unknown',
+      });
     } catch (error) {
       console.error("Error fetching joint account:", error);
       res.status(500).json({ message: "Failed to fetch account" });

@@ -1184,7 +1184,14 @@ export default function AccountDetails() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold" data-testid="text-account-type">{getAccountTypeLabel()}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold" data-testid="text-account-type">{getAccountTypeLabel()}</h1>
+              {(accountData as any)?.householdName && (
+                <span className="text-sm text-muted-foreground" data-testid="text-household-name">
+                  ({(accountData as any).ownerName} • {(accountData as any).householdName})
+                </span>
+              )}
+            </div>
             <p className="text-muted-foreground">
               {accountType?.charAt(0).toUpperCase()}{accountType?.slice(1)} Account Positions
             </p>
