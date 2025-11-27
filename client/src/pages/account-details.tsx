@@ -757,17 +757,11 @@ export default function AccountDetails() {
       { key: "high" as RiskLevel, label: "High Risk", current: riskLevelTotals.high, allowed: riskAllocation.high },
     ];
     
-    return riskLevels.map(level => {
-      if (level.key === "high") {
-        return { ...level, status: "ok" as const };
-      }
-      
-      return {
-        ...level,
-        status: level.current > level.allowed ? "violation" as const : 
-                level.allowed > 0 && level.current > level.allowed * 0.8 ? "warning" as const : "ok" as const,
-      };
-    });
+    return riskLevels.map(level => ({
+      ...level,
+      status: level.current > level.allowed ? "violation" as const : 
+              level.allowed > 0 && level.current > level.allowed * 0.8 ? "warning" as const : "ok" as const,
+    }));
   };
 
   const handleCopyFromPortfolio = () => {
