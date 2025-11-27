@@ -2369,7 +2369,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const actual = actualByTicker.get(normalizedTicker);
         
         // If no existing position and no price in universal holdings, we need to fetch
-        if (!actual && (!holding.price || Number(holding.price) === 0)) {
+        const holdingPrice = Number(holding.price) || 0;
+        if (!actual && holdingPrice === 0) {
           tickersNeedingPrices.push(displayTicker);
         }
       }
@@ -2377,6 +2378,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fetch prices from Yahoo Finance for tickers that need them
       const fetchedPrices = new Map<string, number>();
       if (tickersNeedingPrices.length > 0) {
+        console.log("Tickers needing price fetch:", tickersNeedingPrices);
         try {
           const yahooFinance = await import('yahoo-finance2').then(m => m.default);
           
@@ -2388,11 +2390,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             for (const suffix of suffixes) {
               try {
                 const testSymbol = baseSymbol + suffix;
+                console.log(`Trying to fetch price for: ${testSymbol}`);
                 const quote = await yahooFinance.quote(testSymbol) as any;
                 if (quote?.regularMarketPrice) {
+                  console.log(`Got price for ${testSymbol}: ${quote.regularMarketPrice}`);
                   return quote.regularMarketPrice;
                 }
-              } catch (e) {
+              } catch (e: any) {
+                console.log(`Failed to fetch ${baseSymbol}${suffix}: ${e.message}`);
                 continue;
               }
             }
@@ -2407,11 +2412,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           const results = await Promise.all(pricePromises);
+          console.log("Fetched prices results:", results);
           for (const { ticker, price } of results) {
             if (price > 0) {
               fetchedPrices.set(normalizeTicker(ticker), price);
             }
           }
+          console.log("Final fetchedPrices map:", Array.from(fetchedPrices.entries()));
         } catch (error) {
           console.error("Error fetching prices from Yahoo Finance:", error);
           // Continue without fetched prices - will show 0 shares for those tickers
