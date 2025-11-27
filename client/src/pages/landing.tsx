@@ -1,9 +1,24 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, Shield, Users, BarChart3 } from "lucide-react";
-import heroImage from "@assets/dennis-mita-N7u1Prj3O-E-unsplash_1764220477796.jpg";
+import heroImage1 from "@assets/dennis-mita-N7u1Prj3O-E-unsplash_1764220477796.jpg";
+import heroImage2 from "@assets/zia-syed-gOq27RHoL3s-unsplash_1764222509399.jpg";
+import heroImage3 from "@assets/artem-r-T7OP6oIbopQ-unsplash_1764222521021.jpg";
+
+const heroImages = [heroImage1, heroImage2, heroImage3];
 
 export default function Landing() {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % heroImages.length);
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(interval);
+  }, []);
+
   const handleLogin = () => {
     window.location.href = "/api/login";
   };
@@ -24,9 +39,9 @@ export default function Landing() {
 
       <main className="flex-1">
         <section 
-          className="relative min-h-[70vh] flex items-center justify-center"
+          className="relative min-h-[70vh] flex items-center justify-center transition-all duration-1000"
           style={{
-            backgroundImage: `url(${heroImage})`,
+            backgroundImage: `url(${heroImages[currentImageIndex]})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }}
