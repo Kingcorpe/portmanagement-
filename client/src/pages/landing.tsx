@@ -37,9 +37,8 @@ export default function Landing() {
               <h2 className="text-5xl font-bold text-white">
                 Canadian Investment Portfolio Management
               </h2>
-              <p className="text-xl text-white/80">
-                Professional portfolio management for Canadian client accounts. 
-                Track TFSA, RRSP, RESP, and other registered accounts with ease.
+              <p className="text-xl text-white/80 italic">
+                Stop watching the market. Let the market come to you.
               </p>
               <div className="pt-4">
                 <Button size="lg" onClick={handleLogin} data-testid="button-get-started">
