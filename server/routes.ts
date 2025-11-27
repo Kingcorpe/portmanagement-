@@ -991,7 +991,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const positionsForSymbol = await storage.getPositionsBySymbol(symbol);
       
       // Helper to normalize tickers for matching
-      const normalizeTicker = (ticker: string): string => {
+      const normalizeTicker = (ticker: string | null | undefined): string => {
+        if (!ticker) return '';
         return ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
       };
       
