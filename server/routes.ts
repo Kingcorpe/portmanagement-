@@ -46,7 +46,38 @@ import {
   updateLibraryDocumentSchema,
   insertAccountTaskSchema,
   updateAccountTaskSchema,
+  type InsertAccountAuditLog,
 } from "@shared/schema";
+
+// Helper function to compute diff between old and new account values for audit logging
+function computeAccountDiff(oldAccount: Record<string, any>, newData: Record<string, any>): Record<string, { old: any; new: any }> | null {
+  const changes: Record<string, { old: any; new: any }> = {};
+  
+  // Fields to track for audit log (skip auto-generated fields like updatedAt)
+  const trackableFields = [
+    'nickname', 'accountType', 'balance', 'bookValue',
+    'riskMedium', 'riskMediumHigh', 'riskHigh',
+    'immediateNotes', 'upcomingNotes',
+    'protectionPercent', 'stopPrice', 'limitPrice'
+  ];
+  
+  for (const field of trackableFields) {
+    if (field in newData) {
+      const oldValue = oldAccount[field];
+      const newValue = newData[field];
+      
+      // Compare as strings to handle decimal types properly
+      const oldStr = oldValue === null || oldValue === undefined ? null : String(oldValue);
+      const newStr = newValue === null || newValue === undefined ? null : String(newValue);
+      
+      if (oldStr !== newStr) {
+        changes[field] = { old: oldValue, new: newValue };
+      }
+    }
+  }
+  
+  return Object.keys(changes).length > 0 ? changes : null;
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication middleware
@@ -625,6 +656,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const parsed = updateIndividualAccountSchema.parse(req.body);
       const updated = await storage.updateIndividualAccount(req.params.id, parsed);
+      
+      // Create audit log entry for the changes
+      const changes = computeAccountDiff(account, parsed);
+      if (changes) {
+        await storage.createAuditLogEntry({
+          individualAccountId: req.params.id,
+          userId,
+          action: "update",
+          changes,
+        });
+      }
+      
       res.json(updated);
     } catch (error: any) {
       console.error("Error updating individual account:", error);
@@ -763,6 +806,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const parsed = updateCorporateAccountSchema.parse(req.body);
       const updated = await storage.updateCorporateAccount(req.params.id, parsed);
+      
+      // Create audit log entry for the changes
+      const changes = computeAccountDiff(account, parsed);
+      if (changes) {
+        await storage.createAuditLogEntry({
+          corporateAccountId: req.params.id,
+          userId,
+          action: "update",
+          changes,
+        });
+      }
+      
       res.json(updated);
     } catch (error: any) {
       console.error("Error updating corporate account:", error);
@@ -883,6 +938,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const parsed = updateJointAccountSchema.parse(req.body);
       const updated = await storage.updateJointAccount(req.params.id, parsed);
+      
+      // Create audit log entry for the changes
+      const changes = computeAccountDiff(account, parsed);
+      if (changes) {
+        await storage.createAuditLogEntry({
+          jointAccountId: req.params.id,
+          userId,
+          action: "update",
+          changes,
+        });
+      }
+      
       res.json(updated);
     } catch (error: any) {
       console.error("Error updating joint account:", error);
