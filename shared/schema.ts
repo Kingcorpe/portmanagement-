@@ -851,6 +851,71 @@ export type HouseholdWithDetails = Household & {
   jointAccounts: JointAccountWithOwners[];
 };
 
+// Account task status enum
+export const taskStatusEnum = pgEnum("task_status", [
+  "pending",
+  "in_progress",
+  "completed",
+]);
+
+// Account task priority enum
+export const taskPriorityEnum = pgEnum("task_priority", [
+  "low",
+  "medium",
+  "high",
+  "urgent",
+]);
+
+// Account tasks table
+export const accountTasks = pgTable("account_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // One of these will be set depending on account type
+  individualAccountId: varchar("individual_account_id").references(() => individualAccounts.id, { onDelete: 'cascade' }),
+  corporateAccountId: varchar("corporate_account_id").references(() => corporateAccounts.id, { onDelete: 'cascade' }),
+  jointAccountId: varchar("joint_account_id").references(() => jointAccounts.id, { onDelete: 'cascade' }),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: taskStatusEnum("status").notNull().default("pending"),
+  priority: taskPriorityEnum("priority").notNull().default("medium"),
+  dueDate: timestamp("due_date"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const accountTasksRelations = relations(accountTasks, ({ one }) => ({
+  individualAccount: one(individualAccounts, {
+    fields: [accountTasks.individualAccountId],
+    references: [individualAccounts.id],
+  }),
+  corporateAccount: one(corporateAccounts, {
+    fields: [accountTasks.corporateAccountId],
+    references: [corporateAccounts.id],
+  }),
+  jointAccount: one(jointAccounts, {
+    fields: [accountTasks.jointAccountId],
+    references: [jointAccounts.id],
+  }),
+}));
+
+// Account task insert schema
+export const insertAccountTaskSchema = createInsertSchema(accountTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+}).extend({
+  title: z.string().min(1, "Title is required").max(200),
+  description: z.string().max(1000).optional().nullable(),
+  dueDate: z.coerce.date().optional().nullable(),
+});
+
+export const updateAccountTaskSchema = insertAccountTaskSchema.partial();
+
+// Account task types
+export type InsertAccountTask = z.infer<typeof insertAccountTaskSchema>;
+export type AccountTask = typeof accountTasks.$inferSelect;
+
 // Library document category enum
 export const libraryDocumentCategoryEnum = pgEnum("library_document_category", [
   "reports",
