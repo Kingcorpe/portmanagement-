@@ -32,7 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send, DollarSign, Shield, StickyNote, Clock, Zap } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
+import { RichNotesEditor } from "@/components/rich-notes-editor";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -1306,26 +1306,28 @@ export default function AccountDetails() {
                     <Zap className="h-4 w-4 text-amber-500" />
                     <label className="text-sm font-medium">Immediate Changes</label>
                   </div>
-                  <Textarea
-                    placeholder="Notes for immediate action items..."
-                    value={immediateNotes}
-                    onChange={(e) => setImmediateNotes(e.target.value)}
-                    className="min-h-[120px] resize-y"
-                    data-testid="textarea-immediate-notes"
-                  />
+                  <div className="border rounded-md p-3 bg-background">
+                    <RichNotesEditor
+                      value={immediateNotes}
+                      onChange={setImmediateNotes}
+                      placeholder="Click to add notes for immediate action items..."
+                      data-testid="notes-immediate"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-blue-500" />
                     <label className="text-sm font-medium">Upcoming / In Progress</label>
                   </div>
-                  <Textarea
-                    placeholder="Notes for upcoming or in-progress items..."
-                    value={upcomingNotes}
-                    onChange={(e) => setUpcomingNotes(e.target.value)}
-                    className="min-h-[120px] resize-y"
-                    data-testid="textarea-upcoming-notes"
-                  />
+                  <div className="border rounded-md p-3 bg-background">
+                    <RichNotesEditor
+                      value={upcomingNotes}
+                      onChange={setUpcomingNotes}
+                      placeholder="Click to add notes for upcoming or in-progress items..."
+                      data-testid="notes-upcoming"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end mt-4">
