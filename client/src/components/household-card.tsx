@@ -123,7 +123,7 @@ const accountTypeLabels: Record<string, string> = {
   "fhsa": "FHSA",
   "rrsp": "RRSP",
   "lira": "LIRA",
-  "liff": "LIFF",
+  "liff": "LIF",
   "rif": "RIF",
   "joint_cash": "Joint Cash",
   "resp": "RESP",

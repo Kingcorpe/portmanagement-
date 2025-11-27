@@ -56,7 +56,7 @@ export default function Landing() {
                 <Shield className="h-12 w-12 text-primary mb-4" />
                 <CardTitle>Canadian Accounts</CardTitle>
                 <CardDescription>
-                  Full support for TFSA, FHSA, RRSP, LIRA, LIFF, RIF, IPP, RESP, and cash accounts
+                  Full support for TFSA, FHSA, RRSP, LIRA, LIF, RIF, IPP, RESP, and cash accounts
                 </CardDescription>
               </CardHeader>
             </Card>

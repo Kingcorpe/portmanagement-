@@ -1333,7 +1333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 // Account type labels
                 const accountTypeLabels: Record<string, string> = {
                   cash: 'Cash', tfsa: 'TFSA', fhsa: 'FHSA', rrsp: 'RRSP',
-                  lira: 'LIRA', liff: 'LIFF', rif: 'RIF',
+                  lira: 'LIRA', liff: 'LIF', rif: 'RIF',
                   corporate_cash: 'Corporate Cash', ipp: 'IPP',
                   joint_cash: 'Joint Cash', resp: 'RESP'
                 };
@@ -3389,7 +3389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fhsa: 'FHSA',
         rrsp: 'RRSP',
         lira: 'LIRA',
-        liff: 'LIFF',
+        liff: 'LIF',
         rif: 'RIF',
         corporate_cash: 'Corporate Cash',
         ipp: 'IPP',

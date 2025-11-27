@@ -28,7 +28,7 @@ The platform features a household-based client management interface with collaps
 The system uses a household-based hierarchy to organize client data, distinguishing between individuals, corporations, and joint accounts. A unified `positions` table manages all holdings across different account types, linked via nullable foreign keys. Joint account ownership is handled through a many-to-many relationship.
 
 **Canadian Account Types Supported:**
-- **Individual Accounts**: Cash, TFSA, FHSA, RRSP, LIRA, LIFF, RIF
+- **Individual Accounts**: Cash, TFSA, FHSA, RRSP, LIRA, LIF, RIF
 - **Corporate Accounts**: Cash, IPP (Individual Pension Plan)
 - **Joint Accounts**: Joint Cash, RESP
 

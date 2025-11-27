@@ -291,7 +291,7 @@ export function HouseholdManagementDialogs({
                   <SelectContent>
                     <SelectItem value="cash">Cash</SelectItem>
                     <SelectItem value="fhsa">FHSA</SelectItem>
-                    <SelectItem value="liff">LIFF</SelectItem>
+                    <SelectItem value="liff">LIF</SelectItem>
                     <SelectItem value="lira">LIRA</SelectItem>
                     <SelectItem value="rif">RIF</SelectItem>
                     <SelectItem value="rrsp">RRSP</SelectItem>
@@ -407,7 +407,7 @@ export function HouseholdManagementDialogs({
                         <SelectItem value="fhsa">FHSA</SelectItem>
                         <SelectItem value="rrsp">RRSP</SelectItem>
                         <SelectItem value="lira">LIRA</SelectItem>
-                        <SelectItem value="liff">LIFF</SelectItem>
+                        <SelectItem value="liff">LIF</SelectItem>
                         <SelectItem value="rif">RIF</SelectItem>
                       </SelectContent>
                     </Select>

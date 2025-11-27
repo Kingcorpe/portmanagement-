@@ -1074,7 +1074,7 @@ export default function AccountDetails() {
       fhsa: "FHSA",
       rrsp: "RRSP",
       lira: "LIRA",
-      liff: "LIFF",
+      liff: "LIF",
       rif: "RIF",
       // Corporate account types
       ipp: "IPP (Individual Pension Plan)",
