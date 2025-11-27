@@ -575,7 +575,17 @@ export default function Households() {
                     <FormItem>
                       <FormLabel>Household Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Smith Family" data-testid="input-household-name" {...field} />
+                        <Input 
+                          placeholder="Smith Family" 
+                          data-testid="input-household-name" 
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              setIsDialogOpen(false);
+                            }
+                          }}
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -551,6 +551,7 @@ export const insertIndividualSchema = createInsertSchema(individuals).pick({
   householdId: true,
   name: true,
   dateOfBirth: true,
+  spouseDateOfBirth: true,
 });
 
 export const insertCorporationSchema = createInsertSchema(corporations).pick({
