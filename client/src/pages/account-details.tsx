@@ -926,10 +926,8 @@ export default function AccountDetails() {
   });
 
   const handleInlineTargetEdit = (position: Position) => {
-    const normalizedSymbol = normalizeTicker(position.symbol);
-    const comparison = comparisonData?.comparison.find(c => normalizeTicker(c.ticker) === normalizedSymbol);
     setEditingInlineTarget(position.id);
-    setInlineTargetValue(comparison?.targetPercentage?.toString() || "");
+    setInlineTargetValue("");  // Start with empty field for faster entry
   };
 
   const handleInlineTargetSave = (position: Position) => {
