@@ -371,36 +371,41 @@ export function HouseholdCard({
             )}
 
             {household.individuals.map((individual) => (
-              <div key={individual.id} className="border rounded-lg p-3 space-y-3 bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-1.5 rounded-md bg-primary/10">
-                      <User className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium" data-testid={`text-individual-name-${individual.id}`}>
-                          {individual.name}
-                        </span>
-                        <span className="text-xs text-muted-foreground">Individual</span>
-                      </div>
-                      {individual.dateOfBirth && (
-                        <div className="text-xs text-muted-foreground" data-testid={`text-rif-conversion-${individual.id}`}>
-                          RIF Conversion: {formatRifConversionDate(individual.dateOfBirth)}
-                        </div>
-                      )}
-                    </div>
+              <div key={individual.id} className="border rounded-lg overflow-hidden bg-muted/30">
+                <div className="flex items-center justify-between px-3 py-2 bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    <span className="font-medium text-sm" data-testid={`text-individual-name-${individual.id}`}>
+                      {individual.name}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">Individual</Badge>
+                    {individual.dateOfBirth && (
+                      <span className="text-[10px] text-muted-foreground" data-testid={`text-rif-conversion-${individual.id}`}>
+                        RIF: {formatRifConversionDate(individual.dateOfBirth)}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5">
+                    {onAddAccount && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => onAddAccount(individual.id, "individual")}
+                        data-testid={`button-add-account-individual-${individual.id}`}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                     {onEditIndividual && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className="h-6 w-6"
                         onClick={() => onEditIndividual(individual.id, individual.name)}
                         data-testid={`button-edit-individual-${individual.id}`}
                       >
-                        <Edit className="h-3.5 w-3.5" />
+                        <Edit className="h-3 w-3" />
                       </Button>
                     )}
                     {onDeleteIndividual && (
@@ -409,10 +414,10 @@ export function HouseholdCard({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
                             data-testid={`button-delete-individual-${individual.id}`}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -438,20 +443,20 @@ export function HouseholdCard({
                   </div>
                 </div>
                 
-                <div className="space-y-4">
+                <div className="px-3 py-2">
                   {groupAccountsByCategory(individual.accounts, "individual").map((group) => (
-                    <div key={group.category} className="space-y-2">
-                      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b pb-1">
+                    <div key={group.category} className="mb-2 last:mb-0">
+                      <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">
                         {group.category}
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-0.5">
                         {group.accounts.map((account) => (
-                          <div key={account.id} className="flex items-center justify-between text-sm group" data-testid={`row-account-${account.id}`}>
-                            <Link href={`/account/individual/${account.id}`} className="flex items-center justify-between flex-1 py-1.5 px-2 rounded-md hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
-                              <Badge variant="secondary" className="text-xs font-mono">
+                          <div key={account.id} className="flex items-center text-sm group" data-testid={`row-account-${account.id}`}>
+                            <Link href={`/account/individual/${account.id}`} className="flex items-center justify-between flex-1 py-1 px-2 -mx-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
+                              <span className="text-xs font-medium">
                                 {formatAccountDisplayName(account.type, account.nickname)}
-                              </Badge>
-                              <span className="font-mono tabular-nums text-muted-foreground">
+                              </span>
+                              <span className="font-mono text-xs tabular-nums">
                                 CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             </Link>
@@ -461,10 +466,10 @@ export function HouseholdCard({
                                   <Button 
                                     variant="ghost" 
                                     size="icon" 
-                                    className="h-7 w-7 text-muted-foreground hover:text-destructive ml-1"
+                                    className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                                     data-testid={`button-delete-account-${account.id}`}
                                   >
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <Trash2 className="h-3 w-3" />
                                   </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
@@ -492,46 +497,41 @@ export function HouseholdCard({
                       </div>
                     </div>
                   ))}
-                  {onAddAccount && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full text-muted-foreground"
-                      onClick={() => onAddAccount(individual.id, "individual")}
-                      data-testid={`button-add-account-individual-${individual.id}`}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Account
-                    </Button>
-                  )}
                 </div>
               </div>
             ))}
 
             {household.corporations.map((corporation) => (
-              <div key={corporation.id} className="border rounded-lg p-3 space-y-3 bg-muted/30">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-1.5 rounded-md bg-amber-500/10">
-                      <Building2 className="h-4 w-4 text-amber-600" />
-                    </div>
-                    <div>
-                      <span className="font-medium" data-testid={`text-corporation-name-${corporation.id}`}>
-                        {corporation.name}
-                      </span>
-                      <span className="text-xs text-muted-foreground ml-2">Corporate</span>
-                    </div>
+              <div key={corporation.id} className="border rounded-lg overflow-hidden bg-muted/30">
+                <div className="flex items-center justify-between px-3 py-2 bg-amber-500/5">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-amber-600" />
+                    <span className="font-medium text-sm" data-testid={`text-corporation-name-${corporation.id}`}>
+                      {corporation.name}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500/30 text-amber-700 dark:text-amber-400">Corporate</Badge>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5">
+                    {onAddAccount && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => onAddAccount(corporation.id, "corporate")}
+                        data-testid={`button-add-account-corporate-${corporation.id}`}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                     {onEditCorporation && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7"
+                        className="h-6 w-6"
                         onClick={() => onEditCorporation(corporation.id, corporation.name)}
                         data-testid={`button-edit-corporation-${corporation.id}`}
                       >
-                        <Edit className="h-3.5 w-3.5" />
+                        <Edit className="h-3 w-3" />
                       </Button>
                     )}
                     {onDeleteCorporation && (
@@ -540,10 +540,10 @@ export function HouseholdCard({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
                             data-testid={`button-delete-corporation-${corporation.id}`}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -569,20 +569,20 @@ export function HouseholdCard({
                   </div>
                 </div>
                 
-                <div className="space-y-4">
+                <div className="px-3 py-2">
                   {groupAccountsByCategory(corporation.accounts, "corporate").map((group) => (
-                    <div key={group.category} className="space-y-2">
-                      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider border-b pb-1">
+                    <div key={group.category} className="mb-2 last:mb-0">
+                      <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">
                         {group.category}
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-0.5">
                         {group.accounts.map((account) => (
-                          <div key={account.id} className="flex items-center justify-between text-sm group" data-testid={`row-account-${account.id}`}>
-                            <Link href={`/account/corporate/${account.id}`} className="flex items-center justify-between flex-1 py-1.5 px-2 rounded-md hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
-                              <Badge variant="secondary" className="text-xs font-mono">
+                          <div key={account.id} className="flex items-center text-sm group" data-testid={`row-account-${account.id}`}>
+                            <Link href={`/account/corporate/${account.id}`} className="flex items-center justify-between flex-1 py-1 px-2 -mx-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
+                              <span className="text-xs font-medium">
                                 {formatAccountDisplayName(account.type, account.nickname)}
-                              </Badge>
-                              <span className="font-mono tabular-nums text-muted-foreground">
+                              </span>
+                              <span className="font-mono text-xs tabular-nums">
                                 CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </span>
                             </Link>
@@ -592,10 +592,10 @@ export function HouseholdCard({
                                   <Button 
                                     variant="ghost" 
                                     size="icon" 
-                                    className="h-7 w-7 text-muted-foreground hover:text-destructive ml-1"
+                                    className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                                     data-testid={`button-delete-account-${account.id}`}
                                   >
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <Trash2 className="h-3 w-3" />
                                   </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
@@ -623,56 +623,40 @@ export function HouseholdCard({
                       </div>
                     </div>
                   ))}
-                  {onAddAccount && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full text-muted-foreground"
-                      onClick={() => onAddAccount(corporation.id, "corporate")}
-                      data-testid={`button-add-account-corporate-${corporation.id}`}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Account
-                    </Button>
-                  )}
                 </div>
               </div>
             ))}
 
             {household.jointAccounts.length > 0 && (
-              <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <div className="p-1.5 rounded-md bg-green-500/10">
-                    <Users className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div>
-                    <span className="font-medium">Joint Accounts</span>
-                    <span className="text-xs text-muted-foreground ml-2">Shared</span>
-                  </div>
+              <div className="border rounded-lg overflow-hidden bg-muted/30">
+                <div className="flex items-center gap-2 px-3 py-2 bg-green-500/5">
+                  <Users className="h-4 w-4 text-green-600" />
+                  <span className="font-medium text-sm">Joint Accounts</span>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-500/30 text-green-700 dark:text-green-400">Shared</Badge>
                 </div>
                 
-                <div className="space-y-1">
+                <div className="px-3 py-2 space-y-0.5">
                   {household.jointAccounts.map((account) => {
                     return (
-                      <div key={account.id} className="flex items-center justify-between text-sm group" data-testid={`row-joint-account-${account.id}`}>
-                        <Link href={`/account/joint/${account.id}`} className="flex items-center justify-between flex-1 py-1.5 px-2 rounded-md hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
-                          <Badge variant="secondary" className="text-xs font-mono">
+                      <div key={account.id} className="flex items-center text-sm group" data-testid={`row-joint-account-${account.id}`}>
+                        <Link href={`/account/joint/${account.id}`} className="flex items-center justify-between flex-1 py-1 px-2 -mx-2 rounded hover-elevate cursor-pointer" data-testid={`link-account-${account.id}`}>
+                          <span className="text-xs font-medium">
                             {formatAccountDisplayName(account.type, account.nickname)}
-                          </Badge>
-                          <span className="font-mono tabular-nums text-muted-foreground">
+                          </span>
+                          <span className="font-mono text-xs tabular-nums">
                             CA${account.balance.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </span>
                         </Link>
-                        <div className="flex items-center gap-1 ml-1">
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           {onEditJointAccount && (
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-7 w-7 text-muted-foreground"
+                              className="h-6 w-6"
                               onClick={() => onEditJointAccount(account.id, account.nickname || null)}
                               data-testid={`button-edit-joint-account-${account.id}`}
                             >
-                              <Edit className="h-3.5 w-3.5" />
+                              <Edit className="h-3 w-3" />
                             </Button>
                           )}
                           {onDeleteAccount && (
@@ -681,10 +665,10 @@ export function HouseholdCard({
                                 <Button 
                                   variant="ghost" 
                                   size="icon" 
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
                                   data-testid={`button-delete-account-${account.id}`}
                                 >
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <Trash2 className="h-3 w-3" />
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
