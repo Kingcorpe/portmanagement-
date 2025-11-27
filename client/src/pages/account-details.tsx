@@ -3022,7 +3022,9 @@ export default function AccountDetails() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {targetAllocations.map((allocation) => (
+                    {[...targetAllocations]
+                      .sort((a, b) => (a.holding?.ticker || "").localeCompare(b.holding?.ticker || ""))
+                      .map((allocation) => (
                       <TableRow key={allocation.id} data-testid={`row-allocation-${allocation.id}`}>
                         <TableCell className="font-medium" data-testid={`text-alloc-ticker-${allocation.id}`}>
                           {allocation.holding?.ticker}
