@@ -1556,13 +1556,21 @@ export default function AccountDetails() {
                     <TableRow key={position.id} data-testid={`row-position-${position.id}`}>
                       {/* Symbol - color reflects action needed (green=buy, red=sell) */}
                       <TableCell data-testid={`text-symbol-${position.id}`}>
-                        <div className={`font-medium ${
-                          comparison?.status === 'under' ? 'text-green-600 dark:text-green-400' :
-                          comparison?.status === 'over' ? 'text-red-600 dark:text-red-400' :
-                          comparison?.status === 'on-target' ? 'text-blue-600 dark:text-blue-400' :
-                          comparison?.status === 'unexpected' ? 'text-amber-600 dark:text-amber-400' :
-                          ''
-                        }`}>{position.symbol}</div>
+                        <div className="flex items-center gap-2">
+                          <div className={`font-medium ${
+                            comparison?.status === 'under' ? 'text-green-600 dark:text-green-400' :
+                            comparison?.status === 'over' ? 'text-red-600 dark:text-red-400' :
+                            comparison?.status === 'on-target' ? 'text-blue-600 dark:text-blue-400' :
+                            comparison?.status === 'unexpected' ? 'text-amber-600 dark:text-amber-400' :
+                            ''
+                          }`}>{position.symbol}</div>
+                          {position.protectionPercent && Number(position.protectionPercent) > 0 && (
+                            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-xs px-1.5 py-0">
+                              <Shield className="h-3 w-3 mr-0.5" />
+                              Protecting
+                            </Badge>
+                          )}
+                        </div>
                         {comparison && (
                           <div className="text-xs text-muted-foreground truncate max-w-[120px]">{comparison.name}</div>
                         )}
