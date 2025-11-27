@@ -44,6 +44,8 @@ import {
   tradingViewWebhookSchema,
   insertLibraryDocumentSchema,
   updateLibraryDocumentSchema,
+  insertAccountTaskSchema,
+  updateAccountTaskSchema,
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -3277,6 +3279,220 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting library document:", error);
       res.status(500).json({ message: "Failed to delete library document" });
+    }
+  });
+
+  // Account Task routes - get tasks for individual accounts
+  app.get('/api/individual-accounts/:accountId/tasks', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const householdId = await storage.getHouseholdIdFromAccount('individual', req.params.accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const tasks = await storage.getTasksByIndividualAccount(req.params.accountId);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+      res.status(500).json({ message: "Failed to fetch tasks" });
+    }
+  });
+
+  // Get tasks for corporate accounts
+  app.get('/api/corporate-accounts/:accountId/tasks', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const householdId = await storage.getHouseholdIdFromAccount('corporate', req.params.accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const tasks = await storage.getTasksByCorporateAccount(req.params.accountId);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+      res.status(500).json({ message: "Failed to fetch tasks" });
+    }
+  });
+
+  // Get tasks for joint accounts
+  app.get('/api/joint-accounts/:accountId/tasks', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const householdId = await storage.getHouseholdIdFromAccount('joint', req.params.accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const tasks = await storage.getTasksByJointAccount(req.params.accountId);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+      res.status(500).json({ message: "Failed to fetch tasks" });
+    }
+  });
+
+  // Create task
+  app.post('/api/account-tasks', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const parsed = insertAccountTaskSchema.parse(req.body);
+      
+      // Determine account type and get household ID
+      let householdId: string | null = null;
+      if (parsed.individualAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('individual', parsed.individualAccountId);
+      } else if (parsed.corporateAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('corporate', parsed.corporateAccountId);
+      } else if (parsed.jointAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('joint', parsed.jointAccountId);
+      }
+      
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const task = await storage.createAccountTask(parsed);
+      res.json(task);
+    } catch (error: any) {
+      console.error("Error creating task:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create task" });
+    }
+  });
+
+  // Update task
+  app.patch('/api/account-tasks/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const existing = await storage.getAccountTask(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      // Determine account type and get household ID
+      let householdId: string | null = null;
+      if (existing.individualAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('individual', existing.individualAccountId);
+      } else if (existing.corporateAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('corporate', existing.corporateAccountId);
+      } else if (existing.jointAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('joint', existing.jointAccountId);
+      }
+      
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const parsed = updateAccountTaskSchema.parse(req.body);
+      const task = await storage.updateAccountTask(req.params.id, parsed);
+      res.json(task);
+    } catch (error: any) {
+      console.error("Error updating task:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update task" });
+    }
+  });
+
+  // Complete task
+  app.post('/api/account-tasks/:id/complete', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const existing = await storage.getAccountTask(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      // Determine account type and get household ID
+      let householdId: string | null = null;
+      if (existing.individualAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('individual', existing.individualAccountId);
+      } else if (existing.corporateAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('corporate', existing.corporateAccountId);
+      } else if (existing.jointAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('joint', existing.jointAccountId);
+      }
+      
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const task = await storage.completeAccountTask(req.params.id);
+      res.json(task);
+    } catch (error) {
+      console.error("Error completing task:", error);
+      res.status(500).json({ message: "Failed to complete task" });
+    }
+  });
+
+  // Delete task
+  app.delete('/api/account-tasks/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const existing = await storage.getAccountTask(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      // Determine account type and get household ID
+      let householdId: string | null = null;
+      if (existing.individualAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('individual', existing.individualAccountId);
+      } else if (existing.corporateAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('corporate', existing.corporateAccountId);
+      } else if (existing.jointAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('joint', existing.jointAccountId);
+      }
+      
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteAccountTask(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      res.status(500).json({ message: "Failed to delete task" });
     }
   });
 
