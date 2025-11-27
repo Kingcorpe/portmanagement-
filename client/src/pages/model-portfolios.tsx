@@ -621,7 +621,7 @@ export default function ModelPortfolios() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("holdings");
+  const [activeTab, setActiveTab] = useState("planned");
   const [isHoldingDialogOpen, setIsHoldingDialogOpen] = useState(false);
   const [saveAndAddAnother, setSaveAndAddAnother] = useState(false);
   const [isPlannedDialogOpen, setIsPlannedDialogOpen] = useState(false);
@@ -1493,9 +1493,9 @@ export default function ModelPortfolios() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <TabsList>
-            <TabsTrigger value="holdings" data-testid="tab-holdings">Universal Holdings</TabsTrigger>
             <TabsTrigger value="planned" data-testid="tab-planned">Planned Portfolios</TabsTrigger>
             <TabsTrigger value="freelance" data-testid="tab-freelance">Freelance Portfolios</TabsTrigger>
+            <TabsTrigger value="holdings" data-testid="tab-holdings">Universal Holdings</TabsTrigger>
           </TabsList>
           <div className="flex items-center gap-3">
             <div className="relative">
