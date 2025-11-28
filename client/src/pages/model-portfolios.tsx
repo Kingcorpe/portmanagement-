@@ -71,7 +71,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X, RefreshCw, ChevronDown, ChevronRight, GripVertical, Pencil } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X, RefreshCw, ChevronDown, ChevronRight, GripVertical, Pencil, Check, ChevronsUpDown } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -664,6 +666,7 @@ export default function ModelPortfolios() {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(["basket_etf", "single_etf", "double_long_etf", "security", "auto_added", "misc"])
   );
+  const [holdingComboboxOpen, setHoldingComboboxOpen] = useState(false);
 
   const holdingForm = useForm<HoldingFormData>({
     resolver: zodResolver(holdingFormSchema),
@@ -2081,37 +2084,69 @@ export default function ModelPortfolios() {
               <FormField
                 control={allocationForm.control}
                 name="universalHoldingId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Holding</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={!!editingAllocation}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-holding">
-                          <SelectValue placeholder="Select a holding" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="max-h-80">
-                        {holdingCategoryOrder.map((category) => {
-                          const categoryHoldings = holdings.filter(h => h.category === category);
-                          if (categoryHoldings.length === 0) return null;
-                          return (
-                            <SelectGroup key={category}>
-                              <SelectLabel className="font-semibold text-xs uppercase tracking-wide text-muted-foreground px-2 py-1.5">
-                                {holdingCategoryLabels[category]}
-                              </SelectLabel>
-                              {categoryHoldings.map((holding) => (
-                                <SelectItem key={holding.id} value={holding.id}>
-                                  <span className="font-mono">{holding.ticker}</span> - {holding.name}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const selectedHolding = holdings.find(h => h.id === field.value);
+                  return (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Holding</FormLabel>
+                      <Popover open={holdingComboboxOpen} onOpenChange={setHoldingComboboxOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={holdingComboboxOpen}
+                              className={`w-full justify-between ${!field.value && "text-muted-foreground"}`}
+                              disabled={!!editingAllocation}
+                              data-testid="select-holding"
+                            >
+                              {selectedHolding ? (
+                                <span><span className="font-mono">{selectedHolding.ticker}</span> - {selectedHolding.name}</span>
+                              ) : (
+                                "Search for a holding..."
+                              )}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[400px] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Type ticker or name..." autoFocus data-testid="input-holding-search" />
+                            <CommandList>
+                              <CommandEmpty>No holding found.</CommandEmpty>
+                              {holdingCategoryOrder.map((category) => {
+                                const categoryHoldings = holdings.filter(h => h.category === category);
+                                if (categoryHoldings.length === 0) return null;
+                                return (
+                                  <CommandGroup key={category} heading={holdingCategoryLabels[category]}>
+                                    {categoryHoldings.map((holding) => (
+                                      <CommandItem
+                                        key={holding.id}
+                                        value={`${holding.ticker} ${holding.name}`}
+                                        onSelect={() => {
+                                          field.onChange(holding.id);
+                                          setHoldingComboboxOpen(false);
+                                        }}
+                                        data-testid={`option-holding-${holding.id}`}
+                                      >
+                                        <Check
+                                          className={`mr-2 h-4 w-4 ${field.value === holding.id ? "opacity-100" : "opacity-0"}`}
+                                        />
+                                        <span className="font-mono font-semibold">{holding.ticker}</span>
+                                        <span className="ml-2 text-muted-foreground">{holding.name}</span>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                );
+                              })}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
               <FormField
                 control={allocationForm.control}
