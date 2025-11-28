@@ -60,7 +60,7 @@ export default function Tasks() {
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "completed">("pending");
   const [groupBy, setGroupBy] = useState<"due" | "household" | "priority">("due");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["overdue", "today", "upcoming", "no-date"]));
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>("anchor");
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
