@@ -362,6 +362,7 @@ export const universalHoldings = pgTable("universal_holdings", {
   dividendUpdatedAt: timestamp("dividend_updated_at"), // When dividend data was last fetched
   price: decimal("price", { precision: 15, scale: 2 }).default('0'), // Current price (auto-updated from Yahoo Finance)
   priceUpdatedAt: timestamp("price_updated_at"), // When price was last fetched
+  fundFactsUrl: text("fund_facts_url"), // Link to fund facts document (primarily for CC Basket ETFs)
   description: text("description"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

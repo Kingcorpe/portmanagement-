@@ -73,7 +73,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X, RefreshCw, ChevronDown, ChevronRight, GripVertical, Pencil, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X, RefreshCw, ChevronDown, ChevronRight, GripVertical, Pencil, Check, ChevronsUpDown, ExternalLink, FileText } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -144,6 +144,7 @@ const holdingFormSchema = z.object({
   riskLevel: z.enum(["low", "low_medium", "medium", "medium_high", "high"]),
   dividendRate: z.coerce.number().nonnegative().default(0),
   dividendPayout: z.enum(["monthly", "quarterly", "semi_annual", "annual", "none"]),
+  fundFactsUrl: z.string().url().optional().or(z.literal("")),
   description: z.string().optional(),
 });
 
@@ -677,6 +678,7 @@ export default function ModelPortfolios() {
       riskLevel: "medium",
       dividendRate: 0,
       dividendPayout: "monthly",
+      fundFactsUrl: "",
       description: "",
     },
   });
@@ -1116,6 +1118,7 @@ export default function ModelPortfolios() {
       riskLevel: holding.riskLevel,
       dividendRate: Number(holding.dividendRate) || 0,
       dividendPayout: holding.dividendPayout,
+      fundFactsUrl: holding.fundFactsUrl || "",
       description: holding.description || "",
     });
     setIsHoldingDialogOpen(true);
@@ -1525,6 +1528,19 @@ export default function ModelPortfolios() {
                   */}
                   <FormField
                     control={holdingForm.control}
+                    name="fundFactsUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fund Facts URL (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://..." {...field} data-testid="input-fund-facts-url" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={holdingForm.control}
                     name="description"
                     render={({ field }) => (
                       <FormItem>
@@ -1660,6 +1676,7 @@ export default function ModelPortfolios() {
                                 <TableHead>Payout</TableHead>
                                 <TableHead>Ex-Date</TableHead>
                                 <SortableHeader column="riskLevel">Risk</SortableHeader>
+                                {category === "basket_etf" && <TableHead>Fund Facts</TableHead>}
                                 <TableHead className="w-[100px]"></TableHead>
                               </TableRow>
                             </TableHeader>
@@ -1707,6 +1724,24 @@ export default function ModelPortfolios() {
                                       {riskLevelLabels[holding.riskLevel]}
                                     </Badge>
                                   </TableCell>
+                                  {category === "basket_etf" && (
+                                    <TableCell>
+                                      {holding.fundFactsUrl ? (
+                                        <a 
+                                          href={holding.fundFactsUrl} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                                          data-testid={`link-fund-facts-${holding.id}`}
+                                        >
+                                          <FileText className="h-4 w-4" />
+                                          <span className="text-sm">View</span>
+                                        </a>
+                                      ) : (
+                                        <span className="text-muted-foreground text-sm">-</span>
+                                      )}
+                                    </TableCell>
+                                  )}
                                   <TableCell>
                                     <div className="flex items-center gap-1">
                                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditHolding(holding)} data-testid={`button-edit-holding-${holding.id}`}>
