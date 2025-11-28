@@ -573,7 +573,15 @@ export default function Households() {
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form 
+                onSubmit={form.handleSubmit(onSubmit)} 
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !createMutation.isPending) {
+                    form.handleSubmit(onSubmit)();
+                  }
+                }}
+                className="space-y-4"
+              >
                 <FormField
                   control={form.control}
                   name="name"
