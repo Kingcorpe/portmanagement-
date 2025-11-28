@@ -66,7 +66,7 @@ export default function Landing() {
           <div className="relative z-10 container mx-auto px-4 py-20">
             <div className="max-w-4xl mx-auto text-center space-y-6">
               <Badge variant="secondary" className="text-sm px-4 py-1">
-                Alerts for your trading. Always on time.
+                Your trading alerts. Always at the right time.
               </Badge>
               <h2 className="text-5xl md:text-6xl font-bold text-white">
                 Never Miss a Deal Again
