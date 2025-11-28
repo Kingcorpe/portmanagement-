@@ -73,7 +73,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X, RefreshCw, ChevronDown, ChevronRight, GripVertical, Pencil, Check, ChevronsUpDown, ExternalLink, FileText } from "lucide-react";
+import { Plus, Search, Trash2, Edit, TrendingUp, TrendingDown, Percent, Loader2, ArrowUpDown, ArrowUp, ArrowDown, Target, X, RefreshCw, ChevronDown, ChevronRight, GripVertical, Pencil, Check, ChevronsUpDown, ExternalLink, FileText, AlertTriangle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -668,6 +668,7 @@ export default function ModelPortfolios() {
     new Set(["basket_etf", "single_etf", "double_long_etf", "security", "auto_added", "misc"])
   );
   const [holdingComboboxOpen, setHoldingComboboxOpen] = useState(false);
+  const [duplicateTickerWarning, setDuplicateTickerWarning] = useState<string | null>(null);
 
   const holdingForm = useForm<HoldingFormData>({
     resolver: zodResolver(holdingFormSchema),
@@ -729,6 +730,24 @@ export default function ModelPortfolios() {
       return failureCount < 3;
     },
   });
+
+  const watchedTicker = holdingForm.watch("ticker");
+  
+  useEffect(() => {
+    if (!watchedTicker || editingHolding) {
+      setDuplicateTickerWarning(null);
+      return;
+    }
+    
+    const normalizedTicker = watchedTicker.toUpperCase().trim();
+    const existingHolding = holdings.find(h => h.ticker.toUpperCase() === normalizedTicker);
+    
+    if (existingHolding) {
+      setDuplicateTickerWarning(`"${existingHolding.ticker}" already exists as "${existingHolding.name}"`);
+    } else {
+      setDuplicateTickerWarning(null);
+    }
+  }, [watchedTicker, holdings, editingHolding]);
 
   const { data: plannedPortfolios = [], isLoading: plannedLoading } = useQuery<PlannedPortfolioWithAllocations[]>({
     queryKey: ["/api/planned-portfolios"],
@@ -1375,6 +1394,7 @@ export default function ModelPortfolios() {
               if (!open) {
                 setEditingHolding(null);
                 holdingForm.reset();
+                setDuplicateTickerWarning(null);
               }
             }}>
               <DialogTrigger asChild>
@@ -1418,6 +1438,12 @@ export default function ModelPortfolios() {
                           </Button>
                         </div>
                         <FormMessage />
+                        {duplicateTickerWarning && (
+                          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-500 text-sm mt-1">
+                            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                            <span>{duplicateTickerWarning}</span>
+                          </div>
+                        )}
                       </FormItem>
                     )}
                   />
