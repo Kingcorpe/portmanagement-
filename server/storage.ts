@@ -1096,10 +1096,8 @@ export class DatabaseStorage implements IStorage {
   async createWatchlistForAccount(accountType: 'individual' | 'corporate' | 'joint', accountId: string, portfolioName: string): Promise<FreelancePortfolio> {
     // Create a new watchlist portfolio
     const watchlistPortfolio = await this.createFreelancePortfolio({
-      portfolioName,
-      portfolioType: 'watchlist',
-      targetAllocationPercentage: 0,
-      riskTolerance: 'moderate'
+      name: portfolioName,
+      portfolioType: 'watchlist'
     });
 
     // Link it to the account

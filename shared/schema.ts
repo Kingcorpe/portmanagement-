@@ -322,10 +322,11 @@ export const jointAccountOwnershipRelations = relations(jointAccountOwnership, (
 // Positions/Holdings table (unified for all account types)
 export const positions = pgTable("positions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  // One of these will be set depending on account type
+  // One of these will be set depending on account type (or freelancePortfolioId for watchlist positions)
   individualAccountId: varchar("individual_account_id").references(() => individualAccounts.id, { onDelete: 'cascade' }),
   corporateAccountId: varchar("corporate_account_id").references(() => corporateAccounts.id, { onDelete: 'cascade' }),
   jointAccountId: varchar("joint_account_id").references(() => jointAccounts.id, { onDelete: 'cascade' }),
+  freelancePortfolioId: varchar("freelance_portfolio_id").references(() => freelancePortfolios.id, { onDelete: 'cascade' }),
   symbol: varchar("symbol", { length: 20 }).notNull(),
   quantity: decimal("quantity", { precision: 15, scale: 4 }).notNull(),
   entryPrice: decimal("entry_price", { precision: 15, scale: 2 }).notNull(),
@@ -352,6 +353,10 @@ export const positionsRelations = relations(positions, ({ one }) => ({
   jointAccount: one(jointAccounts, {
     fields: [positions.jointAccountId],
     references: [jointAccounts.id],
+  }),
+  freelancePortfolio: one(freelancePortfolios, {
+    fields: [positions.freelancePortfolioId],
+    references: [freelancePortfolios.id],
   }),
 }));
 
