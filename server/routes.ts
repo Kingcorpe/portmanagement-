@@ -1189,6 +1189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accountType: string;
         accountName: string;
         householdName: string;
+        householdCategory: string;
         ownerName: string;
         currentValue: number;
         actualPercentage: number;
@@ -1261,9 +1262,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Mark as processed
         processedAccounts.add(`${accountType}:${accountId}`);
         
-        // Get household name
+        // Get household name and category
         const household = await storage.getHousehold(householdId);
         householdName = household?.name || 'Unknown';
+        const householdCategory = household?.category || 'uncategorized';
         
         // Calculate portfolio total value
         const totalValue = allPositions.reduce((sum, p) => {
@@ -1317,6 +1319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           accountType,
           accountName: displayName,
           householdName,
+          householdCategory,
           ownerName,
           currentValue,
           actualPercentage,
@@ -1378,9 +1381,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
         if (!hasAccess) continue;
         
-        // Get household name
+        // Get household name and category
         const household = await storage.getHousehold(householdId);
         householdName = household?.name || 'Unknown';
+        const householdCategory = household?.category || 'uncategorized';
         
         // Target percentage from the allocation
         const targetPercentage = parseFloat(allocation.targetPercentage);
@@ -1417,6 +1421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           accountType: allocation.accountType,
           accountName: displayName,
           householdName,
+          householdCategory,
           ownerName,
           currentValue,
           actualPercentage,

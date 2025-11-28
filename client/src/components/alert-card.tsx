@@ -23,6 +23,7 @@ interface AffectedAccount {
   accountType: string;
   accountName: string;
   householdName: string;
+  householdCategory: string;
   ownerName: string;
   currentValue: number;
   actualPercentage: number;
@@ -36,9 +37,10 @@ interface AlertCardProps {
   alert: Alert;
   onExecute?: (id: string) => void;
   onDismiss?: (id: string) => void;
+  categoryFilter?: string;
 }
 
-export function AlertCard({ alert, onExecute, onDismiss }: AlertCardProps) {
+export function AlertCard({ alert, onExecute, onDismiss, categoryFilter }: AlertCardProps) {
   const isBuy = alert.signal === "BUY";
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -81,9 +83,14 @@ export function AlertCard({ alert, onExecute, onDismiss }: AlertCardProps) {
     }
   };
 
+  // Filter by category if provided
+  const filteredAccounts = categoryFilter 
+    ? affectedAccounts.filter(a => a.householdCategory === categoryFilter)
+    : affectedAccounts;
+
   // Separate zero-balance accounts for display at the end
-  const zeroBalanceAccounts = affectedAccounts.filter(a => a.status === 'zero-balance');
-  const activeAccounts = affectedAccounts.filter(a => a.status !== 'zero-balance');
+  const zeroBalanceAccounts = filteredAccounts.filter(a => a.status === 'zero-balance');
+  const activeAccounts = filteredAccounts.filter(a => a.status !== 'zero-balance');
 
   // Sort active accounts: underweight first (for BUY), overweight first (for SELL)
   const sortedAccounts = [...activeAccounts].sort((a, b) => {
@@ -138,7 +145,7 @@ export function AlertCard({ alert, onExecute, onDismiss }: AlertCardProps) {
                   data-testid={`button-expand-${alert.id}`}
                 >
                   <span className="text-xs text-muted-foreground">
-                    {affectedAccounts.length > 0 ? `${affectedAccounts.length} accounts` : 'View accounts'}
+                    {filteredAccounts.length > 0 ? `${filteredAccounts.length} accounts` : 'View accounts'}
                   </span>
                   {isExpanded ? (
                     <ChevronUp className="h-4 w-4" />
