@@ -102,7 +102,7 @@ const holdingCategoryLabels: Record<string, string> = {
   misc: "Misc.",
 };
 
-const holdingCategoryOrder = ["basket_etf", "single_etf", "double_long_etf", "leveraged_etf", "security", "auto_added", "misc"];
+const holdingCategoryOrder = ["basket_etf", "misc", "single_etf", "double_long_etf", "leveraged_etf", "security", "auto_added"];
 
 const riskLevelColors: Record<string, string> = {
   low: "bg-chart-2 text-white",
