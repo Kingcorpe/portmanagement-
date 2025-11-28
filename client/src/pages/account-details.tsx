@@ -236,6 +236,8 @@ export default function AccountDetails() {
   const [taskStatusFilter, setTaskStatusFilter] = useState<"all" | "pending" | "in_progress">("all");
   const [notesAutoSaveStatus, setNotesAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [isAuditLogExpanded, setIsAuditLogExpanded] = useState(false);
+  const [viewMode, setViewMode] = useState<"real" | "watchlist">("real");
+  const [isCreatingWatchlist, setIsCreatingWatchlist] = useState(false);
   const notesInitialLoadRef = useRef(true);
   const notesSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -265,6 +267,20 @@ export default function AccountDetails() {
         return `/api/corporate-accounts/${accountId}/positions`;
       case "joint":
         return `/api/joint-accounts/${accountId}/positions`;
+      default:
+        return null;
+    }
+  };
+
+  const getWatchlistPositionsEndpoint = () => {
+    if (!accountType || !accountId) return null;
+    switch (accountType) {
+      case "individual":
+        return `/api/individual-accounts/${accountId}/watchlist-positions`;
+      case "corporate":
+        return `/api/corporate-accounts/${accountId}/watchlist-positions`;
+      case "joint":
+        return `/api/joint-accounts/${accountId}/watchlist-positions`;
       default:
         return null;
     }
@@ -304,11 +320,12 @@ export default function AccountDetails() {
   };
 
   const positionsEndpoint = getPositionsEndpoint();
+  const watchlistPositionsEndpoint = getWatchlistPositionsEndpoint();
   const accountEndpoint = getAccountEndpoint();
   const tasksEndpoint = getTasksEndpoint();
   const auditLogEndpoint = getAuditLogEndpoint();
 
-  const { data: positions = [], isLoading } = useQuery<Position[]>({
+  const { data: realPositions = [], isLoading: isLoadingReal } = useQuery<Position[]>({
     queryKey: [positionsEndpoint],
     enabled: isAuthenticated && !!positionsEndpoint,
     retry: (failureCount, error) => {
@@ -327,11 +344,47 @@ export default function AccountDetails() {
     },
   });
 
+  const { data: watchlistPositions = [], isLoading: isLoadingWatchlist } = useQuery<Position[]>({
+    queryKey: [watchlistPositionsEndpoint],
+    enabled: isAuthenticated && !!watchlistPositionsEndpoint,
+  });
+
+  // Show positions based on current view mode
+  const positions = viewMode === "real" ? realPositions : watchlistPositions;
+  const isLoading = viewMode === "real" ? isLoadingReal : isLoadingWatchlist;
+
+  // Create watchlist mutation
+  const createWatchlistMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/watchlist`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [accountEndpoint] });
+      toast({
+        title: "Watchlist Created",
+        description: "You can now add positions to your watchlist portfolio.",
+      });
+      setIsCreatingWatchlist(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create watchlist",
+        variant: "destructive",
+      });
+      setIsCreatingWatchlist(false);
+    },
+  });
+
   // Fetch account details to get the specific account type
   const { data: accountData } = useQuery<IndividualAccount | CorporateAccount | JointAccount>({
     queryKey: [accountEndpoint],
     enabled: isAuthenticated && !!accountEndpoint,
   });
+
+  // Check if account has a watchlist
+  const hasWatchlist = accountData && 'watchlistPortfolioId' in accountData && !!accountData.watchlistPortfolioId;
 
   // Sync risk allocation and notes state with account data when it loads
   useEffect(() => {
@@ -485,16 +538,24 @@ export default function AccountDetails() {
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertPosition) => {
+      // If in watchlist mode and watchlist exists, add to watchlist instead
+      if (viewMode === "watchlist" && hasWatchlist) {
+        return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/watchlist/positions`, data);
+      }
       return await apiRequest("POST", "/api/positions", data);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+      if (viewMode === "watchlist") {
+        await queryClient.invalidateQueries({ queryKey: [watchlistPositionsEndpoint] });
+      } else {
+        await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+      }
       await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       queryClient.refetchQueries({ queryKey: ["/api/households/full"] });
       toast({
         title: "Success",
-        description: "Position created successfully",
+        description: viewMode === "watchlist" ? "Watchlist position created successfully" : "Position created successfully",
       });
       handleDialogChange(false);
     },
@@ -536,7 +597,11 @@ export default function AccountDetails() {
       return await apiRequest("DELETE", `/api/positions/${id}`);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+      if (viewMode === "watchlist") {
+        await queryClient.invalidateQueries({ queryKey: [watchlistPositionsEndpoint] });
+      } else {
+        await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+      }
       await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       queryClient.refetchQueries({ queryKey: ["/api/households/full"] });
@@ -1649,21 +1714,60 @@ export default function AccountDetails() {
       <Collapsible open={isHoldingsExpanded} onOpenChange={setIsHoldingsExpanded}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
-            <CollapsibleTrigger asChild>
-              <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity" data-testid="button-toggle-holdings">
-                {isHoldingsExpanded ? (
-                  <ChevronDown className="h-5 w-5" />
+            <div className="flex items-center gap-4">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity" data-testid="button-toggle-holdings">
+                  {isHoldingsExpanded ? (
+                    <ChevronDown className="h-5 w-5" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5" />
+                  )}
+                  <div>
+                    <CardTitle>Holdings & Portfolio Analysis</CardTitle>
+                    <CardDescription>
+                      {viewMode === "real" ? "Real positions" : "Watchlist positions"} with target allocation comparison
+                    </CardDescription>
+                  </div>
+                </button>
+              </CollapsibleTrigger>
+              {/* Real / Watchlist Toggle */}
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                <Button
+                  variant={viewMode === "real" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("real")}
+                  className="h-7 px-3"
+                  data-testid="button-view-real"
+                >
+                  Real
+                </Button>
+                {hasWatchlist ? (
+                  <Button
+                    variant={viewMode === "watchlist" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("watchlist")}
+                    className="h-7 px-3"
+                    data-testid="button-view-watchlist"
+                  >
+                    Watchlist
+                  </Button>
                 ) : (
-                  <ChevronRight className="h-5 w-5" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setIsCreatingWatchlist(true);
+                      createWatchlistMutation.mutate();
+                    }}
+                    disabled={isCreatingWatchlist || createWatchlistMutation.isPending}
+                    className="h-7 px-3"
+                    data-testid="button-create-watchlist"
+                  >
+                    {isCreatingWatchlist ? "Creating..." : "+ Watchlist"}
+                  </Button>
                 )}
-                <div>
-                  <CardTitle>Holdings & Portfolio Analysis</CardTitle>
-                  <CardDescription>
-                    All positions with target allocation comparison
-                  </CardDescription>
-                </div>
-              </button>
-            </CollapsibleTrigger>
+              </div>
+            </div>
             <div className="flex gap-2 flex-wrap">
             <Button
               variant="outline"

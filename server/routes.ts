@@ -1731,6 +1731,185 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Watchlist position routes
+  app.get('/api/individual-accounts/:accountId/watchlist-positions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const householdId = await storage.getHouseholdIdFromAccount('individual', req.params.accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const positions = await storage.getWatchlistPositionsByIndividualAccount(req.params.accountId);
+      res.json(positions);
+    } catch (error) {
+      console.error("Error fetching watchlist positions:", error);
+      res.status(500).json({ message: "Failed to fetch watchlist positions" });
+    }
+  });
+
+  app.get('/api/corporate-accounts/:accountId/watchlist-positions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const householdId = await storage.getHouseholdIdFromAccount('corporate', req.params.accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const positions = await storage.getWatchlistPositionsByCorporateAccount(req.params.accountId);
+      res.json(positions);
+    } catch (error) {
+      console.error("Error fetching watchlist positions:", error);
+      res.status(500).json({ message: "Failed to fetch watchlist positions" });
+    }
+  });
+
+  app.get('/api/joint-accounts/:accountId/watchlist-positions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const householdId = await storage.getHouseholdIdFromAccount('joint', req.params.accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const positions = await storage.getWatchlistPositionsByJointAccount(req.params.accountId);
+      res.json(positions);
+    } catch (error) {
+      console.error("Error fetching watchlist positions:", error);
+      res.status(500).json({ message: "Failed to fetch watchlist positions" });
+    }
+  });
+
+  // Create watchlist for account
+  app.post('/api/accounts/:accountType/:accountId/watchlist', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { accountType, accountId } = req.params;
+      
+      if (!['individual', 'corporate', 'joint'].includes(accountType)) {
+        return res.status(400).json({ message: "Invalid account type" });
+      }
+      
+      const householdId = await storage.getHouseholdIdFromAccount(accountType as 'individual' | 'corporate' | 'joint', accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Check if account already has a watchlist
+      let account;
+      if (accountType === 'individual') {
+        account = await storage.getIndividualAccount(accountId);
+      } else if (accountType === 'corporate') {
+        account = await storage.getCorporateAccount(accountId);
+      } else {
+        account = await storage.getJointAccount(accountId);
+      }
+      
+      if (account?.watchlistPortfolioId) {
+        return res.status(400).json({ message: "Account already has a watchlist" });
+      }
+      
+      const portfolioName = req.body.name || `${account?.nickname || 'Account'} Watchlist`;
+      const watchlist = await storage.createWatchlistForAccount(
+        accountType as 'individual' | 'corporate' | 'joint',
+        accountId,
+        portfolioName
+      );
+      
+      res.status(201).json(watchlist);
+    } catch (error) {
+      console.error("Error creating watchlist:", error);
+      res.status(500).json({ message: "Failed to create watchlist" });
+    }
+  });
+
+  // Add position to watchlist
+  app.post('/api/accounts/:accountType/:accountId/watchlist/positions', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { accountType, accountId } = req.params;
+      
+      if (!['individual', 'corporate', 'joint'].includes(accountType)) {
+        return res.status(400).json({ message: "Invalid account type" });
+      }
+      
+      const householdId = await storage.getHouseholdIdFromAccount(accountType as 'individual' | 'corporate' | 'joint', accountId);
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Get the account's watchlist portfolio ID
+      let account;
+      if (accountType === 'individual') {
+        account = await storage.getIndividualAccount(accountId);
+      } else if (accountType === 'corporate') {
+        account = await storage.getCorporateAccount(accountId);
+      } else {
+        account = await storage.getJointAccount(accountId);
+      }
+      
+      if (!account?.watchlistPortfolioId) {
+        return res.status(400).json({ message: "Account does not have a watchlist. Create one first." });
+      }
+      
+      const parsed = insertPositionSchema.parse({
+        ...req.body,
+        freelancePortfolioId: account.watchlistPortfolioId,
+        individualAccountId: null,
+        corporateAccountId: null,
+        jointAccountId: null
+      });
+      
+      // Auto-add ticker to Universal Holdings if it doesn't exist
+      const ticker = parsed.symbol.toUpperCase();
+      const existingHolding = await storage.getUniversalHoldingByTicker(ticker);
+      if (!existingHolding) {
+        await storage.createUniversalHolding({
+          ticker: ticker,
+          category: 'auto_added',
+          name: ticker,
+          riskLevel: 'medium',
+          dividendRate: '0',
+          price: parsed.currentPrice || '0'
+        });
+      }
+      
+      const position = await storage.createPosition(parsed);
+      res.status(201).json(position);
+    } catch (error: any) {
+      console.error("Error creating watchlist position:", error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid position data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create watchlist position" });
+    }
+  });
+
   app.post('/api/positions', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
