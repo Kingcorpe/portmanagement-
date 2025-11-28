@@ -217,6 +217,7 @@ export default function AccountDetails() {
   const [cashAmount, setCashAmount] = useState("");
   const [editingInlineTarget, setEditingInlineTarget] = useState<string | null>(null);
   const [inlineTargetValue, setInlineTargetValue] = useState<string>("");
+  const [lastCopiedFromWatchlist, setLastCopiedFromWatchlist] = useState(false);
   // Protection inline editing state (which position and field is being edited)
   const [editingProtection, setEditingProtection] = useState<{ positionId: string; field: 'protectionPercent' | 'stopPrice' | 'limitPrice' } | null>(null);
   const [protectionValue, setProtectionValue] = useState<string>("");
@@ -1219,6 +1220,11 @@ export default function AccountDetails() {
 
   const handleCopyFromPortfolio = () => {
     if (selectedPortfolioId) {
+      // Check if copying from a freelance watchlist portfolio
+      const portfolio = freelancePortfolios.find(p => p.id === selectedPortfolioId);
+      const isWatchlist = selectedPortfolioType === 'freelance' && portfolio?.portfolioType === 'watchlist';
+      setLastCopiedFromWatchlist(isWatchlist);
+      
       copyFromPortfolioMutation.mutate({ 
         portfolioId: selectedPortfolioId, 
         portfolioType: selectedPortfolioType 
@@ -2682,6 +2688,11 @@ export default function AccountDetails() {
                       {targetAllocations.length > 0 && (
                         <Badge variant="secondary" className="ml-2">
                           {targetAllocations.length}
+                        </Badge>
+                      )}
+                      {lastCopiedFromWatchlist && (
+                        <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" data-testid="badge-watchlist-source">
+                          From Watchlist
                         </Badge>
                       )}
                     </CardTitle>
