@@ -639,10 +639,10 @@ export default function Households() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="anchor">{householdCategoryLabels.anchor}</SelectItem>
-                          <SelectItem value="emerging_anchor">{householdCategoryLabels.emerging_anchor}</SelectItem>
-                          <SelectItem value="emerging_pulse">{householdCategoryLabels.emerging_pulse}</SelectItem>
                           <SelectItem value="evergreen">{householdCategoryLabels.evergreen}</SelectItem>
                           <SelectItem value="pulse">{householdCategoryLabels.pulse}</SelectItem>
+                          <SelectItem value="emerging_anchor" className="pl-6">→ {householdCategoryLabels.emerging_anchor}</SelectItem>
+                          <SelectItem value="emerging_pulse" className="pl-6">→ {householdCategoryLabels.emerging_pulse}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -758,7 +758,7 @@ export default function Households() {
       ) : (
         <div className="space-y-4">
           {/* Group households by category */}
-          {(["anchor", "emerging_anchor", "emerging_pulse", "evergreen", "pulse"] as HouseholdCategory[]).map(category => {
+          {(["anchor", "evergreen", "pulse", "emerging_anchor", "emerging_pulse"] as HouseholdCategory[]).map(category => {
             const categoryHouseholds = filteredHouseholds.filter(h => h.category === category);
             if (categoryHouseholds.length === 0) return null;
             const isExpanded = expandedCategories.has(category);
