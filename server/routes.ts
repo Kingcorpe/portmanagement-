@@ -3025,8 +3025,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`[Dividend Refresh] Trying symbols for ${holding.ticker}:`, symbolsToTry);
           
           let chartData = null;
+          let quoteSummaryData = null;
           let workingSymbol = null;
           
+          // First try to get quoteSummary for upcoming ex-dividend date
+          for (const symbol of symbolsToTry) {
+            try {
+              const result = await yahooFinance.quoteSummary(symbol, {
+                modules: ['summaryDetail', 'calendarEvents']
+              });
+              if (result && (result.summaryDetail || result.calendarEvents)) {
+                quoteSummaryData = result;
+                workingSymbol = symbol;
+                break;
+              }
+            } catch (e) {
+              // Try next suffix
+            }
+          }
+          
+          // Also get chart data for historical dividend info
           for (const symbol of symbolsToTry) {
             try {
               const result = await yahooFinance.chart(symbol, {
@@ -3036,7 +3054,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
               if (result && result.meta) {
                 chartData = result;
-                workingSymbol = symbol;
+                if (!workingSymbol) workingSymbol = symbol;
                 break;
               }
             } catch (e) {
@@ -3044,15 +3062,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
-          if (chartData) {
-            const price = chartData.meta?.regularMarketPrice || 0;
+          if (chartData || quoteSummaryData) {
+            const price = chartData?.meta?.regularMarketPrice || quoteSummaryData?.summaryDetail?.regularMarketPrice || 0;
             let dividendRate = 0;
             let dividendYield = 0;
             let payoutFrequency: "monthly" | "quarterly" | "semi_annual" | "annual" | "none" = "none";
             let exDate: Date | null = null;
             
-            // Calculate from historical dividend events
-            if (chartData.events && chartData.events.dividends) {
+            // Try to get upcoming ex-dividend date from quoteSummary first (this is the NEXT ex-date)
+            if (quoteSummaryData?.calendarEvents?.exDividendDate) {
+              exDate = new Date(quoteSummaryData.calendarEvents.exDividendDate);
+              console.log(`[Dividend Refresh] Found upcoming ex-date from calendarEvents for ${workingSymbol}: ${exDate.toISOString()}`);
+            } else if (quoteSummaryData?.summaryDetail?.exDividendDate) {
+              exDate = new Date(quoteSummaryData.summaryDetail.exDividendDate);
+              console.log(`[Dividend Refresh] Found ex-date from summaryDetail for ${workingSymbol}: ${exDate.toISOString()}`);
+            }
+            
+            // Get dividend rate and yield from summaryDetail if available
+            if (quoteSummaryData?.summaryDetail) {
+              const sd = quoteSummaryData.summaryDetail;
+              if (sd.dividendRate) dividendRate = sd.dividendRate;
+              if (sd.dividendYield) dividendYield = sd.dividendYield * 100; // Convert to percentage
+              else if (dividendRate && price) dividendYield = (dividendRate / price) * 100;
+            }
+            
+            // Calculate from historical dividend events if quoteSummary didn't have the data
+            if (chartData?.events?.dividends && dividendRate === 0) {
               const divEvents = Object.values(chartData.events.dividends) as any[];
               if (divEvents.length > 0) {
                 // Sum all dividends in the past year
@@ -3065,29 +3100,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 else if (divEvents.length >= 2) payoutFrequency = "semi_annual";
                 else if (divEvents.length >= 1) payoutFrequency = "annual";
                 
-                // Get most recent ex-dividend date
-                const sortedDivs = divEvents.sort((a: any, b: any) => b.date - a.date);
-                if (sortedDivs.length > 0 && sortedDivs[0].date) {
-                  // Yahoo Finance returns Unix timestamp in seconds
-                  const timestamp = sortedDivs[0].date;
-                  // Validate timestamp is reasonable (between year 2000 and 2100)
-                  if (timestamp > 946684800 && timestamp < 4102444800) {
-                    exDate = new Date(timestamp * 1000);
-                  } else if (timestamp > 946684800000 && timestamp < 4102444800000) {
-                    // Already in milliseconds
-                    exDate = new Date(timestamp);
+                // Only use historical ex-date if we didn't get one from quoteSummary
+                if (!exDate) {
+                  const sortedDivs = divEvents.sort((a: any, b: any) => b.date - a.date);
+                  if (sortedDivs.length > 0 && sortedDivs[0].date) {
+                    const timestamp = sortedDivs[0].date;
+                    if (timestamp > 946684800 && timestamp < 4102444800) {
+                      exDate = new Date(timestamp * 1000);
+                    } else if (timestamp > 946684800000 && timestamp < 4102444800000) {
+                      exDate = new Date(timestamp);
+                    }
                   }
-                  // If neither condition is met, exDate stays null (invalid date)
                 }
-                
-                console.log(`[Dividend Refresh] Found dividend info for ${workingSymbol}:`, {
-                  rate: dividendRate.toFixed(4),
-                  yield: dividendYield.toFixed(2) + '%',
-                  payments: divEvents.length,
-                  frequency: payoutFrequency
-                });
               }
+            } else if (chartData?.events?.dividends) {
+              // Still get frequency from historical data
+              const divEvents = Object.values(chartData.events.dividends) as any[];
+              if (divEvents.length >= 12) payoutFrequency = "monthly";
+              else if (divEvents.length >= 4) payoutFrequency = "quarterly";
+              else if (divEvents.length >= 2) payoutFrequency = "semi_annual";
+              else if (divEvents.length >= 1) payoutFrequency = "annual";
             }
+            
+            console.log(`[Dividend Refresh] Final dividend info for ${workingSymbol}:`, {
+              rate: dividendRate.toFixed(4),
+              yield: dividendYield.toFixed(2) + '%',
+              frequency: payoutFrequency,
+              exDate: exDate?.toISOString() || 'none'
+            });
             
             dividendCache[holding.ticker] = {
               rate: dividendRate,
