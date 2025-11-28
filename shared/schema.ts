@@ -469,6 +469,7 @@ export const accountTargetAllocations = pgTable("account_target_allocations", {
   jointAccountId: varchar("joint_account_id").references(() => jointAccounts.id, { onDelete: 'cascade' }),
   universalHoldingId: varchar("universal_holding_id").notNull().references(() => universalHoldings.id, { onDelete: 'cascade' }),
   targetPercentage: decimal("target_percentage", { precision: 5, scale: 2 }).notNull(), // e.g., 25.00 for 25%
+  sourcePortfolioType: text("source_portfolio_type"), // "planned" or "freelance" - indicates which portfolio type these were copied from
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -777,6 +778,7 @@ export const insertAccountTargetAllocationSchema = createInsertSchema(accountTar
   targetPercentage: true,
 }).extend({
   targetPercentage: z.coerce.number().positive().max(100).transform(val => val.toString()),
+  sourcePortfolioType: z.enum(["planned", "freelance"]).optional().nullable(),
 });
 
 // Update schemas (partial versions of insert schemas)

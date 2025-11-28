@@ -3103,21 +3103,25 @@ export default function AccountDetails() {
                   </TableBody>
                 </Table>
                 <div className="mt-4 flex justify-end">
-                  <Badge 
-                    variant={
-                      targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0) === 100 
-                        ? "default" 
-                        : "destructive"
-                    }
-                    className={
-                      targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0) === 100 
-                        ? "bg-green-600 hover:bg-green-700" 
-                        : ""
-                    }
-                    data-testid="badge-total-allocation"
-                  >
-                    Total: {targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0).toFixed(2)}%
-                  </Badge>
+                  {(() => {
+                    const total = targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0);
+                    const isWatchlist = lastCopiedFromWatchlist;
+                    const isValid = isWatchlist ? total > 0 : total === 100;
+                    
+                    return (
+                      <Badge 
+                        variant={isValid ? "default" : "destructive"}
+                        className={
+                          isValid 
+                            ? "bg-green-600 hover:bg-green-700" 
+                            : ""
+                        }
+                        data-testid="badge-total-allocation"
+                      >
+                        Total: {total.toFixed(2)}%{isWatchlist && total > 100 && " (Watchlist)"}
+                      </Badge>
+                    );
+                  })()}
                 </div>
               </>
             )}

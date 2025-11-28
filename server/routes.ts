@@ -3110,18 +3110,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get the portfolio with allocations - check both planned and freelance
-      let portfolio: { name: string; userId?: string | null; allocations: { universalHoldingId: string; targetPercentage: string }[] } | null = null;
-      let isPlannedPortfolio = false;
+      let portfolio: { name: string; userId?: string | null; portfolioType?: string; allocations: { universalHoldingId: string; targetPercentage: string }[] } | null = null;
+      let sourcePortfolioType = 'planned';
       
       if (portfolioType === 'freelance') {
         portfolio = await storage.getFreelancePortfolioWithAllocations(portfolioId);
+        sourcePortfolioType = 'freelance';
       } else {
         // Default to planned portfolio, or check both if not specified
         portfolio = await storage.getPlannedPortfolioWithAllocations(portfolioId);
         if (portfolio) {
-          isPlannedPortfolio = true;
+          sourcePortfolioType = 'planned';
         } else {
           portfolio = await storage.getFreelancePortfolioWithAllocations(portfolioId);
+          sourcePortfolioType = 'freelance';
         }
       }
       
@@ -3146,6 +3148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           individualAccountId: accountType === 'individual' ? accountId : null,
           corporateAccountId: accountType === 'corporate' ? accountId : null,
           jointAccountId: accountType === 'joint' ? accountId : null,
+          sourcePortfolioType: sourcePortfolioType as "planned" | "freelance",
         });
         createdAllocations.push(newAllocation);
       }
