@@ -58,6 +58,15 @@ Integrates with Yahoo Finance for real-time market prices and dividend informati
 - **Cash Position Handling**: Cash positions are assigned a price of $1.
 - **Duplicate Ticker Handling**: Caches price lookups to reduce API calls.
 
+### Key Metrics Page
+A centralized dashboard displaying aggregate portfolio statistics:
+- **Total AUM**: Sum of all account balances with weighted average performance
+- **Account Breakdown**: Distribution by account type (Individual, Corporate, Joint) with progress bars
+- **Tasks Overview**: Pending, in-progress, urgent, and high-priority task counts
+- **Trading Alerts**: Pending/executed alerts with BUY/SELL signal breakdown
+- **AUM Distribution**: Visual breakdown of assets by account category
+- **Quick Stats**: Average account size, accounts per household, and average household value
+
 ### Task Management
 Each account has a Tasks section with statuses (Pending, In Progress) and priorities (Low, Medium, High, Urgent). Completed tasks are logged to Change History and removed from the active list.
 

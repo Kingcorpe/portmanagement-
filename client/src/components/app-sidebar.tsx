@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, Settings, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo } from "lucide-react";
+import { LayoutDashboard, Users, Bell, Settings, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +23,11 @@ const menuItems = [
     title: "Dashboard",
     url: "/",
     icon: LayoutDashboard,
+  },
+  {
+    title: "Key Metrics",
+    url: "/key-metrics",
+    icon: BarChart3,
   },
   {
     title: "Households",

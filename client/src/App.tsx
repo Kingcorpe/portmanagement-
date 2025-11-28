@@ -16,6 +16,7 @@ import Alerts from "@/pages/alerts";
 import AccountDetails from "@/pages/account-details";
 import LibraryReports from "@/pages/library-reports";
 import LibraryStrategies from "@/pages/library-strategies";
+import KeyMetrics from "@/pages/key-metrics";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
@@ -29,6 +30,7 @@ function AuthenticatedRoutes() {
       <Route path="/account/:accountType/:accountId" component={AccountDetails} />
       <Route path="/library/reports" component={LibraryReports} />
       <Route path="/library/strategies" component={LibraryStrategies} />
+      <Route path="/key-metrics" component={KeyMetrics} />
       <Route path="/alerts" component={Alerts} />
       <Route component={NotFound} />
     </Switch>
