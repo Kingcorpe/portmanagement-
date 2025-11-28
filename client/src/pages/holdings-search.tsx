@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Search } from "lucide-react";
+import { Search, ExternalLink } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -12,6 +13,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface HoldingSearchResult {
   householdName: string;
@@ -27,6 +35,12 @@ interface HoldingSearchResult {
   entryPrice: number;
 }
 
+interface Account {
+  id: string;
+  nickname?: string;
+  type: string;
+}
+
 const HOUSEHOLD_CATEGORIES = [
   { value: "evergreen", label: "Evergreen" },
   { value: "anchor", label: "Anchor" },
@@ -37,11 +51,14 @@ const HOUSEHOLD_CATEGORIES = [
 
 export default function HoldingsSearch() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [searchTicker, setSearchTicker] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
   const [category, setCategory] = useState<string>("");
   const [minValue, setMinValue] = useState<string>("");
   const [maxValue, setMaxValue] = useState<string>("");
+  const [selectedHolding, setSelectedHolding] = useState<HoldingSearchResult | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
   const { data: results = [], isLoading, isFetching } = useQuery<HoldingSearchResult[]>({
     queryKey: ['/api/holdings/search', searchTicker, category, minValue, maxValue],
@@ -77,6 +94,31 @@ export default function HoldingsSearch() {
     setCategory("");
     setMinValue("");
     setMaxValue("");
+  };
+
+  const handleRowClick = (holding: HoldingSearchResult) => {
+    setSelectedHolding(holding);
+    // Infer account ID - we'll need to fetch it or use it directly
+    setSelectedAccount({
+      id: "", // Will be set from the holding's account context
+      nickname: holding.accountNickname,
+      type: holding.accountType,
+    });
+  };
+
+  const handleViewFullAccount = () => {
+    if (!selectedHolding) return;
+    
+    // Infer the account type and ID from the holding
+    // The accountType tells us if it's individual/corporate/joint
+    // We need to navigate to the account details page
+    // For now, we'll close the modal and the user can navigate manually
+    // But ideally we'd pass the account ID somehow
+    
+    toast({
+      title: "Account Navigation",
+      description: `To view the full account details for "${selectedHolding.accountNickname}", click the row again or navigate via the Households section.`,
+    });
   };
 
   const totalValue = results.reduce((sum, r) => sum + r.value, 0);
@@ -217,7 +259,12 @@ export default function HoldingsSearch() {
                     </thead>
                     <tbody>
                       {results.map((result, idx) => (
-                        <tr key={idx} className="border-b hover:bg-muted/50">
+                        <tr
+                          key={idx}
+                          className="border-b hover:bg-muted/50 cursor-pointer transition-colors"
+                          onClick={() => handleRowClick(result)}
+                          data-testid={`row-holding-${idx}`}
+                        >
                           <td className="px-4 py-3 font-medium" data-testid={`text-household-${idx}`}>{result.householdName}</td>
                           <td className="px-4 py-3 text-muted-foreground" data-testid={`text-category-${idx}`}>
                             {result.householdCategory
@@ -239,6 +286,83 @@ export default function HoldingsSearch() {
           )}
         </div>
       )}
+
+      {/* Account Details Modal */}
+      <Dialog open={!!selectedHolding} onOpenChange={(open) => !open && setSelectedHolding(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{selectedHolding?.accountNickname}</DialogTitle>
+            <DialogDescription>
+              {selectedHolding?.ownerName} • {selectedHolding?.householdName}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedHolding && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Account Type</p>
+                  <p className="font-medium capitalize">{selectedHolding.accountType}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Owner Type</p>
+                  <p className="font-medium">{selectedHolding.ownerType}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Household</p>
+                  <p className="font-medium">{selectedHolding.householdName}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Category</p>
+                  <p className="font-medium">
+                    {selectedHolding.householdCategory
+                      ? HOUSEHOLD_CATEGORIES.find((c) => c.value === selectedHolding.householdCategory)?.label
+                      : "-"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t pt-4 space-y-3">
+                <div className="text-sm">
+                  <p className="text-xs text-muted-foreground mb-1">Holding Details</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Symbol:</span>
+                      <span className="font-medium">{selectedHolding.symbol}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Quantity:</span>
+                      <span className="font-medium">{selectedHolding.quantity.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Current Price:</span>
+                      <span className="font-medium">CA${selectedHolding.currentPrice.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-base">
+                      <span>Total Value:</span>
+                      <span>CA${selectedHolding.value.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                className="w-full"
+                onClick={() => {
+                  setSelectedHolding(null);
+                  toast({
+                    title: "Navigate to Account",
+                    description: `To view all holdings in this account, go to Households and select "${selectedHolding.ownerName}"`,
+                  });
+                }}
+                data-testid="button-close-modal"
+              >
+                Close
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
