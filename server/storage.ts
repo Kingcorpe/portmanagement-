@@ -162,6 +162,10 @@ export interface IStorage {
   calculateIndividualAccountBalance(accountId: string): Promise<number>;
   calculateCorporateAccountBalance(accountId: string): Promise<number>;
   calculateJointAccountBalance(accountId: string): Promise<number>;
+  getWatchlistPositionsByIndividualAccount(accountId: string): Promise<Position[]>;
+  getWatchlistPositionsByCorporateAccount(accountId: string): Promise<Position[]>;
+  getWatchlistPositionsByJointAccount(accountId: string): Promise<Position[]>;
+  createWatchlistForAccount(accountType: 'individual' | 'corporate' | 'joint', accountId: string, portfolioName: string): Promise<FreelancePortfolio>;
 
   // Alert operations
   createAlert(alert: InsertAlert): Promise<Alert>;
@@ -1063,6 +1067,51 @@ export class DatabaseStorage implements IStorage {
       const currentPrice = parseFloat(position.currentPrice);
       return total + (quantity * currentPrice);
     }, 0);
+  }
+
+  async getWatchlistPositionsByIndividualAccount(accountId: string): Promise<Position[]> {
+    const account = await this.getIndividualAccount(accountId);
+    if (!account?.watchlistPortfolioId) return [];
+    return await db.select().from(positions)
+      .where(eq(positions.freelancePortfolioId, account.watchlistPortfolioId))
+      .orderBy(positions.symbol);
+  }
+
+  async getWatchlistPositionsByCorporateAccount(accountId: string): Promise<Position[]> {
+    const account = await this.getCorporateAccount(accountId);
+    if (!account?.watchlistPortfolioId) return [];
+    return await db.select().from(positions)
+      .where(eq(positions.freelancePortfolioId, account.watchlistPortfolioId))
+      .orderBy(positions.symbol);
+  }
+
+  async getWatchlistPositionsByJointAccount(accountId: string): Promise<Position[]> {
+    const account = await this.getJointAccount(accountId);
+    if (!account?.watchlistPortfolioId) return [];
+    return await db.select().from(positions)
+      .where(eq(positions.freelancePortfolioId, account.watchlistPortfolioId))
+      .orderBy(positions.symbol);
+  }
+
+  async createWatchlistForAccount(accountType: 'individual' | 'corporate' | 'joint', accountId: string, portfolioName: string): Promise<FreelancePortfolio> {
+    // Create a new watchlist portfolio
+    const watchlistPortfolio = await this.createFreelancePortfolio({
+      portfolioName,
+      portfolioType: 'watchlist',
+      targetAllocationPercentage: 0,
+      riskTolerance: 'moderate'
+    });
+
+    // Link it to the account
+    if (accountType === 'individual') {
+      await db.update(individualAccounts).set({ watchlistPortfolioId: watchlistPortfolio.id }).where(eq(individualAccounts.id, accountId));
+    } else if (accountType === 'corporate') {
+      await db.update(corporateAccounts).set({ watchlistPortfolioId: watchlistPortfolio.id }).where(eq(corporateAccounts.id, accountId));
+    } else if (accountType === 'joint') {
+      await db.update(jointAccounts).set({ watchlistPortfolioId: watchlistPortfolio.id }).where(eq(jointAccounts.id, accountId));
+    }
+
+    return watchlistPortfolio;
   }
 
   // Alert operations
