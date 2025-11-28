@@ -2432,7 +2432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/positions/bulk', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { positions, accountType, accountId, clearExisting } = req.body;
+      const { positions, accountType, accountId, clearExisting, setAsTargetAllocation } = req.body;
       
       if (!Array.isArray(positions) || positions.length === 0) {
         return res.status(400).json({ message: "No positions provided" });
@@ -2543,6 +2543,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Create target allocations if requested
+      let allocationsCreated = 0;
+      if (setAsTargetAllocation && createdPositions.length > 0) {
+        try {
+          // Calculate total portfolio value (excluding CASH)
+          let totalValue = 0;
+          for (const pos of createdPositions) {
+            if (pos.symbol.toUpperCase() !== 'CASH') {
+              totalValue += Number(pos.quantity) * Number(pos.currentPrice);
+            }
+          }
+          
+          // Create target allocation for each non-cash position based on percentage
+          for (const pos of createdPositions) {
+            if (pos.symbol.toUpperCase() !== 'CASH' && totalValue > 0) {
+              const posValue = Number(pos.quantity) * Number(pos.currentPrice);
+              const targetPercentage = (posValue / totalValue) * 100;
+              
+              // Get or create universal holding
+              const ticker = pos.symbol.toUpperCase();
+              let holding = await storage.getUniversalHoldingByTicker(ticker);
+              if (!holding) {
+                holding = await storage.createUniversalHolding({
+                  ticker: ticker,
+                  name: `${ticker} (Auto-added)`,
+                  category: "auto_added",
+                  riskLevel: "medium",
+                  dividendRate: "0",
+                  dividendPayout: "none",
+                  price: pos.currentPrice?.toString() || "0",
+                  description: "Automatically added from position. Please update details.",
+                });
+              }
+              
+              // Create target allocation
+              const allocationData: any = {
+                accountType,
+                accountId,
+                universalHoldingId: holding.id,
+                targetPercentage: Math.round(targetPercentage * 100) / 100,
+                sourcePortfolioType: null
+              };
+              
+              // Set the correct account ID field
+              switch (accountType) {
+                case 'individual':
+                  allocationData.individualAccountId = accountId;
+                  break;
+                case 'corporate':
+                  allocationData.corporateAccountId = accountId;
+                  break;
+                case 'joint':
+                  allocationData.jointAccountId = accountId;
+                  break;
+              }
+              
+              await storage.createAccountTargetAllocation(allocationData);
+              allocationsCreated++;
+            }
+          }
+        } catch (error: any) {
+          console.error("Error creating target allocations:", error);
+          // Don't fail the import if target allocation creation fails
+        }
+      }
+      
       // Create audit log entry for bulk upload
       if (createdPositions.length > 0) {
         const auditLogData: any = {
@@ -2550,7 +2616,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           action: "position_bulk_upload",
           changes: { 
             count: createdPositions.length,
-            symbols: createdPositions.map(p => p.symbol).join(', ')
+            symbols: createdPositions.map(p => p.symbol).join(', '),
+            allocationsCreated: allocationsCreated > 0 ? allocationsCreated : undefined
           },
         };
         

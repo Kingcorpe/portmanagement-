@@ -213,6 +213,7 @@ export default function AccountDetails() {
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [clearExisting, setClearExisting] = useState(true);
+  const [setAsTargetAllocation, setSetAsTargetAllocation] = useState(false);
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
   const [cashAmount, setCashAmount] = useState("");
   const [editingInlineTarget, setEditingInlineTarget] = useState<string | null>(null);
@@ -1409,7 +1410,8 @@ export default function AccountDetails() {
         positions,
         accountType,
         accountId,
-        clearExisting
+        clearExisting,
+        setAsTargetAllocation
       }) as unknown as { success: boolean; created: number; deleted?: number; errors?: any[]; message: string };
 
       await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
@@ -3268,21 +3270,39 @@ export default function AccountDetails() {
             {isUploading ? "Importing..." : "Browse Files"}
           </Button>
         </div>
-        <div className="flex items-center gap-3 px-4 py-3 bg-muted/50 rounded-lg">
-          <input
-            type="checkbox"
-            id="clear-existing"
-            checked={clearExisting}
-            onChange={(e) => setClearExisting(e.target.checked)}
-            className="h-4 w-4"
-            data-testid="checkbox-clear-existing"
-          />
-          <label htmlFor="clear-existing" className="text-sm cursor-pointer flex-1">
-            <span className="font-medium">Clear existing positions before import</span>
-            <span className="text-muted-foreground block text-xs mt-1">
-              Replace all current positions with the imported file (makes the file your source of truth)
-            </span>
-          </label>
+        <div className="space-y-3 px-4 py-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="clear-existing"
+              checked={clearExisting}
+              onChange={(e) => setClearExisting(e.target.checked)}
+              className="h-4 w-4"
+              data-testid="checkbox-clear-existing"
+            />
+            <label htmlFor="clear-existing" className="text-sm cursor-pointer flex-1">
+              <span className="font-medium">Clear existing positions before import</span>
+              <span className="text-muted-foreground block text-xs mt-1">
+                Replace all current positions with the imported file (makes the file your source of truth)
+              </span>
+            </label>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="set-target-allocation"
+              checked={setAsTargetAllocation}
+              onChange={(e) => setSetAsTargetAllocation(e.target.checked)}
+              className="h-4 w-4"
+              data-testid="checkbox-set-target-allocation"
+            />
+            <label htmlFor="set-target-allocation" className="text-sm cursor-pointer flex-1">
+              <span className="font-medium">Set imported holdings as target allocation</span>
+              <span className="text-muted-foreground block text-xs mt-1">
+                Automatically create target allocations based on current portfolio percentages
+              </span>
+            </label>
+          </div>
         </div>
       </div>
 
