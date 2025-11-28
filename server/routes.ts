@@ -1760,18 +1760,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const targetAllocationsForSymbol = await storage.getAccountTargetAllocationsBySymbol(parsed.symbol);
           const normalizedAlertSymbol = normalizeTicker(parsed.symbol);
           
-          console.log(`[Webhook Debug] Processing ${targetAllocationsForSymbol.length} target allocations for ${parsed.symbol}`);
-          console.log(`[Webhook Debug] Already processed accounts: ${Array.from(processedAccountKeys).join(', ')}`);
-          
           for (const allocation of targetAllocationsForSymbol) {
             const accountKey = `${allocation.accountType}:${allocation.accountId}`;
-            console.log(`[Webhook Debug] Checking allocation: ${accountKey}, accountType=${allocation.accountType}, accountId=${allocation.accountId}`);
             
             // Skip if already processed (has a position)
-            if (processedAccountKeys.has(accountKey)) {
-              console.log(`[Webhook Debug] Skipping ${accountKey} - already processed`);
-              continue;
-            }
+            if (processedAccountKeys.has(accountKey)) continue;
             
             let account: any;
             let allPositions: any[];
@@ -1781,16 +1774,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Fetch account details based on type
             if (allocation.accountType === 'individual') {
               account = await storage.getIndividualAccount(allocation.accountId);
-              if (!account) {
-                console.log(`[Webhook Debug] Individual account not found: ${allocation.accountId}`);
-                continue;
-              }
+              if (!account) continue;
               
               const individual = await storage.getIndividual(account.individualId);
-              if (!individual) {
-                console.log(`[Webhook Debug] Individual not found: ${account.individualId}`);
-                continue;
-              }
+              if (!individual) continue;
               
               ownerName = individual.name;
               const household = await storage.getHousehold(individual.householdId);
@@ -1833,13 +1820,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               return sum + (Number(pos.quantity) * Number(pos.currentPrice));
             }, 0);
             
-            console.log(`[Webhook Debug] Account ${allocation.accountType}:${allocation.accountId} - positions: ${allPositions.length}, totalValue: ${totalActualValue}`);
-            
             // Skip if no existing portfolio value (can't calculate allocations)
-            if (totalActualValue <= 0) {
-              console.log(`[Webhook Debug] Skipping ${allocation.accountType}:${allocation.accountId} - no portfolio value`);
-              continue;
-            }
+            if (totalActualValue <= 0) continue;
             
             // Current allocation is 0% since they don't hold this position
             const actualPercent = 0;
@@ -1906,10 +1888,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
               
               if (task) {
-                console.log(`[Webhook Debug] Task created successfully for ${allocation.accountType}:${allocation.accountId} - taskId: ${task.id}`);
                 tasksCreated.push(`${fullAccountName} (${householdName}) - BUY ${parsed.symbol} (Not Currently Held)`);
-              } else {
-                console.log(`[Webhook Debug] Task creation returned null/undefined for ${allocation.accountType}:${allocation.accountId}`);
               }
               
               // Send email report if configured
