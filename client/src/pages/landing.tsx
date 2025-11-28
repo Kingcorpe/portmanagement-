@@ -52,6 +52,9 @@ export default function Landing() {
               <h2 className="text-5xl font-bold text-white">
                 Investment Management
               </h2>
+              <p className="text-lg text-white/70">
+                Quit staring at charts. Let deals find you.
+              </p>
               <p className="text-xl text-white/80 italic">
                 Stop watching the market. Let the market come to you.
               </p>
