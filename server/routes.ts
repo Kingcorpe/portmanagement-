@@ -1194,7 +1194,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         actualPercentage: number;
         targetPercentage: number | null;
         variance: number | null;
-        status: 'under' | 'over' | 'on-target' | 'no-target';
+        status: 'under' | 'over' | 'on-target' | 'no-target' | 'zero-balance';
+        portfolioValue?: number;
       }> = [];
       
       // Track which accounts we've already processed (to avoid duplicates)
@@ -1389,8 +1390,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const currentValue = 0;
         const variance = actualPercentage - targetPercentage; // Will be negative (underweight)
         
-        // Status is always 'under' since they have 0% but want X%
-        const status: 'under' | 'over' | 'on-target' | 'no-target' = 'under';
+        // Calculate total portfolio value
+        const portfolioValue = allPositions.reduce((sum, p) => {
+          const qty = parseFloat(p.quantity || '0');
+          const price = parseFloat(p.currentPrice || p.entryPrice || '0');
+          return sum + (qty * price);
+        }, 0);
+        
+        // Status is 'zero-balance' if no portfolio value, otherwise 'under'
+        const status: 'under' | 'over' | 'on-target' | 'no-target' | 'zero-balance' = 
+          portfolioValue <= 0 ? 'zero-balance' : 'under';
         
         // Format account name
         let displayName = 'Account';
@@ -1414,6 +1423,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           targetPercentage,
           variance,
           status,
+          portfolioValue,
         });
       }
       
