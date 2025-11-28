@@ -42,7 +42,7 @@ export default function HoldingsSearch() {
   const [, setLocation] = useLocation();
   const [searchTicker, setSearchTicker] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
-  const [category, setCategory] = useState<string>("");
+  const [category, setCategory] = useState<string>("evergreen");
   const [minValue, setMinValue] = useState<string>("");
   const [maxValue, setMaxValue] = useState<string>("");
 
@@ -77,7 +77,7 @@ export default function HoldingsSearch() {
   };
 
   const handleClearFilters = () => {
-    setCategory("");
+    setCategory("evergreen");
     setMinValue("");
     setMaxValue("");
   };
