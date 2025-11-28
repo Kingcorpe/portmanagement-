@@ -1582,7 +1582,6 @@ export default function ModelPortfolios() {
                     {!editingHolding && (
                       <Button 
                         type="button" 
-                        variant="outline"
                         className="flex-1" 
                         disabled={createHoldingMutation.isPending}
                         onClick={() => {
@@ -1596,6 +1595,7 @@ export default function ModelPortfolios() {
                     )}
                     <Button 
                       type="submit" 
+                      variant={editingHolding ? "default" : "outline"}
                       className={editingHolding ? "w-full" : "flex-1"} 
                       disabled={createHoldingMutation.isPending || updateHoldingMutation.isPending} 
                       data-testid="button-submit-holding"
