@@ -3347,11 +3347,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const actionShares = currentPrice > 0 ? Math.abs(actionDollarAmount) / currentPrice : 0;
         
         // Determine action type: buy if positive, sell if negative, hold if within $50 threshold
+        // CASH positions never generate buy/sell actions - they're just liquidity
         let actionType: 'buy' | 'sell' | 'hold' = 'hold';
-        if (actionDollarAmount > 50) {
-          actionType = 'buy';
-        } else if (actionDollarAmount < -50) {
-          actionType = 'sell';
+        if (normalizedTicker !== 'CASH') {
+          if (actionDollarAmount > 50) {
+            actionType = 'buy';
+          } else if (actionDollarAmount < -50) {
+            actionType = 'sell';
+          }
         }
         
         comparison.push({
@@ -3376,7 +3379,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const [normalizedTicker, data] of Array.from(actualByTicker)) {
         if (!processedNormalizedTickers.has(normalizedTicker)) {
           const actualPercentage = totalActualValue > 0 ? (data.value / totalActualValue) * 100 : 0;
-          // Unexpected holdings should be sold (target is 0)
+          // CASH holdings don't generate sell actions - they're just liquidity
+          // Other unexpected holdings should be sold (target is 0)
+          const isUnexpectedCash = normalizedTicker === 'CASH';
           comparison.push({
             allocationId: null,
             ticker: data.originalTicker,
@@ -3388,7 +3393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             targetValue: 0,
             quantity: data.quantity,
             status: 'unexpected',
-            actionType: data.value > 50 ? 'sell' : 'hold' as 'buy' | 'sell' | 'hold',
+            actionType: (isUnexpectedCash ? 'hold' : (data.value > 50 ? 'sell' : 'hold')) as 'buy' | 'sell' | 'hold',
             actionDollarAmount: Math.round(-data.value * 100) / 100, // Negative = sell
             actionShares: Math.round(data.quantity * 100) / 100,
             currentPrice: Math.round(data.currentPrice * 100) / 100
