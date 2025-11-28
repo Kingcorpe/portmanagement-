@@ -1172,8 +1172,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUniversalHoldingByTicker(ticker: string): Promise<UniversalHolding | undefined> {
-    const [holding] = await db.select().from(universalHoldings).where(eq(universalHoldings.ticker, ticker));
-    return holding;
+    // First try exact match
+    const [exactMatch] = await db.select().from(universalHoldings).where(eq(universalHoldings.ticker, ticker));
+    if (exactMatch) return exactMatch;
+    
+    // Normalize ticker - remove any existing suffix first
+    const baseTicker = ticker.replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '').toUpperCase();
+    
+    // Try common Canadian exchange suffixes if no exact match
+    const suffixes = ['.TO', '.V', '.CN', '.NE', ''];
+    for (const suffix of suffixes) {
+      const tickerWithSuffix = baseTicker + suffix;
+      if (tickerWithSuffix !== ticker) { // Don't re-check exact match
+        const [holding] = await db.select().from(universalHoldings).where(eq(universalHoldings.ticker, tickerWithSuffix));
+        if (holding) return holding;
+      }
+    }
+    
+    return undefined;
   }
 
   async getAllUniversalHoldings(): Promise<UniversalHolding[]> {
