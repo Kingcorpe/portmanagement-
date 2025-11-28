@@ -531,8 +531,8 @@ export default function Households() {
         const query = searchQuery.toLowerCase().trim();
         const name = household.name.toLowerCase();
         
-        // Must match the name
-        if (!name.includes(query)) return false;
+        // Must match the name (starts with)
+        if (!name.startsWith(query)) return false;
         
         // In privacy mode, require query to be at least 80% of the household name length
         if (privacyMode && query.length < name.length * 0.8) return false;
