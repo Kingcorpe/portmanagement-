@@ -137,22 +137,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <MetricCard
-          title="Households"
-          value={totalHouseholds.toString()}
-          icon={Users}
-          testId="card-households"
-          href="/households"
-        />
-        <MetricCard
-          title="Pending Alerts"
-          value={pendingAlerts.toString()}
-          icon={Bell}
-          testId="card-pending-alerts"
-        />
-      </div>
-
       <Card data-testid="card-recent-alerts">
         <CardHeader>
           <CardTitle>Your Recent TradingView Alerts</CardTitle>
