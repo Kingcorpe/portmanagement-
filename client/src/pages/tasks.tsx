@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { format, isToday, isTomorrow, isThisWeek, isPast, addDays } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface TaskWithContext {
   id: string;
@@ -44,6 +45,13 @@ interface TaskWithContext {
   ownerName: string;
   householdId: string;
   householdName: string;
+  householdCategory?: string | null;
+}
+
+interface HouseholdBasic {
+  id: string;
+  name: string;
+  category: string | null;
 }
 
 export default function Tasks() {
@@ -52,6 +60,7 @@ export default function Tasks() {
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "completed">("pending");
   const [groupBy, setGroupBy] = useState<"due" | "household" | "priority">("due");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["overdue", "today", "upcoming", "no-date"]));
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -65,6 +74,11 @@ export default function Tasks() {
       }, 500);
     }
   }, [isAuthenticated, authLoading, toast]);
+
+  const { data: households = [] } = useQuery<HouseholdBasic[]>({
+    queryKey: ["/api/households"],
+    enabled: isAuthenticated,
+  });
 
   const { data: tasks = [], isLoading } = useQuery<TaskWithContext[]>({
     queryKey: ["/api/tasks"],
@@ -84,6 +98,18 @@ export default function Tasks() {
       return failureCount < 3;
     },
   });
+
+  // Map households to get category information
+  const householdCategoryMap = households.reduce((acc, household) => {
+    acc[household.id] = household.category;
+    return acc;
+  }, {} as Record<string, string | null>);
+
+  // Enrich tasks with household category
+  const tasksWithCategory = tasks.map(task => ({
+    ...task,
+    householdCategory: householdCategoryMap[task.householdId],
+  }));
 
   const completeTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
@@ -134,10 +160,16 @@ export default function Tasks() {
     }
   };
 
-  // Filter tasks based on active tab
-  const filteredTasks = tasks.filter(task => {
-    if (activeTab === "pending") return task.status !== "completed";
-    if (activeTab === "completed") return task.status === "completed";
+  // Get unique categories from households
+  const categories = Array.from(new Set(
+    households.map(h => h.category).filter(Boolean)
+  )).sort() as string[];
+
+  // Filter tasks based on active tab and category
+  const filteredTasks = tasksWithCategory.filter(task => {
+    if (activeTab === "pending" && task.status === "completed") return false;
+    if (activeTab === "completed" && task.status !== "completed") return false;
+    if (selectedCategory && task.householdCategory !== selectedCategory) return false;
     return true;
   });
 
@@ -303,6 +335,26 @@ export default function Tasks() {
         </div>
         
         <div className="flex items-center gap-4 flex-wrap">
+          {categories.length > 0 && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Category:</span>
+              <Select value={selectedCategory || ""} onValueChange={(v) => setSelectedCategory(v || null)}>
+                <SelectTrigger className="w-40" data-testid="select-category-filter">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="" data-testid="option-all-categories">
+                    All Categories
+                  </SelectItem>
+                  {categories.map(cat => (
+                    <SelectItem key={cat} value={cat} data-testid={`option-category-${cat}`}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="flex items-center gap-2 text-sm">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Group by:</span>
