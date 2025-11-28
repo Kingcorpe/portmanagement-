@@ -203,6 +203,7 @@ export const individualAccounts = pgTable("individual_accounts", {
   riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
+  watchlistPortfolioId: varchar("watchlist_portfolio_id").references(() => freelancePortfolios.id, { onDelete: 'set null' }),
   immediateNotes: text("immediate_notes"),
   upcomingNotes: text("upcoming_notes"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -217,6 +218,10 @@ export const individualAccountsRelations = relations(individualAccounts, ({ one,
   plannedPortfolio: one(plannedPortfolios, {
     fields: [individualAccounts.plannedPortfolioId],
     references: [plannedPortfolios.id],
+  }),
+  watchlistPortfolio: one(freelancePortfolios, {
+    fields: [individualAccounts.watchlistPortfolioId],
+    references: [freelancePortfolios.id],
   }),
   positions: many(positions),
 }));
@@ -234,6 +239,7 @@ export const corporateAccounts = pgTable("corporate_accounts", {
   riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
+  watchlistPortfolioId: varchar("watchlist_portfolio_id").references(() => freelancePortfolios.id, { onDelete: 'set null' }),
   immediateNotes: text("immediate_notes"),
   upcomingNotes: text("upcoming_notes"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -248,6 +254,10 @@ export const corporateAccountsRelations = relations(corporateAccounts, ({ one, m
   plannedPortfolio: one(plannedPortfolios, {
     fields: [corporateAccounts.plannedPortfolioId],
     references: [plannedPortfolios.id],
+  }),
+  watchlistPortfolio: one(freelancePortfolios, {
+    fields: [corporateAccounts.watchlistPortfolioId],
+    references: [freelancePortfolios.id],
   }),
   positions: many(positions),
 }));
@@ -265,6 +275,7 @@ export const jointAccounts = pgTable("joint_accounts", {
   riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   plannedPortfolioId: varchar("planned_portfolio_id").references(() => plannedPortfolios.id, { onDelete: 'set null' }),
+  watchlistPortfolioId: varchar("watchlist_portfolio_id").references(() => freelancePortfolios.id, { onDelete: 'set null' }),
   immediateNotes: text("immediate_notes"),
   upcomingNotes: text("upcoming_notes"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -279,6 +290,10 @@ export const jointAccountsRelations = relations(jointAccounts, ({ one, many }) =
   plannedPortfolio: one(plannedPortfolios, {
     fields: [jointAccounts.plannedPortfolioId],
     references: [plannedPortfolios.id],
+  }),
+  watchlistPortfolio: one(freelancePortfolios, {
+    fields: [jointAccounts.watchlistPortfolioId],
+    references: [freelancePortfolios.id],
   }),
   positions: many(positions),
   ownerships: many(jointAccountOwnership),
@@ -590,6 +605,7 @@ const baseIndividualAccountSchema = createInsertSchema(individualAccounts).omit(
   riskMediumPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
   riskMediumHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
   riskHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
+  watchlistPortfolioId: z.string().optional().nullable(),
 });
 
 export const insertIndividualAccountSchema = baseIndividualAccountSchema.refine(validateRiskAllocationSumEquals100, {
@@ -612,6 +628,7 @@ const baseCorporateAccountSchema = createInsertSchema(corporateAccounts).omit({
   riskMediumPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
   riskMediumHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
   riskHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
+  watchlistPortfolioId: z.string().optional().nullable(),
 });
 
 export const insertCorporateAccountSchema = baseCorporateAccountSchema.refine(validateRiskAllocationSumEquals100, {
@@ -634,6 +651,7 @@ const baseJointAccountSchema = createInsertSchema(jointAccounts).omit({
   riskMediumPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
   riskMediumHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
   riskHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
+  watchlistPortfolioId: z.string().optional().nullable(),
 });
 
 export const insertJointAccountSchema = baseJointAccountSchema.refine(validateRiskAllocationSumEquals100, {
