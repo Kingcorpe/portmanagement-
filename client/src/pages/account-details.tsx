@@ -2282,7 +2282,7 @@ export default function AccountDetails() {
             <CardContent className="pt-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between min-h-[28px]">
                     <div className="flex items-center gap-2">
                       <Zap className="h-4 w-4 text-amber-500" />
                       <label className="text-sm font-medium">Immediate Changes</label>
@@ -2310,9 +2310,23 @@ export default function AccountDetails() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-blue-500" />
-                    <label className="text-sm font-medium">Upcoming / In Progress</label>
+                  <div className="flex items-center justify-between min-h-[28px]">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-blue-500" />
+                      <label className="text-sm font-medium">Upcoming / In Progress</label>
+                    </div>
+                    {upcomingNotes && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+                        onClick={() => setUpcomingNotes("")}
+                        data-testid="button-clear-upcoming-notes"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Clear
+                      </Button>
+                    )}
                   </div>
                   <div className="border rounded-md p-3 bg-background">
                     <RichNotesEditor
