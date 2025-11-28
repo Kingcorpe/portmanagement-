@@ -200,7 +200,7 @@ export default function AccountDetails() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [, params] = useRoute("/account/:accountType/:accountId");
-  const [, navigate] = useLocation();
+  const [, setLocation] = useLocation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
   const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);
@@ -1547,7 +1547,7 @@ export default function AccountDetails() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/households")} data-testid="button-back">
+          <Button variant="ghost" size="icon" onClick={() => setLocation("/households")} data-testid="button-back">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
