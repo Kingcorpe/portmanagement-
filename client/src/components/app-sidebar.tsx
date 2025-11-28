@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, Settings, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, Bell, Settings, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -43,6 +43,11 @@ const menuItems = [
     title: "Tasks",
     url: "/tasks",
     icon: ListTodo,
+  },
+  {
+    title: "Holdings Search",
+    url: "/holdings-search",
+    icon: Search,
   },
 ];
 

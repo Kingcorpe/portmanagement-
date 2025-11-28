@@ -5341,6 +5341,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }, PRICE_REFRESH_INTERVAL);
   
   console.log("[Background Job] Price refresh scheduler started (every 5 minutes)");
-  
+
+  // Search holdings by ticker across all accounts
+  app.get('/api/holdings/search', isAuthenticated, async (req: any, res) => {
+    try {
+      const { ticker } = req.query;
+      
+      if (!ticker || typeof ticker !== 'string') {
+        return res.status(400).json({ message: "Ticker parameter is required" });
+      }
+
+      const normalizedSearchTicker = ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+      
+      // Fetch all households with their data
+      const households = await storage.getAllHouseholds();
+      const results: any[] = [];
+
+      // Helper to normalize ticker
+      const normalizeTicker = (t: string): string => {
+        return t.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+      };
+
+      for (const household of households) {
+        const individuals = await storage.getIndividualsByHousehold(household.id);
+        const corporations = await storage.getCorporationsByHousehold(household.id);
+        const jointAccounts = await storage.getJointAccountsByHousehold(household.id);
+
+        // Check individual accounts
+        for (const individual of individuals) {
+          const accounts = await storage.getIndividualAccountsByIndividual(individual.id);
+          for (const account of accounts) {
+            const positions = await storage.getPositionsByIndividualAccount(account.id);
+            const matchingPositions = positions.filter((p: Position) => 
+              normalizeTicker(p.symbol) === normalizedSearchTicker
+            );
+            
+            for (const pos of matchingPositions) {
+              results.push({
+                householdName: household.name,
+                ownerName: individual.name,
+                ownerType: 'Individual',
+                accountType: account.type,
+                accountNickname: account.nickname || account.type,
+                symbol: pos.symbol,
+                quantity: Number(pos.quantity),
+                currentPrice: Number(pos.currentPrice),
+                value: Number(pos.quantity) * Number(pos.currentPrice),
+                entryPrice: Number(pos.entryPrice),
+              });
+            }
+          }
+        }
+
+        // Check corporate accounts
+        for (const corp of corporations) {
+          const accounts = await storage.getCorporateAccountsByCorporation(corp.id);
+          for (const account of accounts) {
+            const positions = await storage.getPositionsByCorporateAccount(account.id);
+            const matchingPositions = positions.filter((p: Position) => 
+              normalizeTicker(p.symbol) === normalizedSearchTicker
+            );
+            
+            for (const pos of matchingPositions) {
+              results.push({
+                householdName: household.name,
+                ownerName: corp.name,
+                ownerType: 'Corporation',
+                accountType: account.type,
+                accountNickname: account.nickname || account.type,
+                symbol: pos.symbol,
+                quantity: Number(pos.quantity),
+                currentPrice: Number(pos.currentPrice),
+                value: Number(pos.quantity) * Number(pos.currentPrice),
+                entryPrice: Number(pos.entryPrice),
+              });
+            }
+          }
+        }
+
+        // Check joint accounts
+        for (const jointAccount of jointAccounts) {
+          const positions = await storage.getPositionsByJointAccount(jointAccount.id);
+          const matchingPositions = positions.filter((p: Position) => 
+            normalizeTicker(p.symbol) === normalizedSearchTicker
+          );
+          
+          for (const pos of matchingPositions) {
+            const ownershipRows = await db.query.jointAccountOwnership.findMany({
+              where: (ownership, { eq }) => eq(ownership.jointAccountId, jointAccount.id),
+              with: { individual: true },
+            });
+            const ownerNames = ownershipRows.map((o: any) => o.individual.name).join(' & ');
+            
+            results.push({
+              householdName: household.name,
+              ownerName: ownerNames,
+              ownerType: 'Joint',
+              accountType: jointAccount.type,
+              accountNickname: jointAccount.nickname || jointAccount.type,
+              symbol: pos.symbol,
+              quantity: Number(pos.quantity),
+              currentPrice: Number(pos.currentPrice),
+              value: Number(pos.quantity) * Number(pos.currentPrice),
+              entryPrice: Number(pos.entryPrice),
+            });
+          }
+        }
+      }
+
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error searching holdings:", error);
+      res.status(500).json({ message: error.message || "Failed to search holdings" });
+    }
+  });
+
   return httpServer;
 }
