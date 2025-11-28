@@ -75,6 +75,7 @@ export const households = pgTable("households", {
   userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }), // Owner of the household
   name: text("name").notNull(),
   category: householdCategoryEnum("category"),
+  deletedAt: timestamp("deleted_at"), // Soft delete - null means active, timestamp means archived
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

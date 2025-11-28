@@ -226,6 +226,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get archived households
+  app.get('/api/households/archived', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const archived = await storage.getAllArchivedHouseholds(userId);
+      res.json(archived);
+    } catch (error) {
+      console.error("Error fetching archived households:", error);
+      res.status(500).json({ message: "Failed to fetch archived households" });
+    }
+  });
+
   app.delete('/api/households/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -242,6 +254,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting household:", error);
       res.status(500).json({ message: "Failed to delete household" });
+    }
+  });
+
+  // Restore archived household
+  app.post('/api/households/:id/restore', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const hasAccess = await storage.canUserEditHousehold(userId, req.params.id);
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      const restored = await storage.restoreHousehold(req.params.id);
+      res.json(restored);
+    } catch (error) {
+      console.error("Error restoring household:", error);
+      res.status(500).json({ message: "Failed to restore household" });
     }
   });
 

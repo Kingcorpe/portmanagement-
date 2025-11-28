@@ -73,7 +73,7 @@ import {
   type InsertAccountAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, inArray, ilike, or, and, sql } from "drizzle-orm";
+import { eq, desc, inArray, ilike, or, and, sql, isNull, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -101,6 +101,8 @@ export interface IStorage {
   getHouseholdWithDetails(id: string): Promise<HouseholdWithDetails | null>;
   updateHousehold(id: string, household: Partial<InsertHousehold>): Promise<Household>;
   deleteHousehold(id: string): Promise<void>;
+  getAllArchivedHouseholds(userId?: string): Promise<Household[]>;
+  restoreHousehold(id: string): Promise<Household>;
   canUserAccessHousehold(userId: string, householdId: string): Promise<boolean>;
   canUserEditHousehold(userId: string, householdId: string): Promise<boolean>;
   getHouseholdIdFromAccount(accountType: 'individual' | 'corporate' | 'joint', accountId: string): Promise<string | null>;
@@ -468,18 +470,18 @@ export class DatabaseStorage implements IStorage {
 
   async getAllHouseholds(userId?: string): Promise<Household[]> {
     if (!userId) {
-      // No user filter - return all (for backward compatibility during migration)
-      return await db.select().from(households).orderBy(desc(households.createdAt));
+      // No user filter - return all active households (excluding archived)
+      return await db.select().from(households).where(isNull(households.deletedAt)).orderBy(desc(households.createdAt));
     }
 
-    // Get households owned by user
+    // Get households owned by user (active only)
     const ownedHouseholds = await db
       .select()
       .from(households)
-      .where(eq(households.userId, userId))
+      .where(and(eq(households.userId, userId), isNull(households.deletedAt)))
       .orderBy(desc(households.createdAt));
 
-    // Get households shared with user
+    // Get households shared with user (active only)
     const sharedHouseholdIds = await this.getSharedHouseholdsForUser(userId);
     
     if (sharedHouseholdIds.length === 0) {
@@ -489,7 +491,7 @@ export class DatabaseStorage implements IStorage {
     const sharedHouseholds = await db
       .select()
       .from(households)
-      .where(inArray(households.id, sharedHouseholdIds))
+      .where(and(inArray(households.id, sharedHouseholdIds), isNull(households.deletedAt)))
       .orderBy(desc(households.createdAt));
 
     // Combine and deduplicate
@@ -503,6 +505,22 @@ export class DatabaseStorage implements IStorage {
     return allHouseholds.sort((a, b) => 
       (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
     );
+  }
+
+  async getAllArchivedHouseholds(userId?: string): Promise<Household[]> {
+    if (!userId) {
+      return await db.select().from(households).where(isNotNull(households.deletedAt)).orderBy(desc(households.deletedAt));
+    }
+
+    // Get archived households owned by user
+    const ownedArchived = await db
+      .select()
+      .from(households)
+      .where(and(eq(households.userId, userId), isNotNull(households.deletedAt)))
+      .orderBy(desc(households.deletedAt));
+
+    // Get shared archived households (optionally)
+    return ownedArchived;
   }
 
   async getAllHouseholdsWithDetails(userId?: string): Promise<HouseholdWithDetails[]> {
@@ -738,7 +756,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteHousehold(id: string): Promise<void> {
-    await db.delete(households).where(eq(households.id, id));
+    // Soft delete - mark as archived instead of actually deleting
+    await db
+      .update(households)
+      .set({ deletedAt: new Date() })
+      .where(eq(households.id, id));
+  }
+
+  async restoreHousehold(id: string): Promise<Household> {
+    const [household] = await db
+      .update(households)
+      .set({ deletedAt: null })
+      .where(eq(households.id, id))
+      .returning();
+    return household;
   }
 
   // Individual operations
