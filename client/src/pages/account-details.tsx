@@ -111,7 +111,7 @@ interface TaskFormProps {
 function TaskForm({ task, accountType, accountId, onSubmit, isPending }: TaskFormProps) {
   const [title, setTitle] = useState(task?.title || "");
   const [description, setDescription] = useState(task?.description || "");
-  const [status, setStatus] = useState<"pending" | "in_progress" | "completed">(task?.status || "pending");
+  const [status, setStatus] = useState<"pending" | "in_progress">(task?.status === "completed" ? "pending" : (task?.status || "pending"));
   const [priority, setPriority] = useState<"low" | "medium" | "high" | "urgent">(task?.priority || "medium");
   const [dueDate, setDueDate] = useState(task?.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : "");
 
@@ -174,7 +174,6 @@ function TaskForm({ task, accountType, accountId, onSubmit, isPending }: TaskFor
             <SelectContent>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -233,7 +232,7 @@ export default function AccountDetails() {
   const [isTasksExpanded, setIsTasksExpanded] = useState(true);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<AccountTask | null>(null);
-  const [taskStatusFilter, setTaskStatusFilter] = useState<"all" | "pending" | "in_progress" | "completed">("all");
+  const [taskStatusFilter, setTaskStatusFilter] = useState<"all" | "pending" | "in_progress">("all");
   const [notesAutoSaveStatus, setNotesAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [isAuditLogExpanded, setIsAuditLogExpanded] = useState(false);
   const notesInitialLoadRef = useRef(true);
@@ -891,9 +890,10 @@ export default function AccountDetails() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: [tasksEndpoint] });
+      await queryClient.invalidateQueries({ queryKey: [auditLogEndpoint] });
       toast({
         title: "Task Completed",
-        description: "Task has been marked as completed.",
+        description: "Task has been completed and archived to Change History.",
       });
     },
     onError: (error: Error) => {
@@ -2378,7 +2378,6 @@ export default function AccountDetails() {
                     <SelectItem value="all">All Tasks</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
                 <Dialog open={isTaskDialogOpen} onOpenChange={(open) => {
@@ -2423,15 +2422,15 @@ export default function AccountDetails() {
                   if (taskStatusFilter === "all") return true;
                   return task.status === taskStatusFilter;
                 }).sort((a, b) => {
-                  // Sort by status (pending, in_progress first), then by priority, then by due date
-                  const statusOrder = { pending: 0, in_progress: 1, completed: 2 };
-                  const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+                  // Sort by status (pending first, then in_progress), then by priority, then by due date
+                  const statusOrder: Record<string, number> = { pending: 0, in_progress: 1 };
+                  const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
                   
-                  if (statusOrder[a.status] !== statusOrder[b.status]) {
-                    return statusOrder[a.status] - statusOrder[b.status];
+                  if ((statusOrder[a.status] ?? 2) !== (statusOrder[b.status] ?? 2)) {
+                    return (statusOrder[a.status] ?? 2) - (statusOrder[b.status] ?? 2);
                   }
-                  if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-                    return priorityOrder[a.priority] - priorityOrder[b.priority];
+                  if ((priorityOrder[a.priority] ?? 3) !== (priorityOrder[b.priority] ?? 3)) {
+                    return (priorityOrder[a.priority] ?? 3) - (priorityOrder[b.priority] ?? 3);
                   }
                   // Sort by due date (nulls last)
                   if (a.dueDate && b.dueDate) {
@@ -2457,25 +2456,17 @@ export default function AccountDetails() {
                     {filteredTasks.map((task) => (
                       <div
                         key={task.id}
-                        className={cn(
-                          "flex items-start gap-3 p-3 rounded-lg border hover-elevate",
-                          task.status === "completed" && "opacity-60"
-                        )}
+                        className="flex items-start gap-3 p-3 rounded-lg border hover-elevate"
                         data-testid={`task-item-${task.id}`}
                       >
                         <button
-                          onClick={() => {
-                            if (task.status !== "completed") {
-                              completeTaskMutation.mutate(task.id);
-                            }
-                          }}
-                          disabled={task.status === "completed" || completeTaskMutation.isPending}
+                          onClick={() => completeTaskMutation.mutate(task.id)}
+                          disabled={completeTaskMutation.isPending}
                           className="mt-0.5 flex-shrink-0"
                           data-testid={`button-complete-task-${task.id}`}
+                          title="Mark as complete"
                         >
-                          {task.status === "completed" ? (
-                            <CheckCircle2 className="h-5 w-5 text-green-600" />
-                          ) : task.status === "in_progress" ? (
+                          {task.status === "in_progress" ? (
                             <AlertCircle className="h-5 w-5 text-blue-500" />
                           ) : (
                             <Circle className="h-5 w-5 text-muted-foreground hover:text-primary" />
@@ -2483,10 +2474,7 @@ export default function AccountDetails() {
                         </button>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={cn(
-                              "font-medium",
-                              task.status === "completed" && "line-through text-muted-foreground"
-                            )}>
+                            <span className="font-medium">
                               {task.title}
                             </span>
                             <Badge
@@ -3374,6 +3362,8 @@ export default function AccountDetails() {
                             currentPrice: "Current Price",
                             targetPercentage: "Target %",
                             title: "Task",
+                            description: "Description",
+                            priority: "Priority",
                             dueDate: "Due Date",
                             count: "Count",
                             symbols: "Symbols",

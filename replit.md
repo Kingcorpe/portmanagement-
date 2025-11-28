@@ -126,6 +126,20 @@ The platform integrates with Yahoo Finance to fetch real-time market prices and 
   - Display shows "(spouse)" indicator when using spouse's DOB for the calculation.
 - Both DOB fields are stored on the individual, not the account, since RIF calculations are person-specific.
 
+### Task Management
+Each account has a Tasks section for tracking action items. Tasks have statuses (Pending, In Progress) and priorities (Low, Medium, High, Urgent).
+
+**Task Completion Behavior:**
+- When a task is marked as complete (by clicking the circle/checkbox), it is removed from the active task list
+- The completion is logged to the Change History with full task details (title, description, priority, due date)
+- Completed tasks are no longer visible in the Tasks section but can be reviewed in Change History for historical reference
+- This keeps the active task list clean while preserving a complete audit trail
+
+**Task Status Filter:**
+- All Tasks: Shows pending and in-progress tasks
+- Pending: Shows only pending tasks
+- In Progress: Shows only in-progress tasks
+
 ### Change History / Audit Trail
 Each account (individual, corporate, or joint) has a collapsible Change History section at the bottom of its detail page that tracks all modifications.
 
@@ -134,7 +148,7 @@ Each account (individual, corporate, or joint) has a collapsible Change History 
 - **Account Updates**: Changes to account fields (nickname, risk allocations, notes, protection settings)
 - **Position Actions**: Adding, updating, or deleting positions, including bulk uploads
 - **Target Allocation Changes**: Adding, updating, or removing target allocations
-- **Task Management**: Creating, completing, or deleting tasks
+- **Task Management**: Creating, completing (with full task details archived), or deleting tasks
 - **Price Refresh**: When market prices are manually refreshed
 - **Model Portfolio Copy**: When allocations are copied from a model portfolio
 

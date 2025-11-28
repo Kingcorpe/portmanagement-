@@ -3857,7 +3857,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Complete task
+  // Complete task - marks as done, logs to audit trail, and removes from active tasks
   app.post('/api/account-tasks/:id/complete', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -3885,9 +3885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      const task = await storage.completeAccountTask(req.params.id);
-      
-      // Create audit log entry
+      // Create audit log entry with full task details for future reference
       await storage.createAuditLogEntry({
         individualAccountId: existing.individualAccountId || undefined,
         corporateAccountId: existing.corporateAccountId || undefined,
@@ -3895,11 +3893,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         action: "task_complete",
         changes: { 
-          title: existing.title
+          title: existing.title,
+          description: existing.description || null,
+          priority: existing.priority,
+          dueDate: existing.dueDate ? new Date(existing.dueDate).toLocaleDateString() : null,
         },
       });
       
-      res.json(task);
+      // Delete the task after logging (completed tasks only exist in audit history)
+      await storage.deleteAccountTask(req.params.id);
+      
+      res.json({ success: true, message: "Task completed and archived to history" });
     } catch (error) {
       console.error("Error completing task:", error);
       res.status(500).json({ message: "Failed to complete task" });
