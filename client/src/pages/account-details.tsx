@@ -212,7 +212,7 @@ export default function AccountDetails() {
   const [selectedPortfolioType, setSelectedPortfolioType] = useState<"planned" | "freelance">("planned");
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [clearExisting, setClearExisting] = useState(false);
+  const [clearExisting, setClearExisting] = useState(true);
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
   const [cashAmount, setCashAmount] = useState("");
   const [editingInlineTarget, setEditingInlineTarget] = useState<string | null>(null);
