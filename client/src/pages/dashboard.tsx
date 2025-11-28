@@ -153,6 +153,26 @@ export default function Dashboard() {
         />
       </div>
 
+      <Card data-testid="card-recent-alerts">
+        <CardHeader>
+          <CardTitle>Your Recent TradingView Alerts</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {recentAlerts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No pending alerts</p>
+          ) : (
+            recentAlerts.map(alert => (
+              <AlertCard
+                key={alert.id}
+                alert={alert}
+                onExecute={handleExecuteAlert}
+                onDismiss={handleDismissAlert}
+              />
+            ))
+          )}
+        </CardContent>
+      </Card>
+
       <Card data-testid="card-quick-actions">
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
@@ -188,26 +208,6 @@ export default function Dashboard() {
               </Button>
             </Link>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card data-testid="card-recent-alerts">
-        <CardHeader>
-          <CardTitle>Recent Alerts</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {recentAlerts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No pending alerts</p>
-          ) : (
-            recentAlerts.map(alert => (
-              <AlertCard
-                key={alert.id}
-                alert={alert}
-                onExecute={handleExecuteAlert}
-                onDismiss={handleDismissAlert}
-              />
-            ))
-          )}
         </CardContent>
       </Card>
 
