@@ -115,7 +115,7 @@ export default function Landing() {
 
       <footer className="border-t py-6">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>Portfolio Manager - Professional Investment Management Platform</p>
+          <p>Advisor Portal - Professional Investment Management Platform</p>
         </div>
       </footer>
     </div>
