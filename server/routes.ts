@@ -5397,6 +5397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             for (const pos of matchingPositions) {
               results.push({
+                accountId: account.id,
                 householdName: household.name,
                 householdCategory: household.category,
                 ownerName: individual.name,
@@ -5432,6 +5433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             for (const pos of matchingPositions) {
               results.push({
+                accountId: account.id,
                 householdName: household.name,
                 householdCategory: household.category,
                 ownerName: corp.name,
@@ -5471,6 +5473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const ownerNames = ownershipRows.map((o: any) => o.individual.name).join(' & ');
             
             results.push({
+              accountId: jointAccount.id,
               householdName: household.name,
               householdCategory: household.category,
               ownerName: ownerNames,
