@@ -5186,34 +5186,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         doc.on('error', reject);
 
         // Title
-        doc.fontSize(20).font('Helvetica-Bold')
-           .text('Account Tasks Report', { align: 'center' });
-        doc.moveDown(0.3);
-        doc.fontSize(10).font('Helvetica')
+        doc.fontSize(18).font('Helvetica-Bold')
+           .text('Tasks Report', { align: 'center' });
+        doc.moveDown(0.2);
+        doc.fontSize(9).font('Helvetica')
            .fillColor('#666666')
-           .text(`Generated: ${new Date().toLocaleString('en-CA', { dateStyle: 'long', timeStyle: 'short' })}`, { align: 'center' });
+           .text(`${new Date().toLocaleString('en-CA', { dateStyle: 'short', timeStyle: 'short' })}`, { align: 'center' });
         doc.fillColor('#000000');
-        doc.moveDown(0.5);
+        doc.moveDown(0.4);
 
-        // Summary
+        // Summary (inline format)
         const pendingTasks = tasks.filter(t => t.status !== 'completed');
         const completedTasks = tasks.filter(t => t.status === 'completed');
         const urgentTasks = pendingTasks.filter(t => t.priority === 'urgent');
-        const highTasks = pendingTasks.filter(t => t.priority === 'high');
         
-        doc.fontSize(12).font('Helvetica-Bold').text('Summary');
+        doc.fontSize(9).font('Helvetica');
+        let summaryText = '';
+        if (urgentTasks.length > 0) summaryText += `${urgentTasks.length} urgent • `;
+        summaryText += `${pendingTasks.length} pending • ${completedTasks.length} completed`;
+        doc.fillColor('#666666').text(summaryText, { align: 'center' });
+        doc.fillColor('#000000');
         doc.moveDown(0.3);
-        doc.fontSize(10).font('Helvetica')
-           .text(`Total Tasks: ${tasks.length}`)
-           .text(`Pending: ${pendingTasks.length}`)
-           .text(`Completed: ${completedTasks.length}`)
-           .text(`Urgent Priority: ${urgentTasks.length}`)
-           .text(`High Priority: ${highTasks.length}`);
-        doc.moveDown(0.5);
 
         // Separator
         doc.moveTo(50, doc.y).lineTo(562, doc.y).stroke();
-        doc.moveDown(0.5);
+        doc.moveDown(0.3);
 
         // Group tasks by household
         const tasksByHousehold: Record<string, typeof tasks> = {};
@@ -5243,12 +5240,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             doc.addPage();
           }
 
-          // Household header with underline
-          doc.fontSize(14).font('Helvetica-Bold').fillColor('#2563eb')
+          // Household header
+          doc.fontSize(12).font('Helvetica-Bold')
              .text(householdName);
-          doc.moveTo(50, doc.y + 2).lineTo(200, doc.y + 2).strokeColor('#2563eb').lineWidth(1).stroke();
-          doc.fillColor('#000000').strokeColor('#000000');
-          doc.moveDown(0.6);
+          doc.moveDown(0.3);
 
           // Sort tasks: pending first, then by priority
           const sortedTasks = [...householdTasks].sort((a, b) => {
@@ -5259,53 +5254,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           for (const task of sortedTasks) {
-            if (doc.y > 680) {
+            if (doc.y > 700) {
               doc.addPage();
             }
 
             const isCompleted = task.status === 'completed';
-            const statusIcon = isCompleted ? '[X]' : '[ ]';
+            const statusIcon = isCompleted ? '✓' : '○';
             const accountLabel = accountTypeLabels[task.accountTypeLabel] || task.accountTypeLabel;
-            const titleColor = isCompleted ? '#666666' : '#000000';
+            const titleColor = isCompleted ? '#999999' : '#000000';
             
-            // Line 1: Status icon and task title
-            doc.fontSize(11).font('Helvetica-Bold').fillColor(titleColor)
+            doc.fontSize(10).font(isCompleted ? 'Helvetica-Oblique' : 'Helvetica-Bold').fillColor(titleColor)
                .text(`${statusIcon} ${task.title}`);
             
-            // Line 2: Account info
-            doc.fontSize(9).font('Helvetica').fillColor('#444444');
-            let accountInfo = `     Account: ${accountLabel}`;
-            if (task.accountNickname) accountInfo += ` - ${task.accountNickname}`;
-            doc.text(accountInfo);
-            
-            // Line 3: Owner
-            doc.fontSize(9).font('Helvetica').fillColor('#444444')
-               .text(`     Owner: ${task.ownerName}`);
-            
-            // Line 4: Priority and dates
-            doc.fontSize(9).font('Helvetica').fillColor('#444444');
-            let dateInfo = `     Priority: ${priorityLabels[task.priority]}`;
+            doc.fontSize(8).font('Helvetica').fillColor('#666666');
+            const details = [];
+            details.push(`${task.ownerName}`);
+            if (task.accountNickname) {
+              details.push(`${accountLabel} - ${task.accountNickname}`);
+            } else {
+              details.push(accountLabel);
+            }
             if (task.dueDate) {
-              const dueDate = new Date(task.dueDate);
-              dateInfo += `   |   Due: ${dueDate.toLocaleDateString('en-CA')}`;
+              details.push(`Due: ${new Date(task.dueDate).toLocaleDateString('en-CA')}`);
             }
-            if (isCompleted && task.completedAt) {
-              const completedDate = new Date(task.completedAt);
-              dateInfo += `   |   Completed: ${completedDate.toLocaleDateString('en-CA')}`;
-            }
-            doc.text(dateInfo);
+            details.push(`[${task.priority.toUpperCase()}]`);
+            doc.text(details.join(' • '));
             
-            // Line 5: Description (if any)
             if (task.description) {
-              doc.fontSize(9).font('Helvetica-Oblique').fillColor('#666666')
-                 .text(`     ${task.description}`);
+              doc.fontSize(8).font('Helvetica').fillColor('#777777')
+                 .text(task.description, { width: 450, height: 30 });
             }
             
             doc.fillColor('#000000');
-            doc.moveDown(0.8);
+            doc.moveDown(0.4);
           }
 
-          doc.moveDown(0.3);
+          doc.moveDown(0.2);
         }
 
         doc.end();
