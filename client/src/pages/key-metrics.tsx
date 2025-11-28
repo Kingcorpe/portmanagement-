@@ -213,11 +213,10 @@ export default function KeyMetrics() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <MetricCard
           title="Total AUM"
           value={formatCurrency(totalAUM)}
-          change={averagePerformance}
           icon={DollarSign}
           testId="metric-total-aum"
         />
@@ -233,12 +232,6 @@ export default function KeyMetrics() {
           value={totalAccounts.toString()}
           icon={Briefcase}
           testId="metric-accounts"
-        />
-        <MetricCard
-          title="Avg. Performance"
-          value={`${averagePerformance >= 0 ? '+' : ''}${averagePerformance.toFixed(2)}%`}
-          icon={TrendingUp}
-          testId="metric-performance"
         />
       </div>
 
