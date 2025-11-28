@@ -1081,7 +1081,12 @@ export default function AccountDetails() {
   const handleProtectionEdit = (position: Position, field: 'protectionPercent' | 'stopPrice' | 'limitPrice') => {
     setEditingProtection({ positionId: position.id, field });
     const currentValue = position[field];
-    setProtectionValue(currentValue ? String(currentValue) : "");
+    // Default to 50% for protection percent if no current value
+    if (!currentValue && field === 'protectionPercent') {
+      setProtectionValue("50");
+    } else {
+      setProtectionValue(currentValue ? String(currentValue) : "");
+    }
   };
 
   const handleProtectionSave = (position: Position) => {
