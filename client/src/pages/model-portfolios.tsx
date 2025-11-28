@@ -96,12 +96,13 @@ const holdingCategoryLabels: Record<string, string> = {
   basket_etf: "CC Basket ETFs",
   single_etf: "Single ETFs",
   double_long_etf: "Double Long ETFs",
+  leveraged_etf: "Leveraged ETFs",
   security: "Securities",
   auto_added: "Auto Added",
   misc: "Misc.",
 };
 
-const holdingCategoryOrder = ["basket_etf", "single_etf", "double_long_etf", "security", "auto_added", "misc"];
+const holdingCategoryOrder = ["basket_etf", "single_etf", "double_long_etf", "leveraged_etf", "security", "auto_added", "misc"];
 
 const riskLevelColors: Record<string, string> = {
   low: "bg-chart-2 text-white",
@@ -123,6 +124,7 @@ const categoryLabels: Record<string, string> = {
   basket_etf: "CC Basket ETFs",
   single_etf: "Single ETFs",
   double_long_etf: "Double Long ETFs",
+  leveraged_etf: "Leveraged ETFs",
   security: "Securities",
   auto_added: "Auto Added",
   misc: "Misc.",
@@ -132,6 +134,7 @@ const categoryColors: Record<string, string> = {
   basket_etf: "bg-blue-500 text-white",
   single_etf: "bg-purple-500 text-white",
   double_long_etf: "bg-amber-500 text-white",
+  leveraged_etf: "bg-rose-500 text-white",
   security: "bg-slate-500 text-white",
   auto_added: "bg-gray-500 text-white",
   misc: "bg-teal-500 text-white",
@@ -140,7 +143,7 @@ const categoryColors: Record<string, string> = {
 const holdingFormSchema = z.object({
   ticker: z.string().min(1, "Ticker is required").max(20),
   name: z.string().min(1, "Name is required"),
-  category: z.enum(["basket_etf", "single_etf", "double_long_etf", "security", "auto_added", "misc"]),
+  category: z.enum(["basket_etf", "single_etf", "double_long_etf", "leveraged_etf", "security", "auto_added", "misc"]),
   riskLevel: z.enum(["low", "low_medium", "medium", "medium_high", "high"]),
   dividendRate: z.coerce.number().nonnegative().default(0),
   dividendPayout: z.enum(["monthly", "quarterly", "semi_annual", "annual", "none"]),
@@ -1493,6 +1496,7 @@ export default function ModelPortfolios() {
                               <SelectItem value="basket_etf">CC Basket ETFs</SelectItem>
                               <SelectItem value="single_etf">Single ETFs</SelectItem>
                               <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
+                              <SelectItem value="leveraged_etf">Leveraged ETFs</SelectItem>
                               <SelectItem value="security">Securities</SelectItem>
                               <SelectItem value="auto_added">Auto Added</SelectItem>
                               <SelectItem value="misc">Misc.</SelectItem>
@@ -1657,6 +1661,7 @@ export default function ModelPortfolios() {
                   <SelectItem value="basket_etf">CC Basket ETFs</SelectItem>
                   <SelectItem value="single_etf">Single ETFs</SelectItem>
                   <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
+                  <SelectItem value="leveraged_etf">Leveraged ETFs</SelectItem>
                   <SelectItem value="security">Securities</SelectItem>
                   <SelectItem value="auto_added">Auto Added</SelectItem>
                   <SelectItem value="misc">Misc.</SelectItem>
