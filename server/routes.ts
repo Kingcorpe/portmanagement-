@@ -1315,48 +1315,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get webhook URL for current user (for TradingView setup)
-  app.get('/api/user/webhook-url', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      
-      // Ensure settings exist
-      let settings = await storage.getUserSettings(userId);
-      if (!settings) {
-        settings = await storage.createUserSettings({ userId });
-      }
-      
-      // Build webhook URL
-      const webhookSecret = settings.webhookSecret;
-      const webhookUrl = `${req.protocol}://${req.get('host')}/api/webhooks/tradingview?secret=${webhookSecret}`;
-      
-      res.json({
-        webhookUrl,
-        webhookSecret,
-        instructions: "Copy this URL to TradingView → Alert Settings → Webhook URL"
-      });
-    } catch (error) {
-      console.error("Error fetching webhook URL:", error);
-      res.status(500).json({ message: "Failed to fetch webhook URL" });
-    }
-  });
-
-  // TradingView webhook endpoint - routes alerts to correct user by secret
+  // TradingView webhook endpoint - validates secret for security
   app.post('/api/webhooks/tradingview', async (req, res) => {
     try {
-      // Get the webhook secret from query, header, or body
-      const providedSecret = req.query.secret || req.headers['x-webhook-secret'] || req.body.secret;
-      if (!providedSecret || typeof providedSecret !== 'string') {
-        return res.status(401).json({ message: "Unauthorized: Missing webhook secret" });
+      // Validate webhook secret if configured
+      const webhookSecret = process.env.TRADINGVIEW_WEBHOOK_SECRET;
+      if (webhookSecret) {
+        // Check URL query param, header, or body for secret
+        const providedSecret = req.query.secret || req.headers['x-webhook-secret'] || req.body.secret;
+        if (providedSecret !== webhookSecret) {
+          return res.status(401).json({ message: "Unauthorized: Invalid webhook secret" });
+        }
       }
-      
-      // Look up user by webhook secret (multi-tenant routing)
-      const userSettings = await storage.getUserSettingsByWebhookSecret(providedSecret);
-      if (!userSettings) {
-        return res.status(401).json({ message: "Unauthorized: Invalid webhook secret" });
-      }
-      
-      const userId = userSettings.userId;
       
       // Validate webhook payload
       const parsed = tradingViewWebhookSchema.parse(req.body);
@@ -1385,12 +1355,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return false;
       };
       
-      // Process alerts for both BUY and SELL signals (only user's accounts)
+      // Process alerts for both BUY and SELL signals
       const tasksCreated: string[] = [];
       const reportsSent: string[] = [];
       
       if (parsed.signal === 'BUY' || parsed.signal === 'SELL') {
-        const reportEmail = userSettings.reportEmail || parsed.email || process.env.TRADINGVIEW_REPORT_EMAIL;
+        const reportEmail = parsed.email || process.env.TRADINGVIEW_REPORT_EMAIL;
         
         // Find all positions for this symbol
         const positionsForSymbol = await storage.getPositionsBySymbol(parsed.symbol);
