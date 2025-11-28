@@ -2555,8 +2555,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create target allocations if requested
       let allocationsCreated = 0;
+      let allocationsDeleted = 0;
       if (setAsTargetAllocation && createdPositions.length > 0) {
         try {
+          // Clear existing target allocations first to prevent duplicates
+          await storage.deleteAllAccountTargetAllocations(accountType as 'individual' | 'corporate' | 'joint', accountId);
+          allocationsDeleted = 1; // Flag that we cleared existing allocations
+          
           // Calculate total portfolio value (excluding CASH)
           let totalValue = 0;
           for (const pos of createdPositions) {
