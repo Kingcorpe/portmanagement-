@@ -1340,233 +1340,301 @@ export async function registerRoutes(app: Express): Promise<Server> {
         webhookData: req.body,
       });
       
-      // For BUY signals, find accounts with underweight positions and send reports
+      // Helper to normalize tickers for matching
+      const normalizeTicker = (ticker: string): string => {
+        return ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+      };
+      
+      // Helper to check if position matches the alert signal criteria
+      const shouldProcessPosition = (actualPercent: number, targetPercent: number, signal: string): boolean => {
+        if (signal === 'BUY') {
+          return actualPercent < targetPercent; // Underweight
+        } else if (signal === 'SELL') {
+          return actualPercent > targetPercent; // Overweight
+        }
+        return false;
+      };
+      
+      // Process alerts for both BUY and SELL signals
+      const tasksCreated: string[] = [];
       const reportsSent: string[] = [];
-      if (parsed.signal === 'BUY') {
+      
+      if (parsed.signal === 'BUY' || parsed.signal === 'SELL') {
         const reportEmail = parsed.email || process.env.TRADINGVIEW_REPORT_EMAIL;
         
-        if (reportEmail) {
-          // Find all positions for this symbol
-          const positionsForSymbol = await storage.getPositionsBySymbol(parsed.symbol);
+        // Find all positions for this symbol
+        const positionsForSymbol = await storage.getPositionsBySymbol(parsed.symbol);
+        
+        // Process each position to check if it matches the signal
+        for (const position of positionsForSymbol) {
+          let accountType: string;
+          let accountId: string;
+          let account: any;
+          let allPositions: any[];
+          let targetAllocations: any[];
+          let ownerName = '';
+          let householdName = '';
           
-          // Helper to normalize tickers for matching
-          const normalizeTicker = (ticker: string): string => {
-            return ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
-          };
-          
-          // Process each position to check if it's underweight
-          for (const position of positionsForSymbol) {
-            let accountType: string;
-            let accountId: string;
-            let account: any;
-            let allPositions: any[];
-            let targetAllocations: any[];
-            let ownerName = '';
-            let householdName = '';
-            
-            // Determine account type and fetch related data
-            if (position.individualAccountId) {
-              accountType = 'individual';
-              accountId = position.individualAccountId;
-              account = await storage.getIndividualAccount(accountId);
-              allPositions = await storage.getPositionsByIndividualAccount(accountId);
-              targetAllocations = await storage.getAccountTargetAllocationsByIndividualAccount(accountId);
-              if (account) {
-                const individual = await storage.getIndividual(account.individualId);
-                if (individual) {
-                  ownerName = individual.name;
+          // Determine account type and fetch related data
+          if (position.individualAccountId) {
+            accountType = 'individual';
+            accountId = position.individualAccountId;
+            account = await storage.getIndividualAccount(accountId);
+            allPositions = await storage.getPositionsByIndividualAccount(accountId);
+            targetAllocations = await storage.getAccountTargetAllocationsByIndividualAccount(accountId);
+            if (account) {
+              const individual = await storage.getIndividual(account.individualId);
+              if (individual) {
+                ownerName = individual.name;
+                const household = await storage.getHousehold(individual.householdId);
+                householdName = household?.name || '';
+              }
+            }
+          } else if (position.corporateAccountId) {
+            accountType = 'corporate';
+            accountId = position.corporateAccountId;
+            account = await storage.getCorporateAccount(accountId);
+            allPositions = await storage.getPositionsByCorporateAccount(accountId);
+            targetAllocations = await storage.getAccountTargetAllocationsByCorporateAccount(accountId);
+            if (account) {
+              const corporation = await storage.getCorporation(account.corporationId);
+              if (corporation) {
+                ownerName = corporation.name;
+                const household = await storage.getHousehold(corporation.householdId);
+                householdName = household?.name || '';
+              }
+            }
+          } else if (position.jointAccountId) {
+            accountType = 'joint';
+            accountId = position.jointAccountId;
+            account = await storage.getJointAccount(accountId);
+            allPositions = await storage.getPositionsByJointAccount(accountId);
+            targetAllocations = await storage.getAccountTargetAllocationsByJointAccount(accountId);
+            if (account) {
+              const owners = await storage.getJointAccountOwners(accountId);
+              const ownerNames: string[] = [];
+              for (const individual of owners) {
+                ownerNames.push(individual.name);
+                if (!householdName) {
                   const household = await storage.getHousehold(individual.householdId);
                   householdName = household?.name || '';
                 }
               }
-            } else if (position.corporateAccountId) {
-              accountType = 'corporate';
-              accountId = position.corporateAccountId;
-              account = await storage.getCorporateAccount(accountId);
-              allPositions = await storage.getPositionsByCorporateAccount(accountId);
-              targetAllocations = await storage.getAccountTargetAllocationsByCorporateAccount(accountId);
-              if (account) {
-                const corporation = await storage.getCorporation(account.corporationId);
-                if (corporation) {
-                  ownerName = corporation.name;
-                  const household = await storage.getHousehold(corporation.householdId);
-                  householdName = household?.name || '';
-                }
-              }
-            } else if (position.jointAccountId) {
-              accountType = 'joint';
-              accountId = position.jointAccountId;
-              account = await storage.getJointAccount(accountId);
-              allPositions = await storage.getPositionsByJointAccount(accountId);
-              targetAllocations = await storage.getAccountTargetAllocationsByJointAccount(accountId);
-              if (account) {
-                const owners = await storage.getJointAccountOwners(accountId);
-                const ownerNames: string[] = [];
-                for (const individual of owners) {
-                  ownerNames.push(individual.name);
-                  if (!householdName) {
-                    const household = await storage.getHousehold(individual.householdId);
-                    householdName = household?.name || '';
-                  }
-                }
-                ownerName = ownerNames.join(' & ');
-              }
-            } else {
-              continue; // Skip if no account association
+              ownerName = ownerNames.join(' & ');
             }
-            
-            if (!account) continue;
-            
-            // Calculate portfolio totals and check if position is underweight
-            const totalActualValue = allPositions.reduce((sum, pos) => {
-              return sum + (Number(pos.quantity) * Number(pos.currentPrice));
-            }, 0);
-            
-            if (totalActualValue <= 0) continue;
-            
-            // Find the position's actual allocation
-            const normalizedAlertSymbol = normalizeTicker(parsed.symbol);
-            const positionValue = Number(position.quantity) * Number(position.currentPrice);
-            const actualPercent = (positionValue / totalActualValue) * 100;
-            
-            // Find target allocation for this symbol
-            const targetAlloc = targetAllocations.find(t => 
-              t.holding?.ticker && normalizeTicker(t.holding.ticker) === normalizedAlertSymbol
-            );
-            const targetPercent = targetAlloc ? Number(targetAlloc.targetPercentage) : 0;
-            
-            // Only send report if position is underweight (actual < target)
-            if (actualPercent < targetPercent) {
-              try {
-                // Build portfolio comparison data for report
-                const actualByTicker = new Map<string, { value: number; quantity: number; originalTicker: string; price: number }>();
-                for (const pos of allPositions) {
-                  const originalTicker = pos.symbol.toUpperCase();
-                  const normalizedTicker = normalizeTicker(originalTicker);
-                  const value = Number(pos.quantity) * Number(pos.currentPrice);
-                  const existing = actualByTicker.get(normalizedTicker) || { value: 0, quantity: 0, originalTicker, price: Number(pos.currentPrice) };
-                  actualByTicker.set(normalizedTicker, {
-                    value: existing.value + value,
-                    quantity: existing.quantity + Number(pos.quantity),
-                    originalTicker: existing.originalTicker,
-                    price: Number(pos.currentPrice)
-                  });
-                }
-                
-                // Build report positions matching expected interface
-                const reportPositions: Array<{
-                  symbol: string;
-                  name?: string;
-                  quantity: number;
-                  currentPrice: number;
-                  marketValue: number;
-                  actualPercentage: number;
-                  targetPercentage: number;
-                  variance: number;
-                  changeNeeded: number;
-                  sharesToTrade: number;
-                  status: 'over' | 'under' | 'on-target' | 'unexpected';
-                }> = [];
-                
-                const processedNormalizedTickers = new Set<string>();
-                
-                // First, add all target allocations
-                for (const allocation of targetAllocations) {
-                  if (!allocation.holding?.ticker) continue; // Skip allocations without tickers
-                  const displayTicker = allocation.holding.ticker.toUpperCase();
-                  const normalizedTicker = normalizeTicker(displayTicker);
-                  processedNormalizedTickers.add(normalizedTicker);
-                  
-                  const actual = actualByTicker.get(normalizedTicker);
-                  const actualValue = actual?.value || 0;
-                  const actualPercentage = totalActualValue > 0 ? (actualValue / totalActualValue) * 100 : 0;
-                  const targetPercentage = Number(allocation.targetPercentage);
-                  const variance = actualPercentage - targetPercentage;
-                  const targetValue = totalActualValue > 0 ? (targetPercentage / 100) * totalActualValue : 0;
-                  const changeNeeded = targetValue - actualValue;
-                  const currentPrice = actual?.price || 1;
-                  const sharesToTrade = currentPrice > 0 ? changeNeeded / currentPrice : 0;
-                  
-                  reportPositions.push({
-                    symbol: displayTicker,
-                    name: displayTicker,
-                    quantity: actual?.quantity || 0,
-                    currentPrice,
-                    marketValue: actualValue,
-                    actualPercentage: Math.round(actualPercentage * 100) / 100,
-                    targetPercentage,
-                    variance: Math.round(variance * 100) / 100,
-                    changeNeeded: Math.round(changeNeeded * 100) / 100,
-                    sharesToTrade: Math.round(sharesToTrade * 100) / 100,
-                    status: (variance > 2 ? 'over' : variance < -2 ? 'under' : 'on-target') as 'over' | 'under' | 'on-target'
-                  });
-                }
-                
-                // Add unexpected positions (no target = liquidate)
-                for (const [normalizedTicker, data] of Array.from(actualByTicker.entries())) {
-                  if (!processedNormalizedTickers.has(normalizedTicker)) {
-                    const actualPercentage = totalActualValue > 0 ? (data.value / totalActualValue) * 100 : 0;
-                    reportPositions.push({
-                      symbol: data.originalTicker,
-                      name: data.originalTicker,
-                      quantity: data.quantity,
-                      currentPrice: data.price,
-                      marketValue: data.value,
-                      actualPercentage: Math.round(actualPercentage * 100) / 100,
-                      targetPercentage: 0,
-                      variance: Math.round(actualPercentage * 100) / 100,
-                      changeNeeded: -data.value,
-                      sharesToTrade: -data.quantity,
-                      status: 'unexpected' as const
+          } else {
+            continue; // Skip if no account association
+          }
+          
+          if (!account) continue;
+          
+          // Calculate portfolio totals and check allocation status
+          const totalActualValue = allPositions.reduce((sum, pos) => {
+            return sum + (Number(pos.quantity) * Number(pos.currentPrice));
+          }, 0);
+          
+          if (totalActualValue <= 0) continue;
+          
+          // Find the position's actual allocation
+          const normalizedAlertSymbol = normalizeTicker(parsed.symbol);
+          const positionValue = Number(position.quantity) * Number(position.currentPrice);
+          const actualPercent = (positionValue / totalActualValue) * 100;
+          
+          // Find target allocation for this symbol
+          const targetAlloc = targetAllocations.find(t => 
+            t.holding?.ticker && normalizeTicker(t.holding.ticker) === normalizedAlertSymbol
+          );
+          const targetPercent = targetAlloc ? Number(targetAlloc.targetPercentage) : 0;
+          
+          // Check if position matches signal criteria
+          if (shouldProcessPosition(actualPercent, targetPercent, parsed.signal)) {
+            try {
+              // Calculate shares needed
+              const targetValue = (targetPercent / 100) * totalActualValue;
+              const sharePrice = Number(position.currentPrice);
+              const sharesToTrade = sharePrice > 0 ? (targetValue - positionValue) / sharePrice : 0;
+              
+              // Create task with trade details
+              const accountTypeLabels: Record<string, string> = {
+                cash: 'Cash', tfsa: 'TFSA', fhsa: 'FHSA', rrsp: 'RRSP',
+                lira: 'LIRA', liff: 'LIF', rif: 'RIF',
+                corporate_cash: 'Corporate Cash', ipp: 'IPP',
+                joint_cash: 'Joint Cash', resp: 'RESP'
+              };
+              
+              const displayAccountType = accountTypeLabels[account.type] || account.type.toUpperCase();
+              const accountDisplayName = account.nickname || '';
+              const fullAccountName = `${displayAccountType}${accountDisplayName ? ` - ${accountDisplayName}` : ''}`;
+              
+              const taskTitle = `TradingView ${parsed.signal} Alert: ${parsed.symbol}`;
+              const variance = actualPercent - targetPercent;
+              const taskDescription = 
+                `Signal: ${parsed.signal}\n` +
+                `Symbol: ${parsed.symbol}\n` +
+                `Current Price: $${sharePrice.toFixed(2)}\n` +
+                `Household: ${householdName}\n` +
+                `Account: ${fullAccountName}\n\n` +
+                `Current Allocation: ${actualPercent.toFixed(2)}%\n` +
+                `Target Allocation: ${targetPercent.toFixed(2)}%\n` +
+                `Variance: ${variance.toFixed(2)}%\n\n` +
+                `Shares to Trade: ${Math.round(sharesToTrade * 100) / 100}\n` +
+                `Dollar Amount: $${Math.round(Math.abs(sharesToTrade * sharePrice) * 100) / 100}`;
+              
+              // Create task based on account type
+              let task;
+              if (accountType === 'individual') {
+                task = await storage.createAccountTask({
+                  individualAccountId: accountId,
+                  title: taskTitle,
+                  description: taskDescription,
+                  priority: 'high',
+                  status: 'pending'
+                });
+              } else if (accountType === 'corporate') {
+                task = await storage.createAccountTask({
+                  corporateAccountId: accountId,
+                  title: taskTitle,
+                  description: taskDescription,
+                  priority: 'high',
+                  status: 'pending'
+                });
+              } else if (accountType === 'joint') {
+                task = await storage.createAccountTask({
+                  jointAccountId: accountId,
+                  title: taskTitle,
+                  description: taskDescription,
+                  priority: 'high',
+                  status: 'pending'
+                });
+              }
+              
+              if (task) {
+                tasksCreated.push(`${fullAccountName} (${householdName}) - ${parsed.signal} ${parsed.symbol}`);
+              }
+              
+              // Optionally send email report if configured
+              if (reportEmail) {
+                try {
+                  // Build portfolio comparison data for report
+                  const actualByTicker = new Map<string, { value: number; quantity: number; originalTicker: string; price: number }>();
+                  for (const pos of allPositions) {
+                    const originalTicker = pos.symbol.toUpperCase();
+                    const normalizedTicker = normalizeTicker(originalTicker);
+                    const value = Number(pos.quantity) * Number(pos.currentPrice);
+                    const existing = actualByTicker.get(normalizedTicker) || { value: 0, quantity: 0, originalTicker, price: Number(pos.currentPrice) };
+                    actualByTicker.set(normalizedTicker, {
+                      value: existing.value + value,
+                      quantity: existing.quantity + Number(pos.quantity),
+                      originalTicker: existing.originalTicker,
+                      price: Number(pos.currentPrice)
                     });
                   }
+                  
+                  // Build report positions
+                  const reportPositions: Array<{
+                    symbol: string;
+                    name?: string;
+                    quantity: number;
+                    currentPrice: number;
+                    marketValue: number;
+                    actualPercentage: number;
+                    targetPercentage: number;
+                    variance: number;
+                    changeNeeded: number;
+                    sharesToTrade: number;
+                    status: 'over' | 'under' | 'on-target' | 'unexpected';
+                  }> = [];
+                  
+                  const processedNormalizedTickers = new Set<string>();
+                  
+                  // Add all target allocations
+                  for (const allocation of targetAllocations) {
+                    if (!allocation.holding?.ticker) continue;
+                    const displayTicker = allocation.holding.ticker.toUpperCase();
+                    const normalizedTicker = normalizeTicker(displayTicker);
+                    processedNormalizedTickers.add(normalizedTicker);
+                    
+                    const actual = actualByTicker.get(normalizedTicker);
+                    const actualValue = actual?.value || 0;
+                    const actualPercentage = totalActualValue > 0 ? (actualValue / totalActualValue) * 100 : 0;
+                    const targetPercentage = Number(allocation.targetPercentage);
+                    const variance = actualPercentage - targetPercentage;
+                    const targetValue = totalActualValue > 0 ? (targetPercentage / 100) * totalActualValue : 0;
+                    const changeNeeded = targetValue - actualValue;
+                    const currentPrice = actual?.price || 1;
+                    const sharesToTrade = currentPrice > 0 ? changeNeeded / currentPrice : 0;
+                    
+                    reportPositions.push({
+                      symbol: displayTicker,
+                      name: displayTicker,
+                      quantity: actual?.quantity || 0,
+                      currentPrice,
+                      marketValue: actualValue,
+                      actualPercentage: Math.round(actualPercentage * 100) / 100,
+                      targetPercentage,
+                      variance: Math.round(variance * 100) / 100,
+                      changeNeeded: Math.round(changeNeeded * 100) / 100,
+                      sharesToTrade: Math.round(sharesToTrade * 100) / 100,
+                      status: (variance > 2 ? 'over' : variance < -2 ? 'under' : 'on-target') as 'over' | 'under' | 'on-target'
+                    });
+                  }
+                  
+                  // Add unexpected positions
+                  for (const [normalizedTicker, data] of Array.from(actualByTicker.entries())) {
+                    if (!processedNormalizedTickers.has(normalizedTicker)) {
+                      const actualPercentage = totalActualValue > 0 ? (data.value / totalActualValue) * 100 : 0;
+                      reportPositions.push({
+                        symbol: data.originalTicker,
+                        name: data.originalTicker,
+                        quantity: data.quantity,
+                        currentPrice: data.price,
+                        marketValue: data.value,
+                        actualPercentage: Math.round(actualPercentage * 100) / 100,
+                        targetPercentage: 0,
+                        variance: Math.round(actualPercentage * 100) / 100,
+                        changeNeeded: -data.value,
+                        sharesToTrade: -data.quantity,
+                        status: 'unexpected' as const
+                      });
+                    }
+                  }
+                  
+                  // Generate PDF
+                  const pdfBuffer = await generatePortfolioRebalanceReport({
+                    accountName: accountDisplayName,
+                    accountType: displayAccountType,
+                    householdName,
+                    ownerName,
+                    totalValue: totalActualValue,
+                    positions: reportPositions,
+                    generatedAt: new Date()
+                  });
+                  
+                  const statusText = parsed.signal === 'BUY' ? 'Underweight' : 'Overweight';
+                  await sendEmailWithAttachment(
+                    reportEmail,
+                    `TradingView ${parsed.signal} Alert: ${parsed.symbol} - ${statusText} Position Report`,
+                    `A TradingView ${parsed.signal} alert was triggered for ${parsed.symbol} at $${parsed.price}.\n\n` +
+                    `This position is currently ${statusText.toUpperCase()} in:\n` +
+                    `- Household: ${householdName}\n` +
+                    `- Owner: ${ownerName}\n` +
+                    `- Account: ${fullAccountName}\n\n` +
+                    `Current allocation: ${actualPercent.toFixed(2)}%\n` +
+                    `Target allocation: ${targetPercent.toFixed(2)}%\n` +
+                    `Variance: ${variance.toFixed(2)}%\n\n` +
+                    `A task has been created in your portfolio management system.\n` +
+                    `Please see the attached PDF report for detailed rebalancing recommendations.`,
+                    pdfBuffer,
+                    `Portfolio_Rebalancing_${householdName.replace(/\s+/g, '_')}_${account.type}_${new Date().toISOString().split('T')[0]}.pdf`
+                  );
+                  
+                  reportsSent.push(`${fullAccountName} (${householdName})`);
+                } catch (emailError) {
+                  console.error(`Failed to send report for account ${accountId}:`, emailError);
                 }
-                
-                // Account type labels
-                const accountTypeLabels: Record<string, string> = {
-                  cash: 'Cash', tfsa: 'TFSA', fhsa: 'FHSA', rrsp: 'RRSP',
-                  lira: 'LIRA', liff: 'LIF', rif: 'RIF',
-                  corporate_cash: 'Corporate Cash', ipp: 'IPP',
-                  joint_cash: 'Joint Cash', resp: 'RESP'
-                };
-                
-                const accountType = account.type || 'unknown';
-                const displayAccountType = accountTypeLabels[accountType] || accountType.toUpperCase();
-                const accountDisplayName = account.nickname || '';
-                
-                // Generate PDF
-                const pdfBuffer = await generatePortfolioRebalanceReport({
-                  accountName: accountDisplayName,
-                  accountType: displayAccountType,
-                  householdName,
-                  ownerName,
-                  totalValue: totalActualValue,
-                  positions: reportPositions,
-                  generatedAt: new Date()
-                });
-                
-                const fullAccountName = `${displayAccountType}${accountDisplayName ? ` - ${accountDisplayName}` : ''}`;
-                
-                await sendEmailWithAttachment(
-                  reportEmail,
-                  `TradingView BUY Alert: ${parsed.symbol} - Underweight Position Report`,
-                  `A TradingView BUY alert was triggered for ${parsed.symbol} at $${parsed.price}.\n\n` +
-                  `This position is currently UNDERWEIGHT in:\n` +
-                  `- Household: ${householdName}\n` +
-                  `- Owner: ${ownerName}\n` +
-                  `- Account: ${fullAccountName}\n\n` +
-                  `Current allocation: ${actualPercent.toFixed(2)}%\n` +
-                  `Target allocation: ${targetPercent.toFixed(2)}%\n` +
-                  `Variance: ${(actualPercent - targetPercent).toFixed(2)}%\n\n` +
-                  `Please see the attached PDF report for detailed rebalancing recommendations.`,
-                  pdfBuffer,
-                  `Portfolio_Rebalancing_${householdName.replace(/\s+/g, '_')}_${accountType}_${new Date().toISOString().split('T')[0]}.pdf`
-                );
-                
-                reportsSent.push(`${fullAccountName} (${householdName})`);
-              } catch (emailError) {
-                console.error(`Failed to send report for account ${accountId}:`, emailError);
               }
+            } catch (taskError) {
+              console.error(`Failed to create task for account ${accountId}:`, taskError);
             }
           }
         }
@@ -1575,6 +1643,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         success: true, 
         alertId: alert.id,
+        tasksCreated: tasksCreated.length,
+        tasks: tasksCreated,
         reportsSent: reportsSent.length,
         accounts: reportsSent
       });
