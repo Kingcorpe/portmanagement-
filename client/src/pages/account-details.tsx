@@ -2047,6 +2047,8 @@ export default function AccountDetails() {
                   )}
                   <TableHead className="text-right">Protect %</TableHead>
                   <TableHead className="text-right">Protect Shares</TableHead>
+                  <TableHead className="text-right">Stop Price</TableHead>
+                  <TableHead className="text-right">Limit Price</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -2340,6 +2342,102 @@ export default function AccountDetails() {
                           </span>
                         ) : (
                           <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+
+                      {/* Stop Price - inline editable */}
+                      <TableCell className="text-right" data-testid={`text-stop-price-${position.id}`}>
+                        {editingProtection?.positionId === position.id && editingProtection?.field === 'stopPrice' ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="text-xs text-muted-foreground">$</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={protectionValue}
+                              onChange={(e) => setProtectionValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleProtectionSave(position);
+                                if (e.key === 'Escape') handleProtectionCancel();
+                              }}
+                              className="w-20 h-7 text-right text-sm"
+                              data-testid={`input-stop-price-${position.id}`}
+                              autoFocus
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleProtectionSave(position)}
+                              disabled={updateProtectionMutation.isPending}
+                              data-testid={`button-save-stop-price-${position.id}`}
+                            >
+                              {updateProtectionMutation.isPending ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleProtectionEdit(position, 'stopPrice')}
+                            className="text-right hover:bg-muted/50 px-2 py-1 rounded cursor-pointer w-full"
+                            data-testid={`button-edit-stop-price-${position.id}`}
+                          >
+                            {position.stopPrice 
+                              ? <span className="text-amber-600 dark:text-amber-400">${Number(position.stopPrice).toFixed(2)}</span>
+                              : <span className="text-muted-foreground">-</span>
+                            }
+                          </button>
+                        )}
+                      </TableCell>
+
+                      {/* Limit Price - inline editable */}
+                      <TableCell className="text-right" data-testid={`text-limit-price-${position.id}`}>
+                        {editingProtection?.positionId === position.id && editingProtection?.field === 'limitPrice' ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <span className="text-xs text-muted-foreground">$</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={protectionValue}
+                              onChange={(e) => setProtectionValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleProtectionSave(position);
+                                if (e.key === 'Escape') handleProtectionCancel();
+                              }}
+                              className="w-20 h-7 text-right text-sm"
+                              data-testid={`input-limit-price-${position.id}`}
+                              autoFocus
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleProtectionSave(position)}
+                              disabled={updateProtectionMutation.isPending}
+                              data-testid={`button-save-limit-price-${position.id}`}
+                            >
+                              {updateProtectionMutation.isPending ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3" />
+                              )}
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleProtectionEdit(position, 'limitPrice')}
+                            className="text-right hover:bg-muted/50 px-2 py-1 rounded cursor-pointer w-full"
+                            data-testid={`button-edit-limit-price-${position.id}`}
+                          >
+                            {position.limitPrice 
+                              ? <span className="text-amber-600 dark:text-amber-400">${Number(position.limitPrice).toFixed(2)}</span>
+                              : <span className="text-muted-foreground">-</span>
+                            }
+                          </button>
                         )}
                       </TableCell>
                       
