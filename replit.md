@@ -79,6 +79,16 @@ A collapsible section per account tracks all modifications, including:
 - Price refreshes and model portfolio copies
 Actions are color-coded with old/new value comparisons and timestamps.
 
+### Holdings Search
+A dedicated page that allows searching for tickers across all accounts in the system.
+- **Search Endpoint**: `/api/holdings/search?ticker=BANK.TO`
+- **Features**: 
+  - Search across all households, individuals, corporations, and joint accounts simultaneously
+  - Automatic ticker normalization (.TO, .V, .CN, .NE, .TSX, .NYSE, .NASDAQ suffixes)
+  - Results display: household name, owner name/type, account type, quantity held, current price, and total value
+  - Summary cards showing total holdings count, total quantity, and aggregate value
+- **Navigation**: Click "Holdings Search" in the sidebar to access
+
 ## External Dependencies
 - **Replit Auth**: User authentication (OIDC providers, email/password).
 - **Neon (PostgreSQL)**: Cloud-hosted PostgreSQL database.
