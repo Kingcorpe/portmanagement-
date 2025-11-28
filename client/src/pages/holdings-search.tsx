@@ -26,6 +26,11 @@ export default function HoldingsSearch() {
 
   const { data: results = [], isLoading, isFetching } = useQuery<HoldingSearchResult[]>({
     queryKey: ['/api/holdings/search', searchTicker],
+    queryFn: async () => {
+      const response = await fetch(`/api/holdings/search?ticker=${encodeURIComponent(searchTicker)}`);
+      if (!response.ok) throw new Error('Search failed');
+      return response.json();
+    },
     enabled: hasSearched && searchTicker.trim().length > 0,
   });
 

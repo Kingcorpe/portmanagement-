@@ -5352,6 +5352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const normalizedSearchTicker = ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+      console.log(`[Holdings Search] Searching for ticker: "${ticker}" (normalized: "${normalizedSearchTicker}")`);
       
       // Fetch all households with their data
       const households = await storage.getAllHouseholds();
@@ -5361,6 +5362,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const normalizeTicker = (t: string): string => {
         return t.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
       };
+
+      let totalPositionsChecked = 0;
 
       for (const household of households) {
         const individuals = await storage.getIndividualsByHousehold(household.id);
@@ -5372,9 +5375,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const accounts = await storage.getIndividualAccountsByIndividual(individual.id);
           for (const account of accounts) {
             const positions = await storage.getPositionsByIndividualAccount(account.id);
-            const matchingPositions = positions.filter((p: Position) => 
-              normalizeTicker(p.symbol) === normalizedSearchTicker
-            );
+            totalPositionsChecked += positions.length;
+            
+            const matchingPositions = positions.filter((p: Position) => {
+              const normalized = normalizeTicker(p.symbol);
+              return normalized === normalizedSearchTicker;
+            });
+            
+            if (matchingPositions.length > 0) {
+              console.log(`[Holdings Search] Found ${matchingPositions.length} positions in individual account ${account.id}`);
+            }
             
             for (const pos of matchingPositions) {
               results.push({
@@ -5398,9 +5408,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const accounts = await storage.getCorporateAccountsByCorporation(corp.id);
           for (const account of accounts) {
             const positions = await storage.getPositionsByCorporateAccount(account.id);
+            totalPositionsChecked += positions.length;
+            
             const matchingPositions = positions.filter((p: Position) => 
               normalizeTicker(p.symbol) === normalizedSearchTicker
             );
+            
+            if (matchingPositions.length > 0) {
+              console.log(`[Holdings Search] Found ${matchingPositions.length} positions in corporate account ${account.id}`);
+            }
             
             for (const pos of matchingPositions) {
               results.push({
@@ -5422,9 +5438,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Check joint accounts
         for (const jointAccount of jointAccounts) {
           const positions = await storage.getPositionsByJointAccount(jointAccount.id);
+          totalPositionsChecked += positions.length;
+          
           const matchingPositions = positions.filter((p: Position) => 
             normalizeTicker(p.symbol) === normalizedSearchTicker
           );
+          
+          if (matchingPositions.length > 0) {
+            console.log(`[Holdings Search] Found ${matchingPositions.length} positions in joint account ${jointAccount.id}`);
+          }
           
           for (const pos of matchingPositions) {
             const ownershipRows = await db.query.jointAccountOwnership.findMany({
@@ -5449,6 +5471,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      console.log(`[Holdings Search] Checked ${totalPositionsChecked} total positions, found ${results.length} matches`);
       res.json(results);
     } catch (error: any) {
       console.error("Error searching holdings:", error);
