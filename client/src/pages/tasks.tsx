@@ -160,9 +160,17 @@ export default function Tasks() {
     }
   };
 
-  // Get unique categories from households
+  // Format category name for display (e.g., "emerging_anchor" -> "Emerging Anchor")
+  const formatCategoryLabel = (category: string) => {
+    return category
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  // Get unique categories from tasks themselves (more accurate than households)
   const categories = Array.from(new Set(
-    households.map(h => h.category).filter(Boolean)
+    tasksWithCategory.map(t => t.householdCategory).filter(Boolean)
   )).sort() as string[];
 
   // Filter tasks based on active tab and category
@@ -348,7 +356,7 @@ export default function Tasks() {
                   </SelectItem>
                   {categories.map(cat => (
                     <SelectItem key={cat} value={cat} data-testid={`option-category-${cat}`}>
-                      {cat}
+                      {formatCategoryLabel(cat)}
                     </SelectItem>
                   ))}
                 </SelectContent>
