@@ -1485,11 +1485,9 @@ export default function AccountDetails() {
     return (
       <div className="flex flex-col gap-6">
         <div className="flex items-center gap-4">
-          <Link href="/households">
-            <Button variant="ghost" size="icon" data-testid="button-back">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
+          <button onClick={() => window.history.back()} className="inline-flex items-center justify-center h-9 w-9 rounded-md bg-transparent hover:bg-accent hover:text-accent-foreground" data-testid="button-back">
+            <ArrowLeft className="h-4 w-4" />
+          </button>
           <h1 className="text-3xl font-bold">Invalid Account</h1>
         </div>
         <p>Account type or ID is missing.</p>
@@ -1548,11 +1546,9 @@ export default function AccountDetails() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/households">
-            <Button variant="ghost" size="icon" data-testid="button-back">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" onClick={() => window.history.back()} data-testid="button-back">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold" data-testid="text-account-type">{getAccountTypeLabel()}</h1>
