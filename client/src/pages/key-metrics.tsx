@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "wouter";
 
 interface HouseholdWithDetails {
   id: string;
@@ -293,14 +294,15 @@ export default function KeyMetrics() {
           </CardContent>
         </Card>
 
-        <Card data-testid="card-tasks-overview">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ListTodo className="h-5 w-5" />
-              Tasks Overview
-            </CardTitle>
-            <CardDescription>Current task status</CardDescription>
-          </CardHeader>
+        <Link href="/tasks">
+          <Card data-testid="card-tasks-overview" className="hover-elevate cursor-pointer transition-colors">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ListTodo className="h-5 w-5" />
+                Tasks Overview
+              </CardTitle>
+              <CardDescription>Current task status</CardDescription>
+            </CardHeader>
           <CardContent className="space-y-4">
             {tasksLoading ? (
               <div className="text-center py-4 text-muted-foreground">Loading tasks...</div>
@@ -344,7 +346,8 @@ export default function KeyMetrics() {
               </>
             )}
           </CardContent>
-        </Card>
+          </Card>
+        </Link>
 
         <Card data-testid="card-alerts-overview">
           <CardHeader>
