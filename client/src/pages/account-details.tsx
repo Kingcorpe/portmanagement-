@@ -243,6 +243,7 @@ export default function AccountDetails() {
   const [viewMode, setViewMode] = useState<"real" | "watchlist">("real");
   const [isCreatingWatchlist, setIsCreatingWatchlist] = useState(false);
   const [allocationIsWatchlist, setAllocationIsWatchlist] = useState(false);
+  const [maintainDollarAmounts, setMaintainDollarAmounts] = useState(false);
   const notesInitialLoadRef = useRef(true);
   const notesSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -1472,7 +1473,7 @@ export default function AccountDetails() {
   };
 
   // Add cash deposit handler
-  const handleAddCash = () => {
+  const handleAddCash = async () => {
     const amount = parseFloat(cashAmount);
     if (isNaN(amount) || amount <= 0) {
       toast({
@@ -1481,6 +1482,29 @@ export default function AccountDetails() {
         variant: "destructive",
       });
       return;
+    }
+
+    // If maintaining dollar amounts, recalculate allocations first
+    if (maintainDollarAmounts && comparisonData && targetAllocations.length > 0) {
+      const currentCash = positions.find(p => p.symbol === "CASH");
+      const currentCashValue = currentCash ? Number(currentCash.quantity) : 0;
+      const currentNonCashValue = comparisonData.totalActualValue - currentCashValue;
+      const newTotalValue = currentNonCashValue + amount;
+
+      // For each target allocation, recalculate percentage based on actual holding value
+      for (const allocation of targetAllocations) {
+        const comparisonItem = comparisonData.comparison.find(c => c.allocationId === allocation.id);
+        if (comparisonItem && comparisonItem.actualValue > 0) {
+          const newPercentage = (comparisonItem.actualValue / newTotalValue) * 100;
+          try {
+            await apiRequest("PATCH", `/api/accounts/${accountType}/${accountId}/target-allocations/${allocation.id}`, {
+              targetPercentage: newPercentage.toString(),
+            });
+          } catch (error) {
+            console.error(`Failed to update allocation for ${comparisonItem.ticker}:`, error);
+          }
+        }
+      }
     }
 
     createMutation.mutate({
@@ -1495,6 +1519,7 @@ export default function AccountDetails() {
 
     setIsCashDialogOpen(false);
     setCashAmount("");
+    setMaintainDollarAmounts(false);
   };
 
   if (!accountType || !accountId) {
@@ -3296,7 +3321,10 @@ export default function AccountDetails() {
       {/* Add Cash Dialog */}
       <Dialog open={isCashDialogOpen} onOpenChange={(open) => {
         setIsCashDialogOpen(open);
-        if (!open) setCashAmount("");
+        if (!open) {
+          setCashAmount("");
+          setMaintainDollarAmounts(false);
+        }
       }}>
         <DialogContent>
           <DialogHeader>
@@ -3319,12 +3347,28 @@ export default function AccountDetails() {
                 data-testid="input-cash-amount"
               />
             </div>
+            {targetAllocations.length > 0 && (
+              <div className="flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  id="maintain-amounts" 
+                  checked={maintainDollarAmounts}
+                  onChange={(e) => setMaintainDollarAmounts(e.target.checked)}
+                  data-testid="checkbox-maintain-amounts"
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <label htmlFor="maintain-amounts" className="text-sm font-medium leading-none cursor-pointer">
+                  Maintain dollar amounts (adjust target % proportionally)
+                </label>
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <Button 
                 variant="outline" 
                 onClick={() => {
                   setIsCashDialogOpen(false);
                   setCashAmount("");
+                  setMaintainDollarAmounts(false);
                 }}
                 data-testid="button-cancel-cash"
               >
