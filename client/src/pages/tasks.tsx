@@ -9,6 +9,23 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   CheckCircle2, 
   Circle, 
@@ -23,11 +40,11 @@ import {
   Briefcase,
   Filter,
   Download,
-  Printer
+  Printer,
+  Plus
 } from "lucide-react";
 import { Link } from "wouter";
 import { format, isToday, isTomorrow, isThisWeek, isPast, addDays } from "date-fns";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface TaskWithContext {
   id: string;
@@ -61,6 +78,8 @@ export default function Tasks() {
   const [groupBy, setGroupBy] = useState<"due" | "household" | "priority">("due");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["overdue", "today", "upcoming", "no-date"]));
   const [selectedCategory, setSelectedCategory] = useState<string | null>("anchor");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({ title: "", description: "", priority: "medium", accountId: "", dueDate: "" });
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -121,6 +140,21 @@ export default function Tasks() {
     },
     onError: () => {
       toast({ title: "Failed to complete task", variant: "destructive" });
+    },
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: async (data: any) => {
+      await apiRequest("POST", `/api/account-tasks`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      setDialogOpen(false);
+      setFormData({ title: "", description: "", priority: "medium", accountId: "", dueDate: "" });
+      toast({ title: "Task created successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to create task", variant: "destructive" });
     },
   });
 
@@ -395,6 +429,14 @@ export default function Tasks() {
           </div>
           <div className="flex gap-2">
             <Button
+              size="sm"
+              onClick={() => setDialogOpen(true)}
+              data-testid="button-add-task"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Task
+            </Button>
+            <Button
               variant="outline"
               size="sm"
               onClick={() => window.open('/api/tasks/pdf', '_blank')}
@@ -606,6 +648,88 @@ export default function Tasks() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Add Task Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Task</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                placeholder="Task title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                data-testid="input-task-title"
+              />
+            </div>
+            <div>
+              <Label htmlFor="description">Description (optional)</Label>
+              <Textarea
+                id="description"
+                placeholder="Task description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                data-testid="input-task-description"
+              />
+            </div>
+            <div>
+              <Label htmlFor="accountId">Account</Label>
+              <Select value={formData.accountId} onValueChange={(value) => setFormData({ ...formData, accountId: value })}>
+                <SelectTrigger id="accountId" data-testid="select-task-account">
+                  <SelectValue placeholder="Select an account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tasks.map(task => (
+                    <SelectItem key={task.accountId} value={task.accountId} data-testid={`option-account-${task.accountId}`}>
+                      {task.ownerName} - {task.accountNickname || task.accountTypeLabel}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="priority">Priority</Label>
+              <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
+                <SelectTrigger id="priority" data-testid="select-task-priority">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="dueDate">Due Date (optional)</Label>
+              <Input
+                id="dueDate"
+                type="date"
+                value={formData.dueDate}
+                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                data-testid="input-task-due-date"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} data-testid="button-cancel">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createTaskMutation.mutate(formData)}
+              disabled={!formData.title || !formData.accountId || createTaskMutation.isPending}
+              data-testid="button-create-task"
+            >
+              {createTaskMutation.isPending ? "Creating..." : "Create Task"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
