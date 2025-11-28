@@ -150,6 +150,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get archived households (must come before /api/households/:id route)
+  app.get('/api/households/archived', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const archived = await storage.getAllArchivedHouseholds(userId);
+      res.json(archived);
+    } catch (error) {
+      console.error("Error fetching archived households:", error);
+      res.status(500).json({ message: "Failed to fetch archived households" });
+    }
+  });
+
   app.get('/api/households/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -226,38 +238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get archived households
-  app.get('/api/households/archived', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const archived = await storage.getAllArchivedHouseholds(userId);
-      res.json(archived);
-    } catch (error) {
-      console.error("Error fetching archived households:", error);
-      res.status(500).json({ message: "Failed to fetch archived households" });
-    }
-  });
-
-  app.delete('/api/households/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      // Only allow owner to delete household
-      const household = await storage.getHousehold(req.params.id);
-      if (!household) {
-        return res.status(404).json({ message: "Household not found" });
-      }
-      if (household.userId !== userId) {
-        return res.status(403).json({ message: "Only the owner can delete a household" });
-      }
-      await storage.deleteHousehold(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error deleting household:", error);
-      res.status(500).json({ message: "Failed to delete household" });
-    }
-  });
-
-  // Restore archived household
+  // Restore archived household (must come before /api/households/:id routes)
   app.post('/api/households/:id/restore', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
