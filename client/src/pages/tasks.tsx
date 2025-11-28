@@ -338,12 +338,12 @@ export default function Tasks() {
           {categories.length > 0 && (
             <div className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Category:</span>
-              <Select value={selectedCategory || ""} onValueChange={(v) => setSelectedCategory(v || null)}>
+              <Select value={selectedCategory || "all"} onValueChange={(v) => setSelectedCategory(v === "all" ? null : v)}>
                 <SelectTrigger className="w-40" data-testid="select-category-filter">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="" data-testid="option-all-categories">
+                  <SelectItem value="all" data-testid="option-all-categories">
                     All Categories
                   </SelectItem>
                   {categories.map(cat => (
