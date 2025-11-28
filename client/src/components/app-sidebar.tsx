@@ -107,21 +107,18 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => {
-                const shouldClose = item.url === "/households" || item.url === "/model-portfolios";
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      isActive={location === item.url} 
-                      data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
-                      onClick={() => handleNavigation(item.url, shouldClose)}
-                    >
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {menuItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton 
+                    isActive={location === item.url} 
+                    data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+                    onClick={() => handleNavigation(item.url, true)}
+                  >
+                    <item.icon />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
 
               {/* Library with sub-items */}
               <Collapsible open={libraryOpen} onOpenChange={setLibraryOpen} className="group/collapsible">
@@ -152,14 +149,16 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               </Collapsible>
 
-              {/* Bottom menu items (Alerts, Trades, Settings) */}
+              {/* Bottom menu items (Alerts) */}
               {bottomMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location === item.url} data-testid={`link-${item.title.toLowerCase()}`}>
-                    <Link href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
+                  <SidebarMenuButton 
+                    isActive={location === item.url} 
+                    data-testid={`link-${item.title.toLowerCase()}`}
+                    onClick={() => handleNavigation(item.url, true)}
+                  >
+                    <item.icon />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
