@@ -62,7 +62,7 @@ export default function Landing() {
             backgroundPosition: 'center',
           }}
         >
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/80" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/75 to-black/90" />
           <div className="relative z-10 container mx-auto px-4 py-20">
             <div className="max-w-4xl mx-auto text-center space-y-6">
               <Badge variant="secondary" className="text-sm px-4 py-1">
