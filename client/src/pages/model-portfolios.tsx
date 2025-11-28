@@ -661,6 +661,9 @@ export default function ModelPortfolios() {
   const [inlineAllocationValue, setInlineAllocationValue] = useState<string>("");
   const [openPlannedPortfolios, setOpenPlannedPortfolios] = useState<Set<string>>(new Set());
   const [openFreelancePortfolios, setOpenFreelancePortfolios] = useState<Set<string>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    new Set(["basket_etf", "single_etf", "double_long_etf", "security", "auto_added", "misc"])
+  );
 
   const holdingForm = useForm<HoldingFormData>({
     resolver: zodResolver(holdingFormSchema),
@@ -1228,6 +1231,18 @@ export default function ModelPortfolios() {
     });
   };
 
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
+
   const riskLevelOrder = { low: 1, low_medium: 2, medium: 3, medium_high: 4, high: 5 };
   const categoryOrder: Record<string, number> = { basket_etf: 1, single_etf: 2, double_long_etf: 3, security: 4, auto_added: 5, misc: 6 };
 
@@ -1298,6 +1313,11 @@ export default function ModelPortfolios() {
   const filteredFreelancePortfolios = freelancePortfolios.filter(
     (p) => p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const holdingsByCategory = holdingCategoryOrder.reduce((acc, category) => {
+    acc[category] = filteredHoldings.filter(h => h.category === category);
+    return acc;
+  }, {} as Record<string, UniversalHolding[]>);
 
   if (authLoading) {
     return (
@@ -1597,104 +1617,131 @@ export default function ModelPortfolios() {
               </CardContent>
             </Card>
           ) : (
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <SortableHeader column="ticker">Ticker</SortableHeader>
-                    <SortableHeader column="name">Name</SortableHeader>
-                    <SortableHeader column="category">Category</SortableHeader>
-                    <SortableHeader column="price">Price</SortableHeader>
-                    <SortableHeader column="dividendYield">Yield</SortableHeader>
-                    <SortableHeader column="dividendRate">Annual Div</SortableHeader>
-                    <TableHead>Payout</TableHead>
-                    <TableHead>Ex-Date</TableHead>
-                    <SortableHeader column="riskLevel">Risk</SortableHeader>
-                    <TableHead className="w-[100px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredHoldings.map((holding) => (
-                    <TableRow key={holding.id} data-testid={`row-holding-${holding.id}`}>
-                      <TableCell 
-                        className="font-mono font-semibold cursor-pointer hover:text-primary transition-colors"
-                        onClick={() => handleEditHolding(holding)}
-                        data-testid={`text-ticker-${holding.id}`}
-                      >
-                        {holding.ticker}
-                      </TableCell>
-                      <TableCell>{holding.name}</TableCell>
-                      <TableCell>
-                        <Badge className={categoryColors[holding.category]}>
-                          {categoryLabels[holding.category]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="font-mono">
-                          CA${Number(holding.price || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </div>
-                        {holding.priceUpdatedAt && (
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(holding.priceUpdatedAt).toLocaleDateString()}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {Number(holding.dividendYield || 0).toFixed(2)}%
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {Number(holding.dividendRate || 0) > 0 
-                          ? `$${Number(holding.dividendRate).toFixed(2)}`
-                          : '-'
-                        }
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{dividendPayoutLabels[holding.dividendPayout]}</Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {holding.exDividendDate 
-                          ? new Date(holding.exDividendDate).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
-                          : '-'
-                        }
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={riskLevelColors[holding.riskLevel]}>
-                          {riskLevelLabels[holding.riskLevel]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditHolding(holding)} data-testid={`button-edit-holding-${holding.id}`}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" data-testid={`button-delete-holding-${holding.id}`}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Holding</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete {holding.ticker}? This will also remove it from any portfolios that include this holding.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => deleteHoldingMutation.mutate(holding.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
+            <div className="space-y-3">
+              {holdingCategoryOrder
+                .filter(category => categoryFilter === "all" || category === categoryFilter)
+                .map(category => {
+                  const categoryHoldings = holdingsByCategory[category] || [];
+                  if (categoryHoldings.length === 0) return null;
+                  const isExpanded = expandedCategories.has(category);
+                  
+                  return (
+                    <Collapsible 
+                      key={category} 
+                      open={isExpanded} 
+                      onOpenChange={() => toggleCategory(category)}
+                    >
+                      <Card>
+                        <CollapsibleTrigger className="w-full" data-testid={`toggle-category-${category}`}>
+                          <CardHeader className="flex flex-row items-center justify-between py-3 cursor-pointer hover-elevate">
+                            <div className="flex items-center gap-3">
+                              {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                              <Badge className={categoryColors[category]}>
+                                {categoryLabels[category]}
+                              </Badge>
+                              <span className="text-sm text-muted-foreground">
+                                ({categoryHoldings.length} holding{categoryHoldings.length !== 1 ? 's' : ''})
+                              </span>
+                            </div>
+                          </CardHeader>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <SortableHeader column="ticker">Ticker</SortableHeader>
+                                <SortableHeader column="name">Name</SortableHeader>
+                                <SortableHeader column="price">Price</SortableHeader>
+                                <SortableHeader column="dividendYield">Yield</SortableHeader>
+                                <SortableHeader column="dividendRate">Annual Div</SortableHeader>
+                                <TableHead>Payout</TableHead>
+                                <TableHead>Ex-Date</TableHead>
+                                <SortableHeader column="riskLevel">Risk</SortableHeader>
+                                <TableHead className="w-[100px]"></TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {categoryHoldings.map((holding) => (
+                                <TableRow key={holding.id} data-testid={`row-holding-${holding.id}`}>
+                                  <TableCell 
+                                    className="font-mono font-semibold cursor-pointer hover:text-primary transition-colors"
+                                    onClick={() => handleEditHolding(holding)}
+                                    data-testid={`text-ticker-${holding.id}`}
+                                  >
+                                    {holding.ticker}
+                                  </TableCell>
+                                  <TableCell>{holding.name}</TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="font-mono">
+                                      CA${Number(holding.price || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </div>
+                                    {holding.priceUpdatedAt && (
+                                      <div className="text-xs text-muted-foreground">
+                                        {new Date(holding.priceUpdatedAt).toLocaleDateString()}
+                                      </div>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono">
+                                    {Number(holding.dividendYield || 0).toFixed(2)}%
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono">
+                                    {Number(holding.dividendRate || 0) > 0 
+                                      ? `$${Number(holding.dividendRate).toFixed(2)}`
+                                      : '-'
+                                    }
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline">{dividendPayoutLabels[holding.dividendPayout]}</Badge>
+                                  </TableCell>
+                                  <TableCell className="text-sm text-muted-foreground">
+                                    {holding.exDividendDate 
+                                      ? new Date(holding.exDividendDate).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })
+                                      : '-'
+                                    }
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge className={riskLevelColors[holding.riskLevel]}>
+                                      {riskLevelLabels[holding.riskLevel]}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-1">
+                                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditHolding(holding)} data-testid={`button-edit-holding-${holding.id}`}>
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" data-testid={`button-delete-holding-${holding.id}`}>
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Delete Holding</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              Are you sure you want to delete {holding.ticker}? This will also remove it from any portfolios that include this holding.
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={() => deleteHoldingMutation.mutate(holding.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                              Delete
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </CollapsibleContent>
+                      </Card>
+                    </Collapsible>
+                  );
+                })}
+            </div>
           )}
         </TabsContent>
 
