@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { useRoute, Link, useLocation } from "wouter";
+import { useRoute, Link, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -201,6 +201,8 @@ export default function AccountDetails() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [, params] = useRoute("/account/:accountType/:accountId");
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
+  const fromHouseholdId = new URLSearchParams(searchString).get("from");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<Position | null>(null);
   const [isAllocationDialogOpen, setIsAllocationDialogOpen] = useState(false);
@@ -1547,7 +1549,7 @@ export default function AccountDetails() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setLocation("/households")} data-testid="button-back">
+          <Button variant="ghost" size="icon" onClick={() => setLocation(fromHouseholdId ? `/households?focus=${fromHouseholdId}` : "/households")} data-testid="button-back">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>

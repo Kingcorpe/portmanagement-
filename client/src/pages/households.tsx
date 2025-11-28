@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useSearch, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -47,7 +48,11 @@ import type { HouseholdWithDetails } from "@shared/schema";
 export default function Households() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const searchString = useSearch();
+  const [, setLocation] = useLocation();
+  const focusHouseholdId = new URLSearchParams(searchString).get("focus");
   const [searchQuery, setSearchQuery] = useState("");
+  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "grouped">("grouped");
   const [privacyMode, setPrivacyMode] = useState<boolean>(() => {
@@ -218,6 +223,18 @@ export default function Households() {
       isOwner: h.userId === user?.id,
     };
   });
+
+  // When navigating back with focus parameter, expand the category containing the focused household
+  useEffect(() => {
+    if (focusHouseholdId && households.length > 0) {
+      const focusedHousehold = households.find(h => h.id === focusHouseholdId);
+      if (focusedHousehold?.category) {
+        setExpandedCategories(prev => new Set([...Array.from(prev), focusedHousehold.category!]));
+      }
+      // Clear the focus parameter from URL after processing
+      setLocation("/households", { replace: true });
+    }
+  }, [focusHouseholdId, households, setLocation]);
 
   // Create household mutation
   const createMutation = useMutation({
@@ -718,6 +735,7 @@ export default function Households() {
             <HouseholdCard 
               key={household.id} 
               household={household}
+              defaultOpen={household.id === focusHouseholdId}
               onAddIndividual={handleAddIndividual}
               onAddCorporation={handleAddCorporation}
               onAddAccount={handleAddAccount}
@@ -791,6 +809,7 @@ export default function Households() {
                       <HouseholdCard 
                         key={household.id} 
                         household={household}
+                        defaultOpen={household.id === focusHouseholdId}
                         onAddIndividual={handleAddIndividual}
                         onAddCorporation={handleAddCorporation}
                         onAddAccount={handleAddAccount}
