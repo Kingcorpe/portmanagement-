@@ -56,7 +56,7 @@ export default function Landing() {
                 Quit staring at charts. Let deals find you.
               </p>
               <p className="text-xl text-white/80 italic">
-                Stop watching the market. Let the market come to you.
+                We monitor, you chill.
               </p>
               <div className="pt-4">
                 <Button size="lg" onClick={handleLogin} data-testid="button-get-started">
