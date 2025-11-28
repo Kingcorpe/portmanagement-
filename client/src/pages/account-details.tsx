@@ -242,6 +242,7 @@ export default function AccountDetails() {
   const [isAuditLogExpanded, setIsAuditLogExpanded] = useState(false);
   const [viewMode, setViewMode] = useState<"real" | "watchlist">("real");
   const [isCreatingWatchlist, setIsCreatingWatchlist] = useState(false);
+  const [allocationIsWatchlist, setAllocationIsWatchlist] = useState(false);
   const notesInitialLoadRef = useRef(true);
   const notesSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -638,11 +639,13 @@ export default function AccountDetails() {
         universalHoldingId: editingAllocation.universalHoldingId,
         targetPercentage: editingAllocation.targetPercentage,
       });
+      setAllocationIsWatchlist(editingAllocation.sourcePortfolioType === "freelance");
     } else {
       allocationForm.reset({
         universalHoldingId: "",
         targetPercentage: "",
       });
+      setAllocationIsWatchlist(false);
     }
   }, [editingAllocation, allocationForm]);
 
@@ -1121,10 +1124,14 @@ export default function AccountDetails() {
   };
 
   const onAllocationSubmit = (data: AllocationFormData) => {
+    const dataWithSource = {
+      ...data,
+      sourcePortfolioType: (allocationIsWatchlist ? "freelance" : null) as "planned" | "freelance" | null | undefined,
+    };
     if (editingAllocation) {
-      updateAllocationMutation.mutate({ id: editingAllocation.id, data });
+      updateAllocationMutation.mutate({ id: editingAllocation.id, data: dataWithSource });
     } else {
-      createAllocationMutation.mutate(data);
+      createAllocationMutation.mutate(dataWithSource);
     }
   };
 
@@ -2942,6 +2949,20 @@ export default function AccountDetails() {
                         )}
                       />
                       
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="checkbox" 
+                          id="allocation-watchlist" 
+                          checked={allocationIsWatchlist}
+                          onChange={(e) => setAllocationIsWatchlist(e.target.checked)}
+                          data-testid="checkbox-allocation-watchlist"
+                          className="h-4 w-4 rounded border-gray-300"
+                        />
+                        <label htmlFor="allocation-watchlist" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
+                          Mark as Watchlist (allows totals to exceed 100%)
+                        </label>
+                      </div>
+                      
                       {(() => {
                         const riskValidation = computeRiskValidation();
                         if (!riskValidation) return null;
@@ -3105,8 +3126,8 @@ export default function AccountDetails() {
                 <div className="mt-4 flex justify-end">
                   {(() => {
                     const total = targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0);
-                    const isWatchlist = lastCopiedFromWatchlist;
-                    const isValid = isWatchlist ? total > 0 : total === 100;
+                    const hasWatchlist = lastCopiedFromWatchlist || targetAllocations.some(a => a.sourcePortfolioType === "freelance");
+                    const isValid = hasWatchlist ? total > 0 : total === 100;
                     
                     return (
                       <Badge 
@@ -3118,7 +3139,7 @@ export default function AccountDetails() {
                         }
                         data-testid="badge-total-allocation"
                       >
-                        Total: {total.toFixed(2)}%{isWatchlist && total > 100 && " (Watchlist)"}
+                        Total: {total.toFixed(2)}%{hasWatchlist && total > 100 && " (Watchlist)"}
                       </Badge>
                     );
                   })()}
