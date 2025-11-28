@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, Settings, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search } from "lucide-react";
+import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -69,11 +69,6 @@ const bottomMenuItems = [
     title: "Alerts",
     url: "/alerts",
     icon: Bell,
-  },
-  {
-    title: "Settings",
-    url: "/settings",
-    icon: Settings,
   },
 ];
 
