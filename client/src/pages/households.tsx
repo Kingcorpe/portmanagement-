@@ -135,7 +135,7 @@ export default function Households() {
   // Fetch archived households
   const { data: archivedData = [] } = useQuery<any[]>({
     queryKey: ["/api/households/archived"],
-    enabled: isAuthenticated && showArchived,
+    enabled: isAuthenticated,
   });
 
   // Transform backend data to component format and calculate totals
