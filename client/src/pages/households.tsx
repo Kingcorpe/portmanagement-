@@ -57,6 +57,7 @@ export default function Households() {
     return false;
   });
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [showArchived, setShowArchived] = useState(false);
 
   // Dialog state for household management
   const [dialogState, setDialogState] = useState<{
@@ -129,6 +130,12 @@ export default function Households() {
       }
       return failureCount < 3;
     },
+  });
+
+  // Fetch archived households
+  const { data: archivedData = [] } = useQuery<any[]>({
+    queryKey: ["/api/households/archived"],
+    enabled: isAuthenticated && showArchived,
   });
 
   // Transform backend data to component format and calculate totals
@@ -242,15 +249,39 @@ export default function Households() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/households/archived"] });
       toast({
         title: "Success",
-        description: "Household deleted successfully",
+        description: "Household archived successfully",
       });
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete household",
+        description: error.message || "Failed to archive household",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Restore household mutation
+  const restoreHouseholdMutation = useMutation({
+    mutationFn: async (householdId: string) => {
+      return await apiRequest("POST", `/api/households/${householdId}/restore`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/households/full"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/households/archived"] });
+      toast({
+        title: "Success",
+        description: "Household restored successfully",
+      });
+      setShowArchived(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to restore household",
         variant: "destructive",
       });
     },
@@ -775,6 +806,41 @@ export default function Households() {
               </Collapsible>
             );
           })}
+        </div>
+      )}
+
+      {/* Archived Households Section */}
+      {archivedData.length > 0 && (
+        <div className="mt-8 border-t pt-8">
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="flex items-center gap-2 text-muted-foreground hover:text-foreground" data-testid="button-toggle-archived">
+                <FolderOpen className="h-4 w-4" />
+                <span>Archived Households ({archivedData.length})</span>
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-4 mt-4">
+              {archivedData.map((household) => (
+                <div key={household.id} className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
+                  <div>
+                    <h3 className="font-medium">{household.name}</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Archived on {new Date(household.deletedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => restoreHouseholdMutation.mutate(household.id)}
+                    disabled={restoreHouseholdMutation.isPending}
+                    data-testid={`button-restore-household-${household.id}`}
+                  >
+                    {restoreHouseholdMutation.isPending ? "Restoring..." : "Restore"}
+                  </Button>
+                </div>
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       )}
 
