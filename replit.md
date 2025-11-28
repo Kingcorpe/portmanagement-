@@ -80,12 +80,17 @@ A collapsible section per account tracks all modifications, including:
 Actions are color-coded with old/new value comparisons and timestamps.
 
 ### Holdings Search
-A dedicated page that allows searching for tickers across all accounts in the system.
-- **Search Endpoint**: `/api/holdings/search?ticker=BANK.TO`
-- **Features**: 
+A dedicated page that allows searching for tickers across all accounts in the system with powerful filtering.
+- **Search Endpoint**: `/api/holdings/search?ticker=BANK.TO&category=anchor&minValue=1000&maxValue=50000`
+- **Core Features**: 
   - Search across all households, individuals, corporations, and joint accounts simultaneously
   - Automatic ticker normalization (.TO, .V, .CN, .NE, .TSX, .NYSE, .NASDAQ suffixes)
-  - Results display: household name, owner name/type, account type, quantity held, current price, and total value
+- **Filters** (optional, combine as needed):
+  - **Household Category**: Filter by Evergreen, Anchor, Pulse, Emerging Pulse, or Emerging Anchor
+  - **Min/Max Value**: Filter holdings by their dollar value range
+- **Results Display**: 
+  - Household name and category, owner name/type, account type
+  - Quantity held, current price, and total value
   - Summary cards showing total holdings count, total quantity, and aggregate value
 - **Navigation**: Click "Holdings Search" in the sidebar to access
 

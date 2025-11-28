@@ -5342,17 +5342,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   console.log("[Background Job] Price refresh scheduler started (every 5 minutes)");
 
-  // Search holdings by ticker across all accounts
+  // Search holdings by ticker across all accounts with optional filters
   app.get('/api/holdings/search', isAuthenticated, async (req: any, res) => {
     try {
-      const { ticker } = req.query;
+      const { ticker, category, minValue, maxValue } = req.query;
       
       if (!ticker || typeof ticker !== 'string') {
         return res.status(400).json({ message: "Ticker parameter is required" });
       }
 
       const normalizedSearchTicker = ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
-      console.log(`[Holdings Search] Searching for ticker: "${ticker}" (normalized: "${normalizedSearchTicker}")`);
+      const minVal = minValue ? Number(minValue) : 0;
+      const maxVal = maxValue ? Number(maxValue) : Infinity;
+      
+      console.log(`[Holdings Search] Searching for ticker: "${ticker}" (normalized: "${normalizedSearchTicker}"), category: ${category || 'all'}, value range: $${minVal} - $${maxVal}`);
       
       // Fetch all households with their data
       const households = await storage.getAllHouseholds();
@@ -5366,6 +5369,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let totalPositionsChecked = 0;
 
       for (const household of households) {
+        // Filter by category if specified
+        if (category && household.category !== category) {
+          continue;
+        }
+
         const individuals = await storage.getIndividualsByHousehold(household.id);
         const corporations = await storage.getCorporationsByHousehold(household.id);
         const jointAccounts = await storage.getJointAccountsByHousehold(household.id);
@@ -5379,7 +5387,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             const matchingPositions = positions.filter((p: Position) => {
               const normalized = normalizeTicker(p.symbol);
-              return normalized === normalizedSearchTicker;
+              const value = Number(p.quantity) * Number(p.currentPrice);
+              return normalized === normalizedSearchTicker && value >= minVal && value <= maxVal;
             });
             
             if (matchingPositions.length > 0) {
@@ -5389,6 +5398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             for (const pos of matchingPositions) {
               results.push({
                 householdName: household.name,
+                householdCategory: household.category,
                 ownerName: individual.name,
                 ownerType: 'Individual',
                 accountType: account.type,
@@ -5410,9 +5420,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const positions = await storage.getPositionsByCorporateAccount(account.id);
             totalPositionsChecked += positions.length;
             
-            const matchingPositions = positions.filter((p: Position) => 
-              normalizeTicker(p.symbol) === normalizedSearchTicker
-            );
+            const matchingPositions = positions.filter((p: Position) => {
+              const normalized = normalizeTicker(p.symbol);
+              const value = Number(p.quantity) * Number(p.currentPrice);
+              return normalized === normalizedSearchTicker && value >= minVal && value <= maxVal;
+            });
             
             if (matchingPositions.length > 0) {
               console.log(`[Holdings Search] Found ${matchingPositions.length} positions in corporate account ${account.id}`);
@@ -5421,6 +5433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             for (const pos of matchingPositions) {
               results.push({
                 householdName: household.name,
+                householdCategory: household.category,
                 ownerName: corp.name,
                 ownerType: 'Corporation',
                 accountType: account.type,
@@ -5440,9 +5453,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const positions = await storage.getPositionsByJointAccount(jointAccount.id);
           totalPositionsChecked += positions.length;
           
-          const matchingPositions = positions.filter((p: Position) => 
-            normalizeTicker(p.symbol) === normalizedSearchTicker
-          );
+          const matchingPositions = positions.filter((p: Position) => {
+            const normalized = normalizeTicker(p.symbol);
+            const value = Number(p.quantity) * Number(p.currentPrice);
+            return normalized === normalizedSearchTicker && value >= minVal && value <= maxVal;
+          });
           
           if (matchingPositions.length > 0) {
             console.log(`[Holdings Search] Found ${matchingPositions.length} positions in joint account ${jointAccount.id}`);
@@ -5457,6 +5472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             results.push({
               householdName: household.name,
+              householdCategory: household.category,
               ownerName: ownerNames,
               ownerType: 'Joint',
               accountType: jointAccount.type,
@@ -5471,7 +5487,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      console.log(`[Holdings Search] Checked ${totalPositionsChecked} total positions, found ${results.length} matches`);
+      console.log(`[Holdings Search] Checked ${totalPositionsChecked} total positions, found ${results.length} matches after filtering`);
       res.json(results);
     } catch (error: any) {
       console.error("Error searching holdings:", error);
