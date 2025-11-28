@@ -108,7 +108,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-lg font-semibold px-2 py-4">
-            Advisor Portal
+            WealthOS
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
