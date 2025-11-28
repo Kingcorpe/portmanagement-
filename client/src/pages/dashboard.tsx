@@ -133,7 +133,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-dashboard-title">Dashboard</h1>
-          <p className="text-muted-foreground">Overview of your portfolio management</p>
+          <p className="text-muted-foreground italic">We monitor, you chill.</p>
         </div>
       </div>
 
