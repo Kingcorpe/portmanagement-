@@ -103,7 +103,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-lg font-semibold px-2 py-4">
-            Wealth0$
+            WealthiOS
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
