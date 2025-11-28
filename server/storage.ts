@@ -225,6 +225,7 @@ export interface IStorage {
   getAccountTargetAllocationsByIndividualAccount(accountId: string): Promise<AccountTargetAllocationWithHolding[]>;
   getAccountTargetAllocationsByCorporateAccount(accountId: string): Promise<AccountTargetAllocationWithHolding[]>;
   getAccountTargetAllocationsByJointAccount(accountId: string): Promise<AccountTargetAllocationWithHolding[]>;
+  getAccountTargetAllocationsBySymbol(symbol: string): Promise<Array<AccountTargetAllocationWithHolding & { accountType: string; accountId: string }>>;
   deleteAllAccountTargetAllocations(accountType: 'individual' | 'corporate' | 'joint', accountId: string): Promise<void>;
 
   // Library document operations
@@ -1486,6 +1487,54 @@ export class DatabaseStorage implements IStorage {
     } else {
       await db.delete(accountTargetAllocations).where(eq(accountTargetAllocations.jointAccountId, accountId));
     }
+  }
+
+  async getAccountTargetAllocationsBySymbol(symbol: string): Promise<Array<AccountTargetAllocationWithHolding & { accountType: string; accountId: string }>> {
+    // Normalize symbol for comparison (remove exchange suffixes)
+    const normalizedSymbol = symbol.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+    
+    // Get all universal holdings to find matching tickers
+    const allHoldings = await this.getAllUniversalHoldings();
+    const matchingHoldings = allHoldings.filter(h => {
+      const normalizedTicker = (h.ticker || '').toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+      return normalizedTicker === normalizedSymbol;
+    });
+    
+    if (matchingHoldings.length === 0) {
+      return [];
+    }
+    
+    const holdingIds = matchingHoldings.map(h => h.id);
+    const holdingsMap = new Map(allHoldings.map(h => [h.id, h]));
+    
+    // Get all allocations that reference these holdings
+    const allocations = await db.select()
+      .from(accountTargetAllocations)
+      .where(sql`${accountTargetAllocations.universalHoldingId} IN (${sql.join(holdingIds.map(id => sql`${id}`), sql`, `)})`);
+    
+    // Map allocations with account type and ID
+    return allocations.map(allocation => {
+      let accountType = '';
+      let accountId = '';
+      
+      if (allocation.individualAccountId) {
+        accountType = 'individual';
+        accountId = allocation.individualAccountId;
+      } else if (allocation.corporateAccountId) {
+        accountType = 'corporate';
+        accountId = allocation.corporateAccountId;
+      } else if (allocation.jointAccountId) {
+        accountType = 'joint';
+        accountId = allocation.jointAccountId;
+      }
+      
+      return {
+        ...allocation,
+        holding: holdingsMap.get(allocation.universalHoldingId)!,
+        accountType,
+        accountId,
+      };
+    });
   }
 
   // Library document operations

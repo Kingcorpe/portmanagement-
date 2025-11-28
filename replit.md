@@ -46,7 +46,8 @@ Comprehensive CRUD operations for all entities (households, individuals, corpora
 ### TradingView Webhook Integration
 A webhook (`POST /api/webhooks/tradingview`) receives BUY/SELL alerts from TradingView.
 - **Alert Display**: Collapsible cards show affected accounts with status indicators (Underweight, Overweight, On Target, No Target) and smart sorting.
-- **Automated Reports**: BUY signals automatically trigger PDF rebalancing report generation for underweight accounts, which are then emailed.
+- **Target Allocation Detection**: Alerts now trigger for accounts that have target allocations for a ticker, even if they don't currently hold any shares. For BUY signals, accounts with planned targets but no position are flagged as "Not Currently Held" opportunities.
+- **Automated Reports**: BUY signals automatically trigger PDF rebalancing report generation for underweight accounts (including zero-position accounts with targets), which are then emailed.
 - **Secret Validation**: Optional webhook secret for security.
 
 ### Yahoo Finance Integration

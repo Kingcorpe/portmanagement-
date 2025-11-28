@@ -1197,6 +1197,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'under' | 'over' | 'on-target' | 'no-target';
       }> = [];
       
+      // Track which accounts we've already processed (to avoid duplicates)
+      const processedAccounts = new Set<string>();
+      
+      // Process accounts that have positions in this symbol
       for (const position of positionsForSymbol) {
         let accountType: string;
         let accountId: string;
@@ -1252,6 +1256,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Check if user has access to this household
         const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
         if (!hasAccess) continue;
+        
+        // Mark as processed
+        processedAccounts.add(`${accountType}:${accountId}`);
         
         // Get household name
         const household = await storage.getHousehold(householdId);
@@ -1318,6 +1325,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Also include accounts that have target allocations for this symbol but NO positions
+      const targetAllocationsForSymbol = await storage.getAccountTargetAllocationsBySymbol(symbol);
+      
+      for (const allocation of targetAllocationsForSymbol) {
+        const accountKey = `${allocation.accountType}:${allocation.accountId}`;
+        
+        // Skip if already processed (has a position)
+        if (processedAccounts.has(accountKey)) continue;
+        
+        let account: any;
+        let allPositions: any[];
+        let ownerName = '';
+        let householdName = '';
+        let householdId = '';
+        
+        // Fetch account details based on type
+        if (allocation.accountType === 'individual') {
+          account = await storage.getIndividualAccount(allocation.accountId);
+          if (!account) continue;
+          
+          const individual = await storage.getIndividual(account.individualId);
+          if (!individual) continue;
+          
+          householdId = individual.householdId;
+          ownerName = individual.name;
+          allPositions = await storage.getPositionsByIndividualAccount(allocation.accountId);
+        } else if (allocation.accountType === 'corporate') {
+          account = await storage.getCorporateAccount(allocation.accountId);
+          if (!account) continue;
+          
+          const corporation = await storage.getCorporation(account.corporationId);
+          if (!corporation) continue;
+          
+          householdId = corporation.householdId;
+          ownerName = corporation.name;
+          allPositions = await storage.getPositionsByCorporateAccount(allocation.accountId);
+        } else if (allocation.accountType === 'joint') {
+          account = await storage.getJointAccount(allocation.accountId);
+          if (!account) continue;
+          
+          householdId = account.householdId;
+          const owners = await storage.getJointAccountOwners(allocation.accountId);
+          ownerName = owners.map((o: any) => o.name).join(' & ');
+          allPositions = await storage.getPositionsByJointAccount(allocation.accountId);
+        } else {
+          continue;
+        }
+        
+        // Check if user has access to this household
+        const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
+        if (!hasAccess) continue;
+        
+        // Get household name
+        const household = await storage.getHousehold(householdId);
+        householdName = household?.name || 'Unknown';
+        
+        // Target percentage from the allocation
+        const targetPercentage = parseFloat(allocation.targetPercentage);
+        
+        // Current allocation is 0% since they don't hold the position
+        const actualPercentage = 0;
+        const currentValue = 0;
+        const variance = actualPercentage - targetPercentage; // Will be negative (underweight)
+        
+        // Status is always 'under' since they have 0% but want X%
+        const status: 'under' | 'over' | 'on-target' | 'no-target' = 'under';
+        
+        // Format account name
+        let displayName = 'Account';
+        if (account.type) {
+          displayName = account.type.toUpperCase();
+        } else if (account.name) {
+          displayName = account.name;
+        }
+        if (account.nickname) {
+          displayName = `${displayName} - ${account.nickname}`;
+        }
+        
+        affectedAccounts.push({
+          accountId: allocation.accountId,
+          accountType: allocation.accountType,
+          accountName: displayName,
+          householdName,
+          ownerName,
+          currentValue,
+          actualPercentage,
+          targetPercentage,
+          variance,
+          status,
+        });
+      }
+      
       res.json(affectedAccounts);
     } catch (error) {
       console.error("Error fetching affected accounts:", error);
@@ -1371,6 +1470,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (parsed.signal === 'BUY' || parsed.signal === 'SELL') {
         const reportEmail = parsed.email || process.env.TRADINGVIEW_REPORT_EMAIL;
+        
+        // Track processed accounts to avoid duplicates
+        const processedAccountKeys = new Set<string>();
         
         // Find all positions for this symbol
         const positionsForSymbol = await storage.getPositionsBySymbol(parsed.symbol);
@@ -1437,6 +1539,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           if (!account) continue;
+          
+          // Track this account as processed
+          processedAccountKeys.add(`${accountType}:${accountId}`);
           
           // Calculate portfolio totals and check allocation status
           const totalActualValue = allPositions.reduce((sum, pos) => {
@@ -1645,6 +1750,251 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             } catch (taskError) {
               console.error(`Failed to create task for account ${accountId}:`, taskError);
+            }
+          }
+        }
+        
+        // Also process accounts with target allocations but NO positions (BUY signals only)
+        // These accounts have planned to hold this ticker but haven't bought yet
+        if (parsed.signal === 'BUY') {
+          const targetAllocationsForSymbol = await storage.getAccountTargetAllocationsBySymbol(parsed.symbol);
+          const normalizedAlertSymbol = normalizeTicker(parsed.symbol);
+          
+          for (const allocation of targetAllocationsForSymbol) {
+            const accountKey = `${allocation.accountType}:${allocation.accountId}`;
+            
+            // Skip if already processed (has a position)
+            if (processedAccountKeys.has(accountKey)) continue;
+            
+            let account: any;
+            let allPositions: any[];
+            let ownerName = '';
+            let householdName = '';
+            
+            // Fetch account details based on type
+            if (allocation.accountType === 'individual') {
+              account = await storage.getIndividualAccount(allocation.accountId);
+              if (!account) continue;
+              
+              const individual = await storage.getIndividual(account.individualId);
+              if (!individual) continue;
+              
+              ownerName = individual.name;
+              const household = await storage.getHousehold(individual.householdId);
+              householdName = household?.name || '';
+              allPositions = await storage.getPositionsByIndividualAccount(allocation.accountId);
+            } else if (allocation.accountType === 'corporate') {
+              account = await storage.getCorporateAccount(allocation.accountId);
+              if (!account) continue;
+              
+              const corporation = await storage.getCorporation(account.corporationId);
+              if (!corporation) continue;
+              
+              ownerName = corporation.name;
+              const household = await storage.getHousehold(corporation.householdId);
+              householdName = household?.name || '';
+              allPositions = await storage.getPositionsByCorporateAccount(allocation.accountId);
+            } else if (allocation.accountType === 'joint') {
+              account = await storage.getJointAccount(allocation.accountId);
+              if (!account) continue;
+              
+              const owners = await storage.getJointAccountOwners(allocation.accountId);
+              const ownerNames: string[] = [];
+              let householdId = '';
+              for (const individual of owners) {
+                ownerNames.push(individual.name);
+                if (!householdId) {
+                  householdId = individual.householdId;
+                  const household = await storage.getHousehold(householdId);
+                  householdName = household?.name || '';
+                }
+              }
+              ownerName = ownerNames.join(' & ');
+              allPositions = await storage.getPositionsByJointAccount(allocation.accountId);
+            } else {
+              continue;
+            }
+            
+            // Calculate total portfolio value
+            const totalActualValue = allPositions.reduce((sum, pos) => {
+              return sum + (Number(pos.quantity) * Number(pos.currentPrice));
+            }, 0);
+            
+            // Skip if no existing portfolio value (can't calculate allocations)
+            if (totalActualValue <= 0) continue;
+            
+            // Current allocation is 0% since they don't hold this position
+            const actualPercent = 0;
+            const targetPercent = Number(allocation.targetPercentage);
+            
+            // Calculate how much they should buy
+            const targetValue = (targetPercent / 100) * totalActualValue;
+            const sharePrice = parsed.price;
+            const sharesToBuy = sharePrice > 0 ? targetValue / sharePrice : 0;
+            
+            // Create task
+            try {
+              const accountTypeLabels: Record<string, string> = {
+                cash: 'Cash', tfsa: 'TFSA', fhsa: 'FHSA', rrsp: 'RRSP',
+                lira: 'LIRA', liff: 'LIF', rif: 'RIF',
+                corporate_cash: 'Corporate Cash', ipp: 'IPP',
+                joint_cash: 'Joint Cash', resp: 'RESP'
+              };
+              
+              const displayAccountType = accountTypeLabels[account.type] || account.type.toUpperCase();
+              const accountDisplayName = account.nickname || '';
+              const fullAccountName = `${displayAccountType}${accountDisplayName ? ` - ${accountDisplayName}` : ''}`;
+              
+              const taskTitle = `TradingView BUY Alert: ${parsed.symbol}`;
+              const variance = actualPercent - targetPercent; // Will be negative
+              const taskDescription = 
+                `Signal: BUY\n` +
+                `Symbol: ${parsed.symbol}\n` +
+                `Current Price: $${sharePrice.toFixed(2)}\n` +
+                `Household: ${householdName}\n` +
+                `Account: ${fullAccountName}\n\n` +
+                `Current Allocation: 0.00% (Not Held)\n` +
+                `Target Allocation: ${targetPercent.toFixed(2)}%\n` +
+                `Variance: ${variance.toFixed(2)}%\n\n` +
+                `Shares to Buy: ${Math.round(sharesToBuy * 100) / 100}\n` +
+                `Dollar Amount: $${Math.round(targetValue * 100) / 100}`;
+              
+              // Create task based on account type
+              let task;
+              if (allocation.accountType === 'individual') {
+                task = await storage.createAccountTask({
+                  individualAccountId: allocation.accountId,
+                  title: taskTitle,
+                  description: taskDescription,
+                  priority: 'high',
+                  status: 'pending'
+                });
+              } else if (allocation.accountType === 'corporate') {
+                task = await storage.createAccountTask({
+                  corporateAccountId: allocation.accountId,
+                  title: taskTitle,
+                  description: taskDescription,
+                  priority: 'high',
+                  status: 'pending'
+                });
+              } else if (allocation.accountType === 'joint') {
+                task = await storage.createAccountTask({
+                  jointAccountId: allocation.accountId,
+                  title: taskTitle,
+                  description: taskDescription,
+                  priority: 'high',
+                  status: 'pending'
+                });
+              }
+              
+              if (task) {
+                tasksCreated.push(`${fullAccountName} (${householdName}) - BUY ${parsed.symbol} (Not Currently Held)`);
+              }
+              
+              // Send email report if configured
+              if (reportEmail) {
+                try {
+                  const targetAllocations = allocation.accountType === 'individual' 
+                    ? await storage.getAccountTargetAllocationsByIndividualAccount(allocation.accountId)
+                    : allocation.accountType === 'corporate'
+                    ? await storage.getAccountTargetAllocationsByCorporateAccount(allocation.accountId)
+                    : await storage.getAccountTargetAllocationsByJointAccount(allocation.accountId);
+                  
+                  // Build portfolio comparison data for report
+                  const actualByTicker = new Map<string, { value: number; quantity: number; originalTicker: string; price: number }>();
+                  for (const pos of allPositions) {
+                    const originalTicker = pos.symbol.toUpperCase();
+                    const normalizedTicker = normalizeTicker(originalTicker);
+                    const value = Number(pos.quantity) * Number(pos.currentPrice);
+                    const existing = actualByTicker.get(normalizedTicker) || { value: 0, quantity: 0, originalTicker, price: Number(pos.currentPrice) };
+                    actualByTicker.set(normalizedTicker, {
+                      value: existing.value + value,
+                      quantity: existing.quantity + Number(pos.quantity),
+                      originalTicker: existing.originalTicker,
+                      price: Number(pos.currentPrice)
+                    });
+                  }
+                  
+                  const processedNormalizedTickers = new Set<string>();
+                  const reportPositions: Array<{
+                    symbol: string;
+                    name: string;
+                    quantity: number;
+                    currentPrice: number;
+                    marketValue: number;
+                    actualPercentage: number;
+                    targetPercentage: number;
+                    variance: number;
+                    changeNeeded: number;
+                    sharesToTrade: number;
+                    status: 'over' | 'under' | 'on-target' | 'unexpected';
+                  }> = [];
+                  
+                  for (const target of targetAllocations) {
+                    const targetTicker = target.holding?.ticker || '';
+                    const normalizedTargetTicker = normalizeTicker(targetTicker);
+                    processedNormalizedTickers.add(normalizedTargetTicker);
+                    
+                    const actual = actualByTicker.get(normalizedTargetTicker);
+                    const actualValue = actual?.value || 0;
+                    const actualPercentage = totalActualValue > 0 ? (actualValue / totalActualValue) * 100 : 0;
+                    const targetPercentage = Number(target.targetPercentage);
+                    const variance = actualPercentage - targetPercentage;
+                    const currentPrice = actual?.price || parsed.price;
+                    const changeNeeded = ((targetPercentage - actualPercentage) / 100) * totalActualValue;
+                    const sharesToTrade = currentPrice > 0 ? changeNeeded / currentPrice : 0;
+                    
+                    const displayTicker = actual?.originalTicker || targetTicker;
+                    
+                    reportPositions.push({
+                      symbol: displayTicker,
+                      name: displayTicker,
+                      quantity: actual?.quantity || 0,
+                      currentPrice,
+                      marketValue: actualValue,
+                      actualPercentage: Math.round(actualPercentage * 100) / 100,
+                      targetPercentage,
+                      variance: Math.round(variance * 100) / 100,
+                      changeNeeded: Math.round(changeNeeded * 100) / 100,
+                      sharesToTrade: Math.round(sharesToTrade * 100) / 100,
+                      status: (variance > 2 ? 'over' : variance < -2 ? 'under' : 'on-target') as 'over' | 'under' | 'on-target'
+                    });
+                  }
+                  
+                  // Generate PDF
+                  const pdfBuffer = await generatePortfolioRebalanceReport({
+                    accountName: accountDisplayName,
+                    accountType: displayAccountType,
+                    householdName,
+                    ownerName,
+                    totalValue: totalActualValue,
+                    positions: reportPositions,
+                    generatedAt: new Date()
+                  });
+                  
+                  await sendEmailWithAttachment(
+                    reportEmail,
+                    `TradingView BUY Alert: ${parsed.symbol} - Target Not Yet Held`,
+                    `A TradingView BUY alert was triggered for ${parsed.symbol} at $${parsed.price}.\n\n` +
+                    `This symbol has a target allocation but is NOT CURRENTLY HELD in:\n` +
+                    `- Household: ${householdName}\n` +
+                    `- Owner: ${ownerName}\n` +
+                    `- Account: ${fullAccountName}\n\n` +
+                    `Target allocation: ${targetPercent.toFixed(2)}%\n` +
+                    `Suggested purchase: ${Math.round(sharesToBuy * 100) / 100} shares (~$${Math.round(targetValue * 100) / 100})\n\n` +
+                    `A task has been created in your portfolio management system.\n` +
+                    `Please see the attached PDF report for detailed rebalancing recommendations.`,
+                    pdfBuffer,
+                    `Portfolio_Rebalancing_${householdName.replace(/\s+/g, '_')}_${account.type}_${new Date().toISOString().split('T')[0]}.pdf`
+                  );
+                  
+                  reportsSent.push(`${fullAccountName} (${householdName}) - Not Held`);
+                } catch (emailError) {
+                  console.error(`Failed to send report for target-only account ${allocation.accountId}:`, emailError);
+                }
+              }
+            } catch (taskError) {
+              console.error(`Failed to create task for target-only account ${allocation.accountId}:`, taskError);
             }
           }
         }
