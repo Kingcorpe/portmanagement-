@@ -772,8 +772,24 @@ export default function ModelPortfolios() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/universal-holdings"] });
       toast({ title: "Success", description: "Holding created successfully" });
-      holdingForm.reset();
-      if (!saveAndAddAnother) {
+      
+      if (saveAndAddAnother) {
+        // Keep category and risk level from last entry for faster bulk adding
+        const currentCategory = holdingForm.getValues("category");
+        const currentRiskLevel = holdingForm.getValues("riskLevel");
+        holdingForm.reset({
+          ticker: "",
+          name: "",
+          category: currentCategory,
+          riskLevel: currentRiskLevel,
+          dividendRate: 0,
+          dividendPayout: "monthly",
+          fundFactsUrl: "",
+          description: "",
+        });
+        setDuplicateTickerWarning(null);
+      } else {
+        holdingForm.reset();
         setIsHoldingDialogOpen(false);
       }
       setSaveAndAddAnother(false);
