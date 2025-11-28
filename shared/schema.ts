@@ -1017,6 +1017,7 @@ export const auditActionEnum = pgEnum("audit_action", [
   "position_update",
   "position_delete",
   "position_bulk_upload",
+  "position_bulk_delete",
   "target_add",
   "target_update",
   "target_delete",

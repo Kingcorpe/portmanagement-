@@ -209,6 +209,7 @@ export default function AccountDetails() {
   const [selectedPortfolioType, setSelectedPortfolioType] = useState<"planned" | "freelance">("planned");
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [clearExisting, setClearExisting] = useState(false);
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
   const [cashAmount, setCashAmount] = useState("");
   const [editingInlineTarget, setEditingInlineTarget] = useState<string | null>(null);
@@ -1320,8 +1321,9 @@ export default function AccountDetails() {
       const response = await apiRequest("POST", "/api/positions/bulk", {
         positions,
         accountType,
-        accountId
-      }) as unknown as { success: boolean; created: number; errors?: any[]; message: string };
+        accountId,
+        clearExisting
+      }) as unknown as { success: boolean; created: number; deleted?: number; errors?: any[]; message: string };
 
       await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
 
@@ -3011,41 +3013,59 @@ export default function AccountDetails() {
       </Collapsible>
 
       {/* Drag and Drop Zone */}
-      <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-          isDragging 
-            ? "border-primary bg-primary/5" 
-            : "border-muted-foreground/25 hover:border-muted-foreground/50"
-        }`}
-        data-testid="dropzone-csv"
-      >
-        <input
-          type="file"
-          accept=".csv,.xlsx,.xls"
-          onChange={handleFileInputChange}
-          className="hidden"
-          id="file-upload"
-          data-testid="input-file-upload"
-        />
-        <FileSpreadsheet className={`mx-auto h-10 w-10 mb-3 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
-        <p className={`text-sm font-medium mb-1 ${isDragging ? "text-primary" : "text-foreground"}`}>
-          {isDragging ? "Drop file here" : "Drag and drop a CSV or Excel file"}
-        </p>
-        <p className="text-xs text-muted-foreground mb-4">
-          or click the button below to browse
-        </p>
-        <Button
-          variant="outline"
-          onClick={() => document.getElementById('file-upload')?.click()}
-          disabled={isUploading}
-          data-testid="button-upload-file"
+      <div className="space-y-3">
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+            isDragging 
+              ? "border-primary bg-primary/5" 
+              : "border-muted-foreground/25 hover:border-muted-foreground/50"
+          }`}
+          data-testid="dropzone-csv"
         >
-          <FileSpreadsheet className="mr-2 h-4 w-4" />
-          {isUploading ? "Importing..." : "Browse Files"}
-        </Button>
+          <input
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            onChange={handleFileInputChange}
+            className="hidden"
+            id="file-upload"
+            data-testid="input-file-upload"
+          />
+          <FileSpreadsheet className={`mx-auto h-10 w-10 mb-3 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
+          <p className={`text-sm font-medium mb-1 ${isDragging ? "text-primary" : "text-foreground"}`}>
+            {isDragging ? "Drop file here" : "Drag and drop a CSV or Excel file"}
+          </p>
+          <p className="text-xs text-muted-foreground mb-4">
+            or click the button below to browse
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => document.getElementById('file-upload')?.click()}
+            disabled={isUploading}
+            data-testid="button-upload-file"
+          >
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            {isUploading ? "Importing..." : "Browse Files"}
+          </Button>
+        </div>
+        <div className="flex items-center gap-3 px-4 py-3 bg-muted/50 rounded-lg">
+          <input
+            type="checkbox"
+            id="clear-existing"
+            checked={clearExisting}
+            onChange={(e) => setClearExisting(e.target.checked)}
+            className="h-4 w-4"
+            data-testid="checkbox-clear-existing"
+          />
+          <label htmlFor="clear-existing" className="text-sm cursor-pointer flex-1">
+            <span className="font-medium">Clear existing positions before import</span>
+            <span className="text-muted-foreground block text-xs mt-1">
+              Replace all current positions with the imported file (makes the file your source of truth)
+            </span>
+          </label>
+        </div>
       </div>
 
       {/* Dialogs */}

@@ -47,6 +47,7 @@ import {
   insertAccountTaskSchema,
   updateAccountTaskSchema,
   type InsertAccountAuditLog,
+  type Position,
 } from "@shared/schema";
 
 // Helper function to compute diff between old and new account values for audit logging
@@ -1893,7 +1894,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/positions/bulk', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { positions, accountType, accountId } = req.body;
+      const { positions, accountType, accountId, clearExisting } = req.body;
       
       if (!Array.isArray(positions) || positions.length === 0) {
         return res.status(400).json({ message: "No positions provided" });
@@ -1912,6 +1913,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const canEdit = await storage.canUserEditHousehold(userId, householdId);
       if (!canEdit) {
         return res.status(403).json({ message: "Access denied" });
+      }
+      
+      let deletedCount = 0;
+      
+      // Clear existing positions if requested
+      if (clearExisting) {
+        let existingPositions: Position[] = [];
+        if (accountType === 'individual') {
+          existingPositions = await storage.getPositionsByIndividualAccount(accountId);
+        } else if (accountType === 'corporate') {
+          existingPositions = await storage.getPositionsByCorporateAccount(accountId);
+        } else if (accountType === 'joint') {
+          existingPositions = await storage.getPositionsByJointAccount(accountId);
+        }
+        
+        for (const pos of existingPositions) {
+          await storage.deletePosition(pos.id);
+          deletedCount++;
+        }
+        
+        // Log the clear action
+        await storage.createAuditLogEntry({
+          individualAccountId: accountType === 'individual' ? accountId : undefined,
+          corporateAccountId: accountType === 'corporate' ? accountId : undefined,
+          jointAccountId: accountType === 'joint' ? accountId : undefined,
+          userId,
+          action: "position_bulk_delete",
+          changes: { 
+            count: deletedCount,
+            reason: "Cleared before bulk import"
+          },
+        });
       }
       
       const createdPositions = [];
@@ -2001,8 +2034,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: true,
         created: createdPositions.length,
+        deleted: deletedCount,
         errors: errors.length > 0 ? errors : undefined,
-        message: `Successfully imported ${createdPositions.length} positions${errors.length > 0 ? `, ${errors.length} failed` : ''}`
+        message: `${deletedCount > 0 ? `Cleared ${deletedCount} existing positions. ` : ''}Successfully imported ${createdPositions.length} positions${errors.length > 0 ? `, ${errors.length} failed` : ''}`
       });
     } catch (error: any) {
       console.error("Error bulk creating positions:", error);
