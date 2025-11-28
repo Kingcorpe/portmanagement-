@@ -364,154 +364,108 @@ export default function Tasks() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div className="space-y-4 p-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <ListTodo className="h-8 w-8" />
-            Tasks
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage tasks across all your accounts
+          <h1 className="text-3xl font-bold">Tasks</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {overdueCount > 0 && <span className="text-red-500 font-medium">{overdueCount} overdue</span>}
+            {overdueCount > 0 && pendingCount > 0 && <span className="mx-2">•</span>}
+            {pendingCount > 0 && <span>{pendingCount} pending</span>}
+            {completedCount > 0 && <span className="mx-2">•</span>}
+            {completedCount > 0 && <span className="text-green-600">{completedCount} completed</span>}
           </p>
         </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={() => setDialogOpen(true)}
+            data-testid="button-add-task"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Task
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open('/api/tasks/pdf', '_blank')}
+            data-testid="button-download-pdf"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+        </div>
+      </div>
+
+      {/* Compact Controls */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
+          <TabsList className="gap-1">
+            <TabsTrigger value="pending" data-testid="tab-pending" className="text-xs">
+              Pending
+            </TabsTrigger>
+            <TabsTrigger value="completed" data-testid="tab-completed" className="text-xs">
+              Completed
+            </TabsTrigger>
+            <TabsTrigger value="all" data-testid="tab-all" className="text-xs">
+              All
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
         
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex gap-2 items-center">
           {categories.length > 0 && (
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Category:</span>
-              <Select value={selectedCategory || "all"} onValueChange={(v) => setSelectedCategory(v === "all" ? null : v)}>
-                <SelectTrigger className="w-40" data-testid="select-category-filter">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all" data-testid="option-all-categories">
-                    All Categories
+            <Select value={selectedCategory || "all"} onValueChange={(v) => setSelectedCategory(v === "all" ? null : v)}>
+              <SelectTrigger className="w-32" data-testid="select-category-filter">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" data-testid="option-all-categories">
+                  All Categories
+                </SelectItem>
+                {categories.map(cat => (
+                  <SelectItem key={cat} value={cat} data-testid={`option-category-${cat}`}>
+                    {formatCategoryLabel(cat)}
                   </SelectItem>
-                  {categories.map(cat => (
-                    <SelectItem key={cat} value={cat} data-testid={`option-category-${cat}`}>
-                      {formatCategoryLabel(cat)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-          <div className="flex items-center gap-2 text-sm">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Group by:</span>
-            <div className="flex gap-1">
-              <Button
-                variant={groupBy === "due" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setGroupBy("due")}
-                data-testid="button-group-by-due"
-              >
-                Due Date
-              </Button>
-              <Button
-                variant={groupBy === "household" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setGroupBy("household")}
-                data-testid="button-group-by-household"
-              >
-                Household
-              </Button>
-              <Button
-                variant={groupBy === "priority" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setGroupBy("priority")}
-                data-testid="button-group-by-priority"
-              >
-                Priority
-              </Button>
-            </div>
-          </div>
-          <div className="flex gap-2">
+          
+          <div className="flex gap-1">
             <Button
+              variant={groupBy === "due" ? "default" : "ghost"}
               size="sm"
-              onClick={() => setDialogOpen(true)}
-              data-testid="button-add-task"
+              onClick={() => setGroupBy("due")}
+              data-testid="button-group-by-due"
+              className="text-xs"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Task
+              Due
             </Button>
             <Button
-              variant="outline"
+              variant={groupBy === "household" ? "default" : "ghost"}
               size="sm"
-              onClick={() => window.open('/api/tasks/pdf', '_blank')}
-              data-testid="button-download-pdf"
+              onClick={() => setGroupBy("household")}
+              data-testid="button-group-by-household"
+              className="text-xs"
             >
-              <Download className="h-4 w-4 mr-2" />
-              Download PDF
+              Household
             </Button>
             <Button
-              variant="outline"
+              variant={groupBy === "priority" ? "default" : "ghost"}
               size="sm"
-              onClick={handlePrintPdf}
-              data-testid="button-print-pdf"
+              onClick={() => setGroupBy("priority")}
+              data-testid="button-group-by-priority"
+              className="text-xs"
             >
-              <Printer className="h-4 w-4 mr-2" />
-              Print PDF
+              Priority
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Pending Tasks</p>
-                <p className="text-2xl font-bold">{pendingCount}</p>
-              </div>
-              <Circle className="h-8 w-8 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={overdueCount > 0 ? "border-red-200 dark:border-red-900" : ""}>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Overdue</p>
-                <p className={`text-2xl font-bold ${overdueCount > 0 ? "text-red-500" : ""}`}>
-                  {overdueCount}
-                </p>
-              </div>
-              <AlertCircle className={`h-8 w-8 ${overdueCount > 0 ? "text-red-500" : "text-muted-foreground"}`} />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Completed</p>
-                <p className="text-2xl font-bold text-green-500">{completedCount}</p>
-              </div>
-              <CheckCircle2 className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
-        <TabsList>
-          <TabsTrigger value="pending" data-testid="tab-pending">
-            Pending ({pendingCount})
-          </TabsTrigger>
-          <TabsTrigger value="completed" data-testid="tab-completed">
-            Completed ({completedCount})
-          </TabsTrigger>
-          <TabsTrigger value="all" data-testid="tab-all">
-            All ({tasks.length})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value={activeTab} className="mt-4 space-y-4">
+      {/* Task List */}
+      <div className="space-y-3 mt-4">
           {isLoading ? (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
@@ -646,8 +600,7 @@ export default function Tasks() {
               </Collapsible>
             ))
           )}
-        </TabsContent>
-      </Tabs>
+      </div>
 
       {/* Add Task Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
