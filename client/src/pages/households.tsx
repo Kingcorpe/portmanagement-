@@ -98,7 +98,7 @@ export default function Households() {
     resolver: zodResolver(insertHouseholdSchema),
     defaultValues: {
       name: "",
-      category: undefined,
+      category: "anchor",
     },
   });
 
