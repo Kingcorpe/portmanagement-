@@ -130,16 +130,16 @@ export function HouseholdManagementDialogs({
   }, [householdId, dialogType, corporationForm]);
 
   // Individual account form
-  const individualAccountForm = useForm({
+  const individualAccountForm = useForm<InsertIndividualAccount>({
     resolver: zodResolver(insertIndividualAccountSchema),
     defaultValues: {
       individualId: "",
-      type: "cash" as const,
+      type: "cash",
       nickname: undefined,
-      balance: 0,
-      riskMediumPct: 0,
-      riskMediumHighPct: 0,
-      riskHighPct: 0,
+      balance: "0",
+      riskMediumPct: "0",
+      riskMediumHighPct: "0",
+      riskHighPct: "0",
     },
   });
 
@@ -153,16 +153,16 @@ export function HouseholdManagementDialogs({
   }, [individualId, dialogType, individualAccountForm]);
 
   // Corporate account form
-  const corporateAccountForm = useForm({
+  const corporateAccountForm = useForm<InsertCorporateAccount>({
     resolver: zodResolver(insertCorporateAccountSchema),
     defaultValues: {
       corporationId: "",
-      type: "cash" as const,
+      type: "cash",
       nickname: undefined,
-      balance: 0,
-      riskMediumPct: 0,
-      riskMediumHighPct: 0,
-      riskHighPct: 0,
+      balance: "0",
+      riskMediumPct: "0",
+      riskMediumHighPct: "0",
+      riskHighPct: "0",
     },
   });
 
@@ -176,16 +176,16 @@ export function HouseholdManagementDialogs({
   }, [corporationId, dialogType, corporateAccountForm]);
 
   // Joint account form
-  const jointAccountForm = useForm({
+  const jointAccountForm = useForm<InsertJointAccount>({
     resolver: zodResolver(insertJointAccountSchema),
     defaultValues: {
       householdId: "",
-      type: "joint_cash" as const,
+      type: "joint_cash",
       nickname: undefined,
-      balance: 0,
-      riskMediumPct: 0,
-      riskMediumHighPct: 0,
-      riskHighPct: 0,
+      balance: "0",
+      riskMediumPct: "0",
+      riskMediumHighPct: "0",
+      riskHighPct: "0",
     },
   });
 
