@@ -3446,6 +3446,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
+        // Determine status - special handling for CASH with excess amount
+        let status: string;
+        if (normalizedTicker === 'CASH' && variance > 2) {
+          status = 'can-deploy';
+        } else {
+          status = variance > 2 ? 'over' : variance < -2 ? 'under' : 'on-target';
+        }
+
         comparison.push({
           allocationId: allocation.id,
           ticker: displayTicker,
@@ -3456,7 +3464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           actualValue: Math.round(actualValue * 100) / 100,
           targetValue: Math.round(targetValue * 100) / 100,
           quantity: actual?.quantity || 0,
-          status: variance > 2 ? 'over' : variance < -2 ? 'under' : 'on-target',
+          status,
           actionType,
           actionDollarAmount: Math.round(actionDollarAmount * 100) / 100,
           actionShares: Math.round(actionShares * 100) / 100,

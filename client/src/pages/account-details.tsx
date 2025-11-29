@@ -86,7 +86,7 @@ interface PortfolioComparisonItem {
   actualValue: number;
   targetValue: number;
   quantity: number;
-  status: 'over' | 'under' | 'on-target' | 'unexpected';
+  status: 'over' | 'under' | 'on-target' | 'can-deploy' | 'unexpected';
   actionType: 'buy' | 'sell' | 'hold';
   actionDollarAmount: number;
   actionShares: number;
@@ -2145,6 +2145,7 @@ export default function AccountDetails() {
                             comparison?.status === 'under' ? 'text-green-600 dark:text-green-400' :
                             comparison?.status === 'over' ? 'text-red-600 dark:text-red-400' :
                             comparison?.status === 'on-target' ? 'text-blue-600 dark:text-blue-400' :
+                            comparison?.status === 'can-deploy' ? 'text-purple-600 dark:text-purple-400' :
                             comparison?.status === 'unexpected' ? 'text-amber-600 dark:text-amber-400' :
                             ''
                           }`}>{position.symbol}</div>
@@ -2179,6 +2180,12 @@ export default function AccountDetails() {
                             <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                               <Minus className="h-3 w-3 mr-1" />
                               On Target
+                            </Badge>
+                          )}
+                          {comparison?.status === 'can-deploy' && (
+                            <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                              <Zap className="h-3 w-3 mr-1" />
+                              Can Deploy
                             </Badge>
                           )}
                           {comparison?.status === 'unexpected' && (
@@ -2315,19 +2322,22 @@ export default function AccountDetails() {
                             
                             {/* Action Badge */}
                             <TableCell className="text-center" data-testid={`badge-action-${position.id}`}>
-                              {actionType === 'buy' && (
+                              {comparison?.status === 'can-deploy' ? (
+                                <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                                  <Zap className="h-3 w-3 mr-1" />
+                                  Available
+                                </Badge>
+                              ) : actionType === 'buy' ? (
                                 <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                                   <TrendingUp className="h-3 w-3 mr-1" />
                                   Buy
                                 </Badge>
-                              )}
-                              {actionType === 'sell' && (
+                              ) : actionType === 'sell' ? (
                                 <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                                   <TrendingDown className="h-3 w-3 mr-1" />
                                   Sell
                                 </Badge>
-                              )}
-                              {actionType === 'hold' && (
+                              ) : (
                                 <Badge variant="secondary" className="bg-muted text-muted-foreground">
                                   <Minus className="h-3 w-3 mr-1" />
                                   Hold
