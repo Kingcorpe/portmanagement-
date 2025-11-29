@@ -140,7 +140,7 @@ export function generatePortfolioRebalanceReport(data: ReportData): Promise<Buff
                colX[2], rowY, { width: colWidths[2], align: 'right' });
       
       // Target %
-      doc.text(pos.targetPercentage > 0 ? `${pos.targetPercentage.toFixed(1)}%` : 'LIQUIDATE', 
+      doc.text(pos.targetPercentage > 0 ? `${pos.targetPercentage.toFixed(1)}%` : 'DEPLOY', 
                colX[3], rowY, { width: colWidths[3], align: 'right' });
       
       // Variance
