@@ -6,7 +6,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeSelector } from "@/components/theme-selector";
+import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import Dashboard from "@/pages/dashboard";
 import Households from "@/pages/households";
@@ -64,6 +65,7 @@ function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  useTheme(); // Initialize theme system
   
   const style = {
     "--sidebar-width": "16rem",
@@ -94,7 +96,7 @@ function AppContent() {
         <div className="flex flex-col flex-1 overflow-hidden">
           <header className="flex items-center justify-between p-4 border-b">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <ThemeToggle />
+            <ThemeSelector />
           </header>
           <main className="flex-1 overflow-auto p-6">
             <Router />
