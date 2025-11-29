@@ -206,11 +206,18 @@ export default function KeyMetrics() {
   }
 
   return (
-    <div className="p-6 space-y-6" data-testid="key-metrics-page">
+    <div className="p-6 space-y-6 cyber-grid min-h-full" data-testid="key-metrics-page">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Key Metrics</h1>
-          <p className="text-muted-foreground">Portfolio management overview and statistics</p>
+          <h1 className="text-3xl font-bold gradient-text" data-testid="text-page-title">Key Metrics</h1>
+          <p className="text-muted-foreground flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-chart-2 status-pulse" />
+            Portfolio management overview and statistics
+          </p>
+        </div>
+        <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground font-mono">
+          <span className="w-2 h-2 rounded-full bg-chart-2 animate-pulse" />
+          SYSTEM ONLINE
         </div>
       </div>
 
@@ -220,6 +227,7 @@ export default function KeyMetrics() {
           value={formatCurrency(totalAUM)}
           icon={DollarSign}
           testId="metric-total-aum"
+          variant="primary"
         />
         <MetricCard
           title="Households"
@@ -227,21 +235,25 @@ export default function KeyMetrics() {
           icon={Users}
           testId="metric-households"
           href="/households"
+          variant="success"
         />
         <MetricCard
           title="Total Accounts"
           value={totalAccounts.toString()}
           icon={Briefcase}
           testId="metric-accounts"
+          variant="warning"
         />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card data-testid="card-account-breakdown">
+        <Card data-testid="card-account-breakdown" className="glow-border corner-accents overflow-visible">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <PieChart className="h-5 w-5" />
-              Account Breakdown
+              <div className="p-1.5 rounded-lg bg-primary/10">
+                <PieChart className="h-4 w-4 text-primary" />
+              </div>
+              <span className="uppercase tracking-wider text-sm">Account Breakdown</span>
             </CardTitle>
             <CardDescription>Distribution by account type</CardDescription>
           </CardHeader>
@@ -295,11 +307,13 @@ export default function KeyMetrics() {
         </Card>
 
         <Link href="/tasks">
-          <Card data-testid="card-tasks-overview" className="hover-elevate cursor-pointer transition-colors">
+          <Card data-testid="card-tasks-overview" className="glow-border corner-accents overflow-visible hover-elevate cursor-pointer transition-all duration-300">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ListTodo className="h-5 w-5" />
-                Tasks Overview
+                <div className="p-1.5 rounded-lg bg-amber-500/10">
+                  <ListTodo className="h-4 w-4 text-amber-500" />
+                </div>
+                <span className="uppercase tracking-wider text-sm">Tasks Overview</span>
               </CardTitle>
               <CardDescription>Current task status</CardDescription>
             </CardHeader>
@@ -349,11 +363,13 @@ export default function KeyMetrics() {
           </Card>
         </Link>
 
-        <Card data-testid="card-alerts-overview">
+        <Card data-testid="card-alerts-overview" className="glow-border corner-accents overflow-visible">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              Trading Alerts
+              <div className="p-1.5 rounded-lg bg-orange-500/10">
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
+              </div>
+              <span className="uppercase tracking-wider text-sm">Trading Alerts</span>
             </CardTitle>
             <CardDescription>TradingView webhook signals</CardDescription>
           </CardHeader>
@@ -410,11 +426,13 @@ export default function KeyMetrics() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card data-testid="card-aum-distribution">
+        <Card data-testid="card-aum-distribution" className="glow-border corner-accents overflow-visible holo-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Wallet className="h-5 w-5" />
-              AUM Distribution
+              <div className="p-1.5 rounded-lg bg-purple-500/10">
+                <Wallet className="h-4 w-4 text-purple-500" />
+              </div>
+              <span className="uppercase tracking-wider text-sm">AUM Distribution</span>
             </CardTitle>
             <CardDescription>Assets by account category</CardDescription>
           </CardHeader>
@@ -465,37 +483,39 @@ export default function KeyMetrics() {
           </CardContent>
         </Card>
 
-        <Card data-testid="card-quick-stats">
+        <Card data-testid="card-quick-stats" className="glow-border corner-accents overflow-visible holo-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5" />
-              Quick Stats
+              <div className="p-1.5 rounded-lg bg-chart-2/10">
+                <CheckCircle2 className="h-4 w-4 text-chart-2" />
+              </div>
+              <span className="uppercase tracking-wider text-sm">Quick Stats</span>
             </CardTitle>
             <CardDescription>At-a-glance portfolio health</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="text-sm text-muted-foreground mb-1">Avg. Account Size</div>
-                <div className="text-xl font-bold font-mono" data-testid="text-avg-account-size">
+              <div className="p-4 rounded-lg border bg-muted/30 shimmer">
+                <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">Avg. Account Size</div>
+                <div className="text-xl font-bold font-mono neon-glow" data-testid="text-avg-account-size">
                   {totalAccounts > 0 ? formatCurrency(totalAUM / totalAccounts) : "CA$0"}
                 </div>
               </div>
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="text-sm text-muted-foreground mb-1">Avg. Accounts/Household</div>
-                <div className="text-xl font-bold" data-testid="text-avg-accounts-per-household">
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">Avg. Accounts/Household</div>
+                <div className="text-xl font-bold neon-glow" data-testid="text-avg-accounts-per-household">
                   {totalHouseholds > 0 ? (totalAccounts / totalHouseholds).toFixed(1) : "0"}
                 </div>
               </div>
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="text-sm text-muted-foreground mb-1">Account Types</div>
-                <div className="text-xl font-bold" data-testid="text-account-types">
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">Account Types</div>
+                <div className="text-xl font-bold neon-glow" data-testid="text-account-types">
                   {Object.keys(accountTypeBreakdown).length}
                 </div>
               </div>
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="text-sm text-muted-foreground mb-1">Avg. Household Value</div>
-                <div className="text-xl font-bold font-mono" data-testid="text-avg-household-value">
+              <div className="p-4 rounded-lg border bg-muted/30 shimmer">
+                <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">Avg. Household Value</div>
+                <div className="text-xl font-bold font-mono neon-glow" data-testid="text-avg-household-value">
                   {totalHouseholds > 0 ? formatCurrency(totalAUM / totalHouseholds) : "CA$0"}
                 </div>
               </div>

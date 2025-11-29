@@ -285,4 +285,197 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+
+  /* Futuristic Dashboard Styles */
+  
+  /* Glowing border effect */
+  .glow-border {
+    position: relative;
+    overflow: visible;
+  }
+  
+  .glow-border::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.5), hsl(var(--chart-2) / 0.3), hsl(var(--primary) / 0.5));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+  
+  /* Animated glow pulse */
+  .glow-pulse {
+    animation: glow-pulse 3s ease-in-out infinite;
+  }
+  
+  @keyframes glow-pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+  
+  /* Cyber grid background */
+  .cyber-grid {
+    background-image: 
+      linear-gradient(hsl(var(--primary) / 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--primary) / 0.03) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  
+  .dark .cyber-grid {
+    background-image: 
+      linear-gradient(hsl(var(--primary) / 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--primary) / 0.08) 1px, transparent 1px);
+  }
+  
+  /* Scanline effect */
+  .scanlines::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      hsl(var(--foreground) / 0.02) 2px,
+      hsl(var(--foreground) / 0.02) 4px
+    );
+    pointer-events: none;
+    border-radius: inherit;
+  }
+  
+  /* Status indicator pulse */
+  .status-pulse {
+    animation: status-pulse 2s ease-in-out infinite;
+  }
+  
+  @keyframes status-pulse {
+    0%, 100% { 
+      box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4);
+    }
+    50% { 
+      box-shadow: 0 0 0 8px hsl(var(--primary) / 0);
+    }
+  }
+  
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--chart-2)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  /* Shimmer effect */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--primary) / 0.1),
+      transparent
+    );
+    transform: translateX(-100%);
+    animation: shimmer 3s infinite;
+  }
+  
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
+  
+  /* Holographic card effect */
+  .holo-card {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card)) 0%,
+      hsl(var(--card)) 40%,
+      hsl(var(--primary) / 0.05) 50%,
+      hsl(var(--card)) 60%,
+      hsl(var(--card)) 100%
+    );
+    background-size: 200% 200%;
+    animation: holo-shift 8s ease infinite;
+  }
+  
+  @keyframes holo-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  
+  /* Corner accents */
+  .corner-accents {
+    position: relative;
+  }
+  
+  .corner-accents::before,
+  .corner-accents::after {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-color: hsl(var(--primary) / 0.5);
+    border-style: solid;
+    pointer-events: none;
+  }
+  
+  .corner-accents::before {
+    top: -1px;
+    left: -1px;
+    border-width: 2px 0 0 2px;
+    border-top-left-radius: 4px;
+  }
+  
+  .corner-accents::after {
+    bottom: -1px;
+    right: -1px;
+    border-width: 0 2px 2px 0;
+    border-bottom-right-radius: 4px;
+  }
+  
+  /* Neon text glow */
+  .neon-glow {
+    text-shadow: 
+      0 0 5px hsl(var(--primary) / 0.5),
+      0 0 10px hsl(var(--primary) / 0.3),
+      0 0 20px hsl(var(--primary) / 0.2);
+  }
+  
+  .dark .neon-glow {
+    text-shadow: 
+      0 0 5px hsl(var(--primary) / 0.8),
+      0 0 15px hsl(var(--primary) / 0.5),
+      0 0 30px hsl(var(--primary) / 0.3);
+  }
+  
+  /* Data stream animation for numbers */
+  .data-value {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em;
+  }
+  
+  /* Accent line */
+  .accent-line {
+    position: relative;
+  }
+  
+  .accent-line::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, hsl(var(--primary)), transparent);
+  }
 }
