@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send, DollarSign, Shield, StickyNote, Clock, Zap, ListTodo, Calendar, Circle, CheckCircle2, AlertCircle, Flag, X, Coins, PauseCircle, XCircle, Ban } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send, DollarSign, Shield, StickyNote, Clock, Zap, ListTodo, Calendar, Circle, CheckCircle2, AlertCircle, Flag, X, Coins, PauseCircle, XCircle, Ban, RotateCcw } from "lucide-react";
 import { RichNotesEditor } from "@/components/rich-notes-editor";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -1018,13 +1018,34 @@ export default function AccountDetails() {
       await queryClient.invalidateQueries({ queryKey: [auditLogEndpoint] });
       toast({
         title: "Task Completed",
-        description: "Task has been completed and archived to Change History.",
+        description: "Task has been completed. You can restore it later if needed.",
       });
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message || "Failed to complete task",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const restoreTaskMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("POST", `/api/account-tasks/${id}/restore`, {});
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [tasksEndpoint] });
+      await queryClient.invalidateQueries({ queryKey: [auditLogEndpoint] });
+      toast({
+        title: "Task Restored",
+        description: "Task has been restored to pending status.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to restore task",
         variant: "destructive",
       });
     },
@@ -2924,18 +2945,32 @@ export default function AccountDetails() {
                           )}
                         </div>
                         <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => {
-                              setEditingTask(task);
-                              setIsTaskDialogOpen(true);
-                            }}
-                            data-testid={`button-edit-task-${task.id}`}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          {task.status === "completed" ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => restoreTaskMutation.mutate(task.id)}
+                              disabled={restoreTaskMutation.isPending}
+                              title="Restore task"
+                              data-testid={`button-restore-task-${task.id}`}
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setEditingTask(task);
+                                setIsTaskDialogOpen(true);
+                              }}
+                              data-testid={`button-edit-task-${task.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"

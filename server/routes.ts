@@ -4695,7 +4695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Complete task - marks as done, logs to audit trail, and removes from active tasks
+  // Complete task - marks as completed with ability to restore
   app.post('/api/account-tasks/:id/complete', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -4738,13 +4738,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
       
-      // Delete the task after logging (completed tasks only exist in audit history)
-      await storage.deleteAccountTask(req.params.id);
+      // Mark task as completed instead of deleting
+      const updated = await storage.updateAccountTask(req.params.id, { status: "completed" });
       
-      res.json({ success: true, message: "Task completed and archived to history" });
+      res.json(updated);
     } catch (error) {
       console.error("Error completing task:", error);
       res.status(500).json({ message: "Failed to complete task" });
+    }
+  });
+
+  // Restore task - changes status from completed back to pending
+  app.post('/api/account-tasks/:id/restore', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const existing = await storage.getAccountTask(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      if (existing.status !== "completed") {
+        return res.status(400).json({ message: "Only completed tasks can be restored" });
+      }
+      
+      // Determine account type and get household ID
+      let householdId: string | null = null;
+      if (existing.individualAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('individual', existing.individualAccountId);
+      } else if (existing.corporateAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('corporate', existing.corporateAccountId);
+      } else if (existing.jointAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('joint', existing.jointAccountId);
+      }
+      
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Create audit log entry for restoration
+      await storage.createAuditLogEntry({
+        individualAccountId: existing.individualAccountId || undefined,
+        corporateAccountId: existing.corporateAccountId || undefined,
+        jointAccountId: existing.jointAccountId || undefined,
+        userId,
+        action: "update",
+        changes: { 
+          title: existing.title,
+          statusChanged: "completed → pending",
+        },
+      });
+      
+      // Change status back to pending
+      const updated = await storage.updateAccountTask(req.params.id, { status: "pending" });
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error restoring task:", error);
+      res.status(500).json({ message: "Failed to restore task" });
     }
   });
 
