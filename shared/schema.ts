@@ -1110,3 +1110,55 @@ export const insertAccountAuditLogSchema = createInsertSchema(accountAuditLog).o
 // Account audit log types
 export type InsertAccountAuditLog = z.infer<typeof insertAccountAuditLogSchema>;
 export type AccountAuditLog = typeof accountAuditLog.$inferSelect;
+
+// Insurance revenue status enum
+export const insuranceRevenueStatusEnum = pgEnum("insurance_revenue_status", [
+  "pending",
+  "received",
+  "cancelled",
+]);
+
+// Insurance revenue table
+export const insuranceRevenue = pgTable("insurance_revenue", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }),
+  date: varchar("date").notNull(), // YYYY-MM-DD format
+  clientName: varchar("client_name").notNull(),
+  policyType: varchar("policy_type").notNull(), // Life, Health, Disability, etc.
+  carrier: varchar("carrier"), // Insurance company name
+  policyNumber: varchar("policy_number"),
+  premium: decimal("premium", { precision: 12, scale: 2 }).notNull(),
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }), // Percentage
+  commissionAmount: decimal("commission_amount", { precision: 12, scale: 2 }).notNull(),
+  status: insuranceRevenueStatusEnum("status").notNull().default("pending"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insuranceRevenueRelations = relations(insuranceRevenue, ({ one }) => ({
+  user: one(users, {
+    fields: [insuranceRevenue.userId],
+    references: [users.id],
+  }),
+}));
+
+// Insurance revenue insert schema
+export const insertInsuranceRevenueSchema = createInsertSchema(insuranceRevenue).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Insurance revenue update schema
+export const updateInsuranceRevenueSchema = createInsertSchema(insuranceRevenue).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
+
+// Insurance revenue types
+export type InsertInsuranceRevenue = z.infer<typeof insertInsuranceRevenueSchema>;
+export type UpdateInsuranceRevenue = z.infer<typeof updateInsuranceRevenueSchema>;
+export type InsuranceRevenue = typeof insuranceRevenue.$inferSelect;
