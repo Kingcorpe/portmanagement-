@@ -3063,6 +3063,29 @@ export default function AccountDetails() {
                                     <CommandList>
                                       <CommandEmpty>No security found.</CommandEmpty>
                                       <CommandGroup>
+                                        {/* Always show CASH as first option */}
+                                        <CommandItem
+                                          key="cash"
+                                          value="CASH Cash"
+                                          onSelect={() => {
+                                            // Find or use CASH holding
+                                            const cashHolding = universalHoldings.find(h => h.ticker === 'CASH');
+                                            if (cashHolding) {
+                                              field.onChange(cashHolding.id);
+                                            }
+                                            setHoldingComboboxOpen(false);
+                                          }}
+                                          data-testid="option-holding-cash"
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4",
+                                              field.value === universalHoldings.find(h => h.ticker === 'CASH')?.id ? "opacity-100" : "opacity-0"
+                                            )}
+                                          />
+                                          <span className="font-mono font-medium mr-2">CASH</span>
+                                          <span className="text-muted-foreground">Cash</span>
+                                        </CommandItem>
                                         {universalHoldings.map((holding) => (
                                           <CommandItem
                                             key={holding.id}
