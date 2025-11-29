@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send, DollarSign, Shield, StickyNote, Clock, Zap, ListTodo, Calendar, Circle, CheckCircle2, AlertCircle, Flag, X } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send, DollarSign, Shield, StickyNote, Clock, Zap, ListTodo, Calendar, Circle, CheckCircle2, AlertCircle, Flag, X, Coins, PauseCircle, XCircle, Ban } from "lucide-react";
 import { RichNotesEditor } from "@/components/rich-notes-editor";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -1861,6 +1861,27 @@ export default function AccountDetails() {
                 </>
               );
             })()}
+            {/* Monthly Dividend Income Display */}
+            {totalMonthlyDividend > 0 && (
+              <>
+                <div className="h-6 w-px bg-border hidden sm:block" />
+                <div className="flex items-center gap-3">
+                  <Coins className="h-4 w-4 text-emerald-500" />
+                  <span className="text-sm text-muted-foreground">Monthly Dividend:</span>
+                  <span className="font-medium text-emerald-600 dark:text-emerald-400" data-testid="text-monthly-dividend">
+                    ${totalMonthlyDividend.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    (${totalAnnualDividend.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/yr)
+                  </span>
+                  {totalMarketValue > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      • {((totalAnnualDividend / totalMarketValue) * 100).toFixed(2)}% yield
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -2145,6 +2166,7 @@ export default function AccountDetails() {
                   <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Book Value</TableHead>
                   <TableHead className="text-right">Market Value</TableHead>
+                  <TableHead className="text-right">Dividend/mo</TableHead>
                   <TableHead className="text-right">U/R Gain $</TableHead>
                   {comparisonData?.hasTargetAllocations && (
                     <TableHead className="text-right">Actual %</TableHead>
@@ -2260,6 +2282,30 @@ export default function AccountDetails() {
                       <TableCell className="text-right font-medium" data-testid={`text-market-value-${position.id}`}>
                         ${marketValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
+                      
+                      {/* Monthly Dividend */}
+                      {(() => {
+                        const dividendInfo = getPositionDividend(position);
+                        const isCash = position.symbol.toUpperCase() === 'CASH' || position.symbol.toUpperCase().includes('MONEY MARKET');
+                        if (isCash || dividendInfo.monthlyDividend === 0) {
+                          return (
+                            <TableCell className="text-right text-muted-foreground" data-testid={`text-dividend-${position.id}`}>
+                              -
+                            </TableCell>
+                          );
+                        }
+                        return (
+                          <TableCell className="text-right" data-testid={`text-dividend-${position.id}`}>
+                            <div className="text-emerald-600 dark:text-emerald-400 font-medium">
+                              ${dividendInfo.monthlyDividend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {dividendInfo.dividendYield > 0 && `${dividendInfo.dividendYield.toFixed(2)}%`}
+                              {dividendInfo.payout !== 'none' && ` • ${dividendInfo.payout.charAt(0).toUpperCase() + dividendInfo.payout.slice(1).replace('_', ' ')}`}
+                            </div>
+                          </TableCell>
+                        );
+                      })()}
                       
                       {/* U/R Cap Gain $ */}
                       {(() => {
@@ -2800,13 +2846,21 @@ export default function AccountDetails() {
                       >
                         <button
                           onClick={() => completeTaskMutation.mutate(task.id)}
-                          disabled={completeTaskMutation.isPending}
+                          disabled={task.status === "completed" || task.status === "cancelled" || completeTaskMutation.isPending}
                           className="mt-0.5 flex-shrink-0"
                           data-testid={`button-complete-task-${task.id}`}
-                          title="Mark as complete"
+                          title={task.status === "completed" ? "Already completed" : task.status === "cancelled" ? "Task cancelled" : "Mark as complete"}
                         >
-                          {task.status === "in_progress" ? (
+                          {task.status === "completed" ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          ) : task.status === "in_progress" ? (
                             <AlertCircle className="h-5 w-5 text-blue-500" />
+                          ) : task.status === "blocked" ? (
+                            <XCircle className="h-5 w-5 text-red-500" />
+                          ) : task.status === "on_hold" ? (
+                            <PauseCircle className="h-5 w-5 text-amber-500" />
+                          ) : task.status === "cancelled" ? (
+                            <Ban className="h-5 w-5 text-muted-foreground" />
                           ) : (
                             <Circle className="h-5 w-5 text-muted-foreground hover:text-primary" />
                           )}
@@ -2829,8 +2883,28 @@ export default function AccountDetails() {
                               {task.priority}
                             </Badge>
                             {task.status === "in_progress" && (
-                              <Badge variant="outline" className="text-xs border-blue-300 text-blue-600">
+                              <Badge variant="outline" className="text-xs border-blue-300 text-blue-600 dark:border-blue-600 dark:text-blue-400">
                                 In Progress
+                              </Badge>
+                            )}
+                            {task.status === "blocked" && (
+                              <Badge variant="outline" className="text-xs border-red-300 text-red-600 dark:border-red-600 dark:text-red-400">
+                                Blocked
+                              </Badge>
+                            )}
+                            {task.status === "on_hold" && (
+                              <Badge variant="outline" className="text-xs border-amber-300 text-amber-600 dark:border-amber-600 dark:text-amber-400">
+                                On Hold
+                              </Badge>
+                            )}
+                            {task.status === "completed" && (
+                              <Badge variant="outline" className="text-xs border-green-300 text-green-600 dark:border-green-600 dark:text-green-400">
+                                Completed
+                              </Badge>
+                            )}
+                            {task.status === "cancelled" && (
+                              <Badge variant="outline" className="text-xs border-muted-foreground text-muted-foreground">
+                                Cancelled
                               </Badge>
                             )}
                           </div>

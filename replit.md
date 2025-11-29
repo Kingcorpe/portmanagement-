@@ -68,7 +68,19 @@ A centralized dashboard displaying aggregate portfolio statistics:
 - **Quick Stats**: Average account size, accounts per household, and average household value
 
 ### Task Management
-Each account has a Tasks section with statuses (Pending, In Progress) and priorities (Low, Medium, High, Urgent). Completed tasks are logged to Change History and removed from the active list.
+Each account has a Tasks section with comprehensive workflow statuses and priorities:
+- **Statuses**: Pending, In Progress, Blocked (waiting for client/data), On Hold (intentionally paused), Completed, Cancelled
+- **Priorities**: Low, Medium, High, Urgent
+- Tasks are sorted by status (active tasks first), then priority, then due date
+- Completed tasks are logged to Change History and removed from the active list
+
+### Monthly Dividend Income Display
+Each account displays estimated monthly dividend income calculated from positions:
+- **Account Summary**: Shows total monthly dividend, annual dividend, and portfolio yield percentage (in emerald green)
+- **Holdings Table**: "Dividend/mo" column shows per-position monthly dividend with yield % and payout frequency
+- **Calculation**: Monthly dividend = (quantity × annual dividend rate) / 12
+- **Data Source**: Dividend rate, yield, and payout frequency from Universal Holdings (fetched via Yahoo Finance)
+- Cash positions and positions without dividend data display "-"
 
 ### Change History / Audit Trail
 A collapsible section per account tracks all modifications, including:
