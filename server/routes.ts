@@ -3828,10 +3828,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Get dividend rate and yield from summaryDetail if available
             if (quoteSummaryData?.summaryDetail) {
               const sd = quoteSummaryData.summaryDetail;
-              if (sd.dividendRate) dividendRate = sd.dividendRate;
-              if (sd.dividendYield) dividendYield = sd.dividendYield * 100; // Convert to percentage
-              else if (dividendRate && price) dividendYield = (dividendRate / price) * 100;
+              // Try dividendRate first, then fallback to trailingAnnualDividendRate or forwardAnnualDividendRate
+              if (sd.dividendRate) {
+                dividendRate = sd.dividendRate;
+              } else if (sd.trailingAnnualDividendRate) {
+                dividendRate = sd.trailingAnnualDividendRate;
+                console.log(`[Dividend Refresh] Using trailingAnnualDividendRate for ${workingSymbol}: ${dividendRate}`);
+              } else if (sd.forwardAnnualDividendRate) {
+                dividendRate = sd.forwardAnnualDividendRate;
+                console.log(`[Dividend Refresh] Using forwardAnnualDividendRate for ${workingSymbol}: ${dividendRate}`);
+              }
+              
+              // Get yield - try multiple sources
+              if (sd.dividendYield) {
+                dividendYield = sd.dividendYield * 100; // Convert to percentage
+              } else if (sd.trailingAnnualDividendYield) {
+                dividendYield = sd.trailingAnnualDividendYield * 100;
+              } else if (dividendRate && price) {
+                dividendYield = (dividendRate / price) * 100;
+              }
             }
+            
+            // Helper function to determine frequency based on average days between payments
+            const determineFrequencyFromSpacing = (divEvents: any[]): "monthly" | "quarterly" | "semi_annual" | "annual" | "none" => {
+              if (divEvents.length < 2) {
+                // With only one payment, check if annual rate / payment amount suggests more frequent payments
+                if (divEvents.length === 1 && dividendRate > 0) {
+                  const paymentAmount = divEvents[0].amount || 0;
+                  if (paymentAmount > 0) {
+                    const impliedPayments = dividendRate / paymentAmount;
+                    if (impliedPayments >= 10) return "monthly";
+                    if (impliedPayments >= 3) return "quarterly";
+                    if (impliedPayments >= 1.5) return "semi_annual";
+                  }
+                }
+                return divEvents.length === 1 ? "annual" : "none";
+              }
+              
+              // Sort events by date
+              const sortedEvents = [...divEvents].sort((a: any, b: any) => {
+                const dateA = a.date > 946684800000 ? a.date : a.date * 1000;
+                const dateB = b.date > 946684800000 ? b.date : b.date * 1000;
+                return dateA - dateB;
+              });
+              
+              // Calculate average days between consecutive payments
+              let totalDays = 0;
+              for (let i = 1; i < sortedEvents.length; i++) {
+                const prevDate = sortedEvents[i-1].date > 946684800000 ? sortedEvents[i-1].date : sortedEvents[i-1].date * 1000;
+                const currDate = sortedEvents[i].date > 946684800000 ? sortedEvents[i].date : sortedEvents[i].date * 1000;
+                totalDays += (currDate - prevDate) / (1000 * 60 * 60 * 24);
+              }
+              const avgDaysBetweenPayments = totalDays / (sortedEvents.length - 1);
+              
+              console.log(`[Dividend Refresh] ${workingSymbol}: ${divEvents.length} payments, avg ${avgDaysBetweenPayments.toFixed(1)} days apart`);
+              
+              // Determine frequency based on spacing (with tolerance)
+              if (avgDaysBetweenPayments <= 45) return "monthly";        // ~30 days, allow up to 45
+              if (avgDaysBetweenPayments <= 120) return "quarterly";     // ~90 days, allow up to 120
+              if (avgDaysBetweenPayments <= 220) return "semi_annual";   // ~180 days, allow up to 220
+              return "annual";
+            };
             
             // Calculate from historical dividend events if quoteSummary didn't have the data
             if (chartData?.events?.dividends && dividendRate === 0) {
@@ -3841,11 +3898,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 dividendRate = divEvents.reduce((sum: number, d: any) => sum + (d.amount || 0), 0);
                 dividendYield = price > 0 ? (dividendRate / price) * 100 : 0;
                 
-                // Determine frequency based on payment count
-                if (divEvents.length >= 12) payoutFrequency = "monthly";
-                else if (divEvents.length >= 4) payoutFrequency = "quarterly";
-                else if (divEvents.length >= 2) payoutFrequency = "semi_annual";
-                else if (divEvents.length >= 1) payoutFrequency = "annual";
+                // Determine frequency based on payment spacing (more accurate than count)
+                payoutFrequency = determineFrequencyFromSpacing(divEvents);
                 
                 // Only use historical ex-date if we didn't get one from quoteSummary
                 if (!exDate) {
@@ -3863,10 +3917,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } else if (chartData?.events?.dividends) {
               // Still get frequency from historical data
               const divEvents = Object.values(chartData.events.dividends) as any[];
-              if (divEvents.length >= 12) payoutFrequency = "monthly";
-              else if (divEvents.length >= 4) payoutFrequency = "quarterly";
-              else if (divEvents.length >= 2) payoutFrequency = "semi_annual";
-              else if (divEvents.length >= 1) payoutFrequency = "annual";
+              payoutFrequency = determineFrequencyFromSpacing(divEvents);
             }
             
             console.log(`[Dividend Refresh] Final dividend info for ${workingSymbol}:`, {
