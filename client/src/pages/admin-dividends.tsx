@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ArrowLeft, Search, Save, Calculator } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -23,7 +30,7 @@ interface UniversalHolding {
 export default function AdminDividends() {
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingHolding, setEditingHolding] = useState<UniversalHolding | null>(null);
   const [editValues, setEditValues] = useState<{ monthly: string; annual: string; yield: string }>({ 
     monthly: "", 
     annual: "", 
@@ -49,7 +56,7 @@ export default function AdminDividends() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['/api/universal-holdings'] });
-      setEditingId(null);
+      setEditingHolding(null);
       toast({
         title: "Updated",
         description: "Dividend data updated successfully.",
@@ -69,10 +76,10 @@ export default function AdminDividends() {
     h.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleEdit = (holding: UniversalHolding) => {
+  const handleEditClick = (holding: UniversalHolding) => {
     const annualRate = parseFloat(holding.dividendRate) || 0;
     const monthlyRate = annualRate / 12;
-    setEditingId(holding.id);
+    setEditingHolding(holding);
     setEditValues({
       monthly: monthlyRate.toFixed(4),
       annual: holding.dividendRate,
@@ -90,22 +97,20 @@ export default function AdminDividends() {
     });
   };
 
-  const handleAnnualChange = (value: string) => {
-    const annual = parseFloat(value) || 0;
-    const monthly = annual / 12;
-    setEditValues({
-      ...editValues,
-      monthly: monthly.toFixed(4),
-      annual: value,
-    });
-  };
-
-  const handleSave = (id: string) => {
+  const handleSave = () => {
+    if (!editingHolding) return;
     updateMutation.mutate({
-      id,
+      id: editingHolding.id,
       rate: editValues.annual,
       yieldPercent: editValues.yield,
     });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSave();
+    }
   };
 
   const getMonthlyFromAnnual = (annualRate: string) => {
@@ -127,11 +132,99 @@ export default function AdminDividends() {
         <h1 className="text-3xl font-bold">Admin - Dividend Management</h1>
       </div>
 
+      {/* Edit Monthly Dividend Dialog */}
+      <Dialog open={!!editingHolding} onOpenChange={(open) => !open && setEditingHolding(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">
+              Edit Dividend: <span className="font-mono text-primary">{editingHolding?.ticker}</span>
+            </DialogTitle>
+            <DialogDescription>
+              {editingHolding?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">
+                Monthly Dividend per Unit
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold">$</span>
+                <Input
+                  type="number"
+                  step="0.0001"
+                  value={editValues.monthly}
+                  onChange={(e) => handleMonthlyChange(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="text-3xl h-16 font-mono font-bold"
+                  placeholder="0.0000"
+                  autoFocus
+                  data-testid="input-monthly-popup"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+              <Calculator className="h-4 w-4" />
+              <div>
+                <span>Annual Dividend: </span>
+                <span className="font-mono font-bold text-foreground">${parseFloat(editValues.annual || '0').toFixed(4)}</span>
+                <span className="ml-2">(monthly × 12)</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">
+                Yield %
+              </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editValues.yield}
+                  onChange={(e) => setEditValues({ ...editValues, yield: e.target.value })}
+                  onKeyDown={handleKeyDown}
+                  className="text-xl h-12 font-mono"
+                  placeholder="0.00"
+                  data-testid="input-yield-popup"
+                />
+                <span className="text-xl font-bold">%</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                onClick={handleSave}
+                disabled={updateMutation.isPending}
+                className="flex-1 h-12 text-lg"
+                data-testid="button-save-popup"
+              >
+                <Save className="h-5 w-5 mr-2" />
+                {updateMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setEditingHolding(null)}
+                className="h-12"
+                data-testid="button-cancel-popup"
+              >
+                Cancel
+              </Button>
+            </div>
+            
+            <p className="text-xs text-center text-muted-foreground">
+              Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">Enter</kbd> to save
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Card>
         <CardHeader>
           <CardTitle>Update Dividend Data</CardTitle>
           <CardDescription>
-            Enter the <strong>monthly dividend per unit</strong> and the annual rate will be calculated automatically (monthly × 12).
+            Click on the <span className="text-emerald-600 font-medium">green monthly dividend</span> to edit. 
             This is the source of truth for all portfolio dividend calculations.
           </CardDescription>
         </CardHeader>
@@ -170,7 +263,6 @@ export default function AdminDividends() {
                     <TableHead>Annual Div</TableHead>
                     <TableHead>Yield %</TableHead>
                     <TableHead>Payout</TableHead>
-                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -180,98 +272,20 @@ export default function AdminDividends() {
                       <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{holding.name}</TableCell>
                       <TableCell>${parseFloat(holding.price).toFixed(2)}</TableCell>
                       <TableCell>
-                        {editingId === holding.id ? (
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground">$</span>
-                            <Input
-                              type="number"
-                              step="0.0001"
-                              value={editValues.monthly}
-                              onChange={(e) => handleMonthlyChange(e.target.value)}
-                              className="w-24"
-                              placeholder="Monthly"
-                              data-testid={`input-monthly-${holding.id}`}
-                            />
-                          </div>
-                        ) : (
-                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                            ${getMonthlyFromAnnual(holding.dividendRate)}
-                          </span>
-                        )}
+                        <button
+                          onClick={() => handleEditClick(holding)}
+                          className="text-emerald-600 dark:text-emerald-400 font-mono font-bold hover:underline hover:text-emerald-700 dark:hover:text-emerald-300 cursor-pointer transition-colors px-2 py-1 rounded hover-elevate"
+                          data-testid={`button-edit-monthly-${holding.ticker}`}
+                        >
+                          ${getMonthlyFromAnnual(holding.dividendRate)}
+                        </button>
                       </TableCell>
-                      <TableCell>
-                        {editingId === holding.id ? (
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground">$</span>
-                            <Input
-                              type="number"
-                              step="0.0001"
-                              value={editValues.annual}
-                              onChange={(e) => handleAnnualChange(e.target.value)}
-                              className="w-24"
-                              placeholder="Annual"
-                              data-testid={`input-rate-${holding.id}`}
-                            />
-                          </div>
-                        ) : (
-                          `$${parseFloat(holding.dividendRate).toFixed(4)}`
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {editingId === holding.id ? (
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={editValues.yield}
-                              onChange={(e) =>
-                                setEditValues({ ...editValues, yield: e.target.value })
-                              }
-                              className="w-20"
-                              data-testid={`input-yield-${holding.id}`}
-                            />
-                            <span className="text-xs text-muted-foreground">%</span>
-                          </div>
-                        ) : (
-                          `${parseFloat(holding.dividendYield).toFixed(2)}%`
-                        )}
-                      </TableCell>
+                      <TableCell className="font-mono">${parseFloat(holding.dividendRate).toFixed(4)}</TableCell>
+                      <TableCell>{parseFloat(holding.dividendYield).toFixed(2)}%</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">
                           {holding.dividendPayout}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {editingId === holding.id ? (
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleSave(holding.id)}
-                              disabled={updateMutation.isPending}
-                              data-testid={`button-save-${holding.id}`}
-                            >
-                              <Save className="h-3 w-3 mr-1" />
-                              Save
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setEditingId(null)}
-                              data-testid={`button-cancel-${holding.id}`}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEdit(holding)}
-                            data-testid={`button-edit-${holding.id}`}
-                          >
-                            Edit
-                          </Button>
-                        )}
                       </TableCell>
                     </TableRow>
                   ))}
