@@ -1652,21 +1652,31 @@ export default function ModelPortfolios() {
               />
             </div>
             {activeTab === "holdings" && (
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-[160px]" data-testid="select-category-filter">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="basket_etf">CC Basket ETFs</SelectItem>
-                  <SelectItem value="single_etf">Single ETFs</SelectItem>
-                  <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
-                  <SelectItem value="leveraged_etf">Leveraged ETFs</SelectItem>
-                  <SelectItem value="security">Securities</SelectItem>
-                  <SelectItem value="auto_added">Auto Added</SelectItem>
-                  <SelectItem value="misc">Misc.</SelectItem>
-                </SelectContent>
-              </Select>
+              <>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="w-[160px]" data-testid="select-category-filter">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="basket_etf">CC Basket ETFs</SelectItem>
+                    <SelectItem value="single_etf">Single ETFs</SelectItem>
+                    <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
+                    <SelectItem value="leveraged_etf">Leveraged ETFs</SelectItem>
+                    <SelectItem value="security">Securities</SelectItem>
+                    <SelectItem value="auto_added">Auto Added</SelectItem>
+                    <SelectItem value="misc">Misc.</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.location.href = "/admin/dividends"}
+                  data-testid="button-manage-dividends"
+                >
+                  Manage Dividends
+                </Button>
+              </>
             )}
           </div>
         </div>
