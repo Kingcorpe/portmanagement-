@@ -2380,13 +2380,14 @@ export default function AccountDetails() {
                             {/* $ Amount */}
                             <TableCell 
                               className={`text-right font-medium ${
+                                comparison?.status === 'can-deploy' ? 'text-purple-600 dark:text-purple-400' :
                                 actionDollarAmount > 0 ? 'text-green-600 dark:text-green-400' : 
                                 actionDollarAmount < 0 ? 'text-red-600 dark:text-red-400' : ''
                               }`}
                               data-testid={`text-action-amount-${position.id}`}
                             >
-                              {actionDollarAmount > 0 ? '+' : ''}
-                              ${actionDollarAmount.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                              {comparison?.status === 'can-deploy' ? '+' : (actionDollarAmount > 0 ? '+' : '')}
+                              ${Math.abs(actionDollarAmount).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                             </TableCell>
                             
                             {/* Shares */}
