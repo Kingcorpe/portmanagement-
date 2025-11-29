@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Search, Save, Calculator } from "lucide-react";
+import { ArrowLeft, Search, Save, Calculator, DollarSign } from "lucide-react";
 import { useLocation } from "wouter";
 
 interface UniversalHolding {
@@ -31,10 +31,11 @@ export default function AdminDividends() {
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [editingHolding, setEditingHolding] = useState<UniversalHolding | null>(null);
-  const [editValues, setEditValues] = useState<{ monthly: string; annual: string; yield: string }>({ 
+  const [editValues, setEditValues] = useState<{ monthly: string; annual: string; yield: string; price: string }>({ 
     monthly: "", 
     annual: "", 
-    yield: "" 
+    yield: "",
+    price: ""
   });
   const { toast } = useToast();
 
@@ -48,10 +49,11 @@ export default function AdminDividends() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, rate, yieldPercent }: { id: string; rate: string; yieldPercent: string }) => {
+    mutationFn: async ({ id, rate, yieldPercent, price }: { id: string; rate: string; yieldPercent: string; price: string }) => {
       return await apiRequest("PATCH", `/api/universal-holdings/${id}`, {
         dividendRate: rate,
         dividendYield: yieldPercent,
+        price: price,
       });
     },
     onSuccess: async () => {
@@ -79,21 +81,44 @@ export default function AdminDividends() {
   const handleEditClick = (holding: UniversalHolding) => {
     const annualRate = parseFloat(holding.dividendRate) || 0;
     const monthlyRate = annualRate / 12;
+    const price = parseFloat(holding.price) || 0;
+    const calculatedYield = price > 0 ? (annualRate / price) * 100 : 0;
+    
     setEditingHolding(holding);
     setEditValues({
       monthly: monthlyRate.toFixed(4),
       annual: holding.dividendRate,
-      yield: holding.dividendYield,
+      yield: calculatedYield.toFixed(2),
+      price: holding.price,
     });
+  };
+
+  const calculateYield = (annual: string, price: string) => {
+    const annualNum = parseFloat(annual) || 0;
+    const priceNum = parseFloat(price) || 0;
+    if (priceNum > 0) {
+      return ((annualNum / priceNum) * 100).toFixed(2);
+    }
+    return "0.00";
   };
 
   const handleMonthlyChange = (value: string) => {
     const monthly = parseFloat(value) || 0;
     const annual = monthly * 12;
+    const annualStr = annual.toFixed(4);
     setEditValues({
       ...editValues,
       monthly: value,
-      annual: annual.toFixed(4),
+      annual: annualStr,
+      yield: calculateYield(annualStr, editValues.price),
+    });
+  };
+
+  const handlePriceChange = (value: string) => {
+    setEditValues({
+      ...editValues,
+      price: value,
+      yield: calculateYield(editValues.annual, value),
     });
   };
 
@@ -103,6 +128,7 @@ export default function AdminDividends() {
       id: editingHolding.id,
       rate: editValues.annual,
       yieldPercent: editValues.yield,
+      price: editValues.price,
     });
   };
 
@@ -137,14 +163,15 @@ export default function AdminDividends() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-2xl">
-              Edit Dividend: <span className="font-mono text-primary">{editingHolding?.ticker}</span>
+              Edit: <span className="font-mono text-primary">{editingHolding?.ticker}</span>
             </DialogTitle>
             <DialogDescription>
               {editingHolding?.name}
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-6 py-4">
+          <div className="space-y-5 py-4">
+            {/* Monthly Dividend Input */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">
                 Monthly Dividend per Unit
@@ -165,8 +192,9 @@ export default function AdminDividends() {
               </div>
             </div>
 
+            {/* Calculated Annual Display */}
             <div className="flex items-center gap-4 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-              <Calculator className="h-4 w-4" />
+              <Calculator className="h-4 w-4 flex-shrink-0" />
               <div>
                 <span>Annual Dividend: </span>
                 <span className="font-mono font-bold text-foreground">${parseFloat(editValues.annual || '0').toFixed(4)}</span>
@@ -174,22 +202,35 @@ export default function AdminDividends() {
               </div>
             </div>
 
+            {/* Price Override Input */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-muted-foreground">
-                Yield %
+                Price per Unit (override)
               </label>
               <div className="flex items-center gap-2">
+                <span className="text-xl font-bold">$</span>
                 <Input
                   type="number"
                   step="0.01"
-                  value={editValues.yield}
-                  onChange={(e) => setEditValues({ ...editValues, yield: e.target.value })}
+                  value={editValues.price}
+                  onChange={(e) => handlePriceChange(e.target.value)}
                   onKeyDown={handleKeyDown}
                   className="text-xl h-12 font-mono"
                   placeholder="0.00"
-                  data-testid="input-yield-popup"
+                  data-testid="input-price-popup"
                 />
-                <span className="text-xl font-bold">%</span>
+              </div>
+            </div>
+
+            {/* Auto-calculated Yield Display */}
+            <div className="flex items-center gap-4 text-sm bg-emerald-50 dark:bg-emerald-950/30 p-3 rounded-lg border border-emerald-200 dark:border-emerald-800">
+              <DollarSign className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+              <div>
+                <span className="text-muted-foreground">Calculated Yield: </span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-lg">
+                  {editValues.yield}%
+                </span>
+                <span className="text-muted-foreground ml-2">(annual ÷ price × 100)</span>
               </div>
             </div>
 
@@ -225,7 +266,7 @@ export default function AdminDividends() {
           <CardTitle>Update Dividend Data</CardTitle>
           <CardDescription>
             Click on the <span className="text-emerald-600 font-medium">green monthly dividend</span> to edit. 
-            This is the source of truth for all portfolio dividend calculations.
+            Yield is auto-calculated from (Annual ÷ Price × 100).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
