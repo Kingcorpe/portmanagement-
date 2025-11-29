@@ -1460,7 +1460,12 @@ export default function AccountDetails() {
         setAsTargetAllocation
       }) as unknown as { success: boolean; created: number; deleted?: number; errors?: any[]; message: string };
 
+      // Invalidate all relevant queries to refresh the UI
       await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
+      if (setAsTargetAllocation) {
+        await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
+        await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      }
 
       toast({
         title: "Import Complete",
