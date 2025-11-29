@@ -213,14 +213,21 @@ export default function Dashboard() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <CardContent className="space-y-2 pt-0">
-              <a 
-                href="https://docs.google.com/spreadsheets/d/1wtJeFma-ItDolRVrprhg6ZigDdZU6Y5hla7u3Q3bKGU/edit?usp=sharing"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/insurance-revenue"
                 className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
                 data-testid="link-insurance-revenue"
               >
                 <span>Insurance Revenue</span>
+              </Link>
+              <a 
+                href="https://docs.google.com/spreadsheets/d/1wtJeFma-ItDolRVrprhg6ZigDdZU6Y5hla7u3Q3bKGU/edit?usp=sharing"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                data-testid="link-insurance-revenue-sheet"
+              >
+                <span>Insurance Revenue (Google Sheet)</span>
                 <ExternalLink className="h-4 w-4" />
               </a>
             </CardContent>

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search } from "lucide-react";
+import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -48,6 +48,11 @@ const menuItems = [
     title: "Holdings Search",
     url: "/holdings-search",
     icon: Search,
+  },
+  {
+    title: "Insurance Revenue",
+    url: "/insurance-revenue",
+    icon: ShieldCheck,
   },
 ];
 

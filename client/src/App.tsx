@@ -20,6 +20,7 @@ import LibraryStrategies from "@/pages/library-strategies";
 import KeyMetrics from "@/pages/key-metrics";
 import HoldingsSearch from "@/pages/holdings-search";
 import AdminDividends from "@/pages/admin-dividends";
+import InsuranceRevenue from "@/pages/insurance-revenue";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
@@ -37,6 +38,7 @@ function AuthenticatedRoutes() {
       <Route path="/library/strategies" component={LibraryStrategies} />
       <Route path="/key-metrics" component={KeyMetrics} />
       <Route path="/alerts" component={Alerts} />
+      <Route path="/insurance-revenue" component={InsuranceRevenue} />
       <Route component={NotFound} />
     </Switch>
   );
