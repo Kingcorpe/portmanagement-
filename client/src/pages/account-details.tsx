@@ -3151,23 +3151,43 @@ export default function AccountDetails() {
                       <FormField
                         control={allocationForm.control}
                         name="targetPercentage"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Target Percentage</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                step="0.01" 
-                                min="0.01"
-                                max="100"
-                                placeholder="25.00" 
-                                data-testid="input-target-percentage" 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                        render={({ field }) => {
+                          // Calculate remaining percentage to 100%
+                          const currentTotal = targetAllocations.reduce((sum, ta) => sum + Number(ta.targetPercentage), 0);
+                          const remainingPercentage = Math.max(0, 100 - currentTotal);
+                          
+                          return (
+                            <FormItem>
+                              <div className="flex items-center justify-between">
+                                <FormLabel>Target Percentage</FormLabel>
+                                {remainingPercentage > 0 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => field.onChange(remainingPercentage.toFixed(2))}
+                                    className="text-xs h-6 px-2"
+                                    data-testid="button-fill-to-100"
+                                  >
+                                    Fill to 100% ({remainingPercentage.toFixed(1)}%)
+                                  </Button>
+                                )}
+                              </div>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  step="0.01" 
+                                  min="0.01"
+                                  max="100"
+                                  placeholder="25.00" 
+                                  data-testid="input-target-percentage" 
+                                  {...field} 
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
                       />
                       
                       <div className="flex items-center gap-2">
