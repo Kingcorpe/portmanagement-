@@ -580,6 +580,17 @@ export const insertIndividualSchema = createInsertSchema(individuals).pick({
   name: true,
   dateOfBirth: true,
   spouseDateOfBirth: true,
+}).extend({
+  dateOfBirth: z.union([z.date(), z.string()]).optional().transform(val => {
+    if (!val) return undefined;
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }),
+  spouseDateOfBirth: z.union([z.date(), z.string()]).optional().transform(val => {
+    if (!val) return undefined;
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }),
 });
 
 export const insertCorporationSchema = createInsertSchema(corporations).pick({
