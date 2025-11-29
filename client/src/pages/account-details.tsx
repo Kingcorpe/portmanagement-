@@ -1611,6 +1611,38 @@ export default function AccountDetails() {
     return ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
   };
 
+  // Helper to calculate monthly dividend for a position
+  const getPositionDividend = (position: Position) => {
+    const normalizedSymbol = normalizeTicker(position.symbol);
+    const holding = universalHoldings.find(h => normalizeTicker(h.ticker) === normalizedSymbol);
+    
+    if (!holding || !holding.dividendRate || Number(holding.dividendRate) === 0) {
+      return { monthlyDividend: 0, annualDividend: 0, dividendYield: 0, payout: 'none' as const };
+    }
+    
+    const quantity = Number(position.quantity);
+    const dividendRate = Number(holding.dividendRate); // Annual dividend per share
+    const annualDividend = quantity * dividendRate;
+    const monthlyDividend = annualDividend / 12;
+    const dividendYield = Number(holding.dividendYield) || 0;
+    
+    return { 
+      monthlyDividend, 
+      annualDividend, 
+      dividendYield,
+      payout: holding.dividendPayout || 'none'
+    };
+  };
+
+  // Calculate total monthly dividend for all positions
+  const totalMonthlyDividend = positions.reduce((sum, pos) => {
+    return sum + getPositionDividend(pos).monthlyDividend;
+  }, 0);
+
+  const totalAnnualDividend = positions.reduce((sum, pos) => {
+    return sum + getPositionDividend(pos).annualDividend;
+  }, 0);
+
   // Format the specific account type for display: "[Account Type]: [Nickname]" or just "[Account Type]"
   const getAccountTypeLabel = () => {
     if (!accountData) return `${accountType?.charAt(0).toUpperCase()}${accountType?.slice(1)} Account`;
