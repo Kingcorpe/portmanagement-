@@ -220,7 +220,7 @@ export default function Landing() {
                 <Card>
                   <CardHeader>
                     <Shield className="h-10 w-10 text-primary mb-3" />
-                    <CardTitle className="text-lg">Made for Canada</CardTitle>
+                    <CardTitle className="text-lg">Made in Canada</CardTitle>
                     <CardDescription>
                       Works with TFSA, RRSP, FHSA, LIRA, LIF, RIF, IPP, RESP, and more.
                     </CardDescription>
