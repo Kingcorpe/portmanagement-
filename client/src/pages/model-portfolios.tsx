@@ -1430,7 +1430,16 @@ export default function ModelPortfolios() {
                 </DialogDescription>
               </DialogHeader>
               <Form {...holdingForm}>
-                <form onSubmit={holdingForm.handleSubmit(onHoldingSubmit)} className="space-y-4">
+                <form 
+                  onSubmit={holdingForm.handleSubmit(onHoldingSubmit)} 
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
+                      e.preventDefault();
+                      holdingForm.handleSubmit(onHoldingSubmit)();
+                    }
+                  }}
+                  className="space-y-4"
+                >
                   <FormField
                     control={holdingForm.control}
                     name="ticker"
