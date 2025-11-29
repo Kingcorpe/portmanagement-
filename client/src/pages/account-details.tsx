@@ -100,6 +100,54 @@ interface PortfolioComparisonData {
   totalTargetPercentage: number;
 }
 
+const RIF_MINIMUM_RATES: Record<number, number> = {
+  71: 5.28, 72: 5.40, 73: 5.53, 74: 5.67, 75: 5.82,
+  76: 5.98, 77: 6.17, 78: 6.36, 79: 6.58, 80: 6.82,
+  81: 7.08, 82: 7.38, 83: 7.71, 84: 8.08, 85: 8.51,
+  86: 8.99, 87: 9.55, 88: 10.21, 89: 10.99, 90: 11.92,
+  91: 13.06, 92: 14.49, 93: 16.34, 94: 18.79,
+};
+
+function calculateRifMinimumWithdrawal(
+  portfolioValue: number,
+  ownerDateOfBirth: string | Date | null,
+  spouseDateOfBirth: string | Date | null
+): { rate: number; amount: number; age: number } | null {
+  if (!ownerDateOfBirth) return null;
+  
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  
+  const getAge = (dob: string | Date): number => {
+    const birthDate = typeof dob === 'string' ? new Date(dob) : dob;
+    let age = currentYear - birthDate.getFullYear();
+    const birthMonth = birthDate.getMonth();
+    const currentMonth = today.getMonth();
+    if (currentMonth < birthMonth || (currentMonth === birthMonth && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+  
+  const ownerAge = getAge(ownerDateOfBirth);
+  const spouseAge = spouseDateOfBirth ? getAge(spouseDateOfBirth) : null;
+  const calculationAge = spouseAge !== null ? Math.min(ownerAge, spouseAge) : ownerAge;
+  
+  if (calculationAge < 71) return null;
+  
+  let rate: number;
+  if (calculationAge >= 95) {
+    rate = 20;
+  } else if (RIF_MINIMUM_RATES[calculationAge]) {
+    rate = RIF_MINIMUM_RATES[calculationAge];
+  } else {
+    rate = 1 / (90 - calculationAge) * 100;
+  }
+  
+  const amount = portfolioValue * (rate / 100);
+  return { rate, amount, age: calculationAge };
+}
+
 interface TaskFormProps {
   task: AccountTask | null;
   accountType: "individual" | "corporate" | "joint";
@@ -1748,6 +1796,30 @@ export default function AccountDetails() {
                     {updateRiskAllocationMutation.isPending ? "Saving..." : "Save"}
                   </Button>
                 </div>
+              );
+            })()}
+            {/* RIF Minimum Withdrawal Display */}
+            {accountType === "individual" && accountData?.type === "rif" && (() => {
+              const rifData = calculateRifMinimumWithdrawal(
+                totalMarketValue,
+                (accountData as any)?.ownerDateOfBirth,
+                (accountData as any)?.ownerSpouseDateOfBirth
+              );
+              if (!rifData) return null;
+              return (
+                <>
+                  <div className="h-6 w-px bg-border hidden sm:block" />
+                  <div className="flex items-center gap-3">
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Min. Withdrawal:</span>
+                    <span className="font-medium" data-testid="text-rif-minimum">
+                      ${rifData.amount.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      ({rifData.rate.toFixed(2)}% at age {rifData.age})
+                    </span>
+                  </div>
+                </>
               );
             })()}
           </div>
