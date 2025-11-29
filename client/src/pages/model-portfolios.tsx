@@ -1372,43 +1372,65 @@ export default function ModelPortfolios() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">Model Portfolios</h1>
-          <p className="text-muted-foreground">Manage your universal holdings and portfolio templates</p>
+          <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-page-title">Model Portfolios</h1>
+          <p className="text-sm text-muted-foreground">Manage holdings and portfolio templates</p>
         </div>
-        {activeTab === "holdings" && (
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => refreshPricesMutation.mutate()}
-              disabled={refreshPricesMutation.isPending}
-              data-testid="button-refresh-prices"
-            >
-              {refreshPricesMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              Refresh Prices
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => refreshDividendsMutation.mutate()}
-              disabled={refreshDividendsMutation.isPending}
-              data-testid="button-refresh-dividends"
-            >
-              {refreshDividendsMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
-              )}
-              Refresh Dividends
-            </Button>
-            <Dialog open={isHoldingDialogOpen} onOpenChange={(open) => {
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <TabsList>
+            <TabsTrigger value="planned" data-testid="tab-planned">Planned</TabsTrigger>
+            <TabsTrigger value="freelance" data-testid="tab-freelance">Freelance</TabsTrigger>
+            <TabsTrigger value="holdings" data-testid="tab-holdings">Holdings</TabsTrigger>
+          </TabsList>
+          
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 h-9 w-[160px]"
+                data-testid="input-search"
+              />
+            </div>
+            
+            {activeTab === "holdings" && (
+              <>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="h-9 w-[140px]" data-testid="select-category-filter">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="basket_etf">CC Basket ETFs</SelectItem>
+                    <SelectItem value="single_etf">Single ETFs</SelectItem>
+                    <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
+                    <SelectItem value="leveraged_etf">Leveraged ETFs</SelectItem>
+                    <SelectItem value="security">Securities</SelectItem>
+                    <SelectItem value="auto_added">Auto Added</SelectItem>
+                    <SelectItem value="misc">Misc.</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => refreshPricesMutation.mutate()}
+                  disabled={refreshPricesMutation.isPending}
+                  data-testid="button-refresh-prices"
+                >
+                  {refreshPricesMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+                <Dialog open={isHoldingDialogOpen} onOpenChange={(open) => {
               setIsHoldingDialogOpen(open);
               if (!open) {
                 setEditingHolding(null);
@@ -1638,59 +1660,112 @@ export default function ModelPortfolios() {
               </Form>
             </DialogContent>
             </Dialog>
-          </div>
-        )}
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList>
-            <TabsTrigger value="planned" data-testid="tab-planned">Planned Portfolios</TabsTrigger>
-            <TabsTrigger value="freelance" data-testid="tab-freelance">Freelance Portfolios</TabsTrigger>
-            <TabsTrigger value="holdings" data-testid="tab-holdings">Universal Holdings</TabsTrigger>
-          </TabsList>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-[200px]"
-                data-testid="input-search"
-              />
-            </div>
-            {activeTab === "holdings" && (
-              <>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="w-[160px]" data-testid="select-category-filter">
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="basket_etf">CC Basket ETFs</SelectItem>
-                    <SelectItem value="single_etf">Single ETFs</SelectItem>
-                    <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
-                    <SelectItem value="leveraged_etf">Leveraged ETFs</SelectItem>
-                    <SelectItem value="security">Securities</SelectItem>
-                    <SelectItem value="auto_added">Auto Added</SelectItem>
-                    <SelectItem value="misc">Misc.</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.href = "/admin/dividends"}
-                  data-testid="button-manage-dividends"
-                >
-                  Manage Dividends
-                </Button>
               </>
+            )}
+            
+            {activeTab === "planned" && (
+              <Dialog open={isPlannedDialogOpen} onOpenChange={setIsPlannedDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" data-testid="button-create-planned">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Create
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create Planned Portfolio</DialogTitle>
+                    <DialogDescription>Create a new planned portfolio template with target allocations</DialogDescription>
+                  </DialogHeader>
+                  <Form {...plannedForm}>
+                    <form onSubmit={plannedForm.handleSubmit(onPlannedSubmit)} className="space-y-4">
+                      <FormField
+                        control={plannedForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Portfolio Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Conservative Growth" {...field} data-testid="input-portfolio-name" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={plannedForm.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description (Optional)</FormLabel>
+                            <FormControl>
+                              <Textarea placeholder="Brief description..." {...field} data-testid="input-portfolio-description" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button type="submit" className="w-full" disabled={createPlannedMutation.isPending} data-testid="button-submit-portfolio">
+                        {createPlannedMutation.isPending ? "Creating..." : "Create Portfolio"}
+                      </Button>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            )}
+            
+            {activeTab === "freelance" && (
+              <Dialog open={isFreelanceDialogOpen} onOpenChange={setIsFreelanceDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" data-testid="button-create-freelance">
+                    <Plus className="h-4 w-4 mr-1" />
+                    Create
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create Freelance Portfolio</DialogTitle>
+                    <DialogDescription>Create a new freelance portfolio without target allocations</DialogDescription>
+                  </DialogHeader>
+                  <Form {...freelanceForm}>
+                    <form onSubmit={freelanceForm.handleSubmit(onFreelanceSubmit)} className="space-y-4">
+                      <FormField
+                        control={freelanceForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Portfolio Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Growth Portfolio" {...field} data-testid="input-freelance-name" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={freelanceForm.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Description (Optional)</FormLabel>
+                            <FormControl>
+                              <Textarea placeholder="Brief description..." {...field} data-testid="input-freelance-description" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button type="submit" className="w-full" disabled={createFreelanceMutation.isPending} data-testid="button-submit-freelance">
+                        {createFreelanceMutation.isPending ? "Creating..." : "Create Portfolio"}
+                      </Button>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
             )}
           </div>
         </div>
 
-        <TabsContent value="holdings" className="space-y-4">
+        <TabsContent value="holdings" className="space-y-4 mt-4">
           {holdingsLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
