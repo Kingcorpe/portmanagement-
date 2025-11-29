@@ -90,14 +90,14 @@ export default function HoldingsSearch() {
   const totalQuantity = results.reduce((sum, r) => sum + r.quantity, 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 cyber-grid min-h-full">
       <div>
-        <h1 className="text-3xl font-bold">Holdings Search</h1>
+        <h1 className="text-3xl font-bold gradient-text">Holdings Search</h1>
         <p className="text-muted-foreground mt-2">Find all accounts holding a specific ticker</p>
       </div>
 
       {/* Search Form */}
-      <Card className="p-6 space-y-4">
+      <Card className="p-6 space-y-4 glow-border corner-accents">
         <form onSubmit={handleSearch} className="flex gap-2">
           <Input
             type="text"

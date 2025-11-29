@@ -364,10 +364,10 @@ export default function Tasks() {
   }
 
   return (
-    <div className="space-y-4 p-6">
+    <div className="space-y-4 p-6 cyber-grid min-h-full">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Tasks</h1>
+          <h1 className="text-3xl font-bold gradient-text">Tasks</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {overdueCount > 0 && <span className="text-red-500 font-medium">{overdueCount} overdue</span>}
             {overdueCount > 0 && pendingCount > 0 && <span className="mx-2">•</span>}

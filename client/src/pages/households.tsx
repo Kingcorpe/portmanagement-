@@ -52,8 +52,6 @@ export default function Households() {
   const [, setLocation] = useLocation();
   const focusHouseholdId = new URLSearchParams(searchString).get("focus");
   const [searchQuery, setSearchQuery] = useState("");
-  
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "grouped">("grouped");
   const [privacyMode, setPrivacyMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -63,6 +61,7 @@ export default function Households() {
   });
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showArchived, setShowArchived] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Dialog state for household management
   const [dialogState, setDialogState] = useState<{

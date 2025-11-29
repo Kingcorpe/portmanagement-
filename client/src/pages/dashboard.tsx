@@ -129,15 +129,15 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 cyber-grid min-h-full">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-dashboard-title">Dashboard</h1>
+          <h1 className="text-3xl font-bold gradient-text" data-testid="text-dashboard-title">Dashboard</h1>
           <p className="text-muted-foreground italic">We monitor, you chill.</p>
         </div>
       </div>
 
-      <Card data-testid="card-recent-alerts">
+      <Card data-testid="card-recent-alerts" className="glow-border corner-accents">
         <CardHeader>
           <CardTitle>Your Recent TradingView Alerts</CardTitle>
         </CardHeader>
