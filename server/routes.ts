@@ -46,6 +46,8 @@ import {
   updateLibraryDocumentSchema,
   insertAccountTaskSchema,
   updateAccountTaskSchema,
+  insertInsuranceRevenueSchema,
+  updateInsuranceRevenueSchema,
   type InsertAccountAuditLog,
   type Position,
 } from "@shared/schema";
@@ -6034,6 +6036,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error searching holdings:", error);
       res.status(500).json({ message: error.message || "Failed to search holdings" });
+    }
+  });
+
+  // Insurance Revenue API routes
+  app.get('/api/insurance-revenue', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const entries = await storage.getInsuranceRevenueByUser(userId);
+      res.json(entries);
+    } catch (error: any) {
+      console.error("Error fetching insurance revenue:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch insurance revenue" });
+    }
+  });
+
+  app.post('/api/insurance-revenue', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const data = insertInsuranceRevenueSchema.parse({ ...req.body, userId });
+      const entry = await storage.createInsuranceRevenue(data);
+      res.status(201).json(entry);
+    } catch (error: any) {
+      console.error("Error creating insurance revenue:", error);
+      res.status(500).json({ message: error.message || "Failed to create insurance revenue entry" });
+    }
+  });
+
+  app.patch('/api/insurance-revenue/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify ownership
+      const existing = await storage.getInsuranceRevenueById(id);
+      if (!existing || existing.userId !== userId) {
+        return res.status(404).json({ message: "Entry not found" });
+      }
+      
+      const data = updateInsuranceRevenueSchema.parse(req.body);
+      const entry = await storage.updateInsuranceRevenue(id, data);
+      res.json(entry);
+    } catch (error: any) {
+      console.error("Error updating insurance revenue:", error);
+      res.status(500).json({ message: error.message || "Failed to update insurance revenue entry" });
+    }
+  });
+
+  app.delete('/api/insurance-revenue/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify ownership
+      const existing = await storage.getInsuranceRevenueById(id);
+      if (!existing || existing.userId !== userId) {
+        return res.status(404).json({ message: "Entry not found" });
+      }
+      
+      await storage.deleteInsuranceRevenue(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting insurance revenue:", error);
+      res.status(500).json({ message: error.message || "Failed to delete insurance revenue entry" });
     }
   });
 
