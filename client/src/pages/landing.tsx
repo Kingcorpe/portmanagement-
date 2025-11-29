@@ -92,7 +92,7 @@ export default function Landing() {
         <section className="bg-muted/30 py-16">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
-              <div className="grid md:grid-cols-2 gap-8 items-center">
+              <div className="grid md:grid-cols-2 gap-8 items-stretch">
                 <Card className="border-destructive/20">
                   <CardHeader>
                     <div className="flex items-center gap-2 mb-2">
