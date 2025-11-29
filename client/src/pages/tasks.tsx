@@ -403,8 +403,9 @@ export default function Tasks() {
         </div>
       </div>
 
-      {/* Compact Controls */}
-      <div className="flex items-center gap-2 flex-wrap">
+      {/* Streamlined Controls */}
+      <div className="space-y-3">
+        {/* Status Tabs */}
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)}>
           <TabsList className="gap-1">
             <TabsTrigger value="pending" data-testid="tab-pending" className="text-xs">
@@ -419,89 +420,97 @@ export default function Tasks() {
           </TabsList>
         </Tabs>
         
-        {categories.length > 0 && (
-          <Select value={selectedCategory || "all"} onValueChange={(v) => setSelectedCategory(v === "all" ? null : v)}>
-            <SelectTrigger className="w-32 h-8 text-xs" data-testid="select-category-filter">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" data-testid="option-all-categories">
-                All Categories
-              </SelectItem>
-              {categories.map(cat => (
-                <SelectItem key={cat} value={cat} data-testid={`option-category-${cat}`}>
-                  {formatCategoryLabel(cat)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        
-        <Select value={selectedPriority || "all"} onValueChange={(v) => setSelectedPriority(v === "all" ? null : v)}>
-          <SelectTrigger className="w-32 h-8 text-xs" data-testid="select-priority-filter">
-            <SelectValue placeholder="Priority" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Priorities</SelectItem>
-            <SelectItem value="urgent">Urgent</SelectItem>
-            <SelectItem value="high">High</SelectItem>
-            <SelectItem value="medium">Medium</SelectItem>
-            <SelectItem value="low">Low</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <Select value={selectedAccountType || "all"} onValueChange={(v) => setSelectedAccountType(v === "all" ? null : v)}>
-          <SelectTrigger className="w-32 h-8 text-xs" data-testid="select-account-type-filter">
-            <SelectValue placeholder="Account Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="individual">Individual</SelectItem>
-            <SelectItem value="corporate">Corporate</SelectItem>
-            <SelectItem value="joint">Joint</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <Select value={selectedStatus || "all"} onValueChange={(v) => setSelectedStatus(v === "all" ? null : v)}>
-          <SelectTrigger className="w-32 h-8 text-xs" data-testid="select-status-filter">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <div className="flex gap-1 border rounded-md">
-          <Button
-            variant={groupBy === "due" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setGroupBy("due")}
-            data-testid="button-group-by-due"
-            className="text-xs rounded-r-none"
-          >
-            Due
-          </Button>
-          <Button
-            variant={groupBy === "household" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setGroupBy("household")}
-            data-testid="button-group-by-household"
-            className="text-xs rounded-none"
-          >
-            Household
-          </Button>
-          <Button
-            variant={groupBy === "priority" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setGroupBy("priority")}
-            data-testid="button-group-by-priority"
-            className="text-xs rounded-l-none"
-          >
-            Priority
-          </Button>
+        {/* Filters & Grouping */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Filters */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {categories.length > 0 && (
+              <Select value={selectedCategory || "all"} onValueChange={(v) => setSelectedCategory(v === "all" ? null : v)}>
+                <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-category-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map(cat => (
+                    <SelectItem key={cat} value={cat} data-testid={`option-category-${cat}`}>
+                      {formatCategoryLabel(cat)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            
+            <Select value={selectedPriority || "all"} onValueChange={(v) => setSelectedPriority(v === "all" ? null : v)}>
+              <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-priority-filter">
+                <SelectValue placeholder="Priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="urgent">Urgent</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={selectedAccountType || "all"} onValueChange={(v) => setSelectedAccountType(v === "all" ? null : v)}>
+              <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-account-type-filter">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="individual">Individual</SelectItem>
+                <SelectItem value="corporate">Corporate</SelectItem>
+                <SelectItem value="joint">Joint</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={selectedStatus || "all"} onValueChange={(v) => setSelectedStatus(v === "all" ? null : v)}>
+              <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-status-filter">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Grouping Separator */}
+          <div className="hidden sm:block h-6 w-px bg-border" />
+          
+          {/* Grouping Buttons */}
+          <div className="flex gap-1 border rounded-md">
+            <Button
+              variant={groupBy === "due" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setGroupBy("due")}
+              data-testid="button-group-by-due"
+              className="text-xs rounded-r-none"
+            >
+              By Due
+            </Button>
+            <Button
+              variant={groupBy === "household" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setGroupBy("household")}
+              data-testid="button-group-by-household"
+              className="text-xs rounded-none"
+            >
+              By Household
+            </Button>
+            <Button
+              variant={groupBy === "priority" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setGroupBy("priority")}
+              data-testid="button-group-by-priority"
+              className="text-xs rounded-l-none"
+            >
+              By Priority
+            </Button>
+          </div>
         </div>
       </div>
 
