@@ -1375,7 +1375,7 @@ export default function ModelPortfolios() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-page-title">Model Portfolios</h1>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">Model Portfolios</h1>
           <p className="text-sm text-muted-foreground">Manage holdings and portfolio templates</p>
         </div>
       </div>
