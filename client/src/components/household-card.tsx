@@ -357,17 +357,16 @@ export function HouseholdCard({
             {household.individuals.map((individual) => (
               <div key={individual.id} className="border rounded-lg overflow-hidden bg-muted/30">
                 <div className="flex items-center justify-between px-3 py-2 bg-muted/50">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-primary" />
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <User className="h-4 w-4 text-primary flex-shrink-0" />
                     <span className="font-medium text-sm" data-testid={`text-individual-name-${individual.id}`}>
                       {individual.name}
                     </span>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">Individual</Badge>
                     {individual.dateOfBirth && (() => {
                       const rifInfo = formatRifConversionDate(individual.dateOfBirth, individual.spouseDateOfBirth);
                       return rifInfo ? (
-                        <span className="text-[10px] text-muted-foreground" data-testid={`text-rif-conversion-${individual.id}`}>
-                          RIF conversion date: {rifInfo.date}{rifInfo.isSpouse ? " (spouse)" : ""}
+                        <span className="text-[10px] text-muted-foreground truncate" data-testid={`text-rif-conversion-${individual.id}`}>
+                          · RIF conversion: {rifInfo.date}{rifInfo.isSpouse ? " (spouse)" : ""}
                         </span>
                       ) : null;
                     })()}
