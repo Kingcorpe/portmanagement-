@@ -44,7 +44,7 @@ export default function Landing() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-8 w-8 text-white" />
-            <h1 className="text-2xl font-bold text-white">WealthiOS</h1>
+            <h1 className="text-2xl font-bold text-white">TradingOS</h1>
           </div>
           <Button variant="outline" onClick={handleLogin} className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm" data-testid="button-login">
             Sign In
