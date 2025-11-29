@@ -1388,14 +1388,14 @@ export default function ModelPortfolios() {
             <TabsTrigger value="holdings" data-testid="tab-holdings">Holdings</TabsTrigger>
           </TabsList>
           
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-muted-foreground h-3.5 w-3.5" />
               <Input
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-8 w-[140px] text-sm bg-transparent border-muted"
+                className="pl-8 h-8 w-[120px] text-sm bg-transparent border-muted"
                 data-testid="input-search"
               />
             </div>
@@ -1403,7 +1403,7 @@ export default function ModelPortfolios() {
             {activeTab === "holdings" && (
               <>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="h-9 w-[140px]" data-testid="select-category-filter">
+                  <SelectTrigger className="h-8 w-[130px] text-sm" data-testid="select-category-filter">
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1419,7 +1419,8 @@ export default function ModelPortfolios() {
                 </Select>
                 <Button 
                   variant="ghost" 
-                  size="sm"
+                  size="icon"
+                  className="h-8 w-8"
                   onClick={() => refreshPricesMutation.mutate()}
                   disabled={refreshPricesMutation.isPending}
                   data-testid="button-refresh-prices"
@@ -1431,19 +1432,19 @@ export default function ModelPortfolios() {
                   )}
                 </Button>
                 <Dialog open={isHoldingDialogOpen} onOpenChange={(open) => {
-              setIsHoldingDialogOpen(open);
-              if (!open) {
-                setEditingHolding(null);
-                holdingForm.reset();
-                setDuplicateTickerWarning(null);
-              }
-            }}>
-              <DialogTrigger asChild>
-                <Button data-testid="button-add-holding">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Holding
-                </Button>
-              </DialogTrigger>
+                  setIsHoldingDialogOpen(open);
+                  if (!open) {
+                    setEditingHolding(null);
+                    holdingForm.reset();
+                    setDuplicateTickerWarning(null);
+                  }
+                }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" data-testid="button-add-holding">
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add
+                    </Button>
+                  </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>{editingHolding ? "Edit Holding" : "Add Universal Holding"}</DialogTitle>
