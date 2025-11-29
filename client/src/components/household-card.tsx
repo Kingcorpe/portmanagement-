@@ -367,7 +367,7 @@ export function HouseholdCard({
                       const rifInfo = formatRifConversionDate(individual.dateOfBirth, individual.spouseDateOfBirth);
                       return rifInfo ? (
                         <span className="text-[10px] text-muted-foreground" data-testid={`text-rif-conversion-${individual.id}`}>
-                          RIF: {rifInfo.date}{rifInfo.isSpouse ? " (spouse)" : ""}
+                          RIF conversion date: {rifInfo.date}{rifInfo.isSpouse ? " (spouse)" : ""}
                         </span>
                       ) : null;
                     })()}
