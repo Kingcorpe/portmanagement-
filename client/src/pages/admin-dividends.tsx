@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Search, Save } from "lucide-react";
+import { ArrowLeft, Search, Save, Calculator } from "lucide-react";
 import { useLocation } from "wouter";
 
 interface UniversalHolding {
@@ -24,10 +24,13 @@ export default function AdminDividends() {
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<{ rate: string; yield: string }>({ rate: "", yield: "" });
+  const [editValues, setEditValues] = useState<{ monthly: string; annual: string; yield: string }>({ 
+    monthly: "", 
+    annual: "", 
+    yield: "" 
+  });
   const { toast } = useToast();
 
-  // Fetch all universal holdings
   const { data: holdings = [], isLoading } = useQuery({
     queryKey: ['/api/universal-holdings'],
     queryFn: async () => {
@@ -37,7 +40,6 @@ export default function AdminDividends() {
     },
   });
 
-  // Update dividend mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, rate, yieldPercent }: { id: string; rate: string; yieldPercent: string }) => {
       return await apiRequest("PATCH", `/api/universal-holdings/${id}`, {
@@ -68,19 +70,47 @@ export default function AdminDividends() {
   );
 
   const handleEdit = (holding: UniversalHolding) => {
+    const annualRate = parseFloat(holding.dividendRate) || 0;
+    const monthlyRate = annualRate / 12;
     setEditingId(holding.id);
     setEditValues({
-      rate: holding.dividendRate,
+      monthly: monthlyRate.toFixed(4),
+      annual: holding.dividendRate,
       yield: holding.dividendYield,
+    });
+  };
+
+  const handleMonthlyChange = (value: string) => {
+    const monthly = parseFloat(value) || 0;
+    const annual = monthly * 12;
+    setEditValues({
+      ...editValues,
+      monthly: value,
+      annual: annual.toFixed(4),
+    });
+  };
+
+  const handleAnnualChange = (value: string) => {
+    const annual = parseFloat(value) || 0;
+    const monthly = annual / 12;
+    setEditValues({
+      ...editValues,
+      monthly: monthly.toFixed(4),
+      annual: value,
     });
   };
 
   const handleSave = (id: string) => {
     updateMutation.mutate({
       id,
-      rate: editValues.rate,
+      rate: editValues.annual,
       yieldPercent: editValues.yield,
     });
+  };
+
+  const getMonthlyFromAnnual = (annualRate: string) => {
+    const annual = parseFloat(annualRate) || 0;
+    return (annual / 12).toFixed(4);
   };
 
   return (
@@ -101,8 +131,8 @@ export default function AdminDividends() {
         <CardHeader>
           <CardTitle>Update Dividend Data</CardTitle>
           <CardDescription>
-            Manually update dividend rates and yields for tickers where Yahoo Finance data is incomplete.
-            Common tickers: CRCY.TO, HODY.TO, RDDY.TO, SHPE.TO, SOFY.TO
+            Enter the <strong>monthly dividend per unit</strong> and the annual rate will be calculated automatically (monthly × 12).
+            This is the source of truth for all portfolio dividend calculations.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -131,7 +161,13 @@ export default function AdminDividends() {
                     <TableHead>Ticker</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Price</TableHead>
-                    <TableHead>Annual Dividend</TableHead>
+                    <TableHead className="text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Calculator className="h-3 w-3" />
+                        Monthly Div
+                      </div>
+                    </TableHead>
+                    <TableHead>Annual Div</TableHead>
                     <TableHead>Yield %</TableHead>
                     <TableHead>Payout</TableHead>
                     <TableHead>Actions</TableHead>
@@ -141,36 +177,61 @@ export default function AdminDividends() {
                   {filtered.map((holding: UniversalHolding) => (
                     <TableRow key={holding.id} data-testid={`row-holding-${holding.ticker}`}>
                       <TableCell className="font-mono font-bold">{holding.ticker}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{holding.name}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{holding.name}</TableCell>
                       <TableCell>${parseFloat(holding.price).toFixed(2)}</TableCell>
                       <TableCell>
                         {editingId === holding.id ? (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={editValues.rate}
-                            onChange={(e) =>
-                              setEditValues({ ...editValues, rate: e.target.value })
-                            }
-                            className="w-20"
-                            data-testid={`input-rate-${holding.id}`}
-                          />
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">$</span>
+                            <Input
+                              type="number"
+                              step="0.0001"
+                              value={editValues.monthly}
+                              onChange={(e) => handleMonthlyChange(e.target.value)}
+                              className="w-24"
+                              placeholder="Monthly"
+                              data-testid={`input-monthly-${holding.id}`}
+                            />
+                          </div>
                         ) : (
-                          `$${parseFloat(holding.dividendRate).toFixed(2)}`
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                            ${getMonthlyFromAnnual(holding.dividendRate)}
+                          </span>
                         )}
                       </TableCell>
                       <TableCell>
                         {editingId === holding.id ? (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={editValues.yield}
-                            onChange={(e) =>
-                              setEditValues({ ...editValues, yield: e.target.value })
-                            }
-                            className="w-20"
-                            data-testid={`input-yield-${holding.id}`}
-                          />
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-muted-foreground">$</span>
+                            <Input
+                              type="number"
+                              step="0.0001"
+                              value={editValues.annual}
+                              onChange={(e) => handleAnnualChange(e.target.value)}
+                              className="w-24"
+                              placeholder="Annual"
+                              data-testid={`input-rate-${holding.id}`}
+                            />
+                          </div>
+                        ) : (
+                          `$${parseFloat(holding.dividendRate).toFixed(4)}`
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {editingId === holding.id ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={editValues.yield}
+                              onChange={(e) =>
+                                setEditValues({ ...editValues, yield: e.target.value })
+                              }
+                              className="w-20"
+                              data-testid={`input-yield-${holding.id}`}
+                            />
+                            <span className="text-xs text-muted-foreground">%</span>
+                          </div>
                         ) : (
                           `${parseFloat(holding.dividendYield).toFixed(2)}%`
                         )}
