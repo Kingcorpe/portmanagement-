@@ -1664,103 +1664,17 @@ export default function ModelPortfolios() {
             )}
             
             {activeTab === "planned" && (
-              <Dialog open={isPlannedDialogOpen} onOpenChange={setIsPlannedDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" data-testid="button-create-planned">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Create
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create Planned Portfolio</DialogTitle>
-                    <DialogDescription>Create a new planned portfolio template with target allocations</DialogDescription>
-                  </DialogHeader>
-                  <Form {...plannedForm}>
-                    <form onSubmit={plannedForm.handleSubmit(onPlannedSubmit)} className="space-y-4">
-                      <FormField
-                        control={plannedForm.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Portfolio Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="e.g. Conservative Growth" {...field} data-testid="input-portfolio-name" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={plannedForm.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Description (Optional)</FormLabel>
-                            <FormControl>
-                              <Textarea placeholder="Brief description..." {...field} data-testid="input-portfolio-description" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <Button type="submit" className="w-full" disabled={createPlannedMutation.isPending} data-testid="button-submit-portfolio">
-                        {createPlannedMutation.isPending ? "Creating..." : "Create Portfolio"}
-                      </Button>
-                    </form>
-                  </Form>
-                </DialogContent>
-              </Dialog>
+              <Button size="sm" onClick={() => setIsPlannedDialogOpen(true)} data-testid="button-create-planned">
+                <Plus className="h-4 w-4 mr-1" />
+                Create
+              </Button>
             )}
             
             {activeTab === "freelance" && (
-              <Dialog open={isFreelanceDialogOpen} onOpenChange={setIsFreelanceDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" data-testid="button-create-freelance">
-                    <Plus className="h-4 w-4 mr-1" />
-                    Create
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Create Freelance Portfolio</DialogTitle>
-                    <DialogDescription>Create a new freelance portfolio without target allocations</DialogDescription>
-                  </DialogHeader>
-                  <Form {...freelanceForm}>
-                    <form onSubmit={freelanceForm.handleSubmit(onFreelanceSubmit)} className="space-y-4">
-                      <FormField
-                        control={freelanceForm.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Portfolio Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="e.g. Growth Portfolio" {...field} data-testid="input-freelance-name" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={freelanceForm.control}
-                        name="description"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Description (Optional)</FormLabel>
-                            <FormControl>
-                              <Textarea placeholder="Brief description..." {...field} data-testid="input-freelance-description" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <Button type="submit" className="w-full" disabled={createFreelanceMutation.isPending} data-testid="button-submit-freelance">
-                        {createFreelanceMutation.isPending ? "Creating..." : "Create Portfolio"}
-                      </Button>
-                    </form>
-                  </Form>
-                </DialogContent>
-              </Dialog>
+              <Button size="sm" onClick={() => setIsFreelanceDialogOpen(true)} data-testid="button-create-freelance">
+                <Plus className="h-4 w-4 mr-1" />
+                Create
+              </Button>
             )}
           </div>
         </div>
