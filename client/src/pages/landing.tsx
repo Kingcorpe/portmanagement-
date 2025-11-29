@@ -41,12 +41,12 @@ export default function Landing() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="absolute top-0 left-0 right-0 z-10 border-b border-white/10">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center gap-4">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <TrendingUp className="h-8 w-8 text-white" />
             <h1 className="text-2xl font-bold text-white">TradingOS</h1>
           </div>
-          <Button variant="outline" onClick={handleLogin} className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm" data-testid="button-login">
+          <Button variant="outline" onClick={handleLogin} className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm flex-shrink-0" data-testid="button-login">
             Sign In
           </Button>
         </div>
@@ -64,20 +64,22 @@ export default function Landing() {
         >
           <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/75 to-black/90" />
           <div className="relative z-10 container mx-auto px-4 py-20">
-            <div className="max-w-4xl mx-auto text-center space-y-6">
-              <Badge variant="secondary" className="text-sm px-4 py-1">
-                Your trading alerts. Always on time.
-              </Badge>
+            <div className="max-w-4xl mx-auto text-center space-y-6 flex flex-col items-center">
+              <div>
+                <Badge variant="secondary" className="text-sm px-4 py-1">
+                  Your trading alerts. Always on time.
+                </Badge>
+              </div>
               <h2 className="text-5xl md:text-6xl font-bold text-white">
                 Never Miss a Deal Again
               </h2>
-              <p className="text-xl text-white/80 max-w-2xl mx-auto">
+              <p className="text-xl text-white/80 max-w-2xl">
                 Quit staring at charts. Let deals find you.
               </p>
               <p className="text-lg text-white/70 italic">
                 We monitor, you chill.
               </p>
-              <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <Button size="lg" onClick={handleLogin} data-testid="button-get-started">
                   Get Started Free
                 </Button>
@@ -392,7 +394,7 @@ export default function Landing() {
 
       <footer className="border-t py-6">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>WealthiOS - Professional Investment Management Platform</p>
+          <p>TradingOS - Professional Investment Management Platform</p>
           <p className="mt-1 text-xs">Updated: Nov 26, 2025</p>
         </div>
       </footer>
