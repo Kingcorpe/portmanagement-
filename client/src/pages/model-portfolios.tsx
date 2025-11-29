@@ -1373,82 +1373,41 @@ export default function ModelPortfolios() {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-gradient-to-r from-primary/5 to-primary/2 border-primary/10">
-        <CardHeader className="pb-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="text-3xl" data-testid="text-page-title">Model Portfolios</CardTitle>
-              <CardDescription className="text-base mt-2">
-                Manage your universal holdings and portfolio templates
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <Card className="border-0 bg-transparent shadow-none">
-          <CardHeader className="pb-3">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <TabsList className="grid w-fit grid-cols-3 gap-1">
-                <TabsTrigger value="planned" data-testid="tab-planned" className="gap-2">
-                  <Target className="h-4 w-4" />
-                  <span className="hidden sm:inline">Planned</span>
-                </TabsTrigger>
-                <TabsTrigger value="freelance" data-testid="tab-freelance" className="gap-2">
-                  <TrendingUp className="h-4 w-4" />
-                  <span className="hidden sm:inline">Freelance</span>
-                </TabsTrigger>
-                <TabsTrigger value="holdings" data-testid="tab-holdings" className="gap-2">
-                  <Percent className="h-4 w-4" />
-                  <span className="hidden sm:inline">Holdings</span>
-                </TabsTrigger>
-              </TabsList>
-              
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <div className="relative flex-1 sm:flex-none">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-full sm:w-[220px]"
-                    data-testid="input-search"
-                  />
-                </div>
-                {activeTab === "holdings" && (
-                  <>
-                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                      <SelectTrigger className="w-full sm:w-[160px]" data-testid="select-category-filter">
-                        <SelectValue placeholder="All Categories" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Categories</SelectItem>
-                        <SelectItem value="basket_etf">CC Basket ETFs</SelectItem>
-                        <SelectItem value="single_etf">Single ETFs</SelectItem>
-                        <SelectItem value="double_long_etf">Double Long ETFs</SelectItem>
-                        <SelectItem value="leveraged_etf">Leveraged ETFs</SelectItem>
-                        <SelectItem value="security">Securities</SelectItem>
-                        <SelectItem value="auto_added">Auto Added</SelectItem>
-                        <SelectItem value="misc">Misc.</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.location.href = "/admin/dividends"}
-                      data-testid="button-manage-dividends"
-                      className="gap-2"
-                    >
-                      <Percent className="h-4 w-4" />
-                      Manage Dividends
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">Model Portfolios</h1>
+          <p className="text-muted-foreground">Manage your universal holdings and portfolio templates</p>
+        </div>
+        {activeTab === "holdings" && (
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => refreshPricesMutation.mutate()}
+              disabled={refreshPricesMutation.isPending}
+              data-testid="button-refresh-prices"
+            >
+              {refreshPricesMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Refresh Prices
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => refreshDividendsMutation.mutate()}
+              disabled={refreshDividendsMutation.isPending}
+              data-testid="button-refresh-dividends"
+            >
+              {refreshDividendsMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Refresh Dividends
+            </Button>
             <Dialog open={isHoldingDialogOpen} onOpenChange={(open) => {
               setIsHoldingDialogOpen(open);
               if (!open) {
