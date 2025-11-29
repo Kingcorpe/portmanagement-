@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -8,14 +8,16 @@ import { MetricCard } from "@/components/metric-card";
 import { AlertCard, Alert } from "@/components/alert-card";
 import { PositionsTable, Position } from "@/components/positions-table";
 import { Button } from "@/components/ui/button";
-import { Users, Bell, Upload, UserPlus, Briefcase, BookOpen, ListTodo } from "lucide-react";
+import { Users, Bell, Upload, UserPlus, Briefcase, BookOpen, ListTodo, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Household, Alert as AlertType } from "@shared/schema";
 
 export default function Dashboard() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const [urlsOpen, setUrlsOpen] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -193,6 +195,29 @@ export default function Dashboard() {
             </Link>
           </div>
         </CardContent>
+      </Card>
+
+      <Card data-testid="card-urls" className="glow-border corner-accents">
+        <Collapsible open={urlsOpen} onOpenChange={setUrlsOpen}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-accent/50 transition-colors">
+              <div className="flex items-center justify-between w-full">
+                <CardTitle>Quick Links</CardTitle>
+                {urlsOpen ? (
+                  <ChevronDown className="h-5 w-5" />
+                ) : (
+                  <ChevronRight className="h-5 w-5" />
+                )}
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-2 pt-0">
+              {/* URLs will be added here */}
+              <p className="text-sm text-muted-foreground">No links added yet</p>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
       {positions.length > 0 && (
