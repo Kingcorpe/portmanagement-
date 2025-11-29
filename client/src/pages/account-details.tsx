@@ -157,7 +157,7 @@ interface TaskFormProps {
 function TaskForm({ task, accountType, accountId, onSubmit, isPending }: TaskFormProps) {
   const [title, setTitle] = useState(task?.title || "");
   const [description, setDescription] = useState(task?.description || "");
-  const [status, setStatus] = useState<"pending" | "in_progress">(task?.status === "completed" ? "pending" : (task?.status || "pending"));
+  const [status, setStatus] = useState<"pending" | "in_progress" | "blocked" | "on_hold" | "completed" | "cancelled">(task?.status === "completed" ? "pending" : (task?.status || "pending"));
   const [priority, setPriority] = useState<"low" | "medium" | "high" | "urgent">(task?.priority || "medium");
   const [dueDate, setDueDate] = useState(task?.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : "");
 
@@ -220,6 +220,10 @@ function TaskForm({ task, accountType, accountId, onSubmit, isPending }: TaskFor
             <SelectContent>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="blocked">Blocked</SelectItem>
+              <SelectItem value="on_hold">On Hold</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -284,7 +288,7 @@ export default function AccountDetails() {
   const [isTasksExpanded, setIsTasksExpanded] = useState(true);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<AccountTask | null>(null);
-  const [taskStatusFilter, setTaskStatusFilter] = useState<"all" | "pending" | "in_progress">("all");
+  const [taskStatusFilter, setTaskStatusFilter] = useState<"all" | "pending" | "in_progress" | "blocked" | "on_hold" | "completed" | "cancelled">("all");
   const [notesAutoSaveStatus, setNotesAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [isAuditLogExpanded, setIsAuditLogExpanded] = useState(false);
   const [viewMode, setViewMode] = useState<"real" | "watchlist">("real");
@@ -2709,6 +2713,10 @@ export default function AccountDetails() {
                     <SelectItem value="all">All Tasks</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
+                    <SelectItem value="on_hold">On Hold</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
                 <Dialog open={isTaskDialogOpen} onOpenChange={(open) => {
@@ -2753,8 +2761,8 @@ export default function AccountDetails() {
                   if (taskStatusFilter === "all") return true;
                   return task.status === taskStatusFilter;
                 }).sort((a, b) => {
-                  // Sort by status (pending first, then in_progress), then by priority, then by due date
-                  const statusOrder: Record<string, number> = { pending: 0, in_progress: 1 };
+                  // Sort by status (pending, in_progress, blocked, on_hold, completed, cancelled), then by priority, then by due date
+                  const statusOrder: Record<string, number> = { pending: 0, in_progress: 1, blocked: 2, on_hold: 3, completed: 4, cancelled: 5 };
                   const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
                   
                   if ((statusOrder[a.status] ?? 2) !== (statusOrder[b.status] ?? 2)) {

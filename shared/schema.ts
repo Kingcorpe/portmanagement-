@@ -940,7 +940,10 @@ export type HouseholdWithDetails = Household & {
 export const taskStatusEnum = pgEnum("task_status", [
   "pending",
   "in_progress",
+  "blocked",
+  "on_hold",
   "completed",
+  "cancelled",
 ]);
 
 // Account task priority enum
