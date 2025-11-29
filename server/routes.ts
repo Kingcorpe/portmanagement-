@@ -627,6 +627,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownerName: individual.name,
         householdName: household?.name || 'Unknown',
         householdId: individual.householdId,
+        ownerDateOfBirth: individual.dateOfBirth,
+        ownerSpouseDateOfBirth: individual.spouseDateOfBirth,
       });
     } catch (error) {
       console.error("Error fetching individual account:", error);
