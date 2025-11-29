@@ -9,6 +9,7 @@ import { HouseholdManagementDialogs } from "@/components/household-management-di
 import { ShareHouseholdDialog } from "@/components/share-household-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Search, LayoutList, LayoutGrid, ChevronRight, Eye, EyeOff, Folder, FolderOpen } from "lucide-react";
 import {
   Collapsible,
@@ -568,10 +569,10 @@ export default function Households() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 cyber-grid min-h-full">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-households-title">Households</h1>
+          <h1 className="text-3xl font-bold gradient-text" data-testid="text-households-title">Households</h1>
           <p className="text-muted-foreground">Manage client accounts and portfolios</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -847,23 +848,25 @@ export default function Households() {
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-4 mt-4">
               {archivedData.map((household) => (
-                <div key={household.id} className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
-                  <div>
-                    <h3 className="font-medium">{household.name}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Archived on {new Date(household.deletedAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => restoreHouseholdMutation.mutate(household.id)}
-                    disabled={restoreHouseholdMutation.isPending}
-                    data-testid={`button-restore-household-${household.id}`}
-                  >
-                    {restoreHouseholdMutation.isPending ? "Restoring..." : "Restore"}
-                  </Button>
-                </div>
+                <Card key={household.id} className="glow-border corner-accents">
+                  <CardContent className="flex items-center justify-between p-4">
+                    <div>
+                      <h3 className="font-medium">{household.name}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Archived on {new Date(household.deletedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => restoreHouseholdMutation.mutate(household.id)}
+                      disabled={restoreHouseholdMutation.isPending}
+                      data-testid={`button-restore-household-${household.id}`}
+                    >
+                      {restoreHouseholdMutation.isPending ? "Restoring..." : "Restore"}
+                    </Button>
+                  </CardContent>
+                </Card>
               ))}
             </CollapsibleContent>
           </Collapsible>

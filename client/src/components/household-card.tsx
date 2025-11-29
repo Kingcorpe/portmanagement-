@@ -223,7 +223,7 @@ export function HouseholdCard({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <Card data-testid={`card-household-${household.id}`}>
+    <Card data-testid={`card-household-${household.id}`} className="glow-border corner-accents">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-4">
