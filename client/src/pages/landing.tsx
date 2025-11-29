@@ -76,10 +76,7 @@ export default function Landing() {
               <p className="text-xl text-white/80 max-w-2xl">
                 Quit staring at charts. Let deals find you.
               </p>
-              <p className="text-lg text-white/70 italic">
-                We monitor, you chill.
-              </p>
-              <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <div className="pt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <Button size="lg" onClick={handleLogin} data-testid="button-get-started">
                   Get Started Free
                 </Button>
