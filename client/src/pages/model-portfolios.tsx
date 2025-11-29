@@ -1836,58 +1836,50 @@ export default function ModelPortfolios() {
           )}
         </TabsContent>
 
-        <TabsContent value="planned" className="space-y-4">
-          <div className="flex justify-end">
-            <Dialog open={isPlannedDialogOpen} onOpenChange={setIsPlannedDialogOpen}>
-              <DialogTrigger asChild>
-                <Button data-testid="button-add-planned-portfolio">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Planned Portfolio
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Create Planned Portfolio</DialogTitle>
-                  <DialogDescription>
-                    Create a reusable portfolio template with target allocations
-                  </DialogDescription>
-                </DialogHeader>
-                <Form {...portfolioForm}>
-                  <form onSubmit={portfolioForm.handleSubmit(onPlannedPortfolioSubmit)} className="space-y-4">
-                    <FormField
-                      control={portfolioForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Portfolio Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g. Conservative Growth" {...field} data-testid="input-portfolio-name" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={portfolioForm.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <FormControl>
-                            <Textarea placeholder="Brief description..." {...field} data-testid="input-portfolio-description" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button type="submit" className="w-full" disabled={createPlannedPortfolioMutation.isPending} data-testid="button-submit-planned">
-                      {createPlannedPortfolioMutation.isPending ? "Creating..." : "Create Portfolio"}
-                    </Button>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-          </div>
+        <TabsContent value="planned" className="space-y-4 mt-4">
+          <Dialog open={isPlannedDialogOpen} onOpenChange={setIsPlannedDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Create Planned Portfolio</DialogTitle>
+                <DialogDescription>
+                  Create a reusable portfolio template with target allocations
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...portfolioForm}>
+                <form onSubmit={portfolioForm.handleSubmit(onPlannedPortfolioSubmit)} className="space-y-4">
+                  <FormField
+                    control={portfolioForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Portfolio Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Conservative Growth" {...field} data-testid="input-portfolio-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={portfolioForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Brief description..." {...field} data-testid="input-portfolio-description" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full" disabled={createPlannedPortfolioMutation.isPending} data-testid="button-submit-planned">
+                    {createPlannedPortfolioMutation.isPending ? "Creating..." : "Create Portfolio"}
+                  </Button>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
 
           {plannedLoading ? (
             <div className="flex items-center justify-center py-8">
@@ -1979,79 +1971,71 @@ export default function ModelPortfolios() {
           </Dialog>
         </TabsContent>
 
-        <TabsContent value="freelance" className="space-y-4">
-          <div className="flex justify-end">
-            <Dialog open={isFreelanceDialogOpen} onOpenChange={setIsFreelanceDialogOpen}>
-              <DialogTrigger asChild>
-                <Button data-testid="button-add-freelance-portfolio">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Freelance Portfolio
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Create Freelance Portfolio</DialogTitle>
-                  <DialogDescription>
-                    Create a custom one-off portfolio for specific client situations
-                  </DialogDescription>
-                </DialogHeader>
-                <Form {...freelancePortfolioForm}>
-                  <form onSubmit={freelancePortfolioForm.handleSubmit(onFreelancePortfolioSubmit)} className="space-y-4">
-                    <FormField
-                      control={freelancePortfolioForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Portfolio Name</FormLabel>
+        <TabsContent value="freelance" className="space-y-4 mt-4">
+          <Dialog open={isFreelanceDialogOpen} onOpenChange={setIsFreelanceDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Create Freelance Portfolio</DialogTitle>
+                <DialogDescription>
+                  Create a custom one-off portfolio for specific client situations
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...freelancePortfolioForm}>
+                <form onSubmit={freelancePortfolioForm.handleSubmit(onFreelancePortfolioSubmit)} className="space-y-4">
+                  <FormField
+                    control={freelancePortfolioForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Portfolio Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Client Smith Custom" {...field} data-testid="input-freelance-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={freelancePortfolioForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Brief description..." {...field} data-testid="input-freelance-description" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={freelancePortfolioForm.control}
+                    name="portfolioType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Portfolio Type</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <Input placeholder="e.g. Client Smith Custom" {...field} data-testid="input-freelance-name" />
+                            <SelectTrigger data-testid="select-portfolio-type">
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={freelancePortfolioForm.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <FormControl>
-                            <Textarea placeholder="Brief description..." {...field} data-testid="input-freelance-description" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={freelancePortfolioForm.control}
-                      name="portfolioType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Portfolio Type</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger data-testid="select-portfolio-type">
-                                <SelectValue placeholder="Select type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="standard">Standard Portfolio (must equal 100%)</SelectItem>
-                              <SelectItem value="watchlist">Opportunity Watchlist (can exceed 100%)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button type="submit" className="w-full" disabled={createFreelancePortfolioMutation.isPending} data-testid="button-submit-freelance">
-                      {createFreelancePortfolioMutation.isPending ? "Creating..." : "Create Portfolio"}
-                    </Button>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-          </div>
+                          <SelectContent>
+                            <SelectItem value="standard">Standard Portfolio (must equal 100%)</SelectItem>
+                            <SelectItem value="watchlist">Opportunity Watchlist (can exceed 100%)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full" disabled={createFreelancePortfolioMutation.isPending} data-testid="button-submit-freelance">
+                    {createFreelancePortfolioMutation.isPending ? "Creating..." : "Create Portfolio"}
+                  </Button>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
 
           {freelanceLoading ? (
             <div className="flex items-center justify-center py-8">
