@@ -50,6 +50,210 @@ import {
   type Position,
 } from "@shared/schema";
 
+// Canadian ETF provider identification and fund facts URL patterns
+type DividendPayoutType = "monthly" | "quarterly" | "semi_annual" | "annual" | "none";
+
+interface EnhancedTickerData {
+  ticker: string;
+  name: string;
+  price: number | null;
+  dividendRate: number | null;
+  dividendYield: number | null;
+  dividendPayout: DividendPayoutType;
+  fundFactsUrl: string | null;
+  provider: string | null;
+}
+
+// Map of ticker prefixes/patterns to ETF providers
+const ETF_PROVIDER_PATTERNS: { pattern: RegExp; provider: string; productPage: (ticker: string) => string; fundFacts: (ticker: string) => string | null }[] = [
+  // Hamilton ETFs - HMAX, HYLD, HDIV, HCAL, etc.
+  { 
+    pattern: /^(HMAX|HYLD|HDIV|HCAL|QMAX|SMAX|EMAX|UMAX)\.TO$/i,
+    provider: 'Hamilton ETFs',
+    productPage: (t) => `https://hamiltonetfs.com/etf/${t.replace('.TO', '').toLowerCase()}/`,
+    fundFacts: (t) => `https://hamiltonetfs.com/etf/${t.replace('.TO', '').toLowerCase()}/`
+  },
+  // Harvest Portfolios - Enhanced High Income Shares (ends with E or Y)
+  { 
+    pattern: /^(TSLY|NVHE|MSHE|APLE|METE|GOGY|NFLY|AMHE|COSY|AVGY|LLHE|PLTE|SOFY|AEME|AMDY|CCOE|CNQE|CNYE|ENBE|HODY|RDDY|SHPE|SUHE|TDHE|CRCY)\.TO$/i,
+    provider: 'Harvest Portfolios',
+    productPage: (t) => `https://harvestportfolios.com/etf/${t.replace('.TO', '').toLowerCase()}/`,
+    fundFacts: (t) => `https://harvestportfolios.com/wp-content/uploads/hhis/pdf/fund-facts/en/${t.replace('.TO', '').toLowerCase()}_ff.pdf`
+  },
+  // Harvest Portfolios - Basket/Diversified ETFs  
+  { 
+    pattern: /^(HDIF|HHIC|HHIS|HHLE|HUTE)\.TO$/i,
+    provider: 'Harvest Portfolios',
+    productPage: (t) => `https://harvestportfolios.com/etf/${t.replace('.TO', '').toLowerCase()}/`,
+    fundFacts: (t) => `https://harvestportfolios.com/wp-content/uploads/hhis/pdf/fund-facts/en/${t.replace('.TO', '').toLowerCase()}_ff.pdf`
+  },
+  // Global X Canada - Enhanced/Covered Call ETFs (ends with CL or CC)
+  { 
+    pattern: /^(QQCL|USCL|CNCL|ENCL|ENCC|QQCC|BKCC|BKCL)\.TO$/i,
+    provider: 'Global X',
+    productPage: (t) => `https://www.globalx.ca/product/${t.replace('.TO', '').toLowerCase()}`,
+    fundFacts: (t) => `https://www.globalx.ca/product/${t.replace('.TO', '').toLowerCase()}`
+  },
+  // Evolve ETFs - Enhanced Yield
+  { 
+    pattern: /^(BANK|CALL|LIFE|UTES)\.TO$/i,
+    provider: 'Evolve ETFs',
+    productPage: (t) => `https://evolveetfs.com/product/${t.replace('.TO', '').toLowerCase()}/`,
+    fundFacts: (t) => `https://evolveetfs.com/product/${t.replace('.TO', '').toLowerCase()}/`
+  },
+  // Purpose Investments - Yield Shares
+  { 
+    pattern: /^(YGOG|YTSL|DOLY|ETHY)\.TO$/i,
+    provider: 'Purpose Investments',
+    productPage: (t) => `https://www.purposeinvest.com/funds/${t.replace('.TO', '').toLowerCase()}`,
+    fundFacts: (t) => `https://www.purposeinvest.com/funds/${t.replace('.TO', '').toLowerCase()}`
+  },
+  // Savvylong - 2X Long ETFs (ends with U)
+  { 
+    pattern: /^(TSLU|NVDU|MSFU|AMZU|SHPU|CCOU|NBCU|RBCU|CNQU|COMU|CSUU|TDU|ABXU)\.TO$/i,
+    provider: 'Savvylong',
+    productPage: (t) => `https://savvylong.ca/${t.replace('.TO', '').toLowerCase()}/`,
+    fundFacts: (t) => `https://savvylong.ca/${t.replace('.TO', '').toLowerCase()}/`
+  },
+  // BetaPro/Horizons - Leveraged ETFs (ends with U)
+  { 
+    pattern: /^(BNKU|CNDU|NRGU|QQQU|QQU|SOXU|TCND|TQQQ)\.TO$/i,
+    provider: 'Horizons ETFs',
+    productPage: (t) => `https://www.horizonsetfs.com/etf/${t.replace('.TO', '')}`,
+    fundFacts: (t) => `https://www.horizonsetfs.com/etf/${t.replace('.TO', '')}`
+  },
+  // LFG/Megalong - Leveraged ETFs
+  { 
+    pattern: /^(COIU|MSTU)\.TO$/i,
+    provider: 'LFG ETFs',
+    productPage: (t) => `https://lfgetfs.com/product/${t.replace('.TO', '').toLowerCase()}/`,
+    fundFacts: (t) => `https://lfgetfs.com/product/${t.replace('.TO', '').toLowerCase()}/`
+  },
+  // Ninepoint - HighShares
+  { 
+    pattern: /^(ABHI|SHHI)\.TO$/i,
+    provider: 'Ninepoint Partners',
+    productPage: (t) => `https://www.ninepoint.com/funds/${t.replace('.TO', '').toLowerCase()}/`,
+    fundFacts: (t) => `https://www.ninepoint.com/funds/${t.replace('.TO', '').toLowerCase()}/`
+  },
+];
+
+// Identify ETF provider and get URLs
+function identifyETFProvider(ticker: string): { provider: string | null; productPage: string | null; fundFacts: string | null } {
+  const normalizedTicker = ticker.toUpperCase();
+  
+  for (const { pattern, provider, productPage, fundFacts } of ETF_PROVIDER_PATTERNS) {
+    if (pattern.test(normalizedTicker)) {
+      return {
+        provider,
+        productPage: productPage(normalizedTicker),
+        fundFacts: fundFacts(normalizedTicker)
+      };
+    }
+  }
+  
+  return { provider: null, productPage: null, fundFacts: null };
+}
+
+// Enhanced ticker lookup that fetches data from multiple sources
+async function enhancedTickerLookup(ticker: string): Promise<EnhancedTickerData> {
+  const normalizedTicker = ticker.toUpperCase();
+  const result: EnhancedTickerData = {
+    ticker: normalizedTicker,
+    name: `${normalizedTicker} (Auto-added)`,
+    price: null,
+    dividendRate: null,
+    dividendYield: null,
+    dividendPayout: 'monthly', // Default for Canadian income ETFs
+    fundFactsUrl: null,
+    provider: null
+  };
+  
+  // Identify the ETF provider
+  const providerInfo = identifyETFProvider(normalizedTicker);
+  result.provider = providerInfo.provider;
+  result.fundFactsUrl = providerInfo.fundFacts;
+  
+  try {
+    // Try Yahoo Finance first for basic data
+    const searchResponse = await fetch(
+      `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(normalizedTicker)}&quotesCount=5&newsCount=0`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      }
+    );
+    
+    if (searchResponse.ok) {
+      const searchData = await searchResponse.json();
+      if (searchData.quotes && searchData.quotes.length > 0) {
+        const exactMatch = searchData.quotes.find((q: any) => q.symbol === normalizedTicker);
+        const searchQuote = exactMatch || searchData.quotes[0];
+        
+        if (searchQuote.shortname || searchQuote.longname) {
+          result.name = searchQuote.shortname || searchQuote.longname;
+        }
+      }
+    }
+    
+    // Get price and dividend data from chart API
+    const chartResponse = await fetch(
+      `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(normalizedTicker)}?interval=1d&range=1d`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      }
+    );
+    
+    if (chartResponse.ok) {
+      const chartData = await chartResponse.json();
+      const meta = chartData?.chart?.result?.[0]?.meta;
+      if (meta) {
+        result.price = meta.regularMarketPrice || null;
+      }
+    }
+    
+    // Get dividend data from quoteSummary API
+    const summaryResponse = await fetch(
+      `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(normalizedTicker)}?modules=summaryDetail`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      }
+    );
+    
+    if (summaryResponse.ok) {
+      const summaryData = await summaryResponse.json();
+      const detail = summaryData?.quoteSummary?.result?.[0]?.summaryDetail;
+      if (detail) {
+        // Get dividend yield and rate
+        if (detail.dividendYield?.raw) {
+          result.dividendYield = detail.dividendYield.raw * 100; // Convert to percentage
+        }
+        if (detail.dividendRate?.raw) {
+          result.dividendRate = detail.dividendRate.raw;
+        }
+        
+        // Try to determine payout frequency from ex-dividend date frequency
+        // Most Canadian income ETFs pay monthly
+        if (detail.exDividendDate) {
+          result.dividendPayout = 'monthly';
+        }
+      }
+    }
+    
+    console.log(`[Enhanced Lookup] ${normalizedTicker}: Provider=${result.provider}, Price=${result.price}, Yield=${result.dividendYield}%, FundFacts=${result.fundFactsUrl}`);
+    
+  } catch (error) {
+    console.error(`[Enhanced Lookup] Error looking up ${normalizedTicker}:`, error);
+  }
+  
+  return result;
+}
+
 // Helper function to compute diff between old and new account values for audit logging
 function computeAccountDiff(oldAccount: Record<string, any>, newData: Record<string, any>): Record<string, { old: any; new: any }> | null {
   const changes: Record<string, { old: any; new: any }> = {};
@@ -2252,17 +2456,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         jointAccountId: null
       });
       
-      // Auto-add ticker to Universal Holdings if it doesn't exist
+      // Auto-add ticker to Universal Holdings if it doesn't exist (with enhanced lookup)
       const ticker = parsed.symbol.toUpperCase();
       const existingHolding = await storage.getUniversalHoldingByTicker(ticker);
       if (!existingHolding) {
+        const lookupData = await enhancedTickerLookup(ticker);
         await storage.createUniversalHolding({
           ticker: ticker,
           category: 'auto_added',
-          name: ticker,
+          name: lookupData.name || ticker,
           riskLevel: 'medium',
-          dividendRate: '0',
-          price: parsed.currentPrice || '0'
+          dividendRate: lookupData.dividendRate?.toString() || '0',
+          dividendYield: lookupData.dividendYield?.toString() || '0',
+          dividendPayout: lookupData.dividendPayout || 'monthly',
+          price: lookupData.price?.toString() || parsed.currentPrice || '0',
+          fundFactsUrl: lookupData.fundFactsUrl || '',
+          description: lookupData.provider ? `${lookupData.provider} ETF. Auto-added from position.` : 'Auto-added from position.',
         });
       }
       
@@ -2301,19 +2510,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      // Auto-add ticker to Universal Holdings if it doesn't exist
+      // Auto-add ticker to Universal Holdings if it doesn't exist (with enhanced lookup)
       const ticker = parsed.symbol.toUpperCase();
       const existingHolding = await storage.getUniversalHoldingByTicker(ticker);
       if (!existingHolding) {
+        const lookupData = await enhancedTickerLookup(ticker);
         await storage.createUniversalHolding({
           ticker: ticker,
-          name: `${ticker} (Auto-added)`,
+          name: lookupData.name || `${ticker} (Auto-added)`,
           category: "auto_added",
           riskLevel: "medium",
-          dividendRate: "0",
-          dividendPayout: "none",
-          price: parsed.currentPrice?.toString() || "0",
-          description: "Automatically added from position. Please update details.",
+          dividendRate: lookupData.dividendRate?.toString() || "0",
+          dividendYield: lookupData.dividendYield?.toString() || "0",
+          dividendPayout: lookupData.dividendPayout || "monthly",
+          price: lookupData.price?.toString() || parsed.currentPrice?.toString() || "0",
+          fundFactsUrl: lookupData.fundFactsUrl || "",
+          description: lookupData.provider ? `${lookupData.provider} ETF. Auto-added from position.` : "Auto-added from position.",
         });
       }
       
@@ -2536,19 +2748,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
             throw new Error(`Missing required fields for row ${i + 1}`);
           }
           
-          // Auto-add ticker to Universal Holdings if it doesn't exist
+          // Auto-add ticker to Universal Holdings if it doesn't exist (with enhanced lookup)
           const ticker = positionData.symbol.toUpperCase();
           const existingHolding = await storage.getUniversalHoldingByTicker(ticker);
           if (!existingHolding) {
+            const lookupData = await enhancedTickerLookup(ticker);
             await storage.createUniversalHolding({
               ticker: ticker,
-              name: `${ticker} (Auto-added)`,
+              name: lookupData.name || `${ticker} (Auto-added)`,
               category: "auto_added",
               riskLevel: "medium",
-              dividendRate: "0",
-              dividendPayout: "none",
-              price: positionData.currentPrice?.toString() || "0",
-              description: "Automatically added from position. Please update details.",
+              dividendRate: lookupData.dividendRate?.toString() || "0",
+              dividendYield: lookupData.dividendYield?.toString() || "0",
+              dividendPayout: lookupData.dividendPayout || "monthly",
+              price: lookupData.price?.toString() || positionData.currentPrice?.toString() || "0",
+              fundFactsUrl: lookupData.fundFactsUrl || "",
+              description: lookupData.provider ? `${lookupData.provider} ETF. Auto-added from bulk upload.` : "Auto-added from bulk upload.",
             });
           }
           
@@ -2583,19 +2798,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const posValue = Number(pos.quantity) * Number(pos.currentPrice);
               const targetPercentage = (posValue / totalValue) * 100;
               
-              // Get or create universal holding
+              // Get or create universal holding (with enhanced lookup)
               const ticker = pos.symbol.toUpperCase();
               let holding = await storage.getUniversalHoldingByTicker(ticker);
               if (!holding) {
+                const lookupData = await enhancedTickerLookup(ticker);
                 holding = await storage.createUniversalHolding({
                   ticker: ticker,
-                  name: `${ticker} (Auto-added)`,
+                  name: lookupData.name || `${ticker} (Auto-added)`,
                   category: "auto_added",
                   riskLevel: "medium",
-                  dividendRate: "0",
-                  dividendPayout: "none",
-                  price: pos.currentPrice?.toString() || "0",
-                  description: "Automatically added from position. Please update details.",
+                  dividendRate: lookupData.dividendRate?.toString() || "0",
+                  dividendYield: lookupData.dividendYield?.toString() || "0",
+                  dividendPayout: lookupData.dividendPayout || "monthly",
+                  price: lookupData.price?.toString() || pos.currentPrice?.toString() || "0",
+                  fundFactsUrl: lookupData.fundFactsUrl || "",
+                  description: lookupData.provider ? `${lookupData.provider} ETF. Auto-added from bulk upload.` : "Auto-added from bulk upload.",
                 });
               }
               
@@ -3046,17 +3264,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let holding = await storage.getUniversalHoldingByTicker(ticker.toUpperCase());
       let wasAutoAdded = false;
       
-      // If ticker doesn't exist and we're setting a non-zero target, auto-add to Universal Holdings
+      // If ticker doesn't exist and we're setting a non-zero target, auto-add to Universal Holdings (with enhanced lookup)
       if (!holding && targetPct > 0) {
+        const lookupData = await enhancedTickerLookup(ticker.toUpperCase());
         holding = await storage.createUniversalHolding({
           ticker: ticker.toUpperCase(),
-          name: `${ticker.toUpperCase()} (Auto-added)`,
+          name: lookupData.name || `${ticker.toUpperCase()} (Auto-added)`,
           category: "auto_added",
           riskLevel: "medium",
-          dividendRate: "0",
-          dividendPayout: "none",
-          price: "0",
-          description: "Automatically added from holdings table. Please update details.",
+          dividendRate: lookupData.dividendRate?.toString() || "0",
+          dividendYield: lookupData.dividendYield?.toString() || "0",
+          dividendPayout: lookupData.dividendPayout || "monthly",
+          price: lookupData.price?.toString() || "0",
+          fundFactsUrl: lookupData.fundFactsUrl || "",
+          description: lookupData.provider ? `${lookupData.provider} ETF. Auto-added from holdings table.` : "Auto-added from holdings table.",
         });
         wasAutoAdded = true;
       }
