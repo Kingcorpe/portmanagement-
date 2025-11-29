@@ -133,15 +133,13 @@ function calculateRifMinimumWithdrawal(
   const spouseAge = spouseDateOfBirth ? getAge(spouseDateOfBirth) : null;
   const calculationAge = spouseAge !== null ? Math.min(ownerAge, spouseAge) : ownerAge;
   
-  if (calculationAge < 71) return null;
-  
   let rate: number;
   if (calculationAge >= 95) {
     rate = 20;
-  } else if (RIF_MINIMUM_RATES[calculationAge]) {
+  } else if (calculationAge >= 71 && RIF_MINIMUM_RATES[calculationAge]) {
     rate = RIF_MINIMUM_RATES[calculationAge];
   } else {
-    rate = 1 / (90 - calculationAge) * 100;
+    rate = (1 / (90 - calculationAge)) * 100;
   }
   
   const amount = portfolioValue * (rate / 100);
