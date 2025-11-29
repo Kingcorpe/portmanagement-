@@ -247,7 +247,7 @@ export default function KeyMetrics() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card data-testid="card-account-breakdown" className="glow-border corner-accents overflow-visible">
+        <Card data-testid="card-account-breakdown" className="glow-border corner-accents">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-primary/10">
@@ -307,7 +307,7 @@ export default function KeyMetrics() {
         </Card>
 
         <Link href="/tasks">
-          <Card data-testid="card-tasks-overview" className="glow-border corner-accents overflow-visible hover-elevate cursor-pointer transition-all duration-300">
+          <Card data-testid="card-tasks-overview" className="glow-border corner-accents hover-elevate cursor-pointer transition-all duration-300">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-amber-500/10">
@@ -363,7 +363,7 @@ export default function KeyMetrics() {
           </Card>
         </Link>
 
-        <Card data-testid="card-alerts-overview" className="glow-border corner-accents overflow-visible">
+        <Card data-testid="card-alerts-overview" className="glow-border corner-accents">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-orange-500/10">
@@ -426,7 +426,7 @@ export default function KeyMetrics() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card data-testid="card-aum-distribution" className="glow-border corner-accents overflow-visible holo-card">
+        <Card data-testid="card-aum-distribution" className="glow-border corner-accents holo-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-purple-500/10">
@@ -483,7 +483,7 @@ export default function KeyMetrics() {
           </CardContent>
         </Card>
 
-        <Card data-testid="card-quick-stats" className="glow-border corner-accents overflow-visible holo-card">
+        <Card data-testid="card-quick-stats" className="glow-border corner-accents holo-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-chart-2/10">

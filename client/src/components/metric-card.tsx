@@ -32,7 +32,7 @@ export function MetricCard({ title, value, change, icon: Icon, testId, href, var
   const cardContent = (
     <Card 
       data-testid={testId} 
-      className={`${variantStyles[variant]} corner-accents holo-card overflow-visible ${href ? "hover-elevate cursor-pointer transition-all duration-300" : ""}`}
+      className={`${variantStyles[variant]} corner-accents holo-card ${href ? "hover-elevate cursor-pointer transition-all duration-300" : ""}`}
     >
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
         <div className="text-sm font-medium text-muted-foreground uppercase tracking-wider">{title}</div>
