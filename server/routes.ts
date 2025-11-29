@@ -4191,6 +4191,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Fetch dividend info from a fund company URL
+  app.post('/api/universal-holdings/fetch-dividend-from-url', isAuthenticated, async (req, res) => {
+    try {
+      const { url, ticker } = req.body;
+      
+      if (!url || typeof url !== 'string') {
+        return res.status(400).json({ message: "URL is required" });
+      }
+
+      console.log(`[Dividend Fetch] Fetching dividend info from URL: ${url} for ticker: ${ticker}`);
+
+      // Fetch the page content
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        }
+      });
+
+      if (!response.ok) {
+        return res.status(400).json({ message: `Failed to fetch URL: ${response.status} ${response.statusText}` });
+      }
+
+      const html = await response.text();
+      
+      // Parse dividend information based on the URL domain
+      let monthlyDividend: number | null = null;
+      let annualDividend: number | null = null;
+      let parsedFrom: string = 'unknown';
+      
+      const urlLower = url.toLowerCase();
+      
+      // Hamilton ETFs (hamiltonetfs.com)
+      if (urlLower.includes('hamiltonetfs.com')) {
+        parsedFrom = 'Hamilton ETFs';
+        // Look for distribution/dividend patterns
+        // Pattern: "$X.XXXX" or "X.XXXX per unit"
+        const monthlyMatch = html.match(/(?:monthly\s+)?(?:distribution|dividend)[^$]*\$?\s*(\d+\.?\d*)/i) ||
+                            html.match(/\$(\d+\.\d{2,4})\s*(?:per\s+unit|\/unit|monthly)/i);
+        if (monthlyMatch) {
+          monthlyDividend = parseFloat(monthlyMatch[1]);
+        }
+      }
+      
+      // Harvest ETFs (harvestportfolios.com)
+      else if (urlLower.includes('harvestportfolios.com') || urlLower.includes('harvest')) {
+        parsedFrom = 'Harvest ETFs';
+        // Look for distribution amount
+        const monthlyMatch = html.match(/(?:distribution|cash\s+distribution)[^$]*\$?\s*(\d+\.?\d*)/i) ||
+                            html.match(/\$(\d+\.\d{2,4})\s*(?:per\s+unit|monthly)/i);
+        if (monthlyMatch) {
+          monthlyDividend = parseFloat(monthlyMatch[1]);
+        }
+      }
+      
+      // Global X (globalx.ca)
+      else if (urlLower.includes('globalx.ca') || urlLower.includes('global-x')) {
+        parsedFrom = 'Global X';
+        const monthlyMatch = html.match(/(?:distribution|dividend)[^$]*\$?\s*(\d+\.?\d*)/i) ||
+                            html.match(/monthly[^$]*\$(\d+\.\d{2,4})/i);
+        if (monthlyMatch) {
+          monthlyDividend = parseFloat(monthlyMatch[1]);
+        }
+      }
+      
+      // Evolve ETFs (evolveetfs.com)
+      else if (urlLower.includes('evolveetfs.com') || urlLower.includes('evolve')) {
+        parsedFrom = 'Evolve ETFs';
+        const monthlyMatch = html.match(/(?:distribution|dividend)[^$]*\$?\s*(\d+\.?\d*)/i);
+        if (monthlyMatch) {
+          monthlyDividend = parseFloat(monthlyMatch[1]);
+        }
+      }
+      
+      // Purpose Investments (purposeinvest.com)
+      else if (urlLower.includes('purposeinvest.com') || urlLower.includes('purpose')) {
+        parsedFrom = 'Purpose Investments';
+        const monthlyMatch = html.match(/(?:distribution|dividend)[^$]*\$?\s*(\d+\.?\d*)/i);
+        if (monthlyMatch) {
+          monthlyDividend = parseFloat(monthlyMatch[1]);
+        }
+      }
+      
+      // Generic fallback - try to find any dollar amount near dividend/distribution keywords
+      if (monthlyDividend === null) {
+        parsedFrom = 'Generic Parser';
+        // Try multiple patterns
+        const patterns = [
+          /distribution\s*(?:per\s*unit)?[:\s]*\$?(\d+\.\d{2,4})/i,
+          /dividend\s*(?:per\s*unit)?[:\s]*\$?(\d+\.\d{2,4})/i,
+          /monthly\s*(?:distribution|dividend|amount)[:\s]*\$?(\d+\.\d{2,4})/i,
+          /\$(\d+\.\d{4})\s*(?:per\s*unit|monthly|distribution)/i,
+          /(?:current|latest)\s*distribution[:\s]*\$?(\d+\.\d{2,4})/i,
+        ];
+        
+        for (const pattern of patterns) {
+          const match = html.match(pattern);
+          if (match) {
+            monthlyDividend = parseFloat(match[1]);
+            break;
+          }
+        }
+      }
+      
+      // Calculate annual if we found monthly
+      if (monthlyDividend !== null && monthlyDividend > 0) {
+        annualDividend = monthlyDividend * 12;
+      }
+      
+      // Return what we found
+      res.json({
+        success: monthlyDividend !== null,
+        monthlyDividend,
+        annualDividend,
+        parsedFrom,
+        message: monthlyDividend !== null 
+          ? `Found monthly dividend of $${monthlyDividend.toFixed(4)} from ${parsedFrom}`
+          : `Could not parse dividend info from ${parsedFrom}. You may need to enter manually.`
+      });
+      
+    } catch (error: any) {
+      console.error("Error fetching dividend from URL:", error);
+      res.status(500).json({ message: "Failed to fetch dividend info", error: error.message });
+    }
+  });
+
   app.get('/api/universal-holdings/:id', isAuthenticated, async (req, res) => {
     try {
       const holding = await storage.getUniversalHolding(req.params.id);
