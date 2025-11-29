@@ -223,7 +223,7 @@ function SortablePlannedPortfolioCard({
   return (
     <div ref={setNodeRef} style={style}>
       <Collapsible open={isOpen} onOpenChange={onToggle}>
-        <Card data-testid={`card-planned-portfolio-${portfolio.id}`}>
+        <Card data-testid={`card-planned-portfolio-${portfolio.id}`} className="glow-border corner-accents">
           <CardHeader className="flex flex-row items-start justify-between gap-2 pb-3">
             <div className="flex items-center gap-3">
               <button
@@ -1372,10 +1372,10 @@ export default function ModelPortfolios() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 cyber-grid min-h-full">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Model Portfolios</h1>
+          <h1 className="text-3xl font-bold gradient-text" data-testid="text-page-title">Model Portfolios</h1>
           <p className="text-sm text-muted-foreground">Manage holdings and portfolio templates</p>
         </div>
       </div>
@@ -1686,7 +1686,7 @@ export default function ModelPortfolios() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
           ) : filteredHoldings.length === 0 ? (
-            <Card>
+            <Card className="glow-border corner-accents">
               <CardContent className="py-8 text-center text-muted-foreground">
                 {searchQuery ? "No holdings match your search" : "No universal holdings yet. Add your first holding to get started."}
               </CardContent>
@@ -1887,7 +1887,7 @@ export default function ModelPortfolios() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
           ) : filteredPlannedPortfolios.length === 0 ? (
-            <Card>
+            <Card className="glow-border corner-accents">
               <CardContent className="py-8 text-center text-muted-foreground">
                 {searchQuery ? "No portfolios match your search" : "No planned portfolios yet. Create your first portfolio template."}
               </CardContent>
@@ -2043,7 +2043,7 @@ export default function ModelPortfolios() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
           ) : filteredFreelancePortfolios.length === 0 ? (
-            <Card>
+            <Card className="glow-border corner-accents">
               <CardContent className="py-8 text-center text-muted-foreground">
                 {searchQuery ? "No portfolios match your search" : "No freelance portfolios yet. Create your first custom portfolio."}
               </CardContent>
