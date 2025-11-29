@@ -240,9 +240,9 @@ export default function Alerts() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 cyber-grid min-h-full">
       <div>
-        <h1 className="text-3xl font-bold" data-testid="text-alerts-title">TradingView Alerts</h1>
+        <h1 className="text-3xl font-bold gradient-text" data-testid="text-alerts-title">TradingView Alerts</h1>
         <p className="text-muted-foreground">Manage incoming trading signals</p>
       </div>
 
@@ -378,7 +378,7 @@ export default function Alerts() {
                         open={expandedSections[category]} 
                         onOpenChange={() => toggleSection(category)}
                       >
-                        <Card>
+                        <Card className="glow-border corner-accents">
                           <CollapsibleTrigger asChild>
                             <CardHeader className="cursor-pointer hover-elevate py-3">
                               <div className="flex items-center justify-between">
@@ -419,9 +419,11 @@ export default function Alerts() {
 
         <TabsContent value="executed" className="space-y-4 mt-6">
           {executedAlerts.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8" data-testid="text-no-executed-alerts">
-              No executed alerts
-            </p>
+            <Card className="glow-border corner-accents">
+              <CardContent className="py-8 text-center text-muted-foreground" data-testid="text-no-executed-alerts">
+                No executed alerts
+              </CardContent>
+            </Card>
           ) : (
             executedAlerts.map(alert => (
               <AlertCard
@@ -434,9 +436,11 @@ export default function Alerts() {
 
         <TabsContent value="dismissed" className="space-y-4 mt-6">
           {dismissedAlerts.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8" data-testid="text-no-dismissed-alerts">
-              No dismissed alerts
-            </p>
+            <Card className="glow-border corner-accents">
+              <CardContent className="py-8 text-center text-muted-foreground" data-testid="text-no-dismissed-alerts">
+                No dismissed alerts
+              </CardContent>
+            </Card>
           ) : (
             dismissedAlerts.map(alert => (
               <AlertCard
