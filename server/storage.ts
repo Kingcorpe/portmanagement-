@@ -22,6 +22,7 @@ import {
   libraryDocuments,
   accountTasks,
   accountAuditLog,
+  insuranceRevenue,
   type User,
   type UpsertUser,
   type Household,
@@ -71,6 +72,9 @@ import {
   type InsertAccountTask,
   type AccountAuditLog,
   type InsertAccountAuditLog,
+  type InsuranceRevenue,
+  type InsertInsuranceRevenue,
+  type UpdateInsuranceRevenue,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, inArray, ilike, or, and, sql, isNull, isNotNull } from "drizzle-orm";
@@ -1795,6 +1799,39 @@ export class DatabaseStorage implements IStorage {
       .where(eq(accountAuditLog.jointAccountId, accountId))
       .orderBy(desc(accountAuditLog.createdAt))
       .limit(limit);
+  }
+
+  // Insurance revenue operations
+  async createInsuranceRevenue(data: InsertInsuranceRevenue): Promise<InsuranceRevenue> {
+    const [entry] = await db.insert(insuranceRevenue).values(data).returning();
+    return entry;
+  }
+
+  async getInsuranceRevenueByUser(userId: string): Promise<InsuranceRevenue[]> {
+    return await db.select()
+      .from(insuranceRevenue)
+      .where(eq(insuranceRevenue.userId, userId))
+      .orderBy(desc(insuranceRevenue.date));
+  }
+
+  async getInsuranceRevenueById(id: string): Promise<InsuranceRevenue | undefined> {
+    const [entry] = await db.select()
+      .from(insuranceRevenue)
+      .where(eq(insuranceRevenue.id, id));
+    return entry;
+  }
+
+  async updateInsuranceRevenue(id: string, data: UpdateInsuranceRevenue): Promise<InsuranceRevenue> {
+    const [entry] = await db
+      .update(insuranceRevenue)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(insuranceRevenue.id, id))
+      .returning();
+    return entry;
+  }
+
+  async deleteInsuranceRevenue(id: string): Promise<void> {
+    await db.delete(insuranceRevenue).where(eq(insuranceRevenue.id, id));
   }
 }
 
