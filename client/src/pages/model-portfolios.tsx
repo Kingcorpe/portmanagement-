@@ -1742,7 +1742,7 @@ export default function ModelPortfolios() {
                                 <TableHead>Payout</TableHead>
                                 <TableHead>Ex-Date</TableHead>
                                 <SortableHeader column="riskLevel">Risk</SortableHeader>
-                                {category === "basket_etf" && <TableHead>Fund Facts</TableHead>}
+                                <TableHead>Fund Facts</TableHead>
                                 <TableHead className="w-[100px]"></TableHead>
                               </TableRow>
                             </TableHeader>
@@ -1790,24 +1790,22 @@ export default function ModelPortfolios() {
                                       {riskLevelLabels[holding.riskLevel]}
                                     </Badge>
                                   </TableCell>
-                                  {category === "basket_etf" && (
-                                    <TableCell>
-                                      {holding.fundFactsUrl ? (
-                                        <a 
-                                          href={holding.fundFactsUrl} 
-                                          target="_blank" 
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 text-primary hover:underline"
-                                          data-testid={`link-fund-facts-${holding.id}`}
-                                        >
-                                          <FileText className="h-4 w-4" />
-                                          <span className="text-sm">View</span>
-                                        </a>
-                                      ) : (
-                                        <span className="text-muted-foreground text-sm">-</span>
-                                      )}
-                                    </TableCell>
-                                  )}
+                                  <TableCell>
+                                    {holding.fundFactsUrl ? (
+                                      <a 
+                                        href={holding.fundFactsUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-primary hover:underline"
+                                        data-testid={`link-fund-facts-${holding.id}`}
+                                      >
+                                        <FileText className="h-4 w-4" />
+                                        <span className="text-sm">View</span>
+                                      </a>
+                                    ) : (
+                                      <span className="text-muted-foreground text-sm">-</span>
+                                    )}
+                                  </TableCell>
                                   <TableCell>
                                     <div className="flex items-center gap-1">
                                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditHolding(holding)} data-testid={`button-edit-holding-${holding.id}`}>
