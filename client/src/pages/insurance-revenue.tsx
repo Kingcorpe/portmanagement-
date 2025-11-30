@@ -46,6 +46,7 @@ import { Plus, Pencil, Trash2, DollarSign, TrendingUp, FileText } from "lucide-r
 import type { InsuranceRevenue } from "@shared/schema";
 
 const POLICY_TYPES = [
+  "T10",
   "Life Insurance",
   "Health Insurance",
   "Disability Insurance",
@@ -256,6 +257,11 @@ export default function InsuranceRevenuePage() {
     }).format(num || 0);
   };
 
+  const getT10Commission = () => {
+    const monthlyPremium = parseFloat(formData.premium) || 0;
+    return monthlyPremium * 12 * 2.85;
+  };
+
   const totalCommission = entries.reduce(
     (sum, e) => sum + (e.status === "received" ? parseFloat(e.commissionAmount) : 0),
     0
@@ -394,6 +400,26 @@ export default function InsuranceRevenuePage() {
                   data-testid="input-policy-number"
                 />
               </div>
+
+              {formData.policyType === "T10" && (
+                <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-md space-y-3 border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">T10 Commission Calculation</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Monthly Premium</p>
+                      <p className="text-sm font-semibold">{formatCurrency(formData.premium || 0)}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Annual Premium (×12)</p>
+                      <p className="text-sm font-semibold">{formatCurrency((parseFloat(formData.premium) || 0) * 12)}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Total Commission (×2.85)</p>
+                      <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{formatCurrency((parseFloat(formData.premium) || 0) * 12 * 2.85)}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
