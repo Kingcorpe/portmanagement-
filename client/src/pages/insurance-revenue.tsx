@@ -286,6 +286,59 @@ export default function InsuranceRevenuePage() {
     0
   );
 
+  // Get monthly revenue breakdown
+  const getMonthlyRevenue = () => {
+    const monthlyData: { [key: string]: { received: number; pending: number; planned: number } } = {};
+    
+    entries.forEach((entry) => {
+      const [year, month] = entry.date.split("-");
+      const monthKey = `${year}-${month}`;
+      
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = { received: 0, pending: 0, planned: 0 };
+      }
+      
+      const commission = parseFloat(entry.commissionAmount);
+      if (entry.status === "received") {
+        monthlyData[monthKey].received += commission;
+      } else if (entry.status === "pending") {
+        monthlyData[monthKey].pending += commission;
+      } else if (entry.status === "planned") {
+        monthlyData[monthKey].planned += commission;
+      }
+    });
+    
+    return Object.entries(monthlyData)
+      .sort()
+      .reverse()
+      .map(([month, data]) => ({ month, ...data }));
+  };
+
+  const monthlyRevenue = getMonthlyRevenue();
+  
+  // Get year-to-date total
+  const currentYear = new Date().getFullYear().toString();
+  const ytdReceived = entries.reduce((sum, e) => {
+    if (e.status === "received" && e.date.startsWith(currentYear)) {
+      return sum + parseFloat(e.commissionAmount);
+    }
+    return sum;
+  }, 0);
+  
+  const ytdPending = entries.reduce((sum, e) => {
+    if (e.status === "pending" && e.date.startsWith(currentYear)) {
+      return sum + parseFloat(e.commissionAmount);
+    }
+    return sum;
+  }, 0);
+  
+  const ytdPlanned = entries.reduce((sum, e) => {
+    if (e.status === "planned" && e.date.startsWith(currentYear)) {
+      return sum + parseFloat(e.commissionAmount);
+    }
+    return sum;
+  }, 0);
+
   if (authLoading || isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -609,6 +662,93 @@ export default function InsuranceRevenuePage() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Monthly Revenue Breakdown */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-bold mb-3">Year-to-Date Summary ({currentYear})</h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className="glow-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">YTD Received</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600" data-testid="text-ytd-received">
+                  {formatCurrency(ytdReceived)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="glow-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">YTD Pending</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600" data-testid="text-ytd-pending">
+                  {formatCurrency(ytdPending)}
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="glow-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">YTD Planned</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600" data-testid="text-ytd-planned">
+                  {formatCurrency(ytdPlanned)}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {monthlyRevenue.length > 0 && (
+          <Card data-testid="card-monthly-breakdown">
+            <CardHeader>
+              <CardTitle>Monthly Revenue Breakdown</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Month</TableHead>
+                      <TableHead className="text-right">Received</TableHead>
+                      <TableHead className="text-right">Pending</TableHead>
+                      <TableHead className="text-right">Planned</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {monthlyRevenue.map((monthData) => {
+                      const total = monthData.received + monthData.pending + monthData.planned;
+                      const [year, month] = monthData.month.split("-");
+                      const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString("en-CA", { month: "long", year: "numeric" });
+                      
+                      return (
+                        <TableRow key={monthData.month} data-testid={`row-month-${monthData.month}`}>
+                          <TableCell className="font-medium">{monthName}</TableCell>
+                          <TableCell className="text-right text-green-600 font-semibold">
+                            {formatCurrency(monthData.received)}
+                          </TableCell>
+                          <TableCell className="text-right text-yellow-600 font-semibold">
+                            {formatCurrency(monthData.pending)}
+                          </TableCell>
+                          <TableCell className="text-right text-blue-600 font-semibold">
+                            {formatCurrency(monthData.planned)}
+                          </TableCell>
+                          <TableCell className="text-right font-bold">
+                            {formatCurrency(total)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Revenue Table */}
