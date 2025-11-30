@@ -42,7 +42,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, DollarSign, TrendingUp, FileText } from "lucide-react";
+import { Plus, Pencil, Trash2, DollarSign, TrendingUp, FileText, Target, Calendar, Settings2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import type { InsuranceRevenue } from "@shared/schema";
 
 const POLICY_TYPES = [
@@ -101,6 +102,35 @@ export default function InsuranceRevenuePage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [goalsDialogOpen, setGoalsDialogOpen] = useState(false);
+  const [monthlyGoal, setMonthlyGoal] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('insuranceMonthlyGoal') || '';
+    }
+    return '';
+  });
+  const [yearlyGoal, setYearlyGoal] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('insuranceYearlyGoal') || '';
+    }
+    return '';
+  });
+
+  useEffect(() => {
+    if (monthlyGoal) {
+      localStorage.setItem('insuranceMonthlyGoal', monthlyGoal);
+    } else {
+      localStorage.removeItem('insuranceMonthlyGoal');
+    }
+  }, [monthlyGoal]);
+
+  useEffect(() => {
+    if (yearlyGoal) {
+      localStorage.setItem('insuranceYearlyGoal', yearlyGoal);
+    } else {
+      localStorage.removeItem('insuranceYearlyGoal');
+    }
+  }, [yearlyGoal]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -335,6 +365,122 @@ export default function InsuranceRevenuePage() {
     }
     return sum;
   }, 0);
+
+  // Business day calculation helpers - normalize dates to midnight to avoid time-of-day issues
+  const normalizeDate = (date: Date): Date => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const getBusinessDaysInMonth = (year: number, month: number): number => {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    let count = 0;
+    for (let d = normalizeDate(firstDay); d <= normalizeDate(lastDay); d.setDate(d.getDate() + 1)) {
+      const day = d.getDay();
+      if (day !== 0 && day !== 6) count++;
+    }
+    return count;
+  };
+
+  const getBusinessDaysRemaining = (): number => {
+    const today = normalizeDate(new Date());
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const lastDay = normalizeDate(new Date(year, month + 1, 0));
+    let count = 0;
+    for (let d = new Date(today); d <= lastDay; d.setDate(d.getDate() + 1)) {
+      const day = d.getDay();
+      if (day !== 0 && day !== 6) count++;
+    }
+    return count;
+  };
+
+  const getBusinessDaysElapsed = (): number => {
+    const today = normalizeDate(new Date());
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const firstDay = normalizeDate(new Date(year, month, 1));
+    let count = 0;
+    for (let d = new Date(firstDay); d < today; d.setDate(d.getDate() + 1)) {
+      const day = d.getDay();
+      if (day !== 0 && day !== 6) count++;
+    }
+    return count;
+  };
+
+  const getBusinessDaysInYear = (): number => {
+    const year = new Date().getFullYear();
+    let count = 0;
+    for (let month = 0; month < 12; month++) {
+      count += getBusinessDaysInMonth(year, month);
+    }
+    return count;
+  };
+
+  const getBusinessDaysElapsedInYear = (): number => {
+    const today = normalizeDate(new Date());
+    const year = today.getFullYear();
+    const firstDay = normalizeDate(new Date(year, 0, 1));
+    let count = 0;
+    for (let d = new Date(firstDay); d < today; d.setDate(d.getDate() + 1)) {
+      const day = d.getDay();
+      if (day !== 0 && day !== 6) count++;
+    }
+    return count;
+  };
+
+  const getBusinessDaysRemainingInYear = (): number => {
+    const today = normalizeDate(new Date());
+    const year = today.getFullYear();
+    const lastDay = normalizeDate(new Date(year, 11, 31));
+    let count = 0;
+    for (let d = new Date(today); d <= lastDay; d.setDate(d.getDate() + 1)) {
+      const day = d.getDay();
+      if (day !== 0 && day !== 6) count++;
+    }
+    return count;
+  };
+
+  // Current month calculations
+  const now = new Date();
+  const currentMonth = now.toLocaleDateString("en-CA", { month: "long", year: "numeric" });
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  
+  const currentMonthReceived = entries.reduce((sum, e) => {
+    if (e.status === "received" && e.date.startsWith(currentMonthKey)) {
+      return sum + parseFloat(e.commissionAmount);
+    }
+    return sum;
+  }, 0);
+
+  const currentMonthPending = entries.reduce((sum, e) => {
+    if (e.status === "pending" && e.date.startsWith(currentMonthKey)) {
+      return sum + parseFloat(e.commissionAmount);
+    }
+    return sum;
+  }, 0);
+
+  const businessDaysRemaining = getBusinessDaysRemaining();
+  const businessDaysTotal = getBusinessDaysInMonth(now.getFullYear(), now.getMonth());
+  const businessDaysElapsed = getBusinessDaysElapsed();
+  const yearlyBusinessDaysRemaining = getBusinessDaysRemainingInYear();
+  const yearlyBusinessDaysTotal = getBusinessDaysInYear();
+  const yearlyBusinessDaysElapsed = getBusinessDaysElapsedInYear();
+
+  // Goal progress calculations
+  const monthlyGoalNum = parseFloat(monthlyGoal) || 0;
+  const yearlyGoalNum = parseFloat(yearlyGoal) || 0;
+  
+  const monthlyProgress = monthlyGoalNum > 0 ? Math.min((currentMonthReceived / monthlyGoalNum) * 100, 100) : 0;
+  const yearlyProgress = yearlyGoalNum > 0 ? Math.min((ytdReceived / yearlyGoalNum) * 100, 100) : 0;
+  
+  const monthlyRemaining = Math.max(monthlyGoalNum - currentMonthReceived, 0);
+  const yearlyRemaining = Math.max(yearlyGoalNum - ytdReceived, 0);
+  
+  const dailyTargetMonthly = businessDaysRemaining > 0 ? monthlyRemaining / businessDaysRemaining : 0;
+  const dailyTargetYearly = yearlyBusinessDaysRemaining > 0 ? yearlyRemaining / yearlyBusinessDaysRemaining : 0;
 
   if (authLoading || isLoading) {
     return (
@@ -649,6 +795,206 @@ export default function InsuranceRevenuePage() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Goals Tracking Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <Target className="h-5 w-5 text-primary" />
+            Goals Tracking
+          </h2>
+          <Dialog open={goalsDialogOpen} onOpenChange={setGoalsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" data-testid="button-set-goals">
+                <Settings2 className="h-4 w-4 mr-2" />
+                Set Goals
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Set Revenue Goals</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="monthlyGoal">Monthly Commission Goal ($)</Label>
+                  <Input
+                    id="monthlyGoal"
+                    type="number"
+                    step="100"
+                    value={monthlyGoal}
+                    onChange={(e) => setMonthlyGoal(e.target.value)}
+                    placeholder="e.g., 10000"
+                    data-testid="input-monthly-goal"
+                  />
+                  <p className="text-xs text-muted-foreground">Target commission to earn each month</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="yearlyGoal">Yearly Commission Goal ($)</Label>
+                  <Input
+                    id="yearlyGoal"
+                    type="number"
+                    step="1000"
+                    value={yearlyGoal}
+                    onChange={(e) => setYearlyGoal(e.target.value)}
+                    placeholder="e.g., 120000"
+                    data-testid="input-yearly-goal"
+                  />
+                  <p className="text-xs text-muted-foreground">Target commission to earn this year</p>
+                </div>
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button variant="outline" onClick={() => setGoalsDialogOpen(false)}>
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Monthly Goal Card */}
+          <Card className="glow-border" data-testid="card-monthly-goal">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  {currentMonth} Goal
+                </CardTitle>
+                <Badge variant="outline" className="text-xs">
+                  {businessDaysRemaining} business days left
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {monthlyGoalNum > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Progress</span>
+                      <span className="font-medium">{monthlyProgress.toFixed(1)}%</span>
+                    </div>
+                    <Progress value={monthlyProgress} className="h-3" />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{formatCurrency(currentMonthReceived)} earned</span>
+                      <span>Goal: {formatCurrency(monthlyGoalNum)}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Remaining</p>
+                      <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
+                        {formatCurrency(monthlyRemaining)}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Per Business Day</p>
+                      <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                        {formatCurrency(dailyTargetMonthly)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground pt-2 border-t">
+                    <div className="flex justify-between">
+                      <span>Business days elapsed:</span>
+                      <span>{businessDaysElapsed} of {businessDaysTotal}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Pending this month:</span>
+                      <span className="text-yellow-600">{formatCurrency(currentMonthPending)}</span>
+                    </div>
+                  </div>
+
+                  {currentMonthReceived >= monthlyGoalNum && (
+                    <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md p-3 text-center">
+                      <p className="text-green-700 dark:text-green-300 font-medium">
+                        Monthly Goal Achieved!
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  <p>No monthly goal set</p>
+                  <p className="text-xs mt-1">Click "Set Goals" to configure</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Yearly Goal Card */}
+          <Card className="glow-border" data-testid="card-yearly-goal">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4" />
+                  {currentYear} Yearly Goal
+                </CardTitle>
+                <Badge variant="outline" className="text-xs">
+                  {yearlyBusinessDaysRemaining} business days left
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {yearlyGoalNum > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Progress</span>
+                      <span className="font-medium">{yearlyProgress.toFixed(1)}%</span>
+                    </div>
+                    <Progress value={yearlyProgress} className="h-3" />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{formatCurrency(ytdReceived)} earned</span>
+                      <span>Goal: {formatCurrency(yearlyGoalNum)}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t">
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Remaining</p>
+                      <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
+                        {formatCurrency(yearlyRemaining)}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Per Business Day</p>
+                      <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                        {formatCurrency(dailyTargetYearly)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground pt-2 border-t">
+                    <div className="flex justify-between">
+                      <span>Business days elapsed:</span>
+                      <span>{yearlyBusinessDaysElapsed} of {yearlyBusinessDaysTotal}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>YTD Pending:</span>
+                      <span className="text-yellow-600">{formatCurrency(ytdPending)}</span>
+                    </div>
+                  </div>
+
+                  {ytdReceived >= yearlyGoalNum && (
+                    <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md p-3 text-center">
+                      <p className="text-green-700 dark:text-green-300 font-medium">
+                        Yearly Goal Achieved!
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  <p>No yearly goal set</p>
+                  <p className="text-xs mt-1">Click "Set Goals" to configure</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Monthly Revenue Breakdown */}
