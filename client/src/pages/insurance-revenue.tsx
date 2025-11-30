@@ -62,7 +62,6 @@ const STATUS_OPTIONS = [
   { value: "planned", label: "Planned", color: "bg-blue-500" },
   { value: "pending", label: "Pending", color: "bg-yellow-500" },
   { value: "received", label: "Received", color: "bg-green-500" },
-  { value: "cancelled", label: "Cancelled", color: "bg-red-500" },
 ];
 
 interface FormData {
@@ -524,8 +523,7 @@ export default function InsuranceRevenuePage() {
               {entries.length}
             </div>
             <p className="text-xs text-muted-foreground">
-              {entries.filter((e) => e.status === "received").length} received,{" "}
-              {entries.filter((e) => e.status === "cancelled").length} cancelled
+              {entries.filter((e) => e.status === "received").length} received
             </p>
           </CardContent>
         </Card>
@@ -574,9 +572,7 @@ export default function InsuranceRevenuePage() {
                               ? "default"
                               : entry.status === "pending"
                               ? "secondary"
-                              : entry.status === "planned"
-                              ? "outline"
-                              : "destructive"
+                              : "outline"
                           }
                           className={entry.status === "planned" ? "border-blue-500 text-blue-600 dark:text-blue-400" : ""}
                         >

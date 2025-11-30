@@ -1116,7 +1116,6 @@ export const insuranceRevenueStatusEnum = pgEnum("insurance_revenue_status", [
   "planned",
   "pending",
   "received",
-  "cancelled",
 ]);
 
 // Insurance revenue table
