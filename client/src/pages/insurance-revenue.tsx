@@ -397,7 +397,7 @@ export default function InsuranceRevenuePage() {
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="premium">Premium ($)</Label>
+                  <Label htmlFor="premium">Monthly Premium ($)</Label>
                   <Input
                     id="premium"
                     type="number"
@@ -479,7 +479,7 @@ export default function InsuranceRevenuePage() {
             <div className="text-2xl font-bold text-green-600" data-testid="text-total-received">
               {formatCurrency(totalCommission)}
             </div>
-            <p className="text-xs text-muted-foreground">From {formatCurrency(totalPremium)} in premiums</p>
+            <p className="text-xs text-muted-foreground">From {formatCurrency(totalPremium)} in monthly premiums</p>
           </CardContent>
         </Card>
 
@@ -548,7 +548,7 @@ export default function InsuranceRevenuePage() {
                     <TableHead>Client</TableHead>
                     <TableHead>Policy Type</TableHead>
                     <TableHead>Carrier</TableHead>
-                    <TableHead className="text-right">Premium</TableHead>
+                    <TableHead className="text-right">Monthly Premium</TableHead>
                     <TableHead className="text-right">Commission</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
