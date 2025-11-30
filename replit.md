@@ -108,6 +108,27 @@ A dedicated page that allows searching for tickers across all accounts in the sy
   - **Clickable rows**: Click any result to drill into the account with all holdings and details
 - **Navigation**: Click "Holdings Search" in the sidebar to access
 
+### Insurance Revenue Tracking
+A dedicated page for tracking insurance commissions and revenue with specialized calculations:
+- **Policy Types**: T10, T15, T20, Layered WL, CI, Life Insurance, Health Insurance, etc.
+- **Specialized Commission Calculations**: 
+  - T10: Monthly Premium × 12 × 0.40 × 2.85
+  - T20: Monthly Premium × 12 × 0.45 × 2.85
+  - Layered WL: Monthly Premium × 12 × 0.55 × 2.85
+- **Status Workflow**: Planned → Pending → Received
+- **Goals Tracking**: Monthly and yearly commission goals with localStorage persistence
+  - Progress bars showing percentage toward goal
+  - Business days remaining in month/year
+  - Per business day target to hit goals
+  - Celebration messages when goals are achieved
+- **Revenue Summaries**: Monthly breakdowns, YTD totals by status
+
+### Reference Links
+A page for managing quick-access links to important resources:
+- **MoneyTrax Integration**: Pre-populated with MoneyTrax Members portal link featuring the Circle of Wealth logo as a clickable hyperlink
+- **Icon Support**: Links can display emoji icons or logo images
+- **CRUD Operations**: Add, edit, and delete reference links
+
 ## External Dependencies
 - **Replit Auth**: User authentication (OIDC providers, email/password).
 - **Neon (PostgreSQL)**: Cloud-hosted PostgreSQL database.
