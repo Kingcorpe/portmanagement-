@@ -47,6 +47,10 @@ import type { InsuranceRevenue } from "@shared/schema";
 
 const POLICY_TYPES = [
   "T10",
+  "T15",
+  "T20",
+  "Layered WL",
+  "CI",
   "Life Insurance",
   "Health Insurance",
   "Disability Insurance",
