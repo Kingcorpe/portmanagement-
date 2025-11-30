@@ -59,6 +59,7 @@ const POLICY_TYPES = [
 ];
 
 const STATUS_OPTIONS = [
+  { value: "planned", label: "Planned", color: "bg-blue-500" },
   { value: "pending", label: "Pending", color: "bg-yellow-500" },
   { value: "received", label: "Received", color: "bg-green-500" },
   { value: "cancelled", label: "Cancelled", color: "bg-red-500" },
@@ -266,6 +267,11 @@ export default function InsuranceRevenuePage() {
     0
   );
 
+  const plannedCommission = entries.reduce(
+    (sum, e) => sum + (e.status === "planned" ? parseFloat(e.commissionAmount) : 0),
+    0
+  );
+
   const totalPremium = entries.reduce(
     (sum, e) => sum + (e.status === "received" ? parseFloat(e.premium) : 0),
     0
@@ -464,7 +470,7 @@ export default function InsuranceRevenuePage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card className="glow-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Received</CardTitle>
@@ -495,8 +501,23 @@ export default function InsuranceRevenuePage() {
 
         <Card className="glow-border">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Entries</CardTitle>
+            <CardTitle className="text-sm font-medium">Planned</CardTitle>
             <FileText className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600" data-testid="text-planned">
+              {formatCurrency(plannedCommission)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {entries.filter((e) => e.status === "planned").length} planned entries
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="glow-border">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Entries</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-total-entries">
@@ -553,8 +574,11 @@ export default function InsuranceRevenuePage() {
                               ? "default"
                               : entry.status === "pending"
                               ? "secondary"
+                              : entry.status === "planned"
+                              ? "outline"
                               : "destructive"
                           }
+                          className={entry.status === "planned" ? "border-blue-500 text-blue-600 dark:text-blue-400" : ""}
                         >
                           {entry.status}
                         </Badge>

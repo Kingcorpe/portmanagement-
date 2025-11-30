@@ -1113,6 +1113,7 @@ export type AccountAuditLog = typeof accountAuditLog.$inferSelect;
 
 // Insurance revenue status enum
 export const insuranceRevenueStatusEnum = pgEnum("insurance_revenue_status", [
+  "planned",
   "pending",
   "received",
   "cancelled",
