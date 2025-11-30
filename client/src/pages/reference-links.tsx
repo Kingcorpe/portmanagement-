@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, ExternalLink, Pencil, Trash2, DollarSign, Globe } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import moneytraxLogoUrl from "@assets/Screenshot 2025-11-30 at 16.45.34_1764546344244.png";
 
 interface ReferenceLink {
   id: string;
@@ -14,6 +15,7 @@ interface ReferenceLink {
   url: string;
   description: string;
   icon?: string;
+  imageUrl?: string;
 }
 
 const ICON_OPTIONS = {
@@ -33,7 +35,7 @@ const INITIAL_LINKS: ReferenceLink[] = [
     title: "MoneyTrax Members",
     url: "https://members.moneytrax.com/",
     description: "Access MoneyTrax member portal for financial management",
-    icon: "moneytrax",
+    imageUrl: moneytraxLogoUrl,
   },
 ];
 
@@ -220,7 +222,16 @@ export default function ReferenceLinksPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className="text-3xl flex-shrink-0">{iconEmoji}</div>
+                    {link.imageUrl ? (
+                      <img 
+                        src={link.imageUrl} 
+                        alt={link.title}
+                        className="h-12 w-auto flex-shrink-0 object-contain"
+                        data-testid={`img-logo-${link.id}`}
+                      />
+                    ) : (
+                      <div className="text-3xl flex-shrink-0">{iconEmoji}</div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <CardTitle className="text-base truncate">{link.title}</CardTitle>
                     </div>
