@@ -74,7 +74,6 @@ interface FormData {
   clientName: string;
   policyType: string;
   carrier: string;
-  policyNumber: string;
   premium: string;
   commissionRate: string;
   commissionAmount: string;
@@ -87,7 +86,6 @@ const initialFormData: FormData = {
   clientName: "",
   policyType: "",
   carrier: "",
-  policyNumber: "",
   premium: "",
   commissionRate: "",
   commissionAmount: "",
@@ -203,7 +201,6 @@ export default function InsuranceRevenuePage() {
       clientName: entry.clientName,
       policyType: entry.policyType,
       carrier: entry.carrier || "",
-      policyNumber: entry.policyNumber || "",
       premium: entry.premium,
       commissionRate: entry.commissionRate || "",
       commissionAmount: entry.commissionAmount,
@@ -446,16 +443,6 @@ export default function InsuranceRevenuePage() {
                     data-testid="input-carrier"
                   />
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="policyNumber">Policy Number</Label>
-                <Input
-                  id="policyNumber"
-                  value={formData.policyNumber}
-                  onChange={(e) => setFormData({ ...formData, policyNumber: e.target.value })}
-                  data-testid="input-policy-number"
-                />
               </div>
 
               {formData.policyType === "T10" && (
