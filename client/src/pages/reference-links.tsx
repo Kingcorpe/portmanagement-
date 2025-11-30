@@ -223,12 +223,20 @@ export default function ReferenceLinksPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     {link.imageUrl ? (
-                      <img 
-                        src={link.imageUrl} 
-                        alt={link.title}
-                        className="h-12 w-auto flex-shrink-0 object-contain"
-                        data-testid={`img-logo-${link.id}`}
-                      />
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-shrink-0 hover:opacity-80 transition-opacity"
+                        data-testid={`link-logo-${link.id}`}
+                      >
+                        <img 
+                          src={link.imageUrl} 
+                          alt={link.title}
+                          className="h-12 w-auto object-contain"
+                          data-testid={`img-logo-${link.id}`}
+                        />
+                      </a>
                     ) : (
                       <div className="text-3xl flex-shrink-0">{iconEmoji}</div>
                     )}
