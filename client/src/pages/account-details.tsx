@@ -2118,7 +2118,7 @@ export default function AccountDetails() {
                     <ChevronRight className="h-5 w-5" />
                   )}
                   <div>
-                    <CardTitle>Holdings</CardTitle>
+                    <CardTitle>Allocation</CardTitle>
                     <CardDescription>
                       {viewMode === "real" ? "Real positions" : "Watchlist positions"} with target allocation comparison
                     </CardDescription>
@@ -3211,7 +3211,7 @@ export default function AccountDetails() {
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <Target className="h-5 w-5" />
-                      Target Allocations
+                      Target Allocation
                       {targetAllocations.length > 0 && (
                         <Badge variant="secondary" className="ml-2">
                           {targetAllocations.length}
@@ -3268,7 +3268,7 @@ export default function AccountDetails() {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Delete All Target Allocations?</DialogTitle>
+                    <DialogTitle>Delete All Target Allocation?</DialogTitle>
                     <DialogDescription>
                       This will permanently delete all {targetAllocations.length} target allocation{targetAllocations.length !== 1 ? 's' : ''} for this account. This action cannot be undone.
                     </DialogDescription>
