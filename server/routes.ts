@@ -6349,7 +6349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filtered = objectives.filter(o => o.month === month);
       }
       
-      const PDFDocument = require("pdfkit");
+      const PDFDocument = (await import("pdfkit")).default;
       const doc = new PDFDocument({ margin: 40 });
       const filename = mode === "all" 
         ? `KPI_Dashboard_12Months_${new Date().toISOString().split('T')[0]}.pdf`
