@@ -11,6 +11,7 @@ import { sendEmailWithAttachment } from "./gmail";
 import { eq } from "drizzle-orm";
 import {
   users,
+  kpiDailyTasks,
   insertHouseholdSchema,
   insertIndividualSchema,
   insertCorporationSchema,
@@ -6231,6 +6232,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting KPI objective:", error);
       res.status(500).json({ message: error.message || "Failed to delete KPI objective" });
+    }
+  });
+
+  // KPI Daily Tasks API routes
+  app.get('/api/kpi-objectives/:id/daily-tasks', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify ownership of the objective
+      const objective = await storage.getKpiObjectiveById(id);
+      if (!objective || objective.userId !== userId) {
+        return res.status(404).json({ message: "Objective not found" });
+      }
+      
+      const tasks = await storage.getDailyTasksByObjective(id);
+      res.json(tasks);
+    } catch (error: any) {
+      console.error("Error fetching daily tasks:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch daily tasks" });
+    }
+  });
+
+  app.post('/api/kpi-objectives/:id/daily-tasks/initialize', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { businessDays } = req.body; // Array of day numbers
+      const userId = req.user.claims.sub;
+      
+      // Verify ownership of the objective
+      const objective = await storage.getKpiObjectiveById(id);
+      if (!objective || objective.userId !== userId) {
+        return res.status(404).json({ message: "Objective not found" });
+      }
+      
+      // Delete existing tasks first
+      await storage.deleteDailyTasksByObjective(id);
+      
+      // Create new tasks for each business day
+      const tasksToCreate = businessDays.map((dayNumber: number) => ({
+        objectiveId: id,
+        dayNumber,
+        isCompleted: 0,
+      }));
+      
+      const tasks = await storage.createBulkDailyTasks(tasksToCreate);
+      res.status(201).json(tasks);
+    } catch (error: any) {
+      console.error("Error initializing daily tasks:", error);
+      res.status(500).json({ message: error.message || "Failed to initialize daily tasks" });
+    }
+  });
+
+  app.patch('/api/kpi-daily-tasks/:id/toggle', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Get the task and verify ownership through the objective
+      const tasks = await db.select()
+        .from(kpiDailyTasks)
+        .where(eq(kpiDailyTasks.id, id));
+      
+      if (tasks.length === 0) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      const objective = await storage.getKpiObjectiveById(tasks[0].objectiveId);
+      if (!objective || objective.userId !== userId) {
+        return res.status(404).json({ message: "Objective not found" });
+      }
+      
+      const task = await storage.toggleDailyTask(id);
+      res.json(task);
+    } catch (error: any) {
+      console.error("Error toggling daily task:", error);
+      res.status(500).json({ message: error.message || "Failed to toggle daily task" });
+    }
+  });
+
+  app.delete('/api/kpi-objectives/:id/daily-tasks', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify ownership of the objective
+      const objective = await storage.getKpiObjectiveById(id);
+      if (!objective || objective.userId !== userId) {
+        return res.status(404).json({ message: "Objective not found" });
+      }
+      
+      await storage.deleteDailyTasksByObjective(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting daily tasks:", error);
+      res.status(500).json({ message: error.message || "Failed to delete daily tasks" });
     }
   });
 
