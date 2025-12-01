@@ -95,6 +95,24 @@ const librarySubItems = [
   },
 ];
 
+const insuranceDivisionItems = [
+  {
+    title: "Overview",
+    url: "/insurance-division",
+    icon: ShieldCheck,
+  },
+  {
+    title: "Insurance Tasks",
+    url: "/insurance-tasks",
+    icon: ListTodo,
+  },
+  {
+    title: "Insurance Revenue",
+    url: "/insurance-revenue",
+    icon: TrendingUp,
+  },
+];
+
 const bottomMenuItems: Array<{ title: string; url: string; icon: React.ReactNode }> = [
   {
     title: "Reference Links",
@@ -115,7 +133,13 @@ export function AppSidebar() {
     location.startsWith("/model-portfolios") || 
     location.startsWith("/households") || 
     location.startsWith("/holdings-search") || 
-    location.startsWith("/alerts")
+    location.startsWith("/alerts") ||
+    location.startsWith("/investment-division")
+  );
+  const [insuranceDivisionOpen, setInsuranceDivisionOpen] = useState(
+    location.startsWith("/insurance-tasks") || 
+    location.startsWith("/insurance-division") ||
+    location.startsWith("/insurance-revenue")
   );
   const { setOpen, isMobile, setOpenMobile } = useSidebar();
 
@@ -128,7 +152,12 @@ export function AppSidebar() {
     location.startsWith("/model-portfolios") || 
     location.startsWith("/households") || 
     location.startsWith("/holdings-search") || 
-    location.startsWith("/alerts");
+    location.startsWith("/alerts") ||
+    location.startsWith("/investment-division");
+  const isInsuranceDivisionActive = 
+    location.startsWith("/insurance-tasks") || 
+    location.startsWith("/insurance-division") ||
+    location.startsWith("/insurance-revenue");
 
   const closeSidebar = () => {
     if (isMobile) {
@@ -213,6 +242,35 @@ export function AppSidebar() {
                   <CollapsibleContent>
                     <SidebarMenuSub>
                       {investmentDivisionItems.map((subItem) => (
+                        <SidebarMenuSubItem key={subItem.title}>
+                          <SidebarMenuSubButton 
+                            isActive={location === subItem.url} 
+                            data-testid={`link-${subItem.title.toLowerCase().replace(/\s+/g, '-')}`}
+                            onClick={() => handleNavigation(subItem.url, true)}
+                          >
+                            <subItem.icon className="h-4 w-4" />
+                            <span>{subItem.title}</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
+
+              {/* Insurance Division with sub-items */}
+              <Collapsible open={insuranceDivisionOpen} onOpenChange={setInsuranceDivisionOpen} className="group/collapsible">
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton isActive={isInsuranceDivisionActive} data-testid="link-insurance-division">
+                      <ShieldCheck />
+                      <span>Insurance Division</span>
+                      <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {insuranceDivisionItems.map((subItem) => (
                         <SidebarMenuSubItem key={subItem.title}>
                           <SidebarMenuSubButton 
                             isActive={location === subItem.url} 

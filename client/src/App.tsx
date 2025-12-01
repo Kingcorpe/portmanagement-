@@ -14,6 +14,7 @@ import Households from "@/pages/households";
 import ModelPortfolios from "@/pages/model-portfolios";
 import Tasks from "@/pages/tasks";
 import InsuranceTasks from "@/pages/insurance-tasks";
+import InsuranceDivisionPage from "@/pages/insurance-division";
 import InvestmentDivisionPage from "@/pages/investment-division";
 import Alerts from "@/pages/alerts";
 import AccountDetails from "@/pages/account-details";
@@ -38,6 +39,7 @@ function AuthenticatedRoutes() {
       <Route path="/tasks" component={Tasks} />
       <Route path="/insurance-tasks" component={InsuranceTasks} />
       <Route path="/investment-division" component={InvestmentDivisionPage} />
+      <Route path="/insurance-division" component={InsuranceDivisionPage} />
       <Route path="/holdings-search" component={HoldingsSearch} />
       <Route path="/admin/dividends" component={AdminDividends} />
       <Route path="/account/:accountType/:accountId" component={AccountDetails} />
