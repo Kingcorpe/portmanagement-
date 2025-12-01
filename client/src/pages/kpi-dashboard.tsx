@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -20,11 +22,32 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, Trash2, Plus, User, Briefcase, Pencil } from "lucide-react";
-import { format, addMonths } from "date-fns";
+import { ChevronDown, Trash2, Plus, User, Briefcase, Pencil, CalendarDays, X } from "lucide-react";
+import { format, addMonths, getDaysInMonth, isWeekend, startOfMonth, addDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import type { KpiObjective } from "@shared/schema";
+import type { KpiObjective, KpiDailyTask } from "@shared/schema";
+
+// Get business days (Mon-Fri) for a given month in YYYY-MM format
+function getBusinessDaysInMonth(monthStr: string): number[] {
+  const [year, month] = monthStr.split("-").map(Number);
+  const date = new Date(year, month - 1, 1);
+  const daysInMonth = getDaysInMonth(date);
+  const businessDays: number[] = [];
+  
+  for (let day = 1; day <= daysInMonth; day++) {
+    const currentDate = new Date(year, month - 1, day);
+    if (!isWeekend(currentDate)) {
+      businessDays.push(day);
+    }
+  }
+  return businessDays;
+}
 
 function getNext12Months() {
   const months = [];
@@ -37,6 +60,143 @@ function getNext12Months() {
     });
   }
   return months;
+}
+
+// Component to display daily task checkboxes for an objective
+function DailyTasksSection({ 
+  objectiveId, 
+  month 
+}: { 
+  objectiveId: string; 
+  month: string;
+}) {
+  const { toast } = useToast();
+  const businessDays = getBusinessDaysInMonth(month);
+  
+  const { data: dailyTasks = [], isLoading } = useQuery<KpiDailyTask[]>({
+    queryKey: ['/api/kpi-objectives', objectiveId, 'daily-tasks'],
+  });
+
+  const initializeMutation = useMutation({
+    mutationFn: async () => 
+      apiRequest("POST", `/api/kpi-objectives/${objectiveId}/daily-tasks/initialize`, {
+        businessDays,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/kpi-objectives', objectiveId, 'daily-tasks'] });
+      toast({ description: "Daily tracking enabled" });
+    },
+    onError: (error: any) => {
+      toast({ description: error.message || "Failed to initialize daily tasks", variant: "destructive" });
+    },
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async (taskId: string) =>
+      apiRequest("PATCH", `/api/kpi-daily-tasks/${taskId}/toggle`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/kpi-objectives', objectiveId, 'daily-tasks'] });
+    },
+    onError: (error: any) => {
+      toast({ description: error.message || "Failed to toggle task", variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () =>
+      apiRequest("DELETE", `/api/kpi-objectives/${objectiveId}/daily-tasks`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/kpi-objectives', objectiveId, 'daily-tasks'] });
+      toast({ description: "Daily tracking disabled" });
+    },
+    onError: (error: any) => {
+      toast({ description: error.message || "Failed to remove daily tasks", variant: "destructive" });
+    },
+  });
+
+  if (isLoading) {
+    return <div className="text-xs text-muted-foreground">Loading...</div>;
+  }
+
+  // If no daily tasks exist, show button to enable tracking
+  if (dailyTasks.length === 0) {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-6 text-xs gap-1"
+        onClick={(e) => {
+          e.stopPropagation();
+          initializeMutation.mutate();
+        }}
+        disabled={initializeMutation.isPending}
+        data-testid={`button-enable-tracking-${objectiveId}`}
+      >
+        <CalendarDays className="w-3 h-3" />
+        {initializeMutation.isPending ? "Enabling..." : "Enable Daily Tracking"}
+      </Button>
+    );
+  }
+
+  // Calculate progress
+  const completedCount = dailyTasks.filter(t => t.isCompleted === 1).length;
+  const totalCount = dailyTasks.length;
+  const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  // Get the month and year for display
+  const [year, monthNum] = month.split("-").map(Number);
+
+  return (
+    <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1">
+          <span className="text-xs font-medium text-muted-foreground">
+            {completedCount}/{totalCount} days
+          </span>
+          <Progress value={progressPercent} className="h-1.5 flex-1" />
+          <span className="text-xs font-medium text-muted-foreground">{progressPercent}%</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-5 w-5"
+          onClick={() => deleteMutation.mutate()}
+          disabled={deleteMutation.isPending}
+          data-testid={`button-disable-tracking-${objectiveId}`}
+        >
+          <X className="w-3 h-3" />
+        </Button>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {dailyTasks.map((task) => {
+          const dayDate = new Date(year, monthNum - 1, task.dayNumber);
+          const dayLabel = format(dayDate, "EEE d");
+          const isChecked = task.isCompleted === 1;
+          
+          return (
+            <Tooltip key={task.id}>
+              <TooltipTrigger asChild>
+                <div
+                  className={`w-6 h-6 flex items-center justify-center rounded cursor-pointer transition-colors ${
+                    isChecked 
+                      ? "bg-green-500 dark:bg-green-600 text-white" 
+                      : "bg-muted hover:bg-muted/80"
+                  }`}
+                  onClick={() => toggleMutation.mutate(task.id)}
+                  data-testid={`checkbox-day-${task.dayNumber}-${objectiveId}`}
+                >
+                  <span className="text-[10px] font-medium">{task.dayNumber}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-xs">
+                {dayLabel} - {isChecked ? "Completed" : "Not completed"}
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function KanbanColumn({ 
@@ -120,6 +280,11 @@ function KanbanColumn({
                     {obj.targetMetric}
                   </span>
                 )}
+              </div>
+
+              {/* Daily Tasks Section */}
+              <div className="pt-2 border-t">
+                <DailyTasksSection objectiveId={obj.id} month={obj.month} />
               </div>
 
               <div className="flex gap-2 pt-2 border-t">
