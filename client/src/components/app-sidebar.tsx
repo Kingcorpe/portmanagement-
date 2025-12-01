@@ -50,11 +50,6 @@ const menuItems = [
     icon: Search,
   },
   {
-    title: "Insurance Revenue",
-    url: "/insurance-revenue",
-    icon: ShieldCheck,
-  },
-  {
     title: "Investment Revenue",
     url: "/investment-revenue",
     icon: TrendingUp,

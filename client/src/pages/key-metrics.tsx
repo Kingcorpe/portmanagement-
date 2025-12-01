@@ -17,7 +17,9 @@ import {
   Building2,
   UserCircle,
   Wallet,
-  Target
+  Target,
+  ShieldCheck,
+  ChevronRight
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -522,6 +524,26 @@ export default function KeyMetrics() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Insurance Revenue Link */}
+        <Link href="/insurance-revenue">
+          <Card data-testid="card-insurance-revenue" className="glow-border hover:shadow-lg transition-shadow cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-blue-500/10">
+                    <ShieldCheck className="h-4 w-4 text-blue-500" />
+                  </div>
+                  <span>Insurance Revenue</span>
+                </CardTitle>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Track insurance commissions, set revenue goals, and monitor your insurance business performance.</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
     </div>
   );
