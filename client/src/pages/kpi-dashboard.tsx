@@ -104,7 +104,7 @@ function KanbanColumn({
               <div className="space-y-1">
                 <h5 className="font-medium text-sm leading-tight">{obj.title}</h5>
                 {obj.description && (
-                  <p className="text-xs text-muted-foreground leading-tight">{obj.description}</p>
+                  <div className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{obj.description}</div>
                 )}
               </div>
               
