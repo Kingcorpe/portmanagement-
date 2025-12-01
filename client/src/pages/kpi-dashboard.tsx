@@ -577,12 +577,12 @@ export default function KpiDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Description</label>
+                <label className="block text-sm font-medium mb-2">Description (Notes)</label>
                 <Textarea
                   name="description"
-                  placeholder="Additional details about this objective"
+                  placeholder="Add notes with bullet points:&#10;• Key activity 1&#10;• Key activity 2&#10;• Success criteria"
                   data-testid="input-description"
-                  className="resize-none"
+                  className="resize-none min-h-24"
                 />
               </div>
               <div>
@@ -618,13 +618,13 @@ export default function KpiDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Description</label>
+                <label className="block text-sm font-medium mb-2">Description (Notes)</label>
                 <Textarea
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
-                  placeholder="Additional details about this objective"
+                  placeholder="Add notes with bullet points:&#10;• Key activity 1&#10;• Key activity 2&#10;• Success criteria"
                   data-testid="input-edit-description"
-                  className="resize-none"
+                  className="resize-none min-h-24"
                 />
               </div>
               <div>
