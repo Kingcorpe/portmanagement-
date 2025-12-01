@@ -123,6 +123,23 @@ A dedicated page for tracking insurance commissions and revenue with specialized
   - Celebration messages when goals are achieved
 - **Revenue Summaries**: Monthly breakdowns, YTD totals by status
 
+### Investment Revenue Tracking
+A dedicated page for tracking dividends received and new AUM (Assets Under Management) obtained:
+- **Entry Types**: 
+  - Dividend: Track dividend payments from stocks/ETFs with ticker symbol and account type
+  - New AUM: Track new client assets brought into management with client name and account type
+- **Status Workflow**: Planned → Pending → Received (same as Insurance Revenue)
+- **Goals Tracking**: Separate monthly and yearly goals for dividends and AUM
+  - Progress bars showing percentage toward each goal
+  - Business days remaining in month/year
+  - Per business day target to hit goals
+  - Celebration messages when goals are achieved
+- **Revenue Summaries**: 
+  - Summary cards for total dividends and AUM received
+  - YTD totals by entry type and status
+  - Monthly breakdown table showing dividends and AUM by month
+- **Account Types**: Cash, TFSA, RRSP, FHSA, LIRA, LIF, RIF, Corporate Cash, IPP, Joint Cash, RESP
+
 ### Reference Links
 A page for managing quick-access links to important resources:
 - **MoneyTrax Integration**: Pre-populated with MoneyTrax Members portal link featuring the Circle of Wealth logo as a clickable hyperlink

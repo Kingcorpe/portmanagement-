@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, Link as LinkIcon } from "lucide-react";
+import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -53,6 +53,11 @@ const menuItems = [
     title: "Insurance Revenue",
     url: "/insurance-revenue",
     icon: ShieldCheck,
+  },
+  {
+    title: "Investment Revenue",
+    url: "/investment-revenue",
+    icon: TrendingUp,
   },
   {
     title: "Reference Links",

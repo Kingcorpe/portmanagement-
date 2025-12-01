@@ -21,6 +21,7 @@ import KeyMetrics from "@/pages/key-metrics";
 import HoldingsSearch from "@/pages/holdings-search";
 import AdminDividends from "@/pages/admin-dividends";
 import InsuranceRevenue from "@/pages/insurance-revenue";
+import InvestmentRevenue from "@/pages/investment-revenue";
 import ReferenceLinks from "@/pages/reference-links";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
@@ -40,6 +41,7 @@ function AuthenticatedRoutes() {
       <Route path="/key-metrics" component={KeyMetrics} />
       <Route path="/alerts" component={Alerts} />
       <Route path="/insurance-revenue" component={InsuranceRevenue} />
+      <Route path="/investment-revenue" component={InvestmentRevenue} />
       <Route path="/reference-links" component={ReferenceLinks} />
       <Route component={NotFound} />
     </Switch>
