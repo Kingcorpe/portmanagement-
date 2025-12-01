@@ -101,14 +101,20 @@ function KanbanColumn({
             
             return (
             <Card key={obj.id} className={`p-3 space-y-2 bg-card ${getStatusColor(obj.status)}`} data-testid={`objective-${obj.id}`}>
-              <div className="space-y-1">
+              <div 
+                className="space-y-1 cursor-pointer hover-elevate rounded px-2 py-1 -mx-2 -my-1"
+                onClick={() => onEdit(obj)}
+              >
                 <h5 className="font-medium text-sm leading-tight">{obj.title}</h5>
                 {obj.description && (
                   <div className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{obj.description}</div>
                 )}
               </div>
               
-              <div className="flex flex-wrap gap-2 text-xs">
+              <div 
+                className="flex flex-wrap gap-2 text-xs cursor-pointer hover-elevate rounded px-2 py-1 -mx-2 -my-1"
+                onClick={() => onEdit(obj)}
+              >
                 {obj.targetMetric && (
                   <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 px-2 py-1 rounded">
                     {obj.targetMetric}
