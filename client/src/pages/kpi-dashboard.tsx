@@ -21,7 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, Trash2, Plus, User, Briefcase } from "lucide-react";
+import { ChevronDown, Trash2, Plus, User, Briefcase, Pencil } from "lucide-react";
 import { format, addMonths } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import type { KpiObjective } from "@shared/schema";
@@ -46,6 +46,7 @@ function KanbanColumn({
   objectives, 
   onDelete, 
   onStatusChange,
+  onEdit,
   isLoading 
 }: {
   type: "personal" | "business";
@@ -54,6 +55,7 @@ function KanbanColumn({
   objectives: KpiObjective[];
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: string) => void;
+  onEdit: (obj: KpiObjective) => void;
   isLoading: boolean;
 }) {
   const isPersonal = type === "personal";
@@ -132,6 +134,16 @@ function KanbanColumn({
                   size="icon"
                   variant="ghost"
                   className="h-7 w-7"
+                  onClick={() => onEdit(obj)}
+                  disabled={isLoading}
+                  data-testid={`button-edit-${obj.id}`}
+                >
+                  <Pencil className="w-3 h-3" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
                   onClick={() => onDelete(obj.id)}
                   disabled={isLoading}
                   data-testid={`button-delete-${obj.id}`}
@@ -151,8 +163,13 @@ function KanbanColumn({
 export default function KpiDashboard() {
   const { toast } = useToast();
   const [openDialog, setOpenDialog] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [selectedType, setSelectedType] = useState<"personal" | "business">("business");
+  const [editingObjective, setEditingObjective] = useState<KpiObjective | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editTargetMetric, setEditTargetMetric] = useState("");
   const currentMonth = format(new Date(), "yyyy-MM");
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set([currentMonth]));
 
@@ -219,6 +236,28 @@ export default function KpiDashboard() {
       targetMetric: formData.get("targetMetric") || null,
       status: "planned",
     });
+  };
+
+  const handleEditObjective = (obj: KpiObjective) => {
+    setEditingObjective(obj);
+    setEditTitle(obj.title);
+    setEditDescription(obj.description || "");
+    setEditTargetMetric(obj.targetMetric || "");
+    setOpenEditDialog(true);
+  };
+
+  const handleUpdateObjective = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingObjective) return;
+    updateMutation.mutate({
+      id: editingObjective.id,
+      data: {
+        title: editTitle,
+        description: editDescription || null,
+        targetMetric: editTargetMetric || null,
+      },
+    });
+    setOpenEditDialog(false);
   };
 
   const toggleMonth = (month: string) => {
@@ -325,6 +364,49 @@ export default function KpiDashboard() {
             </form>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Objective</DialogTitle>
+              <DialogDescription>Update the objective details</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleUpdateObjective} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Objective Title</label>
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="e.g., Generate $50k new AUM"
+                  data-testid="input-edit-title"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Description</label>
+                <Textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Additional details about this objective"
+                  data-testid="input-edit-description"
+                  className="resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Target Metric</label>
+                <Input
+                  value={editTargetMetric}
+                  onChange={(e) => setEditTargetMetric(e.target.value)}
+                  placeholder="e.g., $50k, 50 calls, 10 new clients"
+                  data-testid="input-edit-metric"
+                />
+              </div>
+              <Button type="submit" disabled={updateMutation.isPending} className="w-full" data-testid="button-edit-submit">
+                {updateMutation.isPending ? "Updating..." : "Update Objective"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid gap-6">
@@ -369,6 +451,7 @@ export default function KpiDashboard() {
                         objectives={personalObjs}
                         onDelete={(id) => deleteMutation.mutate(id)}
                         onStatusChange={(id, status) => updateMutation.mutate({ id, data: { status } })}
+                        onEdit={handleEditObjective}
                         isLoading={deleteMutation.isPending || updateMutation.isPending}
                       />
                       <KanbanColumn
@@ -378,6 +461,7 @@ export default function KpiDashboard() {
                         objectives={businessObjs}
                         onDelete={(id) => deleteMutation.mutate(id)}
                         onStatusChange={(id, status) => updateMutation.mutate({ id, data: { status } })}
+                        onEdit={handleEditObjective}
                         isLoading={deleteMutation.isPending || updateMutation.isPending}
                       />
                     </div>
