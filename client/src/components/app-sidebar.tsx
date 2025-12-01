@@ -24,11 +24,6 @@ const menuItems = [
     url: "/kpi-dashboard",
     icon: Target,
   },
-  {
-    title: "Insurance Tasks",
-    url: "/insurance-tasks",
-    icon: ListTodo,
-  },
 ];
 
 const keyMetricsItems = [
