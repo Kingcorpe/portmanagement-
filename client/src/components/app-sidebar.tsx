@@ -35,24 +35,9 @@ const menuItems = [
     icon: Target,
   },
   {
-    title: "Households",
-    url: "/households",
-    icon: Users,
-  },
-  {
-    title: "Model Portfolios",
-    url: "/model-portfolios",
-    icon: Briefcase,
-  },
-  {
     title: "Tasks",
     url: "/tasks",
     icon: ListTodo,
-  },
-  {
-    title: "Holdings Search",
-    url: "/holdings-search",
-    icon: Search,
   },
   {
     title: "Insurance Revenue",
@@ -71,6 +56,29 @@ const menuItems = [
   },
 ];
 
+const investmentDivisionItems = [
+  {
+    title: "Model Portfolios",
+    url: "/model-portfolios",
+    icon: Briefcase,
+  },
+  {
+    title: "Households",
+    url: "/households",
+    icon: Users,
+  },
+  {
+    title: "Holdings Search",
+    url: "/holdings-search",
+    icon: Search,
+  },
+  {
+    title: "Alerts",
+    url: "/alerts",
+    icon: Bell,
+  },
+];
+
 const librarySubItems = [
   {
     title: "Example Reports",
@@ -84,20 +92,25 @@ const librarySubItems = [
   },
 ];
 
-const bottomMenuItems = [
-  {
-    title: "Alerts",
-    url: "/alerts",
-    icon: Bell,
-  },
-];
+const bottomMenuItems = [];
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const [libraryOpen, setLibraryOpen] = useState(location.startsWith("/library"));
+  const [investmentDivisionOpen, setInvestmentDivisionOpen] = useState(
+    location.startsWith("/model-portfolios") || 
+    location.startsWith("/households") || 
+    location.startsWith("/holdings-search") || 
+    location.startsWith("/alerts")
+  );
   const { setOpen, isMobile, setOpenMobile } = useSidebar();
 
   const isLibraryActive = location.startsWith("/library");
+  const isInvestmentDivisionActive = 
+    location.startsWith("/model-portfolios") || 
+    location.startsWith("/households") || 
+    location.startsWith("/holdings-search") || 
+    location.startsWith("/alerts");
 
   const closeSidebar = () => {
     if (isMobile) {
@@ -139,6 +152,35 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+
+              {/* Investment Division with sub-items */}
+              <Collapsible open={investmentDivisionOpen} onOpenChange={setInvestmentDivisionOpen} className="group/collapsible">
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton isActive={isInvestmentDivisionActive} data-testid="link-investment-division">
+                      <TrendingUp />
+                      <span>Investment Division</span>
+                      <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {investmentDivisionItems.map((subItem) => (
+                        <SidebarMenuSubItem key={subItem.title}>
+                          <SidebarMenuSubButton 
+                            isActive={location === subItem.url} 
+                            data-testid={`link-${subItem.title.toLowerCase().replace(/\s+/g, '-')}`}
+                            onClick={() => handleNavigation(subItem.url, true)}
+                          >
+                            <subItem.icon className="h-4 w-4" />
+                            <span>{subItem.title}</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
 
               {/* Library with sub-items */}
               <Collapsible open={libraryOpen} onOpenChange={setLibraryOpen} className="group/collapsible">
