@@ -375,16 +375,6 @@ function KanbanColumn({
                 >
                   <Pencil className="w-3 h-3" />
                 </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7"
-                  onClick={() => onDelete(obj.id)}
-                  disabled={isLoading}
-                  data-testid={`button-delete-${obj.id}`}
-                >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
               </div>
             </Card>
             );
@@ -636,9 +626,25 @@ export default function KpiDashboard() {
                   data-testid="input-edit-metric"
                 />
               </div>
-              <Button type="submit" disabled={updateMutation.isPending} className="w-full" data-testid="button-edit-submit">
-                {updateMutation.isPending ? "Updating..." : "Update Objective"}
-              </Button>
+              <div className="flex gap-2">
+                <Button type="submit" disabled={updateMutation.isPending} className="flex-1" data-testid="button-edit-submit">
+                  {updateMutation.isPending ? "Updating..." : "Update Objective"}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  onClick={() => {
+                    if (confirm("Are you sure you want to delete this objective? This cannot be undone.")) {
+                      setOpenEditDialog(false);
+                      if (editingObjective) deleteMutation.mutate(editingObjective.id);
+                    }
+                  }} 
+                  disabled={updateMutation.isPending || deleteMutation.isPending}
+                  data-testid="button-delete-objective"
+                >
+                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                </Button>
+              </div>
             </form>
           </DialogContent>
         </Dialog>
