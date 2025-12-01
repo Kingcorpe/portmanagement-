@@ -23,6 +23,7 @@ import {
   accountTasks,
   accountAuditLog,
   insuranceRevenue,
+  investmentRevenue,
   type User,
   type UpsertUser,
   type Household,
@@ -75,6 +76,9 @@ import {
   type InsuranceRevenue,
   type InsertInsuranceRevenue,
   type UpdateInsuranceRevenue,
+  type InvestmentRevenue,
+  type InsertInvestmentRevenue,
+  type UpdateInvestmentRevenue,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, inArray, ilike, or, and, sql, isNull, isNotNull } from "drizzle-orm";
@@ -256,6 +260,13 @@ export interface IStorage {
   getAuditLogByIndividualAccount(accountId: string, limit?: number): Promise<AccountAuditLog[]>;
   getAuditLogByCorporateAccount(accountId: string, limit?: number): Promise<AccountAuditLog[]>;
   getAuditLogByJointAccount(accountId: string, limit?: number): Promise<AccountAuditLog[]>;
+
+  // Investment revenue operations
+  createInvestmentRevenue(data: InsertInvestmentRevenue): Promise<InvestmentRevenue>;
+  getInvestmentRevenueByUser(userId: string): Promise<InvestmentRevenue[]>;
+  getInvestmentRevenueById(id: string): Promise<InvestmentRevenue | undefined>;
+  updateInvestmentRevenue(id: string, data: UpdateInvestmentRevenue): Promise<InvestmentRevenue>;
+  deleteInvestmentRevenue(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1832,6 +1843,39 @@ export class DatabaseStorage implements IStorage {
 
   async deleteInsuranceRevenue(id: string): Promise<void> {
     await db.delete(insuranceRevenue).where(eq(insuranceRevenue.id, id));
+  }
+
+  // Investment revenue operations
+  async createInvestmentRevenue(data: InsertInvestmentRevenue): Promise<InvestmentRevenue> {
+    const [entry] = await db.insert(investmentRevenue).values(data).returning();
+    return entry;
+  }
+
+  async getInvestmentRevenueByUser(userId: string): Promise<InvestmentRevenue[]> {
+    return await db.select()
+      .from(investmentRevenue)
+      .where(eq(investmentRevenue.userId, userId))
+      .orderBy(desc(investmentRevenue.date));
+  }
+
+  async getInvestmentRevenueById(id: string): Promise<InvestmentRevenue | undefined> {
+    const [entry] = await db.select()
+      .from(investmentRevenue)
+      .where(eq(investmentRevenue.id, id));
+    return entry;
+  }
+
+  async updateInvestmentRevenue(id: string, data: UpdateInvestmentRevenue): Promise<InvestmentRevenue> {
+    const [entry] = await db
+      .update(investmentRevenue)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(investmentRevenue.id, id))
+      .returning();
+    return entry;
+  }
+
+  async deleteInvestmentRevenue(id: string): Promise<void> {
+    await db.delete(investmentRevenue).where(eq(investmentRevenue.id, id));
   }
 }
 
