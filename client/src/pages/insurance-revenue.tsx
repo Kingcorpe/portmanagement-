@@ -455,8 +455,16 @@ export default function InsuranceRevenuePage() {
     return sum;
   }, 0);
 
+  // Show all pending and planned entries regardless of date - they stay visible until received or deleted
   const currentMonthPending = entries.reduce((sum, e) => {
-    if (e.status === "pending" && e.date.startsWith(currentMonthKey)) {
+    if (e.status === "pending") {
+      return sum + parseFloat(e.commissionAmount);
+    }
+    return sum;
+  }, 0);
+
+  const currentMonthPlanned = entries.reduce((sum, e) => {
+    if (e.status === "planned") {
       return sum + parseFloat(e.commissionAmount);
     }
     return sum;
@@ -902,8 +910,12 @@ export default function InsuranceRevenuePage() {
                       <span>{businessDaysElapsed} of {businessDaysTotal}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Pending this month:</span>
+                      <span>Pending:</span>
                       <span className="text-yellow-600">{formatCurrency(currentMonthPending)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Planned:</span>
+                      <span className="text-blue-600">{formatCurrency(currentMonthPlanned)}</span>
                     </div>
                   </div>
 
