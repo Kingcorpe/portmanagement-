@@ -617,20 +617,20 @@ export default function KpiDashboard() {
               </div>
             </DialogContent>
           </Dialog>
-          
+
           <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-objective">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Objective
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Monthly Objective</DialogTitle>
-              <DialogDescription>Create a new team objective for a specific month</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleAddObjective} className="space-y-4">
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-objective">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Objective
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Monthly Objective</DialogTitle>
+                <DialogDescription>Create a new team objective for a specific month</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleAddObjective} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Month</label>
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
@@ -749,6 +749,7 @@ export default function KpiDashboard() {
             </form>
           </DialogContent>
         </Dialog>
+      </div>
       </div>
 
       <div className="grid gap-6">
