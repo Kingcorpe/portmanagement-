@@ -788,12 +788,13 @@ export const insertFreelancePortfolioAllocationSchema = createInsertSchema(freel
 });
 
 // Account Target Allocation insert schema
+// Note: max(100) removed to support deployment mode where allocations can exceed 100%
 export const insertAccountTargetAllocationSchema = createInsertSchema(accountTargetAllocations).omit({
   id: true,
   createdAt: true,
   targetPercentage: true,
 }).extend({
-  targetPercentage: z.coerce.number().positive().max(100).transform(val => val.toString()),
+  targetPercentage: z.coerce.number().positive().transform(val => val.toString()),
   sourcePortfolioType: z.enum(["planned", "freelance"]).optional().nullable(),
 });
 

@@ -42,6 +42,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Rocket } from "lucide-react";
 import { 
   insertPositionSchema, 
   insertAccountTargetAllocationSchema,
@@ -1097,6 +1099,30 @@ export default function AccountDetails() {
     },
   });
 
+  // Toggle deployment mode mutation
+  const toggleDeploymentModeMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      return await apiRequest("PATCH", accountEndpoint!, { deploymentMode: enabled });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [accountEndpoint] });
+      const newMode = !accountData?.deploymentMode;
+      toast({
+        title: newMode ? "Deployment Mode Enabled" : "Deployment Mode Disabled",
+        description: newMode 
+          ? "Target allocations can now exceed 100% for cash deployment planning." 
+          : "Standard 100% allocation validation is now active.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to toggle deployment mode",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleInlineTargetEdit = (position: Position) => {
     setEditingInlineTarget(position.id);
     setInlineTargetValue("");  // Start with empty field for faster entry
@@ -1134,10 +1160,16 @@ export default function AccountDetails() {
       return;
     }
     
-    if (targetPct < 0 || targetPct > 100) {
+    // In deployment mode, allow values > 100%; otherwise cap at 100%
+    const isDeploymentMode = accountData?.deploymentMode ?? false;
+    const maxAllowed = isDeploymentMode ? Number.MAX_SAFE_INTEGER : 100;
+    
+    if (targetPct < 0 || targetPct > maxAllowed) {
       toast({
         title: "Invalid Value",
-        description: "Target percentage must be between 0 and 100",
+        description: isDeploymentMode 
+          ? "Target percentage must be positive" 
+          : "Target percentage must be between 0 and 100",
         variant: "destructive",
       });
       // Reset to original value
@@ -2392,7 +2424,7 @@ export default function AccountDetails() {
                               type="number"
                               step="0.1"
                               min="0"
-                              max="100"
+                              max={accountData?.deploymentMode ? undefined : 100}
                               value={inlineTargetValue}
                               onChange={(e) => setInlineTargetValue(e.target.value)}
                               onKeyDown={(e) => {
@@ -3050,6 +3082,12 @@ export default function AccountDetails() {
                           From Watchlist
                         </Badge>
                       )}
+                      {accountData?.deploymentMode && (
+                        <Badge variant="outline" className="ml-2 bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" data-testid="badge-deployment-mode">
+                          <Rocket className="h-3 w-3 mr-1" />
+                          Deployment Mode
+                        </Badge>
+                      )}
                     </CardTitle>
                     <CardDescription>
                       Define target asset allocation percentages for this account
@@ -3057,7 +3095,25 @@ export default function AccountDetails() {
                   </div>
                 </button>
               </CollapsibleTrigger>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center flex-wrap">
+                {/* Deployment Mode Toggle */}
+                <div className="flex items-center gap-2 border rounded-md px-3 py-1.5 bg-muted/50" data-testid="deployment-mode-container">
+                  <Rocket className="h-4 w-4 text-orange-500" />
+                  <label 
+                    htmlFor="deployment-mode" 
+                    className="text-sm font-medium cursor-pointer select-none"
+                  >
+                    Deployment Mode
+                  </label>
+                  <Switch
+                    id="deployment-mode"
+                    checked={accountData?.deploymentMode ?? false}
+                    onCheckedChange={(checked) => toggleDeploymentModeMutation.mutate(checked)}
+                    disabled={toggleDeploymentModeMutation.isPending}
+                    data-testid="switch-deployment-mode"
+                  />
+                </div>
+                
                 <Dialog open={isDeleteAllAllocationsDialogOpen} onOpenChange={setIsDeleteAllAllocationsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button 
@@ -3340,12 +3396,13 @@ export default function AccountDetails() {
                           // Calculate remaining percentage to 100%
                           const currentTotal = targetAllocations.reduce((sum, ta) => sum + Number(ta.targetPercentage), 0);
                           const remainingPercentage = Math.max(0, 100 - currentTotal);
+                          const isDeploymentModeActive = accountData?.deploymentMode ?? false;
                           
                           return (
                             <FormItem>
                               <div className="flex items-center justify-between">
                                 <FormLabel>Target Percentage</FormLabel>
-                                {remainingPercentage > 0 && (
+                                {remainingPercentage > 0 && !isDeploymentModeActive && (
                                   <Button
                                     type="button"
                                     variant="ghost"
@@ -3363,7 +3420,7 @@ export default function AccountDetails() {
                                   type="number" 
                                   step="0.01" 
                                   min="0.01"
-                                  max="100"
+                                  max={isDeploymentModeActive ? undefined : 100}
                                   placeholder="25.00" 
                                   data-testid="input-target-percentage" 
                                   {...field} 
@@ -3375,19 +3432,21 @@ export default function AccountDetails() {
                         }}
                       />
                       
-                      <div className="flex items-center gap-2">
-                        <input 
-                          type="checkbox" 
-                          id="allocation-watchlist" 
-                          checked={allocationIsWatchlist}
-                          onChange={(e) => setAllocationIsWatchlist(e.target.checked)}
-                          data-testid="checkbox-allocation-watchlist"
-                          className="h-4 w-4 rounded border-gray-300"
-                        />
-                        <label htmlFor="allocation-watchlist" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
-                          Mark as Watchlist (allows totals to exceed 100%)
-                        </label>
-                      </div>
+                      {!accountData?.deploymentMode && (
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="checkbox" 
+                            id="allocation-watchlist" 
+                            checked={allocationIsWatchlist}
+                            onChange={(e) => setAllocationIsWatchlist(e.target.checked)}
+                            data-testid="checkbox-allocation-watchlist"
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <label htmlFor="allocation-watchlist" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
+                            Mark as Watchlist (allows totals to exceed 100%)
+                          </label>
+                        </div>
+                      )}
                       
                       {(() => {
                         const riskValidation = computeRiskValidation();
@@ -3553,19 +3612,33 @@ export default function AccountDetails() {
                   {(() => {
                     const total = targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0);
                     const hasWatchlist = lastCopiedFromWatchlist || targetAllocations.some(a => a.sourcePortfolioType === "freelance");
-                    const isValid = hasWatchlist ? total > 0 : total === 100;
+                    const isDeploymentMode = accountData?.deploymentMode ?? false;
+                    // In deployment mode or watchlist mode, allow totals > 100%; otherwise must equal 100%
+                    const isValid = (isDeploymentMode || hasWatchlist) ? total > 0 : total === 100;
+                    
+                    // Determine badge label suffix
+                    let badgeSuffix = "";
+                    if (total > 100) {
+                      if (isDeploymentMode) {
+                        badgeSuffix = " (Deployment)";
+                      } else if (hasWatchlist) {
+                        badgeSuffix = " (Watchlist)";
+                      }
+                    }
                     
                     return (
                       <Badge 
                         variant={isValid ? "default" : "destructive"}
                         className={
                           isValid 
-                            ? "bg-green-600 hover:bg-green-700" 
+                            ? isDeploymentMode && total > 100 
+                              ? "bg-orange-600 hover:bg-orange-700" 
+                              : "bg-green-600 hover:bg-green-700"
                             : ""
                         }
                         data-testid="badge-total-allocation"
                       >
-                        Total: {total.toFixed(2)}%{hasWatchlist && total > 100 && " (Watchlist)"}
+                        Total: {total.toFixed(2)}%{badgeSuffix}
                       </Badge>
                     );
                   })()}
