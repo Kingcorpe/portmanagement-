@@ -56,12 +56,26 @@ function KanbanColumn({
   onStatusChange: (id: string, status: string) => void;
   isLoading: boolean;
 }) {
+  const isPersonal = type === "personal";
+  const columnStyles = isPersonal
+    ? "bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800"
+    : "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800";
+  const headerStyles = isPersonal
+    ? "border-purple-300 dark:border-purple-700"
+    : "border-emerald-300 dark:border-emerald-700";
+  const iconStyles = isPersonal
+    ? "text-purple-600 dark:text-purple-400"
+    : "text-emerald-600 dark:text-emerald-400";
+  const badgeStyles = isPersonal
+    ? "bg-purple-200 dark:bg-purple-800 text-purple-800 dark:text-purple-200"
+    : "bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200";
+
   return (
-    <div className="flex-1 min-w-80">
-      <div className="flex items-center gap-2 mb-3 pb-2 border-b">
-        <Icon className="w-4 h-4" />
+    <div className={`flex-1 min-w-80 p-3 rounded-lg border ${columnStyles}`}>
+      <div className={`flex items-center gap-2 mb-3 pb-2 border-b ${headerStyles}`}>
+        <Icon className={`w-4 h-4 ${iconStyles}`} />
         <h4 className="font-semibold text-sm">{title}</h4>
-        <span className="ml-auto text-xs bg-muted px-2 py-1 rounded">{objectives.length}</span>
+        <span className={`ml-auto text-xs px-2 py-1 rounded ${badgeStyles}`}>{objectives.length}</span>
       </div>
       <div className="space-y-2">
         {objectives.length === 0 ? (
