@@ -264,21 +264,26 @@ export default function InsuranceRevenuePage() {
     }
   };
 
+  const calculateCommission = (premium: number, policyType: string): string => {
+    if (!premium || !policyType) return "0.00";
+    
+    switch (policyType) {
+      case "T10":
+        return (premium * 12 * 0.4 * 2.85).toFixed(2);
+      case "T20":
+        return (premium * 12 * 0.45 * 2.85).toFixed(2);
+      case "Layered WL":
+        return (premium * 12 * 0.55 * 2.85).toFixed(2);
+      default:
+        return "0.00";
+    }
+  };
+
   const handlePremiumChange = (value: string) => {
     setFormData((prev) => {
       const premium = parseFloat(value) || 0;
-      const rate = parseFloat(prev.commissionRate) || 0;
-      const commission = rate > 0 ? ((premium * rate) / 100).toFixed(2) : prev.commissionAmount;
+      const commission = calculateCommission(premium, prev.policyType);
       return { ...prev, premium: value, commissionAmount: commission };
-    });
-  };
-
-  const handleRateChange = (value: string) => {
-    setFormData((prev) => {
-      const rate = parseFloat(value) || 0;
-      const premium = parseFloat(prev.premium) || 0;
-      const commission = premium > 0 ? ((premium * rate) / 100).toFixed(2) : prev.commissionAmount;
-      return { ...prev, commissionRate: value, commissionAmount: commission };
     });
   };
 
@@ -576,7 +581,11 @@ export default function InsuranceRevenuePage() {
                   <Label htmlFor="policyType">Policy Type</Label>
                   <Select
                     value={formData.policyType}
-                    onValueChange={(v) => setFormData({ ...formData, policyType: v })}
+                    onValueChange={(v) => {
+                      const premium = parseFloat(formData.premium) || 0;
+                      const commission = calculateCommission(premium, v);
+                      setFormData({ ...formData, policyType: v, commissionAmount: commission });
+                    }}
                   >
                     <SelectTrigger data-testid="select-policy-type">
                       <SelectValue placeholder="Select type" />
