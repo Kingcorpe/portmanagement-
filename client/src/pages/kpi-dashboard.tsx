@@ -49,6 +49,32 @@ function getBusinessDaysInMonth(monthStr: string): number[] {
   return businessDays;
 }
 
+// Get today's business day number for a given month
+function getTodaysBusinessDayInMonth(monthStr: string): number | null {
+  const today = new Date();
+  const todayYear = today.getFullYear();
+  const todayMonth = today.getMonth() + 1;
+  
+  const [trackYear, trackMonth] = monthStr.split("-").map(Number);
+  
+  // Only return a business day if we're in the same month/year
+  if (todayYear !== trackYear || todayMonth !== trackMonth) {
+    return null;
+  }
+  
+  // If today is a weekend, no business day is available
+  if (isWeekend(today)) {
+    return null;
+  }
+  
+  // Calculate which business day today is
+  const businessDays = getBusinessDaysInMonth(monthStr);
+  const todayDate = today.getDate();
+  
+  const businessDayIndex = businessDays.indexOf(todayDate);
+  return businessDayIndex !== -1 ? businessDays[businessDayIndex] : null;
+}
+
 function getNext12Months() {
   const months = [];
   const today = new Date();
@@ -145,6 +171,7 @@ function DailyTasksSection({
 
   // Get the month and year for display
   const [year, monthNum] = month.split("-").map(Number);
+  const todaysBusinessDay = getTodaysBusinessDayInMonth(month);
 
   return (
     <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
@@ -172,24 +199,28 @@ function DailyTasksSection({
           const dayDate = new Date(year, monthNum - 1, task.dayNumber);
           const dayLabel = format(dayDate, "EEE d");
           const isChecked = task.isCompleted === 1;
+          const isToday = task.dayNumber === todaysBusinessDay;
+          const canCheck = isToday && !isChecked;
           
           return (
             <Tooltip key={task.id}>
               <TooltipTrigger asChild>
                 <div
-                  className={`w-6 h-6 flex items-center justify-center rounded cursor-pointer transition-colors ${
+                  className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${
                     isChecked 
                       ? "bg-green-500 dark:bg-green-600 text-white" 
-                      : "bg-muted hover:bg-muted/80"
+                      : isToday
+                      ? "bg-muted hover:bg-muted/80 cursor-pointer"
+                      : "bg-muted/50 dark:bg-muted/40 cursor-not-allowed opacity-50"
                   }`}
-                  onClick={() => toggleMutation.mutate(task.id)}
+                  onClick={() => canCheck && toggleMutation.mutate(task.id)}
                   data-testid={`checkbox-day-${task.dayNumber}-${objectiveId}`}
                 >
                   <span className="text-[10px] font-medium">{task.dayNumber}</span>
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs">
-                {dayLabel} - {isChecked ? "Completed" : "Not completed"}
+                {dayLabel} - {isChecked ? "Completed" : isToday ? "Today - Click to complete" : "Not available yet"}
               </TooltipContent>
             </Tooltip>
           );
