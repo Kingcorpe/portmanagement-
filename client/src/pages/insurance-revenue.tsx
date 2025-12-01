@@ -166,7 +166,8 @@ export default function InsuranceRevenuePage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      await apiRequest("POST", "/api/insurance-revenue", data);
+      const payload = { ...data, commissionRate: data.commissionRate || null };
+      await apiRequest("POST", "/api/insurance-revenue", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/insurance-revenue"] });
@@ -185,7 +186,8 @@ export default function InsuranceRevenuePage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: FormData }) => {
-      await apiRequest("PATCH", `/api/insurance-revenue/${id}`, data);
+      const payload = { ...data, commissionRate: data.commissionRate || null };
+      await apiRequest("PATCH", `/api/insurance-revenue/${id}`, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/insurance-revenue"] });
