@@ -671,7 +671,7 @@ export default function InsuranceRevenuePage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="premium">Monthly Premium ($)</Label>
                   <Input
@@ -682,17 +682,6 @@ export default function InsuranceRevenuePage() {
                     onChange={(e) => handlePremiumChange(e.target.value)}
                     required
                     data-testid="input-premium"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="commissionRate">Commission Rate (%)</Label>
-                  <Input
-                    id="commissionRate"
-                    type="number"
-                    step="0.01"
-                    value={formData.commissionRate}
-                    onChange={(e) => handleRateChange(e.target.value)}
-                    data-testid="input-commission-rate"
                   />
                 </div>
                 <div className="space-y-2">
