@@ -30,6 +30,11 @@ const menuItems = [
     icon: ListTodo,
   },
   {
+    title: "Insurance Tasks",
+    url: "/insurance-tasks",
+    icon: ListTodo,
+  },
+  {
     title: "Reference Links",
     url: "/reference-links",
     icon: LinkIcon,
