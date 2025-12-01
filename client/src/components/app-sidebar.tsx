@@ -47,9 +47,6 @@ const keyMetricsItems = [
     url: "/key-metrics",
     icon: BarChart3,
   },
-];
-
-const revenueItems = [
   {
     title: "Insurance Revenue",
     url: "/insurance-revenue",
@@ -108,10 +105,6 @@ export function AppSidebar() {
     location.startsWith("/investment-revenue")
   );
   const [libraryOpen, setLibraryOpen] = useState(location.startsWith("/library"));
-  const [revenueOpen, setRevenueOpen] = useState(
-    location.startsWith("/insurance-revenue") || 
-    location.startsWith("/investment-revenue")
-  );
   const [investmentDivisionOpen, setInvestmentDivisionOpen] = useState(
     location.startsWith("/model-portfolios") || 
     location.startsWith("/households") || 
@@ -125,9 +118,6 @@ export function AppSidebar() {
     location.startsWith("/insurance-revenue") || 
     location.startsWith("/investment-revenue");
   const isLibraryActive = location.startsWith("/library");
-  const isRevenueActive = 
-    location.startsWith("/insurance-revenue") || 
-    location.startsWith("/investment-revenue");
   const isInvestmentDivisionActive = 
     location.startsWith("/model-portfolios") || 
     location.startsWith("/households") || 
@@ -199,35 +189,6 @@ export function AppSidebar() {
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       ))}
-                      
-                      {/* Revenue nested under Key Metrics */}
-                      <SidebarMenuSubItem>
-                        <Collapsible open={revenueOpen} onOpenChange={setRevenueOpen} className="group/collapsible w-full">
-                          <CollapsibleTrigger asChild>
-                            <SidebarMenuSubButton isActive={isRevenueActive} data-testid="link-revenue">
-                              <TrendingUp className="h-4 w-4" />
-                              <span>Revenue</span>
-                              <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                            </SidebarMenuSubButton>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <SidebarMenuSub>
-                              {revenueItems.map((subItem) => (
-                                <SidebarMenuSubItem key={subItem.title}>
-                                  <SidebarMenuSubButton 
-                                    isActive={location === subItem.url} 
-                                    data-testid={`link-${subItem.title.toLowerCase().replace(/\s+/g, '-')}`}
-                                    onClick={() => handleNavigation(subItem.url, true)}
-                                  >
-                                    <subItem.icon className="h-4 w-4" />
-                                    <span>{subItem.title}</span>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              ))}
-                            </SidebarMenuSub>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      </SidebarMenuSubItem>
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </SidebarMenuItem>
