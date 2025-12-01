@@ -114,6 +114,7 @@ interface CashDeploymentCandidate {
   targetValue: number;
   gap: number;
   allocatedCash: number;
+  sharesToBuy: number;
   status: 'fully_funded' | 'partially_funded' | 'unfunded';
 }
 
@@ -320,6 +321,7 @@ export default function AccountDetails() {
   const [selectedCandidateHolding, setSelectedCandidateHolding] = useState<string>("");
   const [candidateTargetPct, setCandidateTargetPct] = useState<string>("");
   const [isCommittingCandidates, setIsCommittingCandidates] = useState(false);
+  const [focusOnPlannerCandidates, setFocusOnPlannerCandidates] = useState(false);
   const notesInitialLoadRef = useRef(true);
   const notesSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -639,6 +641,7 @@ export default function AccountDetails() {
           targetValue,
           gap,
           allocatedCash: 0,
+          sharesToBuy: currentPrice > 0 ? Math.floor(gap / currentPrice) : 0,
           status: 'unfunded' as const,
         };
       })
@@ -670,6 +673,7 @@ export default function AccountDetails() {
           targetValue,
           gap,
           allocatedCash: 0,
+          sharesToBuy: currentPrice > 0 ? Math.floor(gap / currentPrice) : 0,
           status: 'unfunded',
         };
         return candidate;
@@ -688,15 +692,17 @@ export default function AccountDetails() {
     let remainingCash = availableCash;
     const allocatedCandidates = sortedCandidates.map(candidate => {
       if (remainingCash <= 0) {
-        return { ...candidate, allocatedCash: 0, status: 'unfunded' as const };
+        return { ...candidate, allocatedCash: 0, sharesToBuy: 0, status: 'unfunded' as const };
       }
 
       const allocation = Math.min(candidate.gap, remainingCash);
       remainingCash -= allocation;
+      const sharesToBuy = candidate.currentPrice > 0 ? Math.floor(allocation / candidate.currentPrice) : 0;
 
       return {
         ...candidate,
         allocatedCash: allocation,
+        sharesToBuy,
         status: allocation >= candidate.gap ? 'fully_funded' as const : 
                allocation > 0 ? 'partially_funded' as const : 'unfunded' as const,
       };
@@ -2476,14 +2482,25 @@ export default function AccountDetails() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {[...positions].sort((a, b) => a.symbol.localeCompare(b.symbol)).map((position) => {
-                  // Use normalized ticker comparison to match "XIC.TO" with "XIC" etc.
-                  const normalizedPositionSymbol = normalizeTicker(position.symbol);
-                  const comparison = comparisonData?.comparison.find(c => normalizeTicker(c.ticker) === normalizedPositionSymbol);
-                  const marketValue = Number(position.quantity) * Number(position.currentPrice);
-                  const isEditingTarget = editingInlineTarget === position.id;
+                {(() => {
+                  // Create set of planner candidate tickers for filtering
+                  const plannerCandidateTickers = new Set(
+                    cashDeploymentData.allCandidates.map(c => normalizeTicker(c.ticker))
+                  );
                   
-                  return (
+                  // Filter positions if focusOnPlannerCandidates is enabled and in deployment mode
+                  const filteredPositions = accountData?.deploymentMode && focusOnPlannerCandidates
+                    ? positions.filter(p => plannerCandidateTickers.has(normalizeTicker(p.symbol)))
+                    : positions;
+                  
+                  return [...filteredPositions].sort((a, b) => a.symbol.localeCompare(b.symbol)).map((position) => {
+                    // Use normalized ticker comparison to match "XIC.TO" with "XIC" etc.
+                    const normalizedPositionSymbol = normalizeTicker(position.symbol);
+                    const comparison = comparisonData?.comparison.find(c => normalizeTicker(c.ticker) === normalizedPositionSymbol);
+                    const marketValue = Number(position.quantity) * Number(position.currentPrice);
+                    const isEditingTarget = editingInlineTarget === position.id;
+                    
+                    return (
                     <TableRow key={position.id} data-testid={`row-position-${position.id}`}>
                       {/* Symbol - color reflects action needed (green=buy, red=sell) */}
                       <TableCell data-testid={`text-symbol-${position.id}`}>
@@ -2879,8 +2896,9 @@ export default function AccountDetails() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </TableBody>
             </Table>
           )}
@@ -3888,7 +3906,7 @@ export default function AccountDetails() {
                           {cashDeploymentData.allCandidates.length > 0 && (
                             <div className="space-y-2 pt-2 border-t">
                               <div className="flex items-center justify-between">
-                                <h4 className="text-sm font-medium">Cash Allocation Race</h4>
+                                <h4 className="text-sm font-medium">Trades Needed</h4>
                                 <div className="flex items-center gap-2 text-xs">
                                   <span className="text-muted-foreground">
                                     Allocated: CA${cashDeploymentData.totalAllocated.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
@@ -3908,13 +3926,26 @@ export default function AccountDetails() {
                                 />
                               </div>
 
+                              {/* Focus on Planner Toggle */}
+                              <div className="flex items-center justify-between py-2">
+                                <div className="flex items-center gap-2">
+                                  <Switch
+                                    checked={focusOnPlannerCandidates}
+                                    onCheckedChange={setFocusOnPlannerCandidates}
+                                    data-testid="switch-focus-planner"
+                                  />
+                                  <span className="text-xs text-muted-foreground">Focus Allocation table on planner candidates only</span>
+                                </div>
+                              </div>
+
                               <Table>
                                 <TableHeader>
                                   <TableRow>
                                     <TableHead className="text-xs">Ticker</TableHead>
                                     <TableHead className="text-xs">Source</TableHead>
                                     <TableHead className="text-xs text-right">Gap</TableHead>
-                                    <TableHead className="text-xs text-right">Allocated</TableHead>
+                                    <TableHead className="text-xs text-right">Shares</TableHead>
+                                    <TableHead className="text-xs text-right">Amount</TableHead>
                                     <TableHead className="text-xs text-right">Status</TableHead>
                                   </TableRow>
                                 </TableHeader>
@@ -3929,8 +3960,11 @@ export default function AccountDetails() {
                                           {candidate.source === 'below_book' ? 'Below Book' : 'Manual'}
                                         </Badge>
                                       </TableCell>
-                                      <TableCell className="py-2 text-right text-xs">
+                                      <TableCell className="py-2 text-right text-xs text-muted-foreground">
                                         CA${candidate.gap.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                      </TableCell>
+                                      <TableCell className="py-2 text-right text-xs font-medium text-green-600 dark:text-green-400">
+                                        {candidate.sharesToBuy > 0 ? `+${candidate.sharesToBuy}` : '-'}
                                       </TableCell>
                                       <TableCell className="py-2 text-right text-xs font-medium">
                                         CA${candidate.allocatedCash.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
