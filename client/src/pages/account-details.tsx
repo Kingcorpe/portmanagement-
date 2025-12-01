@@ -2254,6 +2254,12 @@ export default function AccountDetails() {
                             comparison?.status === 'unexpected' ? 'text-amber-600 dark:text-amber-400' :
                             ''
                           }`}>{position.symbol}</div>
+                          {(position.symbol.toUpperCase() === 'CASH' || position.symbol.toUpperCase().includes('MONEY MARKET')) && (
+                            <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 text-xs px-1.5 py-0">
+                              <Coins className="h-3 w-3 mr-0.5" />
+                              Cash
+                            </Badge>
+                          )}
                           {position.protectionPercent && Number(position.protectionPercent) > 0 && (
                             <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-xs px-1.5 py-0">
                               <Shield className="h-3 w-3 mr-0.5" />
