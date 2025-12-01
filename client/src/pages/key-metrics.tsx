@@ -226,6 +226,62 @@ export default function KeyMetrics() {
         </div>
       </div>
 
+      {/* Revenue Tracking Dropdown */}
+      <Collapsible open={revenueOpen} onOpenChange={setRevenueOpen}>
+        <Card data-testid="card-revenue-tracking" className="glow-border">
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-purple-500/10">
+                    <Wallet className="h-4 w-4 text-purple-500" />
+                  </div>
+                  <span>Revenue Tracking</span>
+                </CardTitle>
+                <ChevronRight className={`h-5 w-5 text-muted-foreground transition-transform ${revenueOpen ? "rotate-90" : ""}`} />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-3">
+              <Link href="/insurance-revenue">
+                <div data-testid="link-insurance-revenue" className="p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 rounded-lg bg-blue-500/10">
+                        <ShieldCheck className="h-4 w-4 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">Insurance Revenue</p>
+                        <p className="text-xs text-muted-foreground">Track commissions and revenue goals</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </Link>
+
+              <Link href="/investment-revenue">
+                <div data-testid="link-investment-revenue" className="p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer group">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/10">
+                        <TrendingUp className="h-4 w-4 text-emerald-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">Investment Revenue</p>
+                        <p className="text-xs text-muted-foreground">Track dividends and new AUM</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </Link>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <MetricCard
           title="Total AUM"
@@ -527,62 +583,6 @@ export default function KeyMetrics() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Revenue Tracking Dropdown */}
-        <Collapsible open={revenueOpen} onOpenChange={setRevenueOpen} className="md:col-span-2 lg:col-span-3">
-          <Card data-testid="card-revenue-tracking" className="glow-border">
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-purple-500/10">
-                      <Wallet className="h-4 w-4 text-purple-500" />
-                    </div>
-                    <span>Revenue Tracking</span>
-                  </CardTitle>
-                  <ChevronRight className={`h-5 w-5 text-muted-foreground transition-transform ${revenueOpen ? "rotate-90" : ""}`} />
-                </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="space-y-3">
-                <Link href="/insurance-revenue">
-                  <div data-testid="link-insurance-revenue" className="p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer group">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-1.5 rounded-lg bg-blue-500/10">
-                          <ShieldCheck className="h-4 w-4 text-blue-500" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">Insurance Revenue</p>
-                          <p className="text-xs text-muted-foreground">Track commissions and revenue goals</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </div>
-                </Link>
-
-                <Link href="/investment-revenue">
-                  <div data-testid="link-investment-revenue" className="p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer group">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-1.5 rounded-lg bg-emerald-500/10">
-                          <TrendingUp className="h-4 w-4 text-emerald-500" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">Investment Revenue</p>
-                          <p className="text-xs text-muted-foreground">Track dividends and new AUM</p>
-                        </div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </div>
-                </Link>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
       </div>
     </div>
   );
