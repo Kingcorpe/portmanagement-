@@ -1274,6 +1274,41 @@ export type InsertKpiObjective = z.infer<typeof insertKpiObjectiveSchema>;
 export type UpdateKpiObjective = z.infer<typeof updateKpiObjectiveSchema>;
 export type KpiObjective = typeof kpiObjectives.$inferSelect;
 
+// KPI daily tasks table (for tracking daily/business day checkboxes)
+export const kpiDailyTasks = pgTable("kpi_daily_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  objectiveId: varchar("objective_id").notNull().references(() => kpiObjectives.id, { onDelete: 'cascade' }),
+  dayNumber: integer("day_number").notNull(), // 1-31, represents the day of the month
+  isCompleted: integer("is_completed").notNull().default(0), // 0 = incomplete, 1 = complete
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_kpi_daily_task_unique").on(table.objectiveId, table.dayNumber),
+]);
+
+export const kpiDailyTasksRelations = relations(kpiDailyTasks, ({ one }) => ({
+  objective: one(kpiObjectives, {
+    fields: [kpiDailyTasks.objectiveId],
+    references: [kpiObjectives.id],
+  }),
+}));
+
+// Add relation from objectives to daily tasks
+export const kpiObjectivesDailyRelations = relations(kpiObjectives, ({ many }) => ({
+  dailyTasks: many(kpiDailyTasks),
+}));
+
+// KPI daily tasks insert schema
+export const insertKpiDailyTaskSchema = createInsertSchema(kpiDailyTasks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// KPI daily tasks types
+export type InsertKpiDailyTask = z.infer<typeof insertKpiDailyTaskSchema>;
+export type KpiDailyTask = typeof kpiDailyTasks.$inferSelect;
+
 // Reference links table
 export const referenceLinks = pgTable("reference_links", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

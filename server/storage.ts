@@ -25,6 +25,7 @@ import {
   insuranceRevenue,
   investmentRevenue,
   kpiObjectives,
+  kpiDailyTasks,
   referenceLinks,
   type User,
   type UpsertUser,
@@ -84,6 +85,8 @@ import {
   type KpiObjective,
   type InsertKpiObjective,
   type UpdateKpiObjective,
+  type KpiDailyTask,
+  type InsertKpiDailyTask,
   type ReferenceLink,
   type InsertReferenceLink,
   type UpdateReferenceLink,
@@ -1924,6 +1927,44 @@ export class DatabaseStorage implements IStorage {
 
   async deleteKpiObjective(id: string): Promise<void> {
     await db.delete(kpiObjectives).where(eq(kpiObjectives.id, id));
+  }
+
+  // KPI daily tasks operations
+  async getDailyTasksByObjective(objectiveId: string): Promise<KpiDailyTask[]> {
+    return await db.select()
+      .from(kpiDailyTasks)
+      .where(eq(kpiDailyTasks.objectiveId, objectiveId))
+      .orderBy(kpiDailyTasks.dayNumber);
+  }
+
+  async createDailyTask(data: InsertKpiDailyTask): Promise<KpiDailyTask> {
+    const [task] = await db.insert(kpiDailyTasks).values(data).returning();
+    return task;
+  }
+
+  async createBulkDailyTasks(tasks: InsertKpiDailyTask[]): Promise<KpiDailyTask[]> {
+    if (tasks.length === 0) return [];
+    return await db.insert(kpiDailyTasks).values(tasks).returning();
+  }
+
+  async toggleDailyTask(id: string): Promise<KpiDailyTask> {
+    // Get current state
+    const [current] = await db.select().from(kpiDailyTasks).where(eq(kpiDailyTasks.id, id));
+    if (!current) throw new Error('Daily task not found');
+    
+    const [updated] = await db
+      .update(kpiDailyTasks)
+      .set({ 
+        isCompleted: current.isCompleted === 1 ? 0 : 1,
+        updatedAt: new Date() 
+      })
+      .where(eq(kpiDailyTasks.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteDailyTasksByObjective(objectiveId: string): Promise<void> {
+    await db.delete(kpiDailyTasks).where(eq(kpiDailyTasks.objectiveId, objectiveId));
   }
 
   // Reference Links operations
