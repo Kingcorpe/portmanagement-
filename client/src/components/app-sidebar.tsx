@@ -25,7 +25,7 @@ const menuItems = [
     icon: Target,
   },
   {
-    title: "Tasks",
+    title: "Investment Tasks",
     url: "/tasks",
     icon: ListTodo,
   },
