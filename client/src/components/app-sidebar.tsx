@@ -56,6 +56,11 @@ const keyMetricsItems = [
 
 const investmentDivisionItems = [
   {
+    title: "Alerts",
+    url: "/alerts",
+    icon: Bell,
+  },
+  {
     title: "Investment Tasks",
     url: "/tasks",
     icon: ListTodo,
@@ -74,11 +79,6 @@ const investmentDivisionItems = [
     title: "Holdings Search",
     url: "/holdings-search",
     icon: Search,
-  },
-  {
-    title: "Alerts",
-    url: "/alerts",
-    icon: Bell,
   },
 ];
 
