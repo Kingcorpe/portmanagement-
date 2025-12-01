@@ -91,25 +91,33 @@ function getNext12Months() {
 // Component to display daily task checkboxes for an objective
 function DailyTasksSection({ 
   objectiveId, 
-  month 
+  month,
+  trackerMode
 }: { 
   objectiveId: string; 
   month: string;
+  trackerMode?: string;
 }) {
   const { toast } = useToast();
   const businessDays = getBusinessDaysInMonth(month);
+  const allDays = Array.from({ length: getDaysInMonth(new Date(month.split("-")[0], parseInt(month.split("-")[1]) - 1)) }, (_, i) => i + 1);
+  const daysToUse = trackerMode === "every_day" ? allDays : businessDays;
+  const [showModeDialog, setShowModeDialog] = useState(false);
   
   const { data: dailyTasks = [], isLoading } = useQuery<KpiDailyTask[]>({
     queryKey: ['/api/kpi-objectives', objectiveId, 'daily-tasks'],
   });
 
   const initializeMutation = useMutation({
-    mutationFn: async () => 
+    mutationFn: async (mode: string) => 
       apiRequest("POST", `/api/kpi-objectives/${objectiveId}/daily-tasks/initialize`, {
-        businessDays,
+        days: mode === "every_day" ? allDays : businessDays,
+        trackerMode: mode,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/kpi-objectives', objectiveId, 'daily-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/kpi-objectives'] });
+      setShowModeDialog(false);
       toast({ description: "Daily tracking enabled" });
     },
     onError: (error: any) => {
@@ -147,20 +155,57 @@ function DailyTasksSection({
   // If no daily tasks exist, show button to enable tracking
   if (dailyTasks.length === 0) {
     return (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-6 text-xs gap-1"
-        onClick={(e) => {
-          e.stopPropagation();
-          initializeMutation.mutate();
-        }}
-        disabled={initializeMutation.isPending}
-        data-testid={`button-enable-tracking-${objectiveId}`}
-      >
-        <CalendarDays className="w-3 h-3" />
-        {initializeMutation.isPending ? "Enabling..." : "Enable Daily Tracking"}
-      </Button>
+      <Dialog open={showModeDialog} onOpenChange={setShowModeDialog}>
+        <DialogTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-xs gap-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowModeDialog(true);
+            }}
+            data-testid={`button-enable-tracking-${objectiveId}`}
+          >
+            <CalendarDays className="w-3 h-3" />
+            Enable Daily Tracking
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Track Daily Progress</DialogTitle>
+            <DialogDescription>
+              Choose whether to track only business days (Mon-Fri) or every day of the month
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => initializeMutation.mutate("business_days")}
+              disabled={initializeMutation.isPending}
+              data-testid={`button-mode-business-days-${objectiveId}`}
+            >
+              <div className="text-left">
+                <div className="font-medium">Business Days Only</div>
+                <div className="text-xs text-muted-foreground">Track Mon-Fri only ({businessDays.length} days)</div>
+              </div>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => initializeMutation.mutate("every_day")}
+              disabled={initializeMutation.isPending}
+              data-testid={`button-mode-every-day-${objectiveId}`}
+            >
+              <div className="text-left">
+                <div className="font-medium">Every Day</div>
+                <div className="text-xs text-muted-foreground">Track all days ({allDays.length} days)</div>
+              </div>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
@@ -303,7 +348,7 @@ function KanbanColumn({
 
               {/* Daily Tasks Section */}
               <div className="pt-2 border-t">
-                <DailyTasksSection objectiveId={obj.id} month={obj.month} />
+                <DailyTasksSection objectiveId={obj.id} month={obj.month} trackerMode={obj.dailyTrackerMode} />
               </div>
 
               <div className="flex gap-2 pt-2 border-t">

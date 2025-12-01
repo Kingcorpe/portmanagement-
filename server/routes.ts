@@ -6258,7 +6258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/kpi-objectives/:id/daily-tasks/initialize', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const { businessDays } = req.body; // Array of day numbers
+      const { days, trackerMode } = req.body; // Array of day numbers and tracker mode
       const userId = req.user.claims.sub;
       
       // Verify ownership of the objective
@@ -6270,8 +6270,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Delete existing tasks first
       await storage.deleteDailyTasksByObjective(id);
       
-      // Create new tasks for each business day
-      const tasksToCreate = businessDays.map((dayNumber: number) => ({
+      // Update objective with tracker mode
+      if (trackerMode) {
+        await storage.updateKpiObjective(id, { dailyTrackerMode: trackerMode });
+      }
+      
+      // Create new tasks for each day
+      const tasksToCreate = days.map((dayNumber: number) => ({
         objectiveId: id,
         dayNumber,
         isCompleted: 0,

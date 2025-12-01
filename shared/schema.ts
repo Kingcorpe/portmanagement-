@@ -1232,6 +1232,12 @@ export const kpiObjectiveTypeEnum = pgEnum("kpi_objective_type", [
   "business",
 ]);
 
+// Daily tracker mode enum
+export const dailyTrackerModeEnum = pgEnum("daily_tracker_mode", [
+  "business_days",
+  "every_day",
+]);
+
 // KPI objectives table
 export const kpiObjectives = pgTable("kpi_objectives", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1243,6 +1249,7 @@ export const kpiObjectives = pgTable("kpi_objectives", {
   targetMetric: varchar("target_metric"), // e.g., "$50k AUM", "50 calls"
   status: kpiObjectiveStatusEnum("status").notNull().default("planned"),
   assignedTo: varchar("assigned_to"), // Team member name
+  dailyTrackerMode: dailyTrackerModeEnum("daily_tracker_mode"), // business_days or every_day
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
