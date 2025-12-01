@@ -160,13 +160,13 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               ))}
 
-              {/* Key Metrics with Revenue sub-items */}
+              {/* Dashboards with sub-items */}
               <Collapsible open={keyMetricsOpen} onOpenChange={setKeyMetricsOpen} className="group/collapsible">
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
-                    <SidebarMenuButton isActive={isKeyMetricsActive} data-testid="link-key-metrics">
+                    <SidebarMenuButton isActive={isKeyMetricsActive} data-testid="link-dashboards">
                       <BarChart3 />
-                      <span>Key Metrics</span>
+                      <span>Dashboards</span>
                       <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
