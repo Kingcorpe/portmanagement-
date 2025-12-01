@@ -541,7 +541,16 @@ export default function InsuranceRevenuePage() {
                 {editingEntry ? "Edit Entry" : "Add Insurance Revenue Entry"}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form 
+              onSubmit={handleSubmit} 
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !(e.target instanceof HTMLTextAreaElement)) {
+                  e.preventDefault();
+                  handleSubmit(e as any);
+                }
+              }}
+              className="space-y-4"
+            >
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="date">Date</Label>
