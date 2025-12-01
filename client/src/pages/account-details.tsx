@@ -267,6 +267,7 @@ export default function AccountDetails() {
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
   const [cashAmount, setCashAmount] = useState("");
   const [editingInlineTarget, setEditingInlineTarget] = useState<string | null>(null);
+  const [isDeleteAllAllocationsDialogOpen, setIsDeleteAllAllocationsDialogOpen] = useState(false);
   const [inlineTargetValue, setInlineTargetValue] = useState<string>("");
   const [lastCopiedFromWatchlist, setLastCopiedFromWatchlist] = useState(false);
   // Protection inline editing state (which position and field is being edited)
@@ -781,6 +782,31 @@ export default function AccountDetails() {
       toast({
         title: "Error",
         description: error.message || "Failed to delete target allocation",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteAllAllocationsMutation = useMutation({
+    mutationFn: async () => {
+      // Delete all target allocations for this account
+      const deletePromises = targetAllocations.map(alloc =>
+        apiRequest("DELETE", `/api/account-target-allocations/${alloc.id}`)
+      );
+      await Promise.all(deletePromises);
+    },
+    onSuccess: async () => {
+      await refreshAllocationData();
+      setIsDeleteAllAllocationsDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "All target allocations deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete all target allocations",
         variant: "destructive",
       });
     },
@@ -3026,7 +3052,42 @@ export default function AccountDetails() {
                 </button>
               </CollapsibleTrigger>
               <div className="flex gap-2">
-                <Dialog open={isCopyDialogOpen} onOpenChange={(open) => {
+                <Dialog open={isDeleteAllAllocationsDialogOpen} onOpenChange={setIsDeleteAllAllocationsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="text-destructive hover:text-destructive"
+                    disabled={targetAllocations.length === 0}
+                    data-testid="button-delete-all-allocations"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete All
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete All Target Allocations?</DialogTitle>
+                    <DialogDescription>
+                      This will permanently delete all {targetAllocations.length} target allocation{targetAllocations.length !== 1 ? 's' : ''} for this account. This action cannot be undone.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsDeleteAllAllocationsDialogOpen(false)} data-testid="button-cancel-delete-all">
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      onClick={() => deleteAllAllocationsMutation.mutate()}
+                      disabled={deleteAllAllocationsMutation.isPending}
+                      data-testid="button-confirm-delete-all"
+                    >
+                      {deleteAllAllocationsMutation.isPending ? "Deleting..." : "Delete All"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={isCopyDialogOpen} onOpenChange={(open) => {
                 setIsCopyDialogOpen(open);
                 if (!open) {
                   setSelectedPortfolioId("");
