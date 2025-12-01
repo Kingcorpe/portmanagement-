@@ -50,6 +50,8 @@ import {
   updateInsuranceRevenueSchema,
   insertInvestmentRevenueSchema,
   updateInvestmentRevenueSchema,
+  insertKpiObjectiveSchema,
+  updateKpiObjectiveSchema,
   type InsertAccountAuditLog,
   type Position,
 } from "@shared/schema";
@@ -6164,6 +6166,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting investment revenue:", error);
       res.status(500).json({ message: error.message || "Failed to delete investment revenue entry" });
+    }
+  });
+
+  // KPI Objectives API routes
+  app.get('/api/kpi-objectives', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const objectives = await storage.getKpiObjectivesByUser(userId);
+      res.json(objectives);
+    } catch (error: any) {
+      console.error("Error fetching KPI objectives:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch KPI objectives" });
+    }
+  });
+
+  app.post('/api/kpi-objectives', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const data = insertKpiObjectiveSchema.parse({ ...req.body, userId });
+      const objective = await storage.createKpiObjective(data);
+      res.status(201).json(objective);
+    } catch (error: any) {
+      console.error("Error creating KPI objective:", error);
+      res.status(500).json({ message: error.message || "Failed to create KPI objective" });
+    }
+  });
+
+  app.patch('/api/kpi-objectives/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify ownership
+      const existing = await storage.getKpiObjectiveById(id);
+      if (!existing || existing.userId !== userId) {
+        return res.status(404).json({ message: "Objective not found" });
+      }
+      
+      const data = updateKpiObjectiveSchema.parse(req.body);
+      const objective = await storage.updateKpiObjective(id, data);
+      res.json(objective);
+    } catch (error: any) {
+      console.error("Error updating KPI objective:", error);
+      res.status(500).json({ message: error.message || "Failed to update KPI objective" });
+    }
+  });
+
+  app.delete('/api/kpi-objectives/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify ownership
+      const existing = await storage.getKpiObjectiveById(id);
+      if (!existing || existing.userId !== userId) {
+        return res.status(404).json({ message: "Objective not found" });
+      }
+      
+      await storage.deleteKpiObjective(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting KPI objective:", error);
+      res.status(500).json({ message: error.message || "Failed to delete KPI objective" });
     }
   });
 

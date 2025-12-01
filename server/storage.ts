@@ -24,6 +24,7 @@ import {
   accountAuditLog,
   insuranceRevenue,
   investmentRevenue,
+  kpiObjectives,
   type User,
   type UpsertUser,
   type Household,
@@ -79,6 +80,9 @@ import {
   type InvestmentRevenue,
   type InsertInvestmentRevenue,
   type UpdateInvestmentRevenue,
+  type KpiObjective,
+  type InsertKpiObjective,
+  type UpdateKpiObjective,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, inArray, ilike, or, and, sql, isNull, isNotNull } from "drizzle-orm";
@@ -1876,6 +1880,46 @@ export class DatabaseStorage implements IStorage {
 
   async deleteInvestmentRevenue(id: string): Promise<void> {
     await db.delete(investmentRevenue).where(eq(investmentRevenue.id, id));
+  }
+
+  // KPI objectives operations
+  async createKpiObjective(data: InsertKpiObjective): Promise<KpiObjective> {
+    const [objective] = await db.insert(kpiObjectives).values(data).returning();
+    return objective;
+  }
+
+  async getKpiObjectivesByUser(userId: string): Promise<KpiObjective[]> {
+    return await db.select()
+      .from(kpiObjectives)
+      .where(eq(kpiObjectives.userId, userId))
+      .orderBy(kpiObjectives.month);
+  }
+
+  async getKpiObjectivesByUserAndMonth(userId: string, month: string): Promise<KpiObjective[]> {
+    return await db.select()
+      .from(kpiObjectives)
+      .where(eq(kpiObjectives.userId, userId) && eq(kpiObjectives.month, month))
+      .orderBy(desc(kpiObjectives.createdAt));
+  }
+
+  async getKpiObjectiveById(id: string): Promise<KpiObjective | undefined> {
+    const [objective] = await db.select()
+      .from(kpiObjectives)
+      .where(eq(kpiObjectives.id, id));
+    return objective;
+  }
+
+  async updateKpiObjective(id: string, data: UpdateKpiObjective): Promise<KpiObjective> {
+    const [objective] = await db
+      .update(kpiObjectives)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(kpiObjectives.id, id))
+      .returning();
+    return objective;
+  }
+
+  async deleteKpiObjective(id: string): Promise<void> {
+    await db.delete(kpiObjectives).where(eq(kpiObjectives.id, id));
   }
 }
 

@@ -1218,3 +1218,51 @@ export const updateInvestmentRevenueSchema = createInsertSchema(investmentRevenu
 export type InsertInvestmentRevenue = z.infer<typeof insertInvestmentRevenueSchema>;
 export type UpdateInvestmentRevenue = z.infer<typeof updateInvestmentRevenueSchema>;
 export type InvestmentRevenue = typeof investmentRevenue.$inferSelect;
+
+// KPI objective status enum
+export const kpiObjectiveStatusEnum = pgEnum("kpi_objective_status", [
+  "planned",
+  "in_progress",
+  "completed",
+]);
+
+// KPI objectives table
+export const kpiObjectives = pgTable("kpi_objectives", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }),
+  month: varchar("month").notNull(), // YYYY-MM format
+  title: text("title").notNull(),
+  description: text("description"),
+  targetMetric: varchar("target_metric"), // e.g., "$50k AUM", "50 calls"
+  status: kpiObjectiveStatusEnum("status").notNull().default("planned"),
+  assignedTo: varchar("assigned_to"), // Team member name
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const kpiObjectivesRelations = relations(kpiObjectives, ({ one }) => ({
+  user: one(users, {
+    fields: [kpiObjectives.userId],
+    references: [users.id],
+  }),
+}));
+
+// KPI objectives insert schema
+export const insertKpiObjectiveSchema = createInsertSchema(kpiObjectives).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// KPI objectives update schema
+export const updateKpiObjectiveSchema = createInsertSchema(kpiObjectives).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
+
+// KPI objectives types
+export type InsertKpiObjective = z.infer<typeof insertKpiObjectiveSchema>;
+export type UpdateKpiObjective = z.infer<typeof updateKpiObjectiveSchema>;
+export type KpiObjective = typeof kpiObjectives.$inferSelect;
