@@ -66,14 +66,14 @@ const investmentDivisionItems = [
     icon: ListTodo,
   },
   {
-    title: "Model Portfolios",
-    url: "/model-portfolios",
-    icon: Briefcase,
-  },
-  {
     title: "Households",
     url: "/households",
     icon: Users,
+  },
+  {
+    title: "Model Portfolios",
+    url: "/model-portfolios",
+    icon: Briefcase,
   },
   {
     title: "Holdings Search",
