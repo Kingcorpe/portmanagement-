@@ -544,6 +544,26 @@ export default function KeyMetrics() {
             </CardContent>
           </Card>
         </Link>
+
+        {/* Investment Revenue Link */}
+        <Link href="/investment-revenue">
+          <Card data-testid="card-investment-revenue" className="glow-border hover:shadow-lg transition-shadow cursor-pointer">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-500/10">
+                    <TrendingUp className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <span>Investment Revenue</span>
+                </CardTitle>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">Track dividend income and new AUM, set revenue goals, and monitor investment performance.</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
     </div>
   );

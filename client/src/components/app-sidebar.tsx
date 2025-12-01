@@ -50,11 +50,6 @@ const menuItems = [
     icon: Search,
   },
   {
-    title: "Investment Revenue",
-    url: "/investment-revenue",
-    icon: TrendingUp,
-  },
-  {
     title: "Reference Links",
     url: "/reference-links",
     icon: LinkIcon,
