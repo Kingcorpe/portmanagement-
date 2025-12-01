@@ -28,7 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, Trash2, Plus, User, Briefcase, Pencil, CalendarDays, X } from "lucide-react";
+import { ChevronDown, Trash2, Plus, User, Briefcase, Pencil, CalendarDays, X, Download } from "lucide-react";
 import { format, addMonths, getDaysInMonth, isWeekend, startOfMonth, addDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import type { KpiObjective, KpiDailyTask } from "@shared/schema";
@@ -395,6 +395,8 @@ export default function KpiDashboard() {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editTargetMetric, setEditTargetMetric] = useState("");
+  const [exportMode, setExportMode] = useState<"single" | "all">("all");
+  const [exportSelectedMonth, setExportSelectedMonth] = useState("");
   const currentMonth = format(new Date(), "yyyy-MM");
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set([currentMonth]));
 
@@ -445,6 +447,41 @@ export default function KpiDashboard() {
     onError: (error: any) => {
       toast({
         description: error.message || "Failed to delete objective",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: async ({ mode, month }: { mode: "single" | "all"; month?: string }) => {
+      const params = new URLSearchParams();
+      params.append("mode", mode);
+      if (mode === "single" && month) {
+        params.append("month", month);
+      }
+      const response = await fetch(`/api/kpi-objectives/export?${params}`, {
+        method: "GET",
+      });
+      if (!response.ok) throw new Error("Failed to export PDF");
+      return response.blob();
+    },
+    onSuccess: (blob, { mode, month }) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const fileName = mode === "all" 
+        ? `KPI_Dashboard_12Months_${format(new Date(), "yyyy-MM-dd")}.pdf`
+        : `KPI_Dashboard_${month}_${format(new Date(), "yyyy-MM-dd")}.pdf`;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast({ description: "PDF exported successfully" });
+    },
+    onError: (error: any) => {
+      toast({
+        description: error.message || "Failed to export PDF",
         variant: "destructive",
       });
     },
@@ -517,7 +554,71 @@ export default function KpiDashboard() {
           <h1 className="text-3xl font-bold" data-testid="text-page-title">KPI's Dashboard</h1>
           <p className="text-muted-foreground mt-1">12-Month Team Objectives</p>
         </div>
-        <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+        <div className="flex gap-2 flex-wrap">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" data-testid="button-export-pdf">
+                <Download className="w-4 h-4 mr-2" />
+                Export PDF
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Export KPI Dashboard</DialogTitle>
+                <DialogDescription>Choose what to export to PDF</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Export Mode</label>
+                  <Select value={exportMode} onValueChange={(val: any) => setExportMode(val)}>
+                    <SelectTrigger data-testid="select-export-mode">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All 12 Months</SelectItem>
+                      <SelectItem value="single">Single Month</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {exportMode === "single" && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Select Month</label>
+                    <Select value={exportSelectedMonth} onValueChange={setExportSelectedMonth}>
+                      <SelectTrigger data-testid="select-export-month">
+                        <SelectValue placeholder="Choose a month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {months.map((m) => (
+                          <SelectItem key={m.month} value={m.month}>
+                            {m.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <Button
+                  onClick={() => {
+                    if (exportMode === "single" && !exportSelectedMonth) {
+                      toast({ description: "Please select a month", variant: "destructive" });
+                      return;
+                    }
+                    exportMutation.mutate({
+                      mode: exportMode,
+                      month: exportMode === "single" ? exportSelectedMonth : undefined,
+                    });
+                  }}
+                  disabled={exportMutation.isPending}
+                  className="w-full"
+                  data-testid="button-export-confirm"
+                >
+                  {exportMutation.isPending ? "Exporting..." : "Export PDF"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          
+          <Dialog open={openDialog} onOpenChange={setOpenDialog}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-objective">
               <Plus className="w-4 h-4 mr-2" />

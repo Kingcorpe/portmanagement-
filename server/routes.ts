@@ -6336,6 +6336,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // KPI Export endpoint
+  app.get('/api/kpi-objectives/export', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { mode, month } = req.query;
+      
+      const objectives = await storage.getKpiObjectivesByUser(userId);
+      
+      let filtered = objectives;
+      if (mode === "single" && month) {
+        filtered = objectives.filter(o => o.month === month);
+      }
+      
+      const PDFDocument = require("pdfkit");
+      const doc = new PDFDocument({ margin: 40 });
+      const filename = mode === "all" 
+        ? `KPI_Dashboard_12Months_${new Date().toISOString().split('T')[0]}.pdf`
+        : `KPI_Dashboard_${month}_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      
+      doc.pipe(res);
+      
+      doc.fontSize(24).font("Helvetica-Bold").text("KPI Dashboard", { align: "center" });
+      doc.fontSize(12).font("Helvetica").text(mode === "all" ? "12-Month Overview" : `Month: ${month}`, { align: "center" });
+      doc.moveDown();
+      
+      const months = new Map<string, { personal: typeof filtered, business: typeof filtered }>();
+      filtered.forEach(obj => {
+        if (!months.has(obj.month)) months.set(obj.month, { personal: [], business: [] });
+        const entry = months.get(obj.month)!;
+        if (obj.type === "personal") entry.personal.push(obj);
+        else entry.business.push(obj);
+      });
+      
+      months.forEach((groups, monthKey) => {
+        doc.fontSize(14).font("Helvetica-Bold").text(monthKey, { underline: true });
+        doc.moveDown(0.3);
+        
+        ["personal", "business"].forEach(type => {
+          if (groups[type as keyof typeof groups].length > 0) {
+            doc.fontSize(11).font("Helvetica-Bold").text(type.charAt(0).toUpperCase() + type.slice(1) + " Objectives:");
+            groups[type as keyof typeof groups].forEach(obj => {
+              doc.fontSize(10).font("Helvetica").text(`• ${obj.title}`, { indent: 20 });
+              if (obj.description) {
+                doc.fontSize(9).font("Helvetica").text(obj.description.split('\n').slice(0, 2).join('\n'), { indent: 25 });
+              }
+              if (obj.targetMetric) {
+                doc.fontSize(9).font("Helvetica").text(`Target: ${obj.targetMetric}`, { indent: 25 });
+              }
+              doc.fontSize(9).font("Helvetica").text(`Status: ${obj.status}`, { indent: 25 });
+              doc.moveDown(0.5);
+            });
+          }
+        });
+        doc.moveDown();
+      });
+      
+      doc.end();
+    } catch (error: any) {
+      console.error("Error exporting KPI objectives:", error);
+      res.status(500).json({ message: error.message || "Failed to export PDF" });
+    }
+  });
+
   // Reference Links API routes
   app.get('/api/reference-links', isAuthenticated, async (req: any, res) => {
     try {
