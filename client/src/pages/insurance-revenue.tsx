@@ -43,7 +43,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, DollarSign, TrendingUp, FileText, Target, Calendar, Settings2 } from "lucide-react";
+import { Plus, Pencil, Trash2, DollarSign, TrendingUp, FileText, Target, Calendar, Settings2, ArrowUp, ArrowDown } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import type { InsuranceRevenue } from "@shared/schema";
 
@@ -105,6 +105,8 @@ export default function InsuranceRevenuePage() {
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [goalsDialogOpen, setGoalsDialogOpen] = useState(false);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [monthlyGoal, setMonthlyGoal] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('insuranceMonthlyGoal') || '';
@@ -226,6 +228,60 @@ export default function InsuranceRevenuePage() {
   const resetForm = () => {
     setFormData(initialFormData);
     setEditingEntry(null);
+  };
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortedEntries = () => {
+    if (!sortColumn) return entries;
+
+    return [...entries].sort((a, b) => {
+      let aVal: any, bVal: any;
+
+      switch (sortColumn) {
+        case 'date':
+          aVal = a.date;
+          bVal = b.date;
+          break;
+        case 'client':
+          aVal = a.clientName.toLowerCase();
+          bVal = b.clientName.toLowerCase();
+          break;
+        case 'policyType':
+          aVal = a.policyType.toLowerCase();
+          bVal = b.policyType.toLowerCase();
+          break;
+        case 'carrier':
+          aVal = (a.carrier || '').toLowerCase();
+          bVal = (b.carrier || '').toLowerCase();
+          break;
+        case 'premium':
+          aVal = parseFloat(a.premium);
+          bVal = parseFloat(b.premium);
+          break;
+        case 'commission':
+          aVal = parseFloat(a.commissionAmount);
+          bVal = parseFloat(b.commissionAmount);
+          break;
+        case 'status':
+          aVal = a.status.toLowerCase();
+          bVal = b.status.toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
   };
 
   const handleEdit = (entry: InsuranceRevenue) => {
@@ -1140,18 +1196,67 @@ export default function InsuranceRevenuePage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Policy Type</TableHead>
-                    <TableHead>Carrier</TableHead>
-                    <TableHead className="text-right">Monthly Premium</TableHead>
-                    <TableHead className="text-right">Commission</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="cursor-pointer hover-elevate" onClick={() => handleSort('date')} data-testid="header-date">
+                      <div className="flex items-center gap-1">
+                        Date
+                        {sortColumn === 'date' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover-elevate" onClick={() => handleSort('client')} data-testid="header-client">
+                      <div className="flex items-center gap-1">
+                        Client
+                        {sortColumn === 'client' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover-elevate" onClick={() => handleSort('policyType')} data-testid="header-policytype">
+                      <div className="flex items-center gap-1">
+                        Policy Type
+                        {sortColumn === 'policyType' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover-elevate" onClick={() => handleSort('carrier')} data-testid="header-carrier">
+                      <div className="flex items-center gap-1">
+                        Carrier
+                        {sortColumn === 'carrier' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer hover-elevate" onClick={() => handleSort('premium')} data-testid="header-premium">
+                      <div className="flex items-center justify-end gap-1">
+                        Monthly Premium
+                        {sortColumn === 'premium' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right cursor-pointer hover-elevate" onClick={() => handleSort('commission')} data-testid="header-commission">
+                      <div className="flex items-center justify-end gap-1">
+                        Commission
+                        {sortColumn === 'commission' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover-elevate" onClick={() => handleSort('status')} data-testid="header-status">
+                      <div className="flex items-center gap-1">
+                        Status
+                        {sortColumn === 'status' && (
+                          sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {entries.map((entry) => (
+                  {getSortedEntries().map((entry) => (
                     <TableRow key={entry.id} data-testid={`row-entry-${entry.id}`}>
                       <TableCell>{entry.date}</TableCell>
                       <TableCell className="font-medium">{entry.clientName}</TableCell>
