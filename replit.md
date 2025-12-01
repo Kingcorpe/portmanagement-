@@ -1,7 +1,7 @@
-# Canadian Investment Portfolio Management Platform
+# PracticeOS - Canadian Advisory Practice Management Platform
 
 ## Overview
-This project is a secure, web-based investment portfolio management system for Canadian financial advisors. It manages household-based client portfolios across various Canadian account types (individual, corporate, joint) and integrates with TradingView for alert management. Its purpose is to provide a comprehensive tool for overseeing client investments, tracking holdings, and acting on trading signals, aiming to streamline portfolio management for financial professionals.
+PracticeOS is a comprehensive practice management system for Canadian financial advisors. It manages household-based client portfolios across various Canadian account types (individual, corporate, joint), integrates with TradingView for alert management, tracks insurance and investment revenue, and provides KPI dashboards and business metrics. Its purpose is to provide a unified platform for overseeing client investments, tracking holdings, managing tasks, monitoring revenue goals, and streamlining all aspects of running an advisory practice.
 
 ## User Preferences
 - I prefer simple language and clear explanations.

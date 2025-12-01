@@ -177,7 +177,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-lg font-semibold px-2 py-4">
-            TradingOS
+            PracticeOS
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
