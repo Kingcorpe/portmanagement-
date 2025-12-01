@@ -50,6 +50,7 @@ function AuthenticatedRoutes() {
       <Route path="/insurance-revenue" component={InsuranceRevenue} />
       <Route path="/investment-revenue" component={InvestmentRevenue} />
       <Route path="/reference-links" component={ReferenceLinks} />
+      <Route path="/kpi" component={KpiDashboard} />
       <Route path="/kpi-dashboard" component={KpiDashboard} />
       <Route component={NotFound} />
     </Switch>
