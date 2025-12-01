@@ -25,6 +25,7 @@ import {
   insuranceRevenue,
   investmentRevenue,
   kpiObjectives,
+  referenceLinks,
   type User,
   type UpsertUser,
   type Household,
@@ -83,6 +84,9 @@ import {
   type KpiObjective,
   type InsertKpiObjective,
   type UpdateKpiObjective,
+  type ReferenceLink,
+  type InsertReferenceLink,
+  type UpdateReferenceLink,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, inArray, ilike, or, and, sql, isNull, isNotNull } from "drizzle-orm";
@@ -1920,6 +1924,39 @@ export class DatabaseStorage implements IStorage {
 
   async deleteKpiObjective(id: string): Promise<void> {
     await db.delete(kpiObjectives).where(eq(kpiObjectives.id, id));
+  }
+
+  // Reference Links operations
+  async createReferenceLink(data: InsertReferenceLink): Promise<ReferenceLink> {
+    const [link] = await db.insert(referenceLinks).values(data).returning();
+    return link;
+  }
+
+  async getReferenceLinksByUser(userId: string): Promise<ReferenceLink[]> {
+    return await db.select()
+      .from(referenceLinks)
+      .where(eq(referenceLinks.userId, userId))
+      .orderBy(referenceLinks.sortOrder, referenceLinks.createdAt);
+  }
+
+  async getReferenceLinkById(id: string): Promise<ReferenceLink | undefined> {
+    const [link] = await db.select()
+      .from(referenceLinks)
+      .where(eq(referenceLinks.id, id));
+    return link;
+  }
+
+  async updateReferenceLink(id: string, data: UpdateReferenceLink): Promise<ReferenceLink> {
+    const [link] = await db
+      .update(referenceLinks)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(referenceLinks.id, id))
+      .returning();
+    return link;
+  }
+
+  async deleteReferenceLink(id: string): Promise<void> {
+    await db.delete(referenceLinks).where(eq(referenceLinks.id, id));
   }
 }
 

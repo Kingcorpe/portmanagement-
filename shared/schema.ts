@@ -1266,3 +1266,44 @@ export const updateKpiObjectiveSchema = createInsertSchema(kpiObjectives).omit({
 export type InsertKpiObjective = z.infer<typeof insertKpiObjectiveSchema>;
 export type UpdateKpiObjective = z.infer<typeof updateKpiObjectiveSchema>;
 export type KpiObjective = typeof kpiObjectives.$inferSelect;
+
+// Reference links table
+export const referenceLinks = pgTable("reference_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }),
+  title: text("title").notNull(),
+  url: text("url").notNull(),
+  description: text("description"),
+  icon: varchar("icon"), // Icon key like "link", "globe", "briefcase"
+  imageUrl: text("image_url"), // For custom logo images
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const referenceLinksRelations = relations(referenceLinks, ({ one }) => ({
+  user: one(users, {
+    fields: [referenceLinks.userId],
+    references: [users.id],
+  }),
+}));
+
+// Reference links insert schema
+export const insertReferenceLinkSchema = createInsertSchema(referenceLinks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Reference links update schema
+export const updateReferenceLinkSchema = createInsertSchema(referenceLinks).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
+
+// Reference links types
+export type InsertReferenceLink = z.infer<typeof insertReferenceLinkSchema>;
+export type UpdateReferenceLink = z.infer<typeof updateReferenceLinkSchema>;
+export type ReferenceLink = typeof referenceLinks.$inferSelect;
