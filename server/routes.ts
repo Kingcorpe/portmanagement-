@@ -6389,8 +6389,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const typeLabel = type === "personal" ? "Personal" : "Business";
             objectives.forEach((obj, idx) => {
               const statusLabel = obj.status.charAt(0).toUpperCase() + obj.status.slice(1);
-              doc.fontSize(10).font("Helvetica").text(`• ${obj.title} — ${statusLabel}`, { indent: 15 });
-              if (obj.description) {
+              const isCompleted = obj.status === "completed";
+              const titleText = `• ${obj.title} — ${statusLabel}`;
+              doc.fontSize(10).font("Helvetica");
+              if (isCompleted) {
+                doc.text(titleText, { indent: 15, strike: true });
+              } else {
+                doc.text(titleText, { indent: 15 });
+              }
+              if (obj.description && !isCompleted) {
                 const desc = obj.description.split('\n')[0].slice(0, 80);
                 doc.fontSize(9).font("Helvetica").fillColor("#666666").text(desc, { indent: 20 });
                 doc.fillColor("#000000");
