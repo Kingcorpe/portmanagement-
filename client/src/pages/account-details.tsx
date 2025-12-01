@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useRoute, Link, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -100,6 +100,21 @@ interface PortfolioComparisonData {
   comparison: PortfolioComparisonItem[];
   totalActualValue: number;
   totalTargetPercentage: number;
+}
+
+interface CashDeploymentCandidate {
+  holdingId: string;
+  ticker: string;
+  name: string;
+  source: 'below_book' | 'manual';
+  currentPrice: number;
+  averageCost: number | null;
+  currentValue: number;
+  targetPct: number;
+  targetValue: number;
+  gap: number;
+  allocatedCash: number;
+  status: 'fully_funded' | 'partially_funded' | 'unfunded';
 }
 
 const RIF_MINIMUM_RATES: Record<number, number> = {
@@ -298,6 +313,12 @@ export default function AccountDetails() {
   const [isCreatingWatchlist, setIsCreatingWatchlist] = useState(false);
   const [allocationIsWatchlist, setAllocationIsWatchlist] = useState(false);
   const [maintainDollarAmounts, setMaintainDollarAmounts] = useState(false);
+  // Cash Deployment Planner state
+  const [isCashPlannerExpanded, setIsCashPlannerExpanded] = useState(true);
+  const [manualCandidates, setManualCandidates] = useState<Array<{ holdingId: string; targetPct: number }>>([]);
+  const [candidateHoldingComboboxOpen, setCandidateHoldingComboboxOpen] = useState(false);
+  const [selectedCandidateHolding, setSelectedCandidateHolding] = useState<string>("");
+  const [candidateTargetPct, setCandidateTargetPct] = useState<string>("");
   const notesInitialLoadRef = useRef(true);
   const notesSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -561,6 +582,132 @@ export default function AccountDetails() {
     queryKey: [auditLogEndpoint],
     enabled: isAuthenticated && !!auditLogEndpoint && isAuditLogExpanded,
   });
+
+  // Calculate totals (needed for useMemo below - must be before early returns)
+  const totalMarketValue = positions.reduce((sum, p) => sum + (Number(p.quantity) * Number(p.currentPrice)), 0);
+
+  // Helper function to normalize tickers for comparison (strip exchange suffixes)
+  const normalizeTicker = useCallback((ticker: string): string => {
+    return ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+  }, []);
+
+  // Cash Deployment Planner calculations (must be called unconditionally)
+  const cashDeploymentData = useMemo(() => {
+    if (!accountData?.deploymentMode || !positions.length) {
+      return { availableCash: 0, belowBookCandidates: [], allCandidates: [], totalAllocated: 0 };
+    }
+
+    // Find cash position
+    const cashPosition = positions.find(p => p.symbol.toUpperCase() === 'CASH');
+    const availableCash = cashPosition ? Number(cashPosition.quantity) : 0;
+
+    if (availableCash <= 0) {
+      return { availableCash: 0, belowBookCandidates: [], allCandidates: [], totalAllocated: 0 };
+    }
+
+    // Find holdings below book value (current price < entry price)
+    const belowBookCandidates: CashDeploymentCandidate[] = positions
+      .filter(p => {
+        const currentPrice = Number(p.currentPrice);
+        const entryPrice = Number(p.entryPrice);
+        return p.symbol.toUpperCase() !== 'CASH' && currentPrice < entryPrice;
+      })
+      .map(p => {
+        const normalizedSymbol = normalizeTicker(p.symbol);
+        const holding = universalHoldings.find(h => normalizeTicker(h.ticker) === normalizedSymbol);
+        const targetAlloc = targetAllocations.find(ta => 
+          ta.holding && normalizeTicker(ta.holding.ticker) === normalizedSymbol
+        );
+        
+        const currentPrice = Number(p.currentPrice);
+        const entryPrice = Number(p.entryPrice);
+        const currentValue = Number(p.quantity) * currentPrice;
+        const targetPct = targetAlloc ? Number(targetAlloc.targetPercentage) : 0;
+        const targetValue = (targetPct / 100) * totalMarketValue;
+        const gap = Math.max(0, targetValue - currentValue);
+
+        return {
+          holdingId: holding?.id || '',
+          ticker: p.symbol,
+          name: holding?.name || p.symbol,
+          source: 'below_book' as const,
+          currentPrice,
+          averageCost: entryPrice,
+          currentValue,
+          targetPct,
+          targetValue,
+          gap,
+          allocatedCash: 0,
+          status: 'unfunded' as const,
+        };
+      })
+      .filter(c => c.gap > 0);
+
+    // Add manual candidates
+    const manualCandidatesList = manualCandidates
+      .map(mc => {
+        const holding = universalHoldings.find(h => h.id === mc.holdingId);
+        if (!holding) return null;
+
+        const normalizedTicker = normalizeTicker(holding.ticker);
+        const existingPosition = positions.find(p => normalizeTicker(p.symbol) === normalizedTicker);
+        
+        const currentPrice = Number(holding.price || 0);
+        const currentValue = existingPosition ? Number(existingPosition.quantity) * Number(existingPosition.currentPrice) : 0;
+        const targetValue = (mc.targetPct / 100) * totalMarketValue;
+        const gap = Math.max(0, targetValue - currentValue);
+
+        const candidate: CashDeploymentCandidate = {
+          holdingId: mc.holdingId,
+          ticker: holding.ticker,
+          name: holding.name,
+          source: 'manual',
+          currentPrice,
+          averageCost: existingPosition ? Number(existingPosition.entryPrice) : null,
+          currentValue,
+          targetPct: mc.targetPct,
+          targetValue,
+          gap,
+          allocatedCash: 0,
+          status: 'unfunded',
+        };
+        return candidate;
+      })
+      .filter((c): c is CashDeploymentCandidate => c !== null && c.gap > 0);
+
+    // Combine and deduplicate candidates (manual takes priority over below_book)
+    const allCandidatesMap = new Map<string, CashDeploymentCandidate>();
+    belowBookCandidates.forEach(c => allCandidatesMap.set(normalizeTicker(c.ticker), c));
+    manualCandidatesList.forEach(c => allCandidatesMap.set(normalizeTicker(c.ticker), c));
+
+    // Sort by largest gap first and allocate cash
+    const sortedCandidates = Array.from(allCandidatesMap.values())
+      .sort((a, b) => b.gap - a.gap);
+
+    let remainingCash = availableCash;
+    const allocatedCandidates = sortedCandidates.map(candidate => {
+      if (remainingCash <= 0) {
+        return { ...candidate, allocatedCash: 0, status: 'unfunded' as const };
+      }
+
+      const allocation = Math.min(candidate.gap, remainingCash);
+      remainingCash -= allocation;
+
+      return {
+        ...candidate,
+        allocatedCash: allocation,
+        status: allocation >= candidate.gap ? 'fully_funded' as const : 
+               allocation > 0 ? 'partially_funded' as const : 'unfunded' as const,
+      };
+    });
+
+    return {
+      availableCash,
+      belowBookCandidates,
+      allCandidates: allocatedCandidates,
+      totalAllocated: availableCash - remainingCash,
+    };
+  }, [accountData?.deploymentMode, positions, targetAllocations, universalHoldings, manualCandidates, totalMarketValue, normalizeTicker]);
 
   const form = useForm<PositionFormData>({
     resolver: zodResolver(insertPositionSchema),
@@ -1686,13 +1833,6 @@ export default function AccountDetails() {
   }
 
   const totalBookValue = positions.reduce((sum, p) => sum + (Number(p.quantity) * Number(p.entryPrice)), 0);
-  const totalMarketValue = positions.reduce((sum, p) => sum + (Number(p.quantity) * Number(p.currentPrice)), 0);
-
-  // Helper function to normalize tickers for comparison (strip exchange suffixes)
-  // e.g., "XIC.TO" -> "XIC", "VFV.V" -> "VFV", "AAPL" -> "AAPL"
-  const normalizeTicker = (ticker: string): string => {
-    return ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
-  };
 
   // Helper to calculate monthly dividend for a position
   const getPositionDividend = (position: Position) => {
@@ -3519,6 +3659,242 @@ export default function AccountDetails() {
         </CardHeader>
         <CollapsibleContent>
           <CardContent>
+            {/* Cash Deployment Planner - Only visible in deployment mode */}
+            {accountData?.deploymentMode && (
+              <Collapsible open={isCashPlannerExpanded} onOpenChange={setIsCashPlannerExpanded} className="mb-6">
+                <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20">
+                  <CardHeader className="py-3">
+                    <div className="flex items-center justify-between">
+                      <CollapsibleTrigger asChild>
+                        <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity" data-testid="button-toggle-cash-planner">
+                          {isCashPlannerExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                          <div>
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <Rocket className="h-4 w-4 text-orange-500" />
+                              Cash Deployment Planner
+                            </CardTitle>
+                            <CardDescription className="text-xs">
+                              Plan where to deploy CA${cashDeploymentData.availableCash.toLocaleString('en-CA', { minimumFractionDigits: 2 })} available cash
+                            </CardDescription>
+                          </div>
+                        </button>
+                      </CollapsibleTrigger>
+                    </div>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0">
+                      {cashDeploymentData.availableCash <= 0 ? (
+                        <p className="text-muted-foreground text-center py-4 text-sm">
+                          No cash available to deploy. Add a CASH position first.
+                        </p>
+                      ) : (
+                        <div className="space-y-4">
+                          {/* Below Book Value Holdings */}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <TrendingDown className="h-4 w-4 text-red-500" />
+                              <h4 className="text-sm font-medium">Below Book Value</h4>
+                              <Badge variant="outline" className="text-xs">
+                                {cashDeploymentData.belowBookCandidates.length} holdings
+                              </Badge>
+                            </div>
+                            {cashDeploymentData.belowBookCandidates.length === 0 ? (
+                              <p className="text-xs text-muted-foreground pl-6">
+                                No holdings currently trading below book value.
+                              </p>
+                            ) : (
+                              <p className="text-xs text-muted-foreground pl-6">
+                                Holdings trading below your entry price are automatically included.
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Manual Candidates */}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Plus className="h-4 w-4 text-blue-500" />
+                              <h4 className="text-sm font-medium">Manual Candidates</h4>
+                              <Badge variant="outline" className="text-xs">
+                                {manualCandidates.length} added
+                              </Badge>
+                            </div>
+                            <div className="flex gap-2 pl-6">
+                              <Popover open={candidateHoldingComboboxOpen} onOpenChange={setCandidateHoldingComboboxOpen}>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    role="combobox"
+                                    className="w-[200px] justify-between text-xs"
+                                    data-testid="button-select-candidate-holding"
+                                  >
+                                    {selectedCandidateHolding
+                                      ? universalHoldings.find(h => h.id === selectedCandidateHolding)?.ticker
+                                      : "Select holding..."}
+                                    <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[300px] p-0">
+                                  <Command>
+                                    <CommandInput placeholder="Search holdings..." className="text-xs" />
+                                    <CommandList>
+                                      <CommandEmpty>No holdings found.</CommandEmpty>
+                                      <CommandGroup>
+                                        {universalHoldings
+                                          .filter(h => h.ticker !== 'CASH')
+                                          .filter(h => !manualCandidates.some(mc => mc.holdingId === h.id))
+                                          .map((holding) => (
+                                            <CommandItem
+                                              key={holding.id}
+                                              value={`${holding.ticker} ${holding.name}`}
+                                              onSelect={() => {
+                                                setSelectedCandidateHolding(holding.id);
+                                                setCandidateHoldingComboboxOpen(false);
+                                              }}
+                                              className="text-xs"
+                                            >
+                                              <span className="font-mono font-medium mr-2">{holding.ticker}</span>
+                                              <span className="text-muted-foreground truncate">{holding.name}</span>
+                                            </CommandItem>
+                                          ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                              <Input
+                                type="number"
+                                placeholder="Target %"
+                                className="w-24 h-8 text-xs"
+                                value={candidateTargetPct}
+                                onChange={(e) => setCandidateTargetPct(e.target.value)}
+                                data-testid="input-candidate-target-pct"
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!selectedCandidateHolding || !candidateTargetPct}
+                                onClick={() => {
+                                  if (selectedCandidateHolding && candidateTargetPct) {
+                                    setManualCandidates([...manualCandidates, {
+                                      holdingId: selectedCandidateHolding,
+                                      targetPct: parseFloat(candidateTargetPct)
+                                    }]);
+                                    setSelectedCandidateHolding("");
+                                    setCandidateTargetPct("");
+                                  }
+                                }}
+                                data-testid="button-add-candidate"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            {manualCandidates.length > 0 && (
+                              <div className="flex flex-wrap gap-1 pl-6">
+                                {manualCandidates.map(mc => {
+                                  const holding = universalHoldings.find(h => h.id === mc.holdingId);
+                                  return (
+                                    <Badge
+                                      key={mc.holdingId}
+                                      variant="secondary"
+                                      className="text-xs cursor-pointer hover:bg-destructive/20"
+                                      onClick={() => setManualCandidates(manualCandidates.filter(c => c.holdingId !== mc.holdingId))}
+                                      data-testid={`badge-candidate-${mc.holdingId}`}
+                                    >
+                                      {holding?.ticker} ({mc.targetPct}%)
+                                      <X className="h-3 w-3 ml-1" />
+                                    </Badge>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Allocation Race Table */}
+                          {cashDeploymentData.allCandidates.length > 0 && (
+                            <div className="space-y-2 pt-2 border-t">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-medium">Cash Allocation Race</h4>
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-muted-foreground">
+                                    Allocated: CA${cashDeploymentData.totalAllocated.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                  </span>
+                                  <span className="text-muted-foreground">/</span>
+                                  <span className="text-muted-foreground">
+                                    CA${cashDeploymentData.availableCash.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Progress bar */}
+                              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-orange-500 transition-all"
+                                  style={{ width: `${(cashDeploymentData.totalAllocated / cashDeploymentData.availableCash) * 100}%` }}
+                                />
+                              </div>
+
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="text-xs">Ticker</TableHead>
+                                    <TableHead className="text-xs">Source</TableHead>
+                                    <TableHead className="text-xs text-right">Gap</TableHead>
+                                    <TableHead className="text-xs text-right">Allocated</TableHead>
+                                    <TableHead className="text-xs text-right">Status</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {cashDeploymentData.allCandidates.map((candidate) => (
+                                    <TableRow key={candidate.holdingId} data-testid={`row-candidate-${candidate.holdingId}`}>
+                                      <TableCell className="py-2">
+                                        <span className="font-mono text-xs font-medium">{candidate.ticker}</span>
+                                      </TableCell>
+                                      <TableCell className="py-2">
+                                        <Badge variant="outline" className="text-xs">
+                                          {candidate.source === 'below_book' ? 'Below Book' : 'Manual'}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="py-2 text-right text-xs">
+                                        CA${candidate.gap.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                      </TableCell>
+                                      <TableCell className="py-2 text-right text-xs font-medium">
+                                        CA${candidate.allocatedCash.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                      </TableCell>
+                                      <TableCell className="py-2 text-right">
+                                        <Badge 
+                                          variant="outline"
+                                          className={`text-xs ${
+                                            candidate.status === 'fully_funded' 
+                                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                              : candidate.status === 'partially_funded'
+                                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                          }`}
+                                        >
+                                          {candidate.status === 'fully_funded' ? 'Fully Funded' 
+                                            : candidate.status === 'partially_funded' ? 'Partial'
+                                            : 'Unfunded'}
+                                        </Badge>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
+            )}
+
             {targetAllocations.length === 0 ? (
               <p className="text-muted-foreground text-center py-4">
                 No target allocations defined. Add allocations manually or copy from a model portfolio.
