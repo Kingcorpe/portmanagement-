@@ -18,15 +18,14 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
 
-const menuItems = [
+const menuItems = [];
+
+const keyMetricsItems = [
   {
     title: "KPI's Dashboard",
     url: "/kpi-dashboard",
     icon: Target,
   },
-];
-
-const keyMetricsItems = [
   {
     title: "Key Metrics",
     url: "/key-metrics",
