@@ -29,11 +29,6 @@ const menuItems = [
     url: "/insurance-tasks",
     icon: ListTodo,
   },
-  {
-    title: "Reference Links",
-    url: "/reference-links",
-    icon: LinkIcon,
-  },
 ];
 
 const keyMetricsItems = [
@@ -100,7 +95,13 @@ const librarySubItems = [
   },
 ];
 
-const bottomMenuItems: Array<{ title: string; url: string; icon: React.ReactNode }> = [];
+const bottomMenuItems: Array<{ title: string; url: string; icon: React.ReactNode }> = [
+  {
+    title: "Reference Links",
+    url: "/reference-links",
+    icon: LinkIcon,
+  },
+];
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
