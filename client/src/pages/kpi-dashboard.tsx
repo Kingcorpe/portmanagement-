@@ -174,27 +174,27 @@ function DailyTasksSection({
   const todaysBusinessDay = getTodaysBusinessDayInMonth(month);
 
   return (
-    <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+    <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 flex-1">
-          <span className="text-xs font-medium text-muted-foreground">
-            {completedCount}/{totalCount} days
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          <span className="text-xs text-muted-foreground shrink-0">
+            {completedCount}/{totalCount}
           </span>
-          <Progress value={progressPercent} className="h-1.5 flex-1" />
-          <span className="text-xs font-medium text-muted-foreground">{progressPercent}%</span>
+          <Progress value={progressPercent} className="h-1 flex-1" />
+          <span className="text-xs text-muted-foreground shrink-0">{progressPercent}%</span>
         </div>
         <Button
           variant="ghost"
           size="icon"
-          className="h-5 w-5"
+          className="h-4 w-4 shrink-0"
           onClick={() => deleteMutation.mutate()}
           disabled={deleteMutation.isPending}
           data-testid={`button-disable-tracking-${objectiveId}`}
         >
-          <X className="w-3 h-3" />
+          <X className="w-2.5 h-2.5" />
         </Button>
       </div>
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap gap-0.5">
         {dailyTasks.map((task) => {
           const dayDate = new Date(year, monthNum - 1, task.dayNumber);
           const dayLabel = format(dayDate, "EEE d");
@@ -206,7 +206,7 @@ function DailyTasksSection({
             <Tooltip key={task.id}>
               <TooltipTrigger asChild>
                 <div
-                  className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${
+                  className={`w-5 h-5 flex items-center justify-center rounded text-[9px] font-medium transition-colors ${
                     isChecked 
                       ? "bg-green-500 dark:bg-green-600 text-white" 
                       : isToday
@@ -216,7 +216,7 @@ function DailyTasksSection({
                   onClick={() => canCheck && toggleMutation.mutate(task.id)}
                   data-testid={`checkbox-day-${task.dayNumber}-${objectiveId}`}
                 >
-                  <span className="text-[10px] font-medium">{task.dayNumber}</span>
+                  {task.dayNumber}
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top" className="text-xs">
