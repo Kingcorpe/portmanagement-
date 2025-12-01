@@ -175,24 +175,12 @@ function DailyTasksSection({
 
   return (
     <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-          <span className="text-xs text-muted-foreground shrink-0">
-            {completedCount}/{totalCount}
-          </span>
-          <Progress value={progressPercent} className="h-1 flex-1" />
-          <span className="text-xs text-muted-foreground shrink-0">{progressPercent}%</span>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-4 w-4 shrink-0"
-          onClick={() => deleteMutation.mutate()}
-          disabled={deleteMutation.isPending}
-          data-testid={`button-disable-tracking-${objectiveId}`}
-        >
-          <X className="w-2.5 h-2.5" />
-        </Button>
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs text-muted-foreground">
+          {completedCount}/{totalCount}
+        </span>
+        <Progress value={progressPercent} className="h-1 flex-1" />
+        <span className="text-xs text-muted-foreground">{progressPercent}%</span>
       </div>
       <div className="flex flex-wrap gap-0.5">
         {dailyTasks.map((task) => {
