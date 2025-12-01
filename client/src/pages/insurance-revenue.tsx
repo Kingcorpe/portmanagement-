@@ -51,6 +51,7 @@ const POLICY_TYPES = [
   "T15",
   "T20",
   "Layered WL",
+  "CI T10",
   "CI",
   "Life Insurance",
   "Health Insurance",
@@ -269,6 +270,7 @@ export default function InsuranceRevenuePage() {
     
     switch (policyType) {
       case "T10":
+      case "CI T10":
         return (premium * 12 * 0.4 * 2.85).toFixed(2);
       case "T20":
         return (premium * 12 * 0.45 * 2.85).toFixed(2);
@@ -617,9 +619,9 @@ export default function InsuranceRevenuePage() {
                 </div>
               </div>
 
-              {formData.policyType === "T10" && (
+              {(formData.policyType === "T10" || formData.policyType === "CI T10") && (
                 <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-md space-y-3 border border-blue-200 dark:border-blue-800">
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">T10 Commission Calculation</p>
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">{formData.policyType} Commission Calculation</p>
                   <div className="grid grid-cols-4 gap-4">
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Monthly Premium</p>
