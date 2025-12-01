@@ -1226,6 +1226,12 @@ export const kpiObjectiveStatusEnum = pgEnum("kpi_objective_status", [
   "completed",
 ]);
 
+// KPI objective type enum
+export const kpiObjectiveTypeEnum = pgEnum("kpi_objective_type", [
+  "personal",
+  "business",
+]);
+
 // KPI objectives table
 export const kpiObjectives = pgTable("kpi_objectives", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1233,6 +1239,7 @@ export const kpiObjectives = pgTable("kpi_objectives", {
   month: varchar("month").notNull(), // YYYY-MM format
   title: text("title").notNull(),
   description: text("description"),
+  type: kpiObjectiveTypeEnum("type").notNull().default("business"), // personal or business
   targetMetric: varchar("target_metric"), // e.g., "$50k AUM", "50 calls"
   status: kpiObjectiveStatusEnum("status").notNull().default("planned"),
   assignedTo: varchar("assigned_to"), // Team member name

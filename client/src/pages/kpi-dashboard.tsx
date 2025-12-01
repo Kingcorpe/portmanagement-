@@ -21,7 +21,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, Trash2, Plus } from "lucide-react";
+import { ChevronDown, Trash2, Plus, User, Briefcase } from "lucide-react";
 import { format, addMonths } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import type { KpiObjective } from "@shared/schema";
@@ -39,10 +39,96 @@ function getNext12Months() {
   return months;
 }
 
+function KanbanColumn({ 
+  type, 
+  title, 
+  icon: Icon, 
+  objectives, 
+  onDelete, 
+  onStatusChange,
+  isLoading 
+}: {
+  type: "personal" | "business";
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  objectives: KpiObjective[];
+  onDelete: (id: string) => void;
+  onStatusChange: (id: string, status: string) => void;
+  isLoading: boolean;
+}) {
+  return (
+    <div className="flex-1 min-w-80">
+      <div className="flex items-center gap-2 mb-3 pb-2 border-b">
+        <Icon className="w-4 h-4" />
+        <h4 className="font-semibold text-sm">{title}</h4>
+        <span className="ml-auto text-xs bg-muted px-2 py-1 rounded">{objectives.length}</span>
+      </div>
+      <div className="space-y-2">
+        {objectives.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            No {type} objectives
+          </div>
+        ) : (
+          objectives.map((obj) => (
+            <Card key={obj.id} className="p-3 space-y-2 bg-card" data-testid={`objective-${obj.id}`}>
+              <div className="space-y-1">
+                <h5 className="font-medium text-sm leading-tight">{obj.title}</h5>
+                {obj.description && (
+                  <p className="text-xs text-muted-foreground leading-tight">{obj.description}</p>
+                )}
+              </div>
+              
+              <div className="flex flex-wrap gap-2 text-xs">
+                {obj.targetMetric && (
+                  <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 px-2 py-1 rounded">
+                    {obj.targetMetric}
+                  </span>
+                )}
+                {obj.assignedTo && (
+                  <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100 px-2 py-1 rounded">
+                    {obj.assignedTo}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t">
+                <Select
+                  value={obj.status}
+                  onValueChange={(status) => onStatusChange(obj.id, status)}
+                >
+                  <SelectTrigger className="h-7 text-xs flex-1" data-testid={`select-status-${obj.id}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="planned">Planned</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
+                  onClick={() => onDelete(obj.id)}
+                  disabled={isLoading}
+                  data-testid={`button-delete-${obj.id}`}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function KpiDashboard() {
   const { toast } = useToast();
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedType, setSelectedType] = useState<"personal" | "business">("business");
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
 
   const { data: objectives = [], isLoading } = useQuery<KpiObjective[]>({
@@ -56,6 +142,7 @@ export default function KpiDashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/kpi-objectives"] });
       setOpenDialog(false);
       setSelectedMonth("");
+      setSelectedType("business");
       toast({ description: "Objective created successfully" });
     },
     onError: (error: any) => {
@@ -101,6 +188,7 @@ export default function KpiDashboard() {
     const formData = new FormData(e.currentTarget);
     createMutation.mutate({
       month: selectedMonth,
+      type: selectedType,
       title: formData.get("title"),
       description: formData.get("description") || null,
       targetMetric: formData.get("targetMetric") || null,
@@ -170,6 +258,18 @@ export default function KpiDashboard() {
                 </Select>
               </div>
               <div>
+                <label className="block text-sm font-medium mb-2">Type</label>
+                <Select value={selectedType} onValueChange={(val) => setSelectedType(val as "personal" | "business")}>
+                  <SelectTrigger data-testid="select-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="personal">Personal</SelectItem>
+                    <SelectItem value="business">Business</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium mb-2">Objective Title</label>
                 <Input
                   name="title"
@@ -211,11 +311,12 @@ export default function KpiDashboard() {
         </Dialog>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-6">
         {months.map((monthData) => {
           const monthObjectives = objectivesByMonth[monthData.month] || [];
           const isOpen = openMonths.has(monthData.month);
-          const completedCount = monthObjectives.filter(o => o.status === "completed").length;
+          const personalObjs = monthObjectives.filter(o => o.type === "personal");
+          const businessObjs = monthObjectives.filter(o => o.type === "business");
 
           return (
             <Card key={monthData.month} className="overflow-visible" data-testid={`card-month-${monthData.month}`}>
@@ -233,71 +334,37 @@ export default function KpiDashboard() {
                         <h3 className="font-semibold text-lg">{monthData.label}</h3>
                         <p className="text-sm text-muted-foreground">
                           {monthObjectives.length} objective{monthObjectives.length !== 1 ? "s" : ""}
-                          {completedCount > 0 && ` (${completedCount} completed)`}
+                          {personalObjs.length > 0 && ` • ${personalObjs.length} personal`}
+                          {businessObjs.length > 0 && ` • ${businessObjs.length} business`}
                         </p>
                       </div>
                     </div>
                   </div>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="px-4 pb-4 space-y-3 border-t">
+                <CollapsibleContent className="px-4 pb-4 border-t">
                   {monthObjectives.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-2">No objectives set for this month</p>
+                    <p className="text-sm text-muted-foreground py-4">No objectives set for this month</p>
                   ) : (
-                    monthObjectives.map((obj) => (
-                      <div key={obj.id} className="bg-muted/50 p-3 rounded-md space-y-2" data-testid={`objective-${obj.id}`}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium">{obj.title}</h4>
-                            {obj.description && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {obj.description}
-                              </p>
-                            )}
-                            <div className="flex gap-4 mt-2 text-xs flex-wrap">
-                              {obj.targetMetric && (
-                                <span className="text-blue-600 dark:text-blue-400">
-                                  Target: {obj.targetMetric}
-                                </span>
-                              )}
-                              {obj.assignedTo && (
-                                <span className="text-purple-600 dark:text-purple-400">
-                                  Assigned to: {obj.assignedTo}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex gap-1 flex-shrink-0">
-                            <Select
-                              value={obj.status}
-                              onValueChange={(status) =>
-                                updateMutation.mutate({
-                                  id: obj.id,
-                                  data: { status },
-                                })
-                              }
-                            >
-                              <SelectTrigger className="w-28 h-8" data-testid={`select-status-${obj.id}`}>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="planned">Planned</SelectItem>
-                                <SelectItem value="in_progress">In Progress</SelectItem>
-                                <SelectItem value="completed">Completed</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => deleteMutation.mutate(obj.id)}
-                              disabled={deleteMutation.isPending}
-                              data-testid={`button-delete-${obj.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))
+                    <div className="flex gap-4 overflow-x-auto pt-4 pb-2">
+                      <KanbanColumn
+                        type="personal"
+                        title="Personal"
+                        icon={User}
+                        objectives={personalObjs}
+                        onDelete={(id) => deleteMutation.mutate(id)}
+                        onStatusChange={(id, status) => updateMutation.mutate({ id, data: { status } })}
+                        isLoading={deleteMutation.isPending || updateMutation.isPending}
+                      />
+                      <KanbanColumn
+                        type="business"
+                        title="Business"
+                        icon={Briefcase}
+                        objectives={businessObjs}
+                        onDelete={(id) => deleteMutation.mutate(id)}
+                        onStatusChange={(id, status) => updateMutation.mutate({ id, data: { status } })}
+                        isLoading={deleteMutation.isPending || updateMutation.isPending}
+                      />
+                    </div>
                   )}
                 </CollapsibleContent>
               </Collapsible>
