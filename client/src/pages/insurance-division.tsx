@@ -3,10 +3,22 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ShieldCheck, ListTodo, TrendingUp } from "lucide-react";
 import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 export default function InsuranceDivision() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
+
+  const { data: insuranceTasks = [] } = useQuery({
+    queryKey: ['/api/insurance-tasks'],
+  });
+
+  const { data: insuranceRevenue = [] } = useQuery({
+    queryKey: ['/api/insurance-revenue'],
+  });
+
+  const pendingInsuranceTasks = Array.isArray(insuranceTasks) ? insuranceTasks.filter((t: any) => t.status === 'pending').length : 0;
+  const pendingInsuranceRevenue = Array.isArray(insuranceRevenue) ? insuranceRevenue.filter((r: any) => r.status === 'pending').length : 0;
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -45,7 +57,7 @@ export default function InsuranceDivision() {
             <CardDescription>Action items and follow-ups</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-muted-foreground">—</p>
+            <p className="text-2xl font-bold">{pendingInsuranceTasks}</p>
             <p className="text-sm text-muted-foreground mt-2">Pending insurance tasks</p>
           </CardContent>
         </Card>
@@ -59,7 +71,7 @@ export default function InsuranceDivision() {
             <CardDescription>Commission tracking and goals</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-muted-foreground">—</p>
+            <p className="text-2xl font-bold">{pendingInsuranceRevenue}</p>
             <p className="text-sm text-muted-foreground mt-2">Insurance commissions</p>
           </CardContent>
         </Card>
