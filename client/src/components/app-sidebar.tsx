@@ -25,11 +25,6 @@ const menuItems = [
     icon: Target,
   },
   {
-    title: "Investment Tasks",
-    url: "/tasks",
-    icon: ListTodo,
-  },
-  {
     title: "Insurance Tasks",
     url: "/insurance-tasks",
     icon: ListTodo,
@@ -60,6 +55,11 @@ const keyMetricsItems = [
 ];
 
 const investmentDivisionItems = [
+  {
+    title: "Investment Tasks",
+    url: "/tasks",
+    icon: ListTodo,
+  },
   {
     title: "Model Portfolios",
     url: "/model-portfolios",
