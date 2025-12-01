@@ -619,136 +619,136 @@ export default function KpiDashboard() {
           </Dialog>
           
           <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-            <DialogTrigger asChild>
-              <Button data-testid="button-add-objective">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Objective
+          <DialogTrigger asChild>
+            <Button data-testid="button-add-objective">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Objective
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Monthly Objective</DialogTitle>
+              <DialogDescription>Create a new team objective for a specific month</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleAddObjective} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Month</label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger data-testid="select-month">
+                    <SelectValue placeholder="Select a month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((m) => (
+                      <SelectItem key={m.month} value={m.month}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Type</label>
+                <Select value={selectedType} onValueChange={(val) => setSelectedType(val as "personal" | "business")}>
+                  <SelectTrigger data-testid="select-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="personal">Personal</SelectItem>
+                    <SelectItem value="business">Business</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Objective Title</label>
+                <Input
+                  name="title"
+                  placeholder="e.g., Generate $50k new AUM"
+                  data-testid="input-title"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Description (Notes)</label>
+                <Textarea
+                  name="description"
+                  placeholder="Add notes with bullet points:&#10;• Key activity 1&#10;• Key activity 2&#10;• Success criteria"
+                  data-testid="input-description"
+                  className="resize-none min-h-24"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Target Metric</label>
+                <Input
+                  name="targetMetric"
+                  placeholder="e.g., $50k, 50 calls, 10 new clients"
+                  data-testid="input-metric"
+                />
+              </div>
+              <Button type="submit" disabled={!selectedMonth || createMutation.isPending} className="w-full" data-testid="button-submit">
+                {createMutation.isPending ? "Creating..." : "Create Objective"}
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Monthly Objective</DialogTitle>
-                <DialogDescription>Create a new team objective for a specific month</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleAddObjective} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Month</label>
-                  <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                    <SelectTrigger data-testid="select-month">
-                      <SelectValue placeholder="Select a month" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {months.map((m) => (
-                        <SelectItem key={m.month} value={m.month}>
-                          {m.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Type</label>
-                  <Select value={selectedType} onValueChange={(val) => setSelectedType(val as "personal" | "business")}>
-                    <SelectTrigger data-testid="select-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="personal">Personal</SelectItem>
-                      <SelectItem value="business">Business</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Objective Title</label>
-                  <Input
-                    name="title"
-                    placeholder="e.g., Generate $50k new AUM"
-                    data-testid="input-title"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Description (Notes)</label>
-                  <Textarea
-                    name="description"
-                    placeholder="Add notes with bullet points:&#10;• Key activity 1&#10;• Key activity 2&#10;• Success criteria"
-                    data-testid="input-description"
-                    className="resize-none min-h-24"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Target Metric</label>
-                  <Input
-                    name="targetMetric"
-                    placeholder="e.g., $50k, 50 calls, 10 new clients"
-                    data-testid="input-metric"
-                  />
-                </div>
-                <Button type="submit" disabled={!selectedMonth || createMutation.isPending} className="w-full" data-testid="button-submit">
-                  {createMutation.isPending ? "Creating..." : "Create Objective"}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+            </form>
+          </DialogContent>
+        </Dialog>
 
-          <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Objective</DialogTitle>
-                <DialogDescription>Update the objective details</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleUpdateObjective} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Objective Title</label>
-                  <Input
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    placeholder="e.g., Generate $50k new AUM"
-                    data-testid="input-edit-title"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Description (Notes)</label>
-                  <Textarea
-                    value={editDescription}
-                    onChange={(e) => setEditDescription(e.target.value)}
-                    placeholder="Add notes with bullet points:&#10;• Key activity 1&#10;• Key activity 2&#10;• Success criteria"
-                    data-testid="input-edit-description"
-                    className="resize-none min-h-24"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Target Metric</label>
-                  <Input
-                    value={editTargetMetric}
-                    onChange={(e) => setEditTargetMetric(e.target.value)}
-                    placeholder="e.g., $50k, 50 calls, 10 new clients"
-                    data-testid="input-edit-metric"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={updateMutation.isPending} className="flex-1" data-testid="button-edit-submit">
-                    {updateMutation.isPending ? "Updating..." : "Update Objective"}
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="destructive" 
-                    onClick={() => {
-                      if (confirm("Are you sure you want to delete this objective? This cannot be undone.")) {
-                        setOpenEditDialog(false);
-                        if (editingObjective) deleteMutation.mutate(editingObjective.id);
-                      }
-                    }} 
-                    disabled={updateMutation.isPending || deleteMutation.isPending}
-                    data-testid="button-delete-objective"
-                  >
-                    {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+        <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Objective</DialogTitle>
+              <DialogDescription>Update the objective details</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleUpdateObjective} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Objective Title</label>
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="e.g., Generate $50k new AUM"
+                  data-testid="input-edit-title"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Description (Notes)</label>
+                <Textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Add notes with bullet points:&#10;• Key activity 1&#10;• Key activity 2&#10;• Success criteria"
+                  data-testid="input-edit-description"
+                  className="resize-none min-h-24"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Target Metric</label>
+                <Input
+                  value={editTargetMetric}
+                  onChange={(e) => setEditTargetMetric(e.target.value)}
+                  placeholder="e.g., $50k, 50 calls, 10 new clients"
+                  data-testid="input-edit-metric"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" disabled={updateMutation.isPending} className="flex-1" data-testid="button-edit-submit">
+                  {updateMutation.isPending ? "Updating..." : "Update Objective"}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  onClick={() => {
+                    if (confirm("Are you sure you want to delete this objective? This cannot be undone.")) {
+                      setOpenEditDialog(false);
+                      if (editingObjective) deleteMutation.mutate(editingObjective.id);
+                    }
+                  }} 
+                  disabled={updateMutation.isPending || deleteMutation.isPending}
+                  data-testid="button-delete-objective"
+                >
+                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid gap-6">
