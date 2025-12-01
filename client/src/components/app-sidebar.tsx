@@ -20,11 +20,6 @@ import { useState } from "react";
 
 const menuItems = [
   {
-    title: "Dashboard",
-    url: "/",
-    icon: LayoutDashboard,
-  },
-  {
     title: "KPI's Dashboard",
     url: "/kpi-dashboard",
     icon: Target,
