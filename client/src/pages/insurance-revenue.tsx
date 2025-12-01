@@ -496,6 +496,13 @@ export default function InsuranceRevenuePage() {
   
   const dailyTargetMonthly = businessDaysRemaining > 0 ? monthlyRemaining / businessDaysRemaining : 0;
   const dailyTargetYearly = yearlyBusinessDaysRemaining > 0 ? yearlyRemaining / yearlyBusinessDaysRemaining : 0;
+  
+  // Calculate monthly premium needed to hit daily target using T10 formula
+  // T10: Commission = Premium × 12 × 0.40 × 2.85
+  // Reverse: Premium = Commission / (12 × 0.40 × 2.85) = Commission / 13.68
+  const T10_MULTIPLIER = 12 * 0.4 * 2.85;
+  const monthlyPremiumNeededDaily = dailyTargetMonthly > 0 ? dailyTargetMonthly / T10_MULTIPLIER : 0;
+  const yearlyPremiumNeededDaily = dailyTargetYearly > 0 ? dailyTargetYearly / T10_MULTIPLIER : 0;
 
   if (authLoading || isLoading) {
     return (
@@ -902,6 +909,16 @@ export default function InsuranceRevenuePage() {
                         {formatCurrency(dailyTargetMonthly)}
                       </p>
                     </div>
+                  </div>
+
+                  <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-md text-xs">
+                    <p className="text-muted-foreground mb-2">Monthly Premium Required (T10):</p>
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      {formatCurrency(monthlyPremiumNeededDaily)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Needed daily to hit per-business-day target
+                    </p>
                   </div>
 
                   <div className="text-xs text-muted-foreground pt-2 border-t">
