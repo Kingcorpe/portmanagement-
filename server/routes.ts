@@ -2758,8 +2758,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Auto-add ticker to Universal Holdings if it doesn't exist (with enhanced lookup)
-          const ticker = positionData.symbol.toUpperCase();
-          const existingHolding = await storage.getUniversalHoldingByTicker(ticker);
+          // First, try to find an existing holding with Canadian exchange suffix variations
+          let ticker = positionData.symbol.toUpperCase();
+          let existingHolding = await storage.getUniversalHoldingByTicker(ticker);
+          
+          // If not found and ticker doesn't already have a suffix, try common Canadian suffixes
+          if (!existingHolding && !ticker.match(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i)) {
+            const canadianSuffixes = ['.TO', '.V', '.CN', '.NE'];
+            for (const suffix of canadianSuffixes) {
+              existingHolding = await storage.getUniversalHoldingByTicker(ticker + suffix);
+              if (existingHolding) {
+                // Found a match with suffix - use that ticker for the position
+                ticker = existingHolding.ticker;
+                positionData.symbol = ticker;
+                break;
+              }
+            }
+          }
+          
           if (!existingHolding) {
             const lookupData = await enhancedTickerLookup(ticker);
             await storage.createUniversalHolding({
@@ -2808,8 +2824,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const targetPercentage = (posValue / totalValue) * 100;
               
               // Get or create universal holding (with enhanced lookup)
-              const ticker = pos.symbol.toUpperCase();
+              // First try exact match, then try Canadian exchange suffixes
+              let ticker = pos.symbol.toUpperCase();
               let holding = await storage.getUniversalHoldingByTicker(ticker);
+              
+              // If not found and ticker doesn't already have a suffix, try common Canadian suffixes
+              if (!holding && !ticker.match(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i)) {
+                const canadianSuffixes = ['.TO', '.V', '.CN', '.NE'];
+                for (const suffix of canadianSuffixes) {
+                  holding = await storage.getUniversalHoldingByTicker(ticker + suffix);
+                  if (holding) {
+                    ticker = holding.ticker; // Use the matched ticker
+                    break;
+                  }
+                }
+              }
+              
               if (!holding) {
                 const lookupData = await enhancedTickerLookup(ticker);
                 holding = await storage.createUniversalHolding({
