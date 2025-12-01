@@ -48,6 +48,8 @@ import {
   updateAccountTaskSchema,
   insertInsuranceRevenueSchema,
   updateInsuranceRevenueSchema,
+  insertInvestmentRevenueSchema,
+  updateInvestmentRevenueSchema,
   type InsertAccountAuditLog,
   type Position,
 } from "@shared/schema";
@@ -6099,6 +6101,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting insurance revenue:", error);
       res.status(500).json({ message: error.message || "Failed to delete insurance revenue entry" });
+    }
+  });
+
+  // Investment Revenue API routes
+  app.get('/api/investment-revenue', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const entries = await storage.getInvestmentRevenueByUser(userId);
+      res.json(entries);
+    } catch (error: any) {
+      console.error("Error fetching investment revenue:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch investment revenue" });
+    }
+  });
+
+  app.post('/api/investment-revenue', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const data = insertInvestmentRevenueSchema.parse({ ...req.body, userId });
+      const entry = await storage.createInvestmentRevenue(data);
+      res.status(201).json(entry);
+    } catch (error: any) {
+      console.error("Error creating investment revenue:", error);
+      res.status(500).json({ message: error.message || "Failed to create investment revenue entry" });
+    }
+  });
+
+  app.patch('/api/investment-revenue/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify ownership
+      const existing = await storage.getInvestmentRevenueById(id);
+      if (!existing || existing.userId !== userId) {
+        return res.status(404).json({ message: "Entry not found" });
+      }
+      
+      const data = updateInvestmentRevenueSchema.parse(req.body);
+      const entry = await storage.updateInvestmentRevenue(id, data);
+      res.json(entry);
+    } catch (error: any) {
+      console.error("Error updating investment revenue:", error);
+      res.status(500).json({ message: error.message || "Failed to update investment revenue entry" });
+    }
+  });
+
+  app.delete('/api/investment-revenue/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      // Verify ownership
+      const existing = await storage.getInvestmentRevenueById(id);
+      if (!existing || existing.userId !== userId) {
+        return res.status(404).json({ message: "Entry not found" });
+      }
+      
+      await storage.deleteInvestmentRevenue(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting investment revenue:", error);
+      res.status(500).json({ message: error.message || "Failed to delete investment revenue entry" });
     }
   });
 
