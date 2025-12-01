@@ -33,7 +33,7 @@ import NotFound from "@/pages/not-found";
 function AuthenticatedRoutes() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
+      <Route path="/" component={KpiDashboard} />
       <Route path="/households" component={Households} />
       <Route path="/model-portfolios" component={ModelPortfolios} />
       <Route path="/tasks" component={Tasks} />
