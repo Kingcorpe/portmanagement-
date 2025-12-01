@@ -6371,24 +6371,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (obj.type === "personal") entry.personal.push(obj);
         else entry.business.push(obj);
       });
+
+      // Helper to format month from YYYY-MM to Month Year
+      const formatMonth = (monthStr: string) => {
+        const [year, month] = monthStr.split('-');
+        const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+        return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      };
       
       months.forEach((groups, monthKey) => {
-        doc.fontSize(14).font("Helvetica-Bold").text(monthKey, { underline: true });
-        doc.moveDown(0.3);
+        doc.fontSize(13).font("Helvetica-Bold").text(formatMonth(monthKey));
+        doc.moveDown(0.2);
         
         ["personal", "business"].forEach(type => {
-          if (groups[type as keyof typeof groups].length > 0) {
-            doc.fontSize(11).font("Helvetica-Bold").text(type.charAt(0).toUpperCase() + type.slice(1) + " Objectives:");
-            groups[type as keyof typeof groups].forEach(obj => {
-              doc.fontSize(10).font("Helvetica").text(`• ${obj.title}`, { indent: 20 });
+          const objectives = groups[type as keyof typeof groups];
+          if (objectives.length > 0) {
+            const typeLabel = type === "personal" ? "Personal" : "Business";
+            objectives.forEach((obj, idx) => {
+              const statusLabel = obj.status.charAt(0).toUpperCase() + obj.status.slice(1);
+              doc.fontSize(10).font("Helvetica").text(`• ${obj.title} — ${statusLabel}`, { indent: 15 });
               if (obj.description) {
-                doc.fontSize(9).font("Helvetica").text(obj.description.split('\n').slice(0, 2).join('\n'), { indent: 25 });
+                const desc = obj.description.split('\n')[0].slice(0, 80);
+                doc.fontSize(9).font("Helvetica").fillColor("#666666").text(desc, { indent: 20 });
+                doc.fillColor("#000000");
               }
-              if (obj.targetMetric) {
-                doc.fontSize(9).font("Helvetica").text(`Target: ${obj.targetMetric}`, { indent: 25 });
-              }
-              doc.fontSize(9).font("Helvetica").text(`Status: ${obj.status}`, { indent: 25 });
-              doc.moveDown(0.5);
+              doc.moveDown(0.3);
             });
           }
         });
