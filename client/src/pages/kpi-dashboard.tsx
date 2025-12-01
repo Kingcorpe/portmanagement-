@@ -138,7 +138,8 @@ export default function KpiDashboard() {
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [selectedType, setSelectedType] = useState<"personal" | "business">("business");
-  const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
+  const currentMonth = format(new Date(), "yyyy-MM");
+  const [openMonths, setOpenMonths] = useState<Set<string>>(new Set([currentMonth]));
 
   const { data: objectives = [], isLoading } = useQuery<KpiObjective[]>({
     queryKey: ["/api/kpi-objectives"],
