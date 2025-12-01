@@ -11,6 +11,7 @@ import {
   decimal,
   pgEnum,
   uniqueIndex,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -207,6 +208,7 @@ export const individualAccounts = pgTable("individual_accounts", {
   watchlistPortfolioId: varchar("watchlist_portfolio_id").references(() => freelancePortfolios.id, { onDelete: 'set null' }),
   immediateNotes: text("immediate_notes"),
   upcomingNotes: text("upcoming_notes"),
+  deploymentMode: boolean("deployment_mode").notNull().default(false), // When true, allows target allocations > 100% for cash deployment
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -243,6 +245,7 @@ export const corporateAccounts = pgTable("corporate_accounts", {
   watchlistPortfolioId: varchar("watchlist_portfolio_id").references(() => freelancePortfolios.id, { onDelete: 'set null' }),
   immediateNotes: text("immediate_notes"),
   upcomingNotes: text("upcoming_notes"),
+  deploymentMode: boolean("deployment_mode").notNull().default(false), // When true, allows target allocations > 100% for cash deployment
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -279,6 +282,7 @@ export const jointAccounts = pgTable("joint_accounts", {
   watchlistPortfolioId: varchar("watchlist_portfolio_id").references(() => freelancePortfolios.id, { onDelete: 'set null' }),
   immediateNotes: text("immediate_notes"),
   upcomingNotes: text("upcoming_notes"),
+  deploymentMode: boolean("deployment_mode").notNull().default(false), // When true, allows target allocations > 100% for cash deployment
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
