@@ -319,6 +319,7 @@ export default function AccountDetails() {
   const [candidateHoldingComboboxOpen, setCandidateHoldingComboboxOpen] = useState(false);
   const [selectedCandidateHolding, setSelectedCandidateHolding] = useState<string>("");
   const [candidateTargetPct, setCandidateTargetPct] = useState<string>("");
+  const [isCommittingCandidates, setIsCommittingCandidates] = useState(false);
   const notesInitialLoadRef = useRef(true);
   const notesSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -984,6 +985,75 @@ export default function AccountDetails() {
       });
     },
   });
+
+  // Commit cash deployment candidates to target allocations
+  const handleCommitCandidatesToTargets = async () => {
+    if (cashDeploymentData.allCandidates.length === 0) return;
+    
+    setIsCommittingCandidates(true);
+    let created = 0;
+    let updated = 0;
+    let errors = 0;
+
+    try {
+      for (const candidate of cashDeploymentData.allCandidates) {
+        // Find the universal holding for this candidate
+        const holding = universalHoldings.find(h => 
+          normalizeTicker(h.ticker) === normalizeTicker(candidate.ticker)
+        );
+        
+        if (!holding) {
+          errors++;
+          continue;
+        }
+
+        // Check if there's already a target allocation for this ticker
+        const existingAllocation = targetAllocations.find(ta =>
+          ta.holding && normalizeTicker(ta.holding.ticker) === normalizeTicker(candidate.ticker)
+        );
+
+        try {
+          if (existingAllocation) {
+            // Update existing allocation with new target percentage
+            await apiRequest("PATCH", `/api/account-target-allocations/${existingAllocation.id}`, {
+              targetPercentage: candidate.targetPct.toString(),
+            });
+            updated++;
+          } else {
+            // Create new target allocation
+            await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/target-allocations`, {
+              universalHoldingId: holding.id,
+              targetPercentage: candidate.targetPct.toString(),
+              isWatchlist: false,
+            });
+            created++;
+          }
+        } catch (err) {
+          console.error(`Failed to commit candidate ${candidate.ticker}:`, err);
+          errors++;
+        }
+      }
+
+      // Refresh data after all operations
+      await refreshAllocationData();
+      
+      // Clear manual candidates since they're now committed
+      setManualCandidates([]);
+
+      toast({
+        title: "Candidates Committed",
+        description: `Created ${created} new, updated ${updated} existing${errors > 0 ? `, ${errors} errors` : ''}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to commit candidates to targets",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCommittingCandidates(false);
+    }
+  };
 
   // Refresh market prices mutation
   const refreshPricesMutation = useMutation({
@@ -3885,6 +3955,29 @@ export default function AccountDetails() {
                                   ))}
                                 </TableBody>
                               </Table>
+
+                              {/* Commit to Targets Button */}
+                              <div className="flex justify-end pt-3 border-t mt-3">
+                                <Button
+                                  size="sm"
+                                  onClick={handleCommitCandidatesToTargets}
+                                  disabled={isCommittingCandidates || cashDeploymentData.allCandidates.length === 0}
+                                  className="bg-orange-500 hover:bg-orange-600 text-white"
+                                  data-testid="button-commit-candidates"
+                                >
+                                  {isCommittingCandidates ? (
+                                    <>
+                                      <RefreshCw className="h-3 w-3 mr-2 animate-spin" />
+                                      Committing...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Target className="h-3 w-3 mr-2" />
+                                      Commit to Targets ({cashDeploymentData.allCandidates.length})
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
                             </div>
                           )}
                         </div>
