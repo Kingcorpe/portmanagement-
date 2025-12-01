@@ -1162,3 +1162,59 @@ export const updateInsuranceRevenueSchema = createInsertSchema(insuranceRevenue)
 export type InsertInsuranceRevenue = z.infer<typeof insertInsuranceRevenueSchema>;
 export type UpdateInsuranceRevenue = z.infer<typeof updateInsuranceRevenueSchema>;
 export type InsuranceRevenue = typeof insuranceRevenue.$inferSelect;
+
+// Investment revenue entry type enum
+export const investmentRevenueEntryTypeEnum = pgEnum("investment_revenue_entry_type", [
+  "dividend",
+  "new_aum",
+]);
+
+// Investment revenue status enum (reuses same concept as insurance)
+export const investmentRevenueStatusEnum = pgEnum("investment_revenue_status", [
+  "planned",
+  "pending",
+  "received",
+]);
+
+// Investment revenue table
+export const investmentRevenue = pgTable("investment_revenue", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }),
+  date: varchar("date").notNull(), // YYYY-MM-DD format
+  entryType: investmentRevenueEntryTypeEnum("entry_type").notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  sourceName: varchar("source_name").notNull(), // Ticker symbol for dividends, client name for AUM
+  accountType: varchar("account_type"), // TFSA, RRSP, Cash, etc.
+  description: text("description"), // Additional details
+  status: investmentRevenueStatusEnum("status").notNull().default("pending"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const investmentRevenueRelations = relations(investmentRevenue, ({ one }) => ({
+  user: one(users, {
+    fields: [investmentRevenue.userId],
+    references: [users.id],
+  }),
+}));
+
+// Investment revenue insert schema
+export const insertInvestmentRevenueSchema = createInsertSchema(investmentRevenue).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Investment revenue update schema
+export const updateInvestmentRevenueSchema = createInsertSchema(investmentRevenue).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
+
+// Investment revenue types
+export type InsertInvestmentRevenue = z.infer<typeof insertInvestmentRevenueSchema>;
+export type UpdateInvestmentRevenue = z.infer<typeof updateInvestmentRevenueSchema>;
+export type InvestmentRevenue = typeof investmentRevenue.$inferSelect;
