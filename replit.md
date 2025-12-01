@@ -146,6 +146,45 @@ A page for managing quick-access links to important resources:
 - **Icon Support**: Links can display emoji icons or logo images
 - **CRUD Operations**: Add, edit, and delete reference links
 
+### KPI Dashboard
+Monthly objectives tracking with daily task management:
+- **Objectives**: Title, description (with asterisk-to-bullet formatting), status, tracking frequency
+- **Daily Tasks**: Track completion for each business day of the month
+- **PDF Export**: Clean formatted export with strikethrough for completed objectives
+- **Best Practice**: No priority field - everything on the KPI list should be a top priority
+
+## Critical UI Features Checklist
+**IMPORTANT: These UI elements must NEVER be accidentally removed during code changes. Verify they exist after any refactoring.**
+
+### Account Details / Holdings Table
+- [ ] **Purple Cash Badge**: CASH positions display a purple badge with Coins icon next to the symbol (`bg-purple-100 text-purple-800`)
+- [ ] **Protection Badge**: Positions with protection % show amber "Protecting" badge with Shield icon
+- [ ] **Status Badges**: Over (red), Under (green), On Target (blue), Can Deploy (purple), No Target (amber)
+- [ ] **Color-coded Symbols**: Symbol text color reflects status (green=under/buy, red=over/sell, blue=on-target, purple=can-deploy, amber=unexpected)
+- [ ] **Monthly Dividend Column**: Shows dividend/mo in emerald green with yield % and payout frequency
+- [ ] **Inline Target % Editing**: Clickable target percentage that opens inline editor
+
+### Target Allocations Section
+- [ ] **Delete All Button**: Red "Delete All" button with confirmation dialog to remove all target allocations
+- [ ] **Copy from Model Button**: Button to copy allocations from planned/freelance portfolios
+- [ ] **Risk Breakdown Summary**: Shows percentage breakdown by risk level
+- [ ] **Total Badge**: Shows total allocation % with green (valid) or red (invalid) styling
+
+### Insurance Revenue Table
+- [ ] **Sortable Columns**: All column headers are clickable for sorting with up/down arrow indicators
+- [ ] **Goals Progress Bars**: Monthly and yearly goal progress with business days remaining
+
+### KPI Dashboard
+- [ ] **Asterisk Formatting**: `* Item` in descriptions displays as `• Item` (bullet points)
+- [ ] **PDF Export**: Includes strikethrough for completed objectives
+- [ ] **Daily Task Grid**: Business day checkboxes for tracking
+
+### General UI Patterns
+- [ ] **Confirmation Dialogs**: All destructive actions (delete) require confirmation
+- [ ] **Loading States**: Show loading spinners/skeletons during data fetches
+- [ ] **Toast Notifications**: Success/error feedback for all mutations
+- [ ] **Collapsible Sections**: Major sections can be expanded/collapsed
+
 ## External Dependencies
 - **Replit Auth**: User authentication (OIDC providers, email/password).
 - **Neon (PostgreSQL)**: Cloud-hosted PostgreSQL database.
