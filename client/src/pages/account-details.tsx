@@ -1978,7 +1978,7 @@ export default function AccountDetails() {
                     <ChevronRight className="h-5 w-5" />
                   )}
                   <div>
-                    <CardTitle>Holdings & Portfolio Analysis</CardTitle>
+                    <CardTitle>Holdings</CardTitle>
                     <CardDescription>
                       {viewMode === "real" ? "Real positions" : "Watchlist positions"} with target allocation comparison
                     </CardDescription>
