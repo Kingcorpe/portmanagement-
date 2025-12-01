@@ -83,8 +83,22 @@ function KanbanColumn({
             No {type} objectives
           </div>
         ) : (
-          objectives.map((obj) => (
-            <Card key={obj.id} className="p-3 space-y-2 bg-card" data-testid={`objective-${obj.id}`}>
+          objectives.map((obj) => {
+            const getStatusColor = (status: string) => {
+              switch (status) {
+                case "completed":
+                  return "border-l-4 border-l-green-500 dark:border-l-green-400";
+                case "in_progress":
+                  return "border-l-4 border-l-blue-500 dark:border-l-blue-400";
+                case "planned":
+                  return "border-l-4 border-l-yellow-500 dark:border-l-yellow-400";
+                default:
+                  return "border-l-4 border-l-gray-300 dark:border-l-gray-600";
+              }
+            };
+            
+            return (
+            <Card key={obj.id} className={`p-3 space-y-2 bg-card ${getStatusColor(obj.status)}`} data-testid={`objective-${obj.id}`}>
               <div className="space-y-1">
                 <h5 className="font-medium text-sm leading-tight">{obj.title}</h5>
                 {obj.description && (
@@ -126,7 +140,8 @@ function KanbanColumn({
                 </Button>
               </div>
             </Card>
-          ))
+            );
+          })
         )}
       </div>
     </div>
