@@ -84,11 +84,6 @@ function KanbanColumn({
                     {obj.targetMetric}
                   </span>
                 )}
-                {obj.assignedTo && (
-                  <span className="bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100 px-2 py-1 rounded">
-                    {obj.assignedTo}
-                  </span>
-                )}
               </div>
 
               <div className="flex gap-2 pt-2 border-t">
@@ -192,7 +187,6 @@ export default function KpiDashboard() {
       title: formData.get("title"),
       description: formData.get("description") || null,
       targetMetric: formData.get("targetMetric") || null,
-      assignedTo: formData.get("assignedTo") || null,
       status: "planned",
     });
   };
@@ -293,14 +287,6 @@ export default function KpiDashboard() {
                   name="targetMetric"
                   placeholder="e.g., $50k, 50 calls, 10 new clients"
                   data-testid="input-metric"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Assigned To</label>
-                <Input
-                  name="assignedTo"
-                  placeholder="Team member name"
-                  data-testid="input-assigned"
                 />
               </div>
               <Button type="submit" disabled={!selectedMonth || createMutation.isPending} className="w-full" data-testid="button-submit">
