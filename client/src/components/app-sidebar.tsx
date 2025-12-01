@@ -56,6 +56,11 @@ const keyMetricsItems = [
 
 const investmentDivisionItems = [
   {
+    title: "Overview",
+    url: "/investment-division",
+    icon: TrendingUp,
+  },
+  {
     title: "Alerts",
     url: "/alerts",
     icon: Bell,
