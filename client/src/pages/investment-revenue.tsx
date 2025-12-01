@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { formatNumberInput, parseNumberInput } from "@/lib/currencyInput";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -251,20 +252,6 @@ export default function InvestmentRevenuePage() {
   const resetForm = () => {
     setFormData(initialFormData);
     setEditingEntry(null);
-  };
-
-  const formatNumberInput = (value: string): string => {
-    // Remove all non-digit and non-decimal characters
-    const cleaned = value.replace(/[^\d.]/g, '');
-    // Parse as float and format with commas
-    const num = parseFloat(cleaned);
-    if (isNaN(num)) return '';
-    return num.toLocaleString('en-US');
-  };
-
-  const parseNumberInput = (value: string): string => {
-    // Remove commas and return the numeric string
-    return value.replace(/,/g, '');
   };
 
   const handleEdit = (entry: InvestmentRevenue) => {

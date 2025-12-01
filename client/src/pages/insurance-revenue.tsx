@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { formatNumberInput, parseNumberInput } from "@/lib/currencyInput";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -705,10 +706,10 @@ export default function InsuranceRevenuePage() {
                   <Label htmlFor="premium">Monthly Premium ($)</Label>
                   <Input
                     id="premium"
-                    type="number"
-                    step="0.01"
-                    value={formData.premium}
-                    onChange={(e) => handlePremiumChange(e.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    value={formatNumberInput(formData.premium)}
+                    onChange={(e) => handlePremiumChange(parseNumberInput(e.target.value))}
                     required
                     data-testid="input-premium"
                   />
@@ -717,10 +718,10 @@ export default function InsuranceRevenuePage() {
                   <Label htmlFor="commissionAmount">Commission ($)</Label>
                   <Input
                     id="commissionAmount"
-                    type="number"
-                    step="0.01"
-                    value={formData.commissionAmount}
-                    onChange={(e) => setFormData({ ...formData, commissionAmount: e.target.value })}
+                    type="text"
+                    inputMode="numeric"
+                    value={formatNumberInput(formData.commissionAmount)}
+                    onChange={(e) => setFormData({ ...formData, commissionAmount: parseNumberInput(e.target.value) })}
                     required
                     data-testid="input-commission-amount"
                   />
@@ -846,10 +847,10 @@ export default function InsuranceRevenuePage() {
                   <Label htmlFor="monthlyGoal">Monthly Commission Goal ($)</Label>
                   <Input
                     id="monthlyGoal"
-                    type="number"
-                    step="100"
-                    value={monthlyGoal}
-                    onChange={(e) => setMonthlyGoal(e.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    value={formatNumberInput(monthlyGoal)}
+                    onChange={(e) => setMonthlyGoal(parseNumberInput(e.target.value))}
                     placeholder="e.g., 10000"
                     data-testid="input-monthly-goal"
                   />
@@ -859,10 +860,10 @@ export default function InsuranceRevenuePage() {
                   <Label htmlFor="yearlyGoal">Yearly Commission Goal ($)</Label>
                   <Input
                     id="yearlyGoal"
-                    type="number"
-                    step="1000"
-                    value={yearlyGoal}
-                    onChange={(e) => setYearlyGoal(e.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    value={formatNumberInput(yearlyGoal)}
+                    onChange={(e) => setYearlyGoal(parseNumberInput(e.target.value))}
                     placeholder="e.g., 120000"
                     data-testid="input-yearly-goal"
                   />
