@@ -40,6 +40,14 @@ const menuItems = [
     icon: ListTodo,
   },
   {
+    title: "Reference Links",
+    url: "/reference-links",
+    icon: LinkIcon,
+  },
+];
+
+const revenueItems = [
+  {
     title: "Insurance Revenue",
     url: "/insurance-revenue",
     icon: ShieldCheck,
@@ -48,11 +56,6 @@ const menuItems = [
     title: "Investment Revenue",
     url: "/investment-revenue",
     icon: TrendingUp,
-  },
-  {
-    title: "Reference Links",
-    url: "/reference-links",
-    icon: LinkIcon,
   },
 ];
 
@@ -92,11 +95,15 @@ const librarySubItems = [
   },
 ];
 
-const bottomMenuItems = [];
+const bottomMenuItems: Array<{ title: string; url: string; icon: React.ReactNode }> = [];
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const [libraryOpen, setLibraryOpen] = useState(location.startsWith("/library"));
+  const [revenueOpen, setRevenueOpen] = useState(
+    location.startsWith("/insurance-revenue") || 
+    location.startsWith("/investment-revenue")
+  );
   const [investmentDivisionOpen, setInvestmentDivisionOpen] = useState(
     location.startsWith("/model-portfolios") || 
     location.startsWith("/households") || 
@@ -106,6 +113,9 @@ export function AppSidebar() {
   const { setOpen, isMobile, setOpenMobile } = useSidebar();
 
   const isLibraryActive = location.startsWith("/library");
+  const isRevenueActive = 
+    location.startsWith("/insurance-revenue") || 
+    location.startsWith("/investment-revenue");
   const isInvestmentDivisionActive = 
     location.startsWith("/model-portfolios") || 
     location.startsWith("/households") || 
@@ -152,6 +162,35 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+
+              {/* Revenue with sub-items */}
+              <Collapsible open={revenueOpen} onOpenChange={setRevenueOpen} className="group/collapsible">
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton isActive={isRevenueActive} data-testid="link-revenue">
+                      <BarChart3 />
+                      <span>Revenue</span>
+                      <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {revenueItems.map((subItem) => (
+                        <SidebarMenuSubItem key={subItem.title}>
+                          <SidebarMenuSubButton 
+                            isActive={location === subItem.url} 
+                            data-testid={`link-${subItem.title.toLowerCase().replace(/\s+/g, '-')}`}
+                            onClick={() => handleNavigation(subItem.url, true)}
+                          >
+                            <subItem.icon className="h-4 w-4" />
+                            <span>{subItem.title}</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
 
               {/* Investment Division with sub-items */}
               <Collapsible open={investmentDivisionOpen} onOpenChange={setInvestmentDivisionOpen} className="group/collapsible">
