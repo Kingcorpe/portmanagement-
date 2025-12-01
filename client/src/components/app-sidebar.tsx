@@ -25,11 +25,6 @@ const menuItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Key Metrics",
-    url: "/key-metrics",
-    icon: BarChart3,
-  },
-  {
     title: "KPI's Dashboard",
     url: "/kpi-dashboard",
     icon: Target,
@@ -43,6 +38,14 @@ const menuItems = [
     title: "Reference Links",
     url: "/reference-links",
     icon: LinkIcon,
+  },
+];
+
+const keyMetricsItems = [
+  {
+    title: "Key Metrics",
+    url: "/key-metrics",
+    icon: BarChart3,
   },
 ];
 
@@ -99,6 +102,11 @@ const bottomMenuItems: Array<{ title: string; url: string; icon: React.ReactNode
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
+  const [keyMetricsOpen, setKeyMetricsOpen] = useState(
+    location.startsWith("/key-metrics") || 
+    location.startsWith("/insurance-revenue") || 
+    location.startsWith("/investment-revenue")
+  );
   const [libraryOpen, setLibraryOpen] = useState(location.startsWith("/library"));
   const [revenueOpen, setRevenueOpen] = useState(
     location.startsWith("/insurance-revenue") || 
@@ -112,6 +120,10 @@ export function AppSidebar() {
   );
   const { setOpen, isMobile, setOpenMobile } = useSidebar();
 
+  const isKeyMetricsActive = 
+    location.startsWith("/key-metrics") || 
+    location.startsWith("/insurance-revenue") || 
+    location.startsWith("/investment-revenue");
   const isLibraryActive = location.startsWith("/library");
   const isRevenueActive = 
     location.startsWith("/insurance-revenue") || 
@@ -163,30 +175,59 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               ))}
 
-              {/* Revenue with sub-items */}
-              <Collapsible open={revenueOpen} onOpenChange={setRevenueOpen} className="group/collapsible">
+              {/* Key Metrics with Revenue sub-items */}
+              <Collapsible open={keyMetricsOpen} onOpenChange={setKeyMetricsOpen} className="group/collapsible">
                 <SidebarMenuItem>
                   <CollapsibleTrigger asChild>
-                    <SidebarMenuButton isActive={isRevenueActive} data-testid="link-revenue">
+                    <SidebarMenuButton isActive={isKeyMetricsActive} data-testid="link-key-metrics">
                       <BarChart3 />
-                      <span>Revenue</span>
+                      <span>Key Metrics</span>
                       <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                     </SidebarMenuButton>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {revenueItems.map((subItem) => (
-                        <SidebarMenuSubItem key={subItem.title}>
+                      {keyMetricsItems.map((item) => (
+                        <SidebarMenuSubItem key={item.title}>
                           <SidebarMenuSubButton 
-                            isActive={location === subItem.url} 
-                            data-testid={`link-${subItem.title.toLowerCase().replace(/\s+/g, '-')}`}
-                            onClick={() => handleNavigation(subItem.url, true)}
+                            isActive={location === item.url} 
+                            data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+                            onClick={() => handleNavigation(item.url, true)}
                           >
-                            <subItem.icon className="h-4 w-4" />
-                            <span>{subItem.title}</span>
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       ))}
+                      
+                      {/* Revenue nested under Key Metrics */}
+                      <SidebarMenuSubItem>
+                        <Collapsible open={revenueOpen} onOpenChange={setRevenueOpen} className="group/collapsible w-full">
+                          <CollapsibleTrigger asChild>
+                            <SidebarMenuSubButton isActive={isRevenueActive} data-testid="link-revenue">
+                              <TrendingUp className="h-4 w-4" />
+                              <span>Revenue</span>
+                              <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                            </SidebarMenuSubButton>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <SidebarMenuSub>
+                              {revenueItems.map((subItem) => (
+                                <SidebarMenuSubItem key={subItem.title}>
+                                  <SidebarMenuSubButton 
+                                    isActive={location === subItem.url} 
+                                    data-testid={`link-${subItem.title.toLowerCase().replace(/\s+/g, '-')}`}
+                                    onClick={() => handleNavigation(subItem.url, true)}
+                                  >
+                                    <subItem.icon className="h-4 w-4" />
+                                    <span>{subItem.title}</span>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              ))}
+                            </SidebarMenuSub>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </SidebarMenuSubItem>
                     </SidebarMenuSub>
                   </CollapsibleContent>
                 </SidebarMenuItem>
