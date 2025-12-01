@@ -6398,8 +6398,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 doc.text(titleText, { indent: 15 });
               }
               if (obj.description && !isCompleted) {
-                const desc = obj.description.split('\n')[0].slice(0, 80);
-                doc.fontSize(9).font("Helvetica").fillColor("#666666").text(desc, { indent: 20 });
+                const formattedDesc = obj.description
+                  .split('\n')
+                  .map(line => line.replace(/^\s*\*\s/, '• '))
+                  .join('\n')
+                  .split('\n')[0]
+                  .slice(0, 80);
+                doc.fontSize(9).font("Helvetica").fillColor("#666666").text(formattedDesc, { indent: 20 });
                 doc.fillColor("#000000");
               }
               doc.moveDown(0.3);

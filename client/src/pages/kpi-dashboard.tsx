@@ -7,6 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+
+// Helper function to convert asterisks to bullet points
+const formatBullets = (text: string | null): string => {
+  if (!text) return "";
+  return text
+    .split('\n')
+    .map(line => line.replace(/^\s*\*\s/, '• '))
+    .join('\n');
+};
 import {
   Select,
   SelectContent,
@@ -331,7 +340,7 @@ function KanbanColumn({
               >
                 <h5 className="font-medium text-sm leading-tight">{obj.title}</h5>
                 {obj.description && (
-                  <div className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{obj.description}</div>
+                  <div className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{formatBullets(obj.description)}</div>
                 )}
               </div>
               
