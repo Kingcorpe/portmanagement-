@@ -253,6 +253,20 @@ export default function InvestmentRevenuePage() {
     setEditingEntry(null);
   };
 
+  const formatNumberInput = (value: string): string => {
+    // Remove all non-digit and non-decimal characters
+    const cleaned = value.replace(/[^\d.]/g, '');
+    // Parse as float and format with commas
+    const num = parseFloat(cleaned);
+    if (isNaN(num)) return '';
+    return num.toLocaleString('en-US');
+  };
+
+  const parseNumberInput = (value: string): string => {
+    // Remove commas and return the numeric string
+    return value.replace(/,/g, '');
+  };
+
   const handleEdit = (entry: InvestmentRevenue) => {
     setEditingEntry(entry);
     setFormData({
@@ -550,10 +564,10 @@ export default function InvestmentRevenuePage() {
                       <Label htmlFor="monthlyDividendGoal">Monthly Dividend Goal ($)</Label>
                       <Input
                         id="monthlyDividendGoal"
-                        type="number"
-                        step="0.01"
-                        value={monthlyDividendGoal}
-                        onChange={(e) => setMonthlyDividendGoal(e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={formatNumberInput(monthlyDividendGoal)}
+                        onChange={(e) => setMonthlyDividendGoal(parseNumberInput(e.target.value))}
                         placeholder="e.g., 500"
                         data-testid="input-monthly-dividend-goal"
                       />
@@ -562,10 +576,10 @@ export default function InvestmentRevenuePage() {
                       <Label htmlFor="yearlyDividendGoal">Yearly Dividend Goal ($)</Label>
                       <Input
                         id="yearlyDividendGoal"
-                        type="number"
-                        step="0.01"
-                        value={yearlyDividendGoal}
-                        onChange={(e) => setYearlyDividendGoal(e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={formatNumberInput(yearlyDividendGoal)}
+                        onChange={(e) => setYearlyDividendGoal(parseNumberInput(e.target.value))}
                         placeholder="e.g., 6000"
                         data-testid="input-yearly-dividend-goal"
                       />
@@ -582,10 +596,10 @@ export default function InvestmentRevenuePage() {
                       <Label htmlFor="monthlyAumGoal">Monthly AUM Goal ($)</Label>
                       <Input
                         id="monthlyAumGoal"
-                        type="number"
-                        step="0.01"
-                        value={monthlyAumGoal}
-                        onChange={(e) => setMonthlyAumGoal(e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={formatNumberInput(monthlyAumGoal)}
+                        onChange={(e) => setMonthlyAumGoal(parseNumberInput(e.target.value))}
                         placeholder="e.g., 50000"
                         data-testid="input-monthly-aum-goal"
                       />
@@ -594,10 +608,10 @@ export default function InvestmentRevenuePage() {
                       <Label htmlFor="yearlyAumGoal">Yearly AUM Goal ($)</Label>
                       <Input
                         id="yearlyAumGoal"
-                        type="number"
-                        step="0.01"
-                        value={yearlyAumGoal}
-                        onChange={(e) => setYearlyAumGoal(e.target.value)}
+                        type="text"
+                        inputMode="numeric"
+                        value={formatNumberInput(yearlyAumGoal)}
+                        onChange={(e) => setYearlyAumGoal(parseNumberInput(e.target.value))}
                         placeholder="e.g., 600000"
                         data-testid="input-yearly-aum-goal"
                       />
