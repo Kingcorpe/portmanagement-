@@ -43,8 +43,12 @@ import {
   Download,
   Printer,
   Plus,
-  Mail
+  Mail,
+  Trash2,
+  Square,
+  CheckSquare
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "wouter";
 import { format, isToday, isTomorrow, isThisWeek, isPast, addDays } from "date-fns";
 
@@ -85,6 +89,8 @@ export default function Tasks() {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ title: "", description: "", priority: "medium", accountId: "", dueDate: "" });
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -174,6 +180,43 @@ export default function Tasks() {
       toast({ title: "Failed to send email", variant: "destructive" });
     },
   });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (taskIds: string[]) => {
+      const res = await apiRequest("POST", "/api/account-tasks/bulk-delete", { taskIds });
+      return res.json();
+    },
+    onSuccess: (data: { deleted: number; total: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      setSelectedTasks(new Set());
+      setSelectionMode(false);
+      toast({ title: `Deleted ${data.deleted} task${data.deleted !== 1 ? 's' : ''}` });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete tasks", variant: "destructive" });
+    },
+  });
+
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTasks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllVisible = () => {
+    const visibleTaskIds = filteredTasks.map(t => t.id);
+    setSelectedTasks(new Set(visibleTaskIds));
+  };
+
+  const clearSelection = () => {
+    setSelectedTasks(new Set());
+  };
 
   const toggleGroup = (groupKey: string) => {
     setExpandedGroups(prev => {
@@ -397,33 +440,92 @@ export default function Tasks() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            onClick={() => setDialogOpen(true)}
-            data-testid="button-add-task"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Task
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open('/api/tasks/pdf', '_blank')}
-            data-testid="button-download-pdf"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => emailTasksMutation.mutate()}
-            disabled={emailTasksMutation.isPending}
-            data-testid="button-email-pdf"
-          >
-            <Mail className="h-4 w-4 mr-2" />
-            {emailTasksMutation.isPending ? "Sending..." : "Email"}
-          </Button>
+          {selectionMode ? (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={selectAllVisible}
+                data-testid="button-select-all"
+              >
+                <CheckSquare className="h-4 w-4 mr-2" />
+                All ({filteredTasks.length})
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={clearSelection}
+                data-testid="button-clear-selection"
+              >
+                <Square className="h-4 w-4 mr-2" />
+                Clear
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => {
+                  if (selectedTasks.size > 0) {
+                    bulkDeleteMutation.mutate(Array.from(selectedTasks));
+                  }
+                }}
+                disabled={selectedTasks.size === 0 || bulkDeleteMutation.isPending}
+                data-testid="button-delete-selected"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {bulkDeleteMutation.isPending ? "Deleting..." : `Delete (${selectedTasks.size})`}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setSelectionMode(false);
+                  setSelectedTasks(new Set());
+                }}
+                data-testid="button-cancel-selection"
+              >
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setSelectionMode(true)}
+                data-testid="button-enter-selection-mode"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Bulk Delete
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setDialogOpen(true)}
+                data-testid="button-add-task"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Task
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open('/api/tasks/pdf', '_blank')}
+                data-testid="button-download-pdf"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => emailTasksMutation.mutate()}
+                disabled={emailTasksMutation.isPending}
+                data-testid="button-email-pdf"
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                {emailTasksMutation.isPending ? "Sending..." : "Email"}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -589,29 +691,48 @@ export default function Tasks() {
                     <CardContent className="pt-0">
                       <div className="space-y-2">
                         {group.tasks.map(task => (
-                          <Link 
-                            key={task.id}
-                            href={`/account/${task.accountType}/${task.accountId}`}
-                            className="block"
-                          >
-                            <div 
-                              className="flex items-start gap-3 p-3 rounded-md border bg-card hover:bg-muted/50 hover:border-primary/30 transition-colors cursor-pointer"
-                              data-testid={`task-item-${task.id}`}
-                            >
-                              <button
-                                onClick={(e) => {
+                          <div key={task.id} className="flex items-start gap-2">
+                            {selectionMode && (
+                              <div className="flex items-center pt-3.5">
+                                <Checkbox
+                                  checked={selectedTasks.has(task.id)}
+                                  onCheckedChange={() => toggleTaskSelection(task.id)}
+                                  data-testid={`checkbox-task-${task.id}`}
+                                />
+                              </div>
+                            )}
+                            <Link 
+                              href={`/account/${task.accountType}/${task.accountId}`}
+                              className="block flex-1"
+                              onClick={(e) => {
+                                if (selectionMode) {
                                   e.preventDefault();
-                                  e.stopPropagation();
-                                  if (task.status !== "completed") {
-                                    completeTaskMutation.mutate(task.id);
-                                  }
-                                }}
-                                disabled={task.status === "completed" || completeTaskMutation.isPending}
-                                className="mt-0.5 hover:scale-110 transition-transform disabled:cursor-not-allowed"
-                                data-testid={`button-complete-task-${task.id}`}
+                                  toggleTaskSelection(task.id);
+                                }
+                              }}
+                            >
+                              <div 
+                                className={`flex items-start gap-3 p-3 rounded-md border bg-card transition-colors cursor-pointer ${
+                                  selectionMode && selectedTasks.has(task.id) 
+                                    ? "border-primary bg-primary/5" 
+                                    : "hover:bg-muted/50 hover:border-primary/30"
+                                }`}
+                                data-testid={`task-item-${task.id}`}
                               >
-                                {getStatusIcon(task.status)}
-                              </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (!selectionMode && task.status !== "completed") {
+                                      completeTaskMutation.mutate(task.id);
+                                    }
+                                  }}
+                                  disabled={selectionMode || task.status === "completed" || completeTaskMutation.isPending}
+                                  className="mt-0.5 hover:scale-110 transition-transform disabled:cursor-not-allowed"
+                                  data-testid={`button-complete-task-${task.id}`}
+                                >
+                                  {getStatusIcon(task.status)}
+                                </button>
                               
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-2">
@@ -666,6 +787,7 @@ export default function Tasks() {
                               </div>
                             </div>
                           </Link>
+                        </div>
                         ))}
                       </div>
                     </CardContent>

@@ -5258,6 +5258,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk delete tasks
+  app.post('/api/account-tasks/bulk-delete', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { taskIds } = req.body;
+      
+      if (!Array.isArray(taskIds) || taskIds.length === 0) {
+        return res.status(400).json({ message: "taskIds must be a non-empty array" });
+      }
+      
+      let deletedCount = 0;
+      const errors: string[] = [];
+      
+      for (const taskId of taskIds) {
+        try {
+          const existing = await storage.getAccountTask(taskId);
+          if (!existing) {
+            errors.push(`Task ${taskId} not found`);
+            continue;
+          }
+          
+          // Determine account type and get household ID
+          let householdId: string | null = null;
+          if (existing.individualAccountId) {
+            householdId = await storage.getHouseholdIdFromAccount('individual', existing.individualAccountId);
+          } else if (existing.corporateAccountId) {
+            householdId = await storage.getHouseholdIdFromAccount('corporate', existing.corporateAccountId);
+          } else if (existing.jointAccountId) {
+            householdId = await storage.getHouseholdIdFromAccount('joint', existing.jointAccountId);
+          }
+          
+          if (!householdId) {
+            errors.push(`Account not found for task ${taskId}`);
+            continue;
+          }
+          
+          const canEdit = await storage.canUserEditHousehold(userId, householdId);
+          if (!canEdit) {
+            errors.push(`Access denied for task ${taskId}`);
+            continue;
+          }
+          
+          await storage.deleteAccountTask(taskId);
+          
+          // Create audit log entry
+          await storage.createAuditLogEntry({
+            individualAccountId: existing.individualAccountId || undefined,
+            corporateAccountId: existing.corporateAccountId || undefined,
+            jointAccountId: existing.jointAccountId || undefined,
+            userId,
+            action: "task_delete",
+            changes: { 
+              title: existing.title,
+              bulkDelete: true
+            },
+          });
+          
+          deletedCount++;
+        } catch (taskError) {
+          errors.push(`Failed to delete task ${taskId}`);
+        }
+      }
+      
+      res.json({ 
+        deleted: deletedCount, 
+        total: taskIds.length,
+        errors: errors.length > 0 ? errors : undefined 
+      });
+    } catch (error) {
+      console.error("Error bulk deleting tasks:", error);
+      res.status(500).json({ message: "Failed to bulk delete tasks" });
+    }
+  });
+
   // Get all tasks for the current user (across all accounts)
   app.get('/api/tasks', isAuthenticated, async (req: any, res) => {
     try {
