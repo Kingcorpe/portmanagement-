@@ -209,6 +209,7 @@ export const individualAccounts = pgTable("individual_accounts", {
   immediateNotes: text("immediate_notes"),
   upcomingNotes: text("upcoming_notes"),
   deploymentMode: boolean("deployment_mode").notNull().default(false), // When true, allows target allocations > 100% for cash deployment
+  withdrawalMode: boolean("withdrawal_mode").notNull().default(false), // When true, shows sell planning interface
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -246,6 +247,7 @@ export const corporateAccounts = pgTable("corporate_accounts", {
   immediateNotes: text("immediate_notes"),
   upcomingNotes: text("upcoming_notes"),
   deploymentMode: boolean("deployment_mode").notNull().default(false), // When true, allows target allocations > 100% for cash deployment
+  withdrawalMode: boolean("withdrawal_mode").notNull().default(false), // When true, shows sell planning interface
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -283,6 +285,7 @@ export const jointAccounts = pgTable("joint_accounts", {
   immediateNotes: text("immediate_notes"),
   upcomingNotes: text("upcoming_notes"),
   deploymentMode: boolean("deployment_mode").notNull().default(false), // When true, allows target allocations > 100% for cash deployment
+  withdrawalMode: boolean("withdrawal_mode").notNull().default(false), // When true, shows sell planning interface
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
