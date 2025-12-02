@@ -2225,21 +2225,19 @@ export default function AccountDetails() {
                   <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover-elevate rounded-lg">
                     <div className="flex items-center gap-2">
                       <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                      <h4 className="font-medium text-sm">Trades Needed to Reach Target</h4>
-                      {accountData?.deploymentMode && (
-                        <Badge variant="outline" className="text-xs ml-2">Reference Only</Badge>
-                      )}
+                      <h4 className="font-medium text-sm text-muted-foreground">Gap to Target</h4>
+                      <Badge variant="outline" className="text-xs text-muted-foreground">Illustrative</Badge>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
                       {buyTrades.length > 0 && (
-                        <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" data-testid="badge-total-buy">
-                          Buy: ${totalBuyAmount.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                        </Badge>
+                        <span className="text-xs text-muted-foreground" data-testid="badge-total-buy">
+                          {buyTrades.length} underweight
+                        </span>
                       )}
                       {sellTrades.length > 0 && (
-                        <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" data-testid="badge-total-sell">
-                          Sell: ${totalSellAmount.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                        </Badge>
+                        <span className="text-xs text-muted-foreground" data-testid="badge-total-sell">
+                          {sellTrades.length} overweight
+                        </span>
                       )}
                       <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>*>&]:rotate-180" />
                     </div>
