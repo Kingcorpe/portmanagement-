@@ -118,6 +118,25 @@ interface CashDeploymentCandidate {
   status: 'fully_funded' | 'partially_funded' | 'unfunded';
 }
 
+interface SellPlanCandidate {
+  positionId: string;
+  ticker: string;
+  name: string;
+  currentPrice: number;
+  quantityHeld: number;
+  totalValue: number;
+  sellAmount: number;
+  sharesToSell: number;
+  isSelected: boolean;
+}
+
+interface SellPlanData {
+  targetAmount: number;
+  totalSelected: number;
+  remaining: number;
+  candidates: SellPlanCandidate[];
+}
+
 const RIF_MINIMUM_RATES: Record<number, number> = {
   71: 5.28, 72: 5.40, 73: 5.53, 74: 5.67, 75: 5.82,
   76: 5.98, 77: 6.17, 78: 6.36, 79: 6.58, 80: 6.82,
@@ -318,6 +337,10 @@ export default function AccountDetails() {
   const [candidateTargetPct, setCandidateTargetPct] = useState<string>("");
   const [isCommittingCandidates, setIsCommittingCandidates] = useState(false);
   const [focusOnPlannerCandidates, setFocusOnPlannerCandidates] = useState(false);
+  // Sell Planning state
+  const [isSellPlannerExpanded, setIsSellPlannerExpanded] = useState(true);
+  const [targetWithdrawalAmount, setTargetWithdrawalAmount] = useState<string>("");
+  const [sellCandidates, setSellCandidates] = useState<Array<{ positionId: string; sellAmount: number }>>([]);
   const notesInitialLoadRef = useRef(true);
   const notesSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -663,6 +686,49 @@ export default function AccountDetails() {
       totalAllocated: availableCash - remainingCash,
     };
   }, [accountData?.deploymentMode, positions, targetAllocations, universalHoldings, manualCandidates, totalMarketValue, normalizeTicker]);
+
+  // Compute sell plan data when withdrawal mode is active
+  const sellPlanData = useMemo((): SellPlanData => {
+    const targetAmount = parseFloat(targetWithdrawalAmount) || 0;
+    
+    // Get all non-CASH positions as candidates
+    const candidates: SellPlanCandidate[] = positions
+      .filter(p => normalizeTicker(p.symbol) !== 'CASH')
+      .map(position => {
+        const holding = universalHoldings.find(h => normalizeTicker(h.ticker) === normalizeTicker(position.symbol));
+        const currentPrice = Number(position.currentPrice) || 0;
+        const quantityHeld = Number(position.quantity) || 0;
+        const totalValue = currentPrice * quantityHeld;
+        
+        // Check if this position is selected for selling
+        const sellCandidate = sellCandidates.find(sc => sc.positionId === position.id);
+        const sellAmount = sellCandidate?.sellAmount || 0;
+        const sharesToSell = currentPrice > 0 ? Math.ceil(sellAmount / currentPrice) : 0;
+        
+        return {
+          positionId: position.id,
+          ticker: position.symbol,
+          name: holding?.name || position.symbol,
+          currentPrice,
+          quantityHeld,
+          totalValue,
+          sellAmount,
+          sharesToSell: Math.min(sharesToSell, quantityHeld), // Can't sell more than held
+          isSelected: sellAmount > 0,
+        };
+      })
+      .sort((a, b) => b.totalValue - a.totalValue); // Sort by value descending
+    
+    const totalSelected = sellCandidates.reduce((sum, sc) => sum + (sc.sellAmount || 0), 0);
+    const remaining = Math.max(0, targetAmount - totalSelected);
+    
+    return {
+      targetAmount,
+      totalSelected,
+      remaining,
+      candidates,
+    };
+  }, [accountData?.withdrawalMode, positions, universalHoldings, sellCandidates, targetWithdrawalAmount, normalizeTicker]);
 
   const form = useForm<PositionFormData>({
     resolver: zodResolver(insertPositionSchema),
