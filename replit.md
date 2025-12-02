@@ -1,7 +1,7 @@
 # PracticeOS - Canadian Advisory Practice Management Platform
 
 ## Overview
-PracticeOS is a comprehensive practice management system for Canadian financial advisors. It manages household-based client portfolios across various Canadian account types (individual, corporate, joint), integrates with TradingView for alert management, tracks insurance and investment revenue, and provides KPI dashboards and business metrics. Its purpose is to provide a unified platform for overseeing client investments, tracking holdings, managing tasks, monitoring revenue goals, and streamlining all aspects of running an advisory practice.
+PracticeOS is a comprehensive practice management system designed for Canadian financial advisors. Its primary purpose is to streamline practice operations by providing a unified platform for managing household-based client portfolios across various Canadian account types, integrating with TradingView for alert management, tracking insurance and investment revenue, and offering KPI dashboards for business metrics. The platform aims to centralize client investment oversight, holding tracking, task management, and revenue goal monitoring to enhance efficiency and decision-making for advisory practices.
 
 ## User Preferences
 - I prefer simple language and clear explanations.
@@ -12,181 +12,35 @@ PracticeOS is a comprehensive practice management system for Canadian financial 
 
 ## System Architecture
 
-### Technology Stack
-- **Frontend**: React, TypeScript, Vite, Wouter
-- **Backend**: Express, TypeScript
-- **Database**: PostgreSQL (Neon)
-- **ORM**: Drizzle
-- **Authentication**: Replit Auth (OIDC)
-- **Validation**: Zod
-
 ### UI/UX Decisions
-The platform uses a household-based client management interface with collapsible cards, creation dialogs for all entities and account types, and form validation. Monetary values are displayed in Canadian dollars (CA$) with color-coded performance indicators.
+The platform features a household-based client management interface with collapsible cards, creation dialogs for all entities and account types, and robust form validation. Monetary values are consistently displayed in Canadian dollars (CA$) and performance indicators are color-coded for quick visual assessment.
 
-### Data Model and Key Design Decisions
-The system uses a household-based hierarchy supporting various Canadian account types:
-- **Individual Accounts**: Cash, TFSA, FHSA, RRSP, LIRA, LIF, RIF
-- **Corporate Accounts**: Cash, IPP
-- **Joint Accounts**: Joint Cash, RESP
-Data is structured with separate tables for each account type but a unified `positions` table with nullable foreign keys. Joint accounts use a many-to-many relationship.
-- **Calculated Account Balances**: Balances are dynamically computed from positions (quantity × currentPrice).
-- **Account-Specific Target Allocations**: Each account has distinct target allocations, which can be manually entered or copied from model portfolios. Variance analytics (over/under/on-target) are provided.
-- **Inline Target % Editing**: Allows direct editing of target allocations in the holdings table, automatically adding new tickers to Universal Holdings if needed.
-- **Universal Holdings Categories**: Tickers are categorized (e.g., basket_etf, security, auto_added).
-- **Robust Validation**: Zod is used for all input, especially monetary fields which are stored as strings for precision.
-- **Cascading Deletes**: Configured for data integrity.
-- **UUIDs**: All primary keys.
-- **Delete Functionality**: Accounts and households can be deleted with confirmation dialogs.
-- **Individual and Spouse Date of Birth**: Optional DOB fields for individuals and spouses, used for RIF minimum withdrawal calculations.
-- **Watchlist Portfolio**: Each account can have an optional watchlist for experimental positions, toggled with "Real" positions. It provides independent analysis without affecting real portfolio metrics.
+### Technical Implementations
+- **Technology Stack**: React, TypeScript, Vite, Wouter (Frontend); Express, TypeScript (Backend); PostgreSQL (Neon) (Database); Drizzle (ORM); Replit Auth (OIDC) (Authentication); Zod (Validation).
+- **Data Model**: Household-based hierarchy supporting diverse Canadian account types (Individual, Corporate, Joint). Account balances are dynamically calculated from positions.
+- **Target Allocations**: Account-specific target allocations with variance analytics (over/under/on-target) and inline editing capabilities. Tickers automatically added to Universal Holdings if new.
+- **Validation**: Zod is used for all input validation, especially for precise monetary values stored as strings.
+- **Data Integrity**: Cascading deletes and UUIDs for primary keys ensure data consistency.
+- **Watchlist Portfolio**: Optional per-account watchlist for experimental positions, independent of real portfolio metrics.
+- **API Endpoints**: Comprehensive CRUD operations for all entities, including a bulk endpoint and authentication.
+- **Search**: A dedicated holdings search page with filtering by household category and value ranges.
+- **Demo Mode**: A toggleable feature for prospect demonstrations using sample data, protecting real client information.
 
-### API Endpoints
-Comprehensive CRUD operations for all entities (households, individuals, corporations, accounts, positions, trades). Includes a bulk endpoint (`/api/households/:id/full`) and authentication endpoints.
-
-### TradingView Webhook Integration
-A webhook (`POST /api/webhooks/tradingview`) receives BUY/SELL alerts from TradingView.
-- **Alert Display**: Collapsible cards show affected accounts with status indicators (Underweight, Overweight, On Target, No Target) and smart sorting.
-- **Target Allocation Detection**: Alerts now trigger for accounts that have target allocations for a ticker, even if they don't currently hold any shares. For BUY signals, accounts with planned targets but no position are flagged as "Not Currently Held" opportunities.
-- **Automated Reports**: BUY signals automatically trigger PDF rebalancing report generation for underweight accounts (including zero-position accounts with targets), which are then emailed.
-- **Secret Validation**: Optional webhook secret for security.
-
-### Yahoo Finance Integration
-Integrates with Yahoo Finance for real-time market prices and dividend information.
-- **Price Refresh**: Users can manually refresh position prices or all Universal Holdings prices.
-- **Dividend Data**: Fetches dividend yield, rate, and payout frequency.
-- **Canadian Ticker Support**: Automatically handles common Canadian exchange suffixes (.TO, .V, .CN).
-- **Cash Position Handling**: Cash positions are assigned a price of $1.
-- **Duplicate Ticker Handling**: Caches price lookups to reduce API calls.
-
-### Key Metrics Page
-A centralized dashboard displaying aggregate portfolio statistics:
-- **Total AUM**: Sum of all account balances with weighted average performance
-- **Account Breakdown**: Distribution by account type (Individual, Corporate, Joint) with progress bars
-- **Tasks Overview**: Pending, in-progress, urgent, and high-priority task counts
-- **Trading Alerts**: Pending/executed alerts with BUY/SELL signal breakdown
-- **AUM Distribution**: Visual breakdown of assets by account category
-- **Quick Stats**: Average account size, accounts per household, and average household value
-
-### Task Management
-Each account has a Tasks section with comprehensive workflow statuses and priorities:
-- **Statuses**: Pending, In Progress, Blocked (waiting for client/data), On Hold (intentionally paused), Completed, Cancelled
-- **Priorities**: Low, Medium, High, Urgent
-- Tasks are sorted by status (active tasks first), then priority, then due date
-- Completed tasks are logged to Change History and removed from the active list
-
-### Monthly Dividend Income Display
-Each account displays estimated monthly dividend income calculated from positions:
-- **Account Summary**: Shows total monthly dividend, annual dividend, and portfolio yield percentage (in emerald green)
-- **Holdings Table**: "Dividend/mo" column shows per-position monthly dividend with yield % and payout frequency
-- **Calculation**: Monthly dividend = (quantity × annual dividend rate) / 12
-- **Data Source**: Dividend rate, yield, and payout frequency from Universal Holdings (fetched via Yahoo Finance)
-- Cash positions and positions without dividend data display "-"
-
-### Change History / Audit Trail
-A collapsible section per account tracks all modifications, including:
-- Account setup and updates
-- Position actions (add, update, delete)
-- Target allocation changes
-- Task creation, completion, and deletion
-- Price refreshes and model portfolio copies
-Actions are color-coded with old/new value comparisons and timestamps.
-
-### Holdings Search
-A dedicated page that allows searching for tickers across all accounts in the system with powerful filtering and direct navigation to accounts.
-- **Search Endpoint**: `/api/holdings/search?ticker=BANK.TO&category=anchor&minValue=1000&maxValue=50000`
-- **Core Features**: 
-  - Search across all households, individuals, corporations, and joint accounts simultaneously
-  - Automatic ticker normalization (.TO, .V, .CN, .NE, .TSX, .NYSE, .NASDAQ suffixes)
-  - Clickable results rows that navigate directly to the full account view
-- **Filters** (optional, combine as needed):
-  - **Household Category**: Filter by Evergreen, Anchor, Pulse, Emerging Pulse, or Emerging Anchor
-  - **Min/Max Value**: Filter holdings by their dollar value range
-- **Results Display**: 
-  - Household name and category, owner name/type, account type
-  - Quantity held, current price, and total value
-  - Summary cards showing total holdings count, total quantity, and aggregate value
-  - **Clickable rows**: Click any result to drill into the account with all holdings and details
-- **Navigation**: Click "Holdings Search" in the sidebar to access
-
-### Insurance Revenue Tracking
-A dedicated page for tracking insurance commissions and revenue with specialized calculations:
-- **Policy Types**: T10, T15, T20, Layered WL, CI, Life Insurance, Health Insurance, etc.
-- **Specialized Commission Calculations**: 
-  - T10: Monthly Premium × 12 × 0.40 × 2.85
-  - T20: Monthly Premium × 12 × 0.45 × 2.85
-  - Layered WL: Monthly Premium × 12 × 0.55 × 2.85
-- **Status Workflow**: Planned → Pending → Received
-- **Goals Tracking**: Monthly and yearly commission goals with localStorage persistence
-  - Progress bars showing percentage toward goal
-  - Business days remaining in month/year
-  - Per business day target to hit goals
-  - Celebration messages when goals are achieved
-- **Revenue Summaries**: Monthly breakdowns, YTD totals by status
-
-### Investment Revenue Tracking
-A dedicated page for tracking dividends received and new AUM (Assets Under Management) obtained:
-- **Entry Types**: 
-  - Dividend: Track dividend payments from stocks/ETFs with ticker symbol and account type
-  - New AUM: Track new client assets brought into management with client name and account type
-- **Status Workflow**: Planned → Pending → Received (same as Insurance Revenue)
-- **Goals Tracking**: Separate monthly and yearly goals for dividends and AUM
-  - Progress bars showing percentage toward each goal
-  - Business days remaining in month/year
-  - Per business day target to hit goals
-  - Celebration messages when goals are achieved
-- **Revenue Summaries**: 
-  - Summary cards for total dividends and AUM received
-  - YTD totals by entry type and status
-  - Monthly breakdown table showing dividends and AUM by month
-- **Account Types**: Cash, TFSA, RRSP, FHSA, LIRA, LIF, RIF, Corporate Cash, IPP, Joint Cash, RESP
-
-### Reference Links
-A page for managing quick-access links to important resources:
-- **MoneyTrax Integration**: Pre-populated with MoneyTrax Members portal link featuring the Circle of Wealth logo as a clickable hyperlink
-- **Icon Support**: Links can display emoji icons or logo images
-- **CRUD Operations**: Add, edit, and delete reference links
-
-### KPI Dashboard
-Monthly objectives tracking with daily task management:
-- **Objectives**: Title, description (with asterisk-to-bullet formatting), status, tracking frequency
-- **Daily Tasks**: Track completion for each business day of the month
-- **PDF Export**: Clean formatted export with strikethrough for completed objectives
-- **Best Practice**: No priority field - everything on the KPI list should be a top priority
-
-## Critical UI Features Checklist
-**IMPORTANT: These UI elements must NEVER be accidentally removed during code changes. Verify they exist after any refactoring.**
-
-### Account Details / Holdings Table
-- [ ] **Purple Cash Badge**: CASH positions display a purple badge with Coins icon next to the symbol (`bg-purple-100 text-purple-800`)
-- [ ] **Protection Badge**: Positions with protection % show amber "Protecting" badge with Shield icon
-- [ ] **Status Badges**: Over (red), Under (green), On Target (blue), Can Deploy (purple), No Target (amber)
-- [ ] **Color-coded Symbols**: Symbol text color reflects status (green=under/buy, red=over/sell, blue=on-target, purple=can-deploy, amber=unexpected)
-- [ ] **Monthly Dividend Column**: Shows dividend/mo in emerald green with yield % and payout frequency
-- [ ] **Inline Target % Editing**: Clickable target percentage that opens inline editor
-
-### Target Allocations Section
-- [ ] **Delete All Button**: Red "Delete All" button with confirmation dialog to remove all target allocations
-- [ ] **Copy from Model Button**: Button to copy allocations from planned/freelance portfolios
-- [ ] **Risk Breakdown Summary**: Shows percentage breakdown by risk level
-- [ ] **Total Badge**: Shows total allocation % with green (valid) or red (invalid) styling
-
-### Insurance Revenue Table
-- [ ] **Sortable Columns**: All column headers are clickable for sorting with up/down arrow indicators
-- [ ] **Goals Progress Bars**: Monthly and yearly goal progress with business days remaining
-
-### KPI Dashboard
-- [ ] **Asterisk Formatting**: `* Item` in descriptions displays as `• Item` (bullet points)
-- [ ] **PDF Export**: Includes strikethrough for completed objectives
-- [ ] **Daily Task Grid**: Business day checkboxes for tracking
-
-### General UI Patterns
-- [ ] **Confirmation Dialogs**: All destructive actions (delete) require confirmation
-- [ ] **Loading States**: Show loading spinners/skeletons during data fetches
-- [ ] **Toast Notifications**: Success/error feedback for all mutations
-- [ ] **Collapsible Sections**: Major sections can be expanded/collapsed
+### Feature Specifications
+- **TradingView Webhook Integration**: Receives BUY/SELL alerts, displays them with status indicators, detects target allocation opportunities, and automates PDF rebalancing report generation for underweight accounts.
+- **Yahoo Finance Integration**: Fetches real-time market prices and dividend information, handling Canadian ticker suffixes and cash positions.
+- **Key Metrics Page**: A dashboard showing total AUM, account breakdown, task overview, trading alerts, AUM distribution, and quick stats.
+- **Task Management**: Account-specific tasks with comprehensive statuses (Pending, In Progress, Blocked, On Hold, Completed, Cancelled) and priorities (Low, Medium, High, Urgent), sorted by status, priority, and due date.
+- **Monthly Dividend Income Display**: Shows estimated monthly dividend income per account and per position, including yield and payout frequency.
+- **Change History / Audit Trail**: A collapsible audit trail per account tracking all modifications with color-coded entries and old/new value comparisons.
+- **Insurance Revenue Tracking**: Dedicated page for tracking insurance commissions with specialized calculations for various policy types, status workflows (Planned → Pending → Received), and goal tracking.
+- **Investment Revenue Tracking**: Dedicated page for tracking dividends and new AUM, with status workflows and separate goal tracking for dividends and AUM.
+- **Reference Links**: A page to manage quick-access links with icon support and CRUD operations.
+- **KPI Dashboard**: Tracks monthly objectives with daily task management and PDF export functionality.
+- **Admin Section**: Provides system management tools including Universal Holdings management (CRUD, bulk price/dividend refresh, categorization), webhook logs, and system settings (webhook URL, email config, price refresh schedule, demo mode toggle).
 
 ## External Dependencies
-- **Replit Auth**: User authentication (OIDC providers, email/password).
-- **Neon (PostgreSQL)**: Cloud-hosted PostgreSQL database.
-- **TradingView**: External charting and analysis platform, integrated via webhooks.
-- **Yahoo Finance (yahoo-finance2)**: Fetches real-time stock/ETF prices and dividend data.
+- **Replit Auth**: Utilized for user authentication, supporting OIDC providers and email/password.
+- **Neon (PostgreSQL)**: The cloud-hosted PostgreSQL database solution.
+- **TradingView**: Integrated via webhooks for receiving and processing trading alerts.
+- **Yahoo Finance (yahoo-finance2)**: Used to fetch real-time stock/ETF prices and dividend data.
