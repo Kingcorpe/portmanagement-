@@ -3905,25 +3905,32 @@ export default function AccountDetails() {
                           {/* Allocation Race Table */}
                           {cashDeploymentData.allCandidates.length > 0 && (
                             <div className="space-y-2 pt-2 border-t">
-                              <div className="flex items-center justify-between">
-                                <h4 className="text-sm font-medium">Trades Needed</h4>
-                                <div className="flex items-center gap-2 text-xs">
-                                  <span className="text-muted-foreground">
-                                    Allocated: CA${cashDeploymentData.totalAllocated.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
-                                  </span>
-                                  <span className="text-muted-foreground">/</span>
-                                  <span className="text-muted-foreground">
-                                    CA${cashDeploymentData.availableCash.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                              </div>
+                              <h4 className="text-sm font-medium">Trades Needed</h4>
                               
-                              {/* Progress bar */}
-                              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                <div 
-                                  className="h-full bg-orange-500 transition-all"
-                                  style={{ width: `${(cashDeploymentData.totalAllocated / cashDeploymentData.availableCash) * 100}%` }}
-                                />
+                              {/* Cash Summary Box */}
+                              <div className="bg-muted/50 rounded-md p-3 border border-border/50">
+                                <div className="grid grid-cols-3 gap-4 text-xs">
+                                  <div>
+                                    <span className="text-muted-foreground block mb-1">Available Cash</span>
+                                    <span className="font-semibold text-base">CA${cashDeploymentData.availableCash.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground block mb-1">Allocated</span>
+                                    <span className="font-semibold text-base text-orange-600 dark:text-orange-400">CA${cashDeploymentData.totalAllocated.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground block mb-1">Remaining</span>
+                                    <span className="font-semibold text-base text-blue-600 dark:text-blue-400">CA${(cashDeploymentData.availableCash - cashDeploymentData.totalAllocated).toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
+                                  </div>
+                                </div>
+                                
+                                {/* Progress bar */}
+                                <div className="h-2 bg-muted rounded-full overflow-hidden mt-3">
+                                  <div 
+                                    className="h-full bg-orange-500 transition-all"
+                                    style={{ width: `${(cashDeploymentData.totalAllocated / cashDeploymentData.availableCash) * 100}%` }}
+                                  />
+                                </div>
                               </div>
 
                               {/* Focus on Planner Toggle */}
@@ -3943,9 +3950,9 @@ export default function AccountDetails() {
                                   <TableRow>
                                     <TableHead className="text-xs">Ticker</TableHead>
                                     <TableHead className="text-xs">Source</TableHead>
-                                    <TableHead className="text-xs text-right">Gap</TableHead>
-                                    <TableHead className="text-xs text-right">Shares</TableHead>
                                     <TableHead className="text-xs text-right">Amount</TableHead>
+                                    <TableHead className="text-xs text-right">Shares</TableHead>
+                                    <TableHead className="text-xs text-right">Gap to Target</TableHead>
                                     <TableHead className="text-xs text-right">Status</TableHead>
                                   </TableRow>
                                 </TableHeader>
@@ -3960,14 +3967,14 @@ export default function AccountDetails() {
                                           {candidate.source === 'below_book' ? 'Below Book' : 'Manual'}
                                         </Badge>
                                       </TableCell>
-                                      <TableCell className="py-2 text-right text-xs text-muted-foreground">
-                                        CA${candidate.gap.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                      <TableCell className="py-2 text-right text-xs font-semibold text-orange-600 dark:text-orange-400">
+                                        CA${candidate.allocatedCash.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
                                       </TableCell>
                                       <TableCell className="py-2 text-right text-xs font-medium text-green-600 dark:text-green-400">
                                         {candidate.sharesToBuy > 0 ? `+${candidate.sharesToBuy}` : '-'}
                                       </TableCell>
-                                      <TableCell className="py-2 text-right text-xs font-medium">
-                                        CA${candidate.allocatedCash.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                      <TableCell className="py-2 text-right text-xs text-muted-foreground">
+                                        CA${candidate.gap.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
                                       </TableCell>
                                       <TableCell className="py-2 text-right">
                                         <Badge 
