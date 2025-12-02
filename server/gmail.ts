@@ -50,6 +50,38 @@ export async function getUncachableGmailClient() {
   return google.gmail({ version: 'v1', auth: oauth2Client });
 }
 
+export async function sendEmail(
+  to: string,
+  subject: string,
+  htmlBody: string
+) {
+  const gmail = await getUncachableGmailClient();
+  
+  const emailLines = [
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=utf-8',
+    '',
+    htmlBody
+  ];
+  
+  const email = emailLines.join('\r\n');
+  const encodedEmail = Buffer.from(email).toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+  
+  const result = await gmail.users.messages.send({
+    userId: 'me',
+    requestBody: {
+      raw: encodedEmail
+    }
+  });
+  
+  return result;
+}
+
 export async function sendEmailWithAttachment(
   to: string,
   subject: string,
