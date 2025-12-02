@@ -341,7 +341,7 @@ export default function AccountDetails() {
   const [isSellPlannerExpanded, setIsSellPlannerExpanded] = useState(true);
   const [targetWithdrawalAmount, setTargetWithdrawalAmount] = useState<string>("");
   const [sellCandidates, setSellCandidates] = useState<Array<{ positionId: string; sellAmount: number }>>([]);
-  const [includeExistingCash, setIncludeExistingCash] = useState(false);
+  const [cashToWithdraw, setCashToWithdraw] = useState<string>("");
   const [lastExcelImportTime, setLastExcelImportTime] = useState<number | null>(null);
   const notesInitialLoadRef = useRef(true);
   const notesSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -706,7 +706,10 @@ export default function AccountDetails() {
     // Find existing CASH position
     const cashPosition = positions.find(p => normalizeTicker(p.symbol) === 'CASH');
     const existingCash = cashPosition ? Number(cashPosition.quantity) : 0;
-    const cashIncluded = includeExistingCash ? existingCash : 0;
+    
+    // Parse cash to withdraw amount and clamp to available cash
+    const requestedCash = parseFloat(cashToWithdraw) || 0;
+    const cashIncluded = Math.min(requestedCash, existingCash);
     
     // Get all non-CASH positions as candidates
     const candidates: SellPlanCandidate[] = positions
@@ -748,7 +751,7 @@ export default function AccountDetails() {
       existingCash,
       cashIncluded,
     };
-  }, [accountData?.withdrawalMode, positions, universalHoldings, sellCandidates, targetWithdrawalAmount, normalizeTicker, includeExistingCash]);
+  }, [accountData?.withdrawalMode, positions, universalHoldings, sellCandidates, targetWithdrawalAmount, normalizeTicker, cashToWithdraw]);
 
   const form = useForm<PositionFormData>({
     resolver: zodResolver(insertPositionSchema),
@@ -4109,29 +4112,40 @@ export default function AccountDetails() {
                         {/* Existing Cash Option - only show if there's cash in the account */}
                         {sellPlanData.existingCash > 0 && (
                           <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md p-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <Checkbox
-                                  id="include-existing-cash"
-                                  checked={includeExistingCash}
-                                  onCheckedChange={(checked) => setIncludeExistingCash(checked === true)}
-                                  data-testid="checkbox-include-existing-cash"
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <label className="text-sm font-medium text-green-800 dark:text-green-200 whitespace-nowrap">
+                                Use existing CASH:
+                              </label>
+                              <div className="relative flex-1 max-w-[180px]">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">CA$</span>
+                                <Input
+                                  type="number"
+                                  placeholder="0.00"
+                                  className="pl-12 h-8 text-sm"
+                                  value={cashToWithdraw}
+                                  onChange={(e) => {
+                                    const value = parseFloat(e.target.value) || 0;
+                                    const maxCash = sellPlanData.existingCash;
+                                    if (value > maxCash) {
+                                      setCashToWithdraw(maxCash.toString());
+                                    } else {
+                                      setCashToWithdraw(e.target.value);
+                                    }
+                                  }}
+                                  data-testid="input-cash-to-withdraw"
                                 />
-                                <label htmlFor="include-existing-cash" className="text-sm cursor-pointer">
-                                  <span className="font-medium text-green-800 dark:text-green-200">Include existing CASH</span>
-                                  <span className="text-green-600 dark:text-green-400 ml-2">
-                                    (CA${sellPlanData.existingCash.toLocaleString('en-CA', { minimumFractionDigits: 2 })})
-                                  </span>
-                                </label>
                               </div>
-                              {includeExistingCash && (
+                              <span className="text-xs text-green-600 dark:text-green-400">
+                                of CA${sellPlanData.existingCash.toLocaleString('en-CA', { minimumFractionDigits: 2 })} available
+                              </span>
+                              {sellPlanData.cashIncluded > 0 && (
                                 <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                                   Applied
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-xs text-green-600 dark:text-green-400 mt-1 ml-7">
-                              Use this cash toward your withdrawal target before selling holdings
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                              Specify how much cash to use toward your withdrawal target before selling holdings
                             </p>
                           </div>
                         )}
