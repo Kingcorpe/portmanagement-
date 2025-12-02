@@ -116,7 +116,7 @@ function DailyTasksSection({
   const daysToUse = trackerMode === "every_day" ? allDays : businessDays;
   const [showModeDialog, setShowModeDialog] = useState(false);
   
-  const { data: dailyTasks = [], isLoading } = useQuery<KpiDailyTask[]>({
+  const { data: dailyTasks = [], isLoading } = useDemoAwareQuery<KpiDailyTask[]>({
     queryKey: ['/api/kpi-objectives', objectiveId, 'daily-tasks'],
   });
 
