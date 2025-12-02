@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Eye } from "lucide-react";
+import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Eye, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -115,6 +115,11 @@ const bottomMenuItems: Array<{ title: string; url: string; icon: React.Component
     title: "Reference Links",
     url: "/reference-links",
     icon: LinkIcon,
+  },
+  {
+    title: "Admin",
+    url: "/admin",
+    icon: Settings,
   },
 ];
 

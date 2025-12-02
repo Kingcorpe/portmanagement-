@@ -28,6 +28,7 @@ import InsuranceRevenue from "@/pages/insurance-revenue";
 import InvestmentRevenue from "@/pages/investment-revenue";
 import ReferenceLinks from "@/pages/reference-links";
 import KpiDashboard from "@/pages/kpi-dashboard";
+import Admin from "@/pages/admin";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
@@ -53,6 +54,7 @@ function AuthenticatedRoutes() {
       <Route path="/reference-links" component={ReferenceLinks} />
       <Route path="/kpi" component={KpiDashboard} />
       <Route path="/kpi-dashboard" component={KpiDashboard} />
+      <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );
