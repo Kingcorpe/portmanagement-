@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon } from "lucide-react";
+import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Eye } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,10 +15,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
+import { useDemoMode } from "@/contexts/demo-mode-context";
 
-const menuItems = [];
+const menuItems: Array<{ title: string; url: string; icon: React.ComponentType<{ className?: string }> }> = [];
 
 const keyMetricsItems = [
   {
@@ -107,7 +110,7 @@ const insuranceDivisionItems = [
   },
 ];
 
-const bottomMenuItems: Array<{ title: string; url: string; icon: React.ReactNode }> = [
+const bottomMenuItems: Array<{ title: string; url: string; icon: React.ComponentType<{ className?: string }> }> = [
   {
     title: "Reference Links",
     url: "/reference-links",
@@ -117,6 +120,7 @@ const bottomMenuItems: Array<{ title: string; url: string; icon: React.ReactNode
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
+  const { isDemoMode, toggleDemoMode } = useDemoMode();
   const [keyMetricsOpen, setKeyMetricsOpen] = useState(
     location.startsWith("/key-metrics") || 
     location.startsWith("/insurance-revenue") || 
@@ -327,7 +331,28 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="space-y-2">
+        <div className="px-3 py-2">
+          <div className="flex items-center justify-between gap-2 rounded-md bg-muted/50 px-3 py-2">
+            <div className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="demo-mode" className="text-sm font-medium cursor-pointer">
+                Demo Mode
+              </Label>
+            </div>
+            <Switch
+              id="demo-mode"
+              checked={isDemoMode}
+              onCheckedChange={toggleDemoMode}
+              data-testid="switch-demo-mode"
+            />
+          </div>
+          {isDemoMode && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 px-1">
+              Showing sample data for demonstrations
+            </p>
+          )}
+        </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton data-testid="button-logout" onClick={handleLogout}>

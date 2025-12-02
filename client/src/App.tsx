@@ -9,6 +9,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeSelector } from "@/components/theme-selector";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
+import { DemoModeProvider } from "@/contexts/demo-mode-context";
 import Dashboard from "@/pages/dashboard";
 import Households from "@/pages/households";
 import ModelPortfolios from "@/pages/model-portfolios";
@@ -126,7 +127,9 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AppContent />
+        <DemoModeProvider>
+          <AppContent />
+        </DemoModeProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
