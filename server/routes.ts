@@ -9,6 +9,46 @@ import { ObjectPermission } from "./objectAcl";
 import { generatePortfolioRebalanceReport } from "./pdf-report";
 import { sendEmailWithAttachment } from "./gmail";
 import { eq } from "drizzle-orm";
+import nodemailer from "nodemailer";
+
+// SMS via Email-to-SMS Gateway (Rogers Canada)
+async function sendTradingAlertSMS(symbol: string, signal: string, price: string) {
+  const gmailAddress = "ryan@crsolutions.ca";
+  const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+  const phoneNumber = "7809822424";
+  const carrier = "@pcs.rogers.com"; // Rogers Canada
+
+  if (!gmailAppPassword) {
+    console.log("SMS skipped: GMAIL_APP_PASSWORD not configured");
+    return;
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: gmailAddress,
+        pass: gmailAppPassword,
+      },
+    });
+
+    const toEmail = phoneNumber + carrier;
+    const message = `${symbol} ${signal} @ $${price}`;
+
+    await transporter.sendMail({
+      from: gmailAddress,
+      to: toEmail,
+      subject: "TRADE",
+      text: message,
+    });
+
+    console.log(`SMS sent: ${message}`);
+  } catch (error) {
+    console.error("Failed to send SMS:", error);
+  }
+}
 import {
   users,
   kpiDailyTasks,
@@ -1698,6 +1738,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: parsed.message || '',
         webhookData: req.body,
       });
+      
+      // Send SMS notification immediately
+      await sendTradingAlertSMS(parsed.symbol, parsed.signal, parsed.price.toString());
       
       // Helper to normalize tickers for matching
       const normalizeTicker = (ticker: string): string => {
