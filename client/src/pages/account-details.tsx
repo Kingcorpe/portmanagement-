@@ -287,7 +287,6 @@ export default function AccountDetails() {
   const [editingInlineTarget, setEditingInlineTarget] = useState<string | null>(null);
   const [isDeleteAllAllocationsDialogOpen, setIsDeleteAllAllocationsDialogOpen] = useState(false);
   const [inlineTargetValue, setInlineTargetValue] = useState<string>("");
-  const [lastCopiedFromWatchlist, setLastCopiedFromWatchlist] = useState(false);
   // Protection inline editing state (which position and field is being edited)
   const [editingProtection, setEditingProtection] = useState<{ positionId: string; field: 'protectionPercent' | 'stopPrice' | 'limitPrice' } | null>(null);
   const [protectionValue, setProtectionValue] = useState<string>("");
@@ -310,9 +309,6 @@ export default function AccountDetails() {
   const [taskStatusFilter, setTaskStatusFilter] = useState<"all" | "pending" | "in_progress" | "blocked" | "on_hold" | "completed" | "cancelled">("all");
   const [notesAutoSaveStatus, setNotesAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [isAuditLogExpanded, setIsAuditLogExpanded] = useState(false);
-  const [viewMode, setViewMode] = useState<"real" | "watchlist">("real");
-  const [isCreatingWatchlist, setIsCreatingWatchlist] = useState(false);
-  const [allocationIsWatchlist, setAllocationIsWatchlist] = useState(false);
   const [maintainDollarAmounts, setMaintainDollarAmounts] = useState(false);
   // Cash Deployment Planner state
   const [isCashPlannerExpanded, setIsCashPlannerExpanded] = useState(true);
@@ -356,20 +352,6 @@ export default function AccountDetails() {
     }
   };
 
-  const getWatchlistPositionsEndpoint = () => {
-    if (!accountType || !accountId) return null;
-    switch (accountType) {
-      case "individual":
-        return `/api/individual-accounts/${accountId}/watchlist-positions`;
-      case "corporate":
-        return `/api/corporate-accounts/${accountId}/watchlist-positions`;
-      case "joint":
-        return `/api/joint-accounts/${accountId}/watchlist-positions`;
-      default:
-        return null;
-    }
-  };
-
   const getAccountEndpoint = () => {
     if (!accountType || !accountId) return null;
     switch (accountType) {
@@ -404,7 +386,6 @@ export default function AccountDetails() {
   };
 
   const positionsEndpoint = getPositionsEndpoint();
-  const watchlistPositionsEndpoint = getWatchlistPositionsEndpoint();
   const accountEndpoint = getAccountEndpoint();
   const tasksEndpoint = getTasksEndpoint();
   const auditLogEndpoint = getAuditLogEndpoint();
@@ -428,47 +409,14 @@ export default function AccountDetails() {
     },
   });
 
-  const { data: watchlistPositions = [], isLoading: isLoadingWatchlist } = useQuery<Position[]>({
-    queryKey: [watchlistPositionsEndpoint],
-    enabled: isAuthenticated && !!watchlistPositionsEndpoint,
-  });
-
-  // Show positions based on current view mode
-  const positions = viewMode === "real" ? realPositions : watchlistPositions;
-  const isLoading = viewMode === "real" ? isLoadingReal : isLoadingWatchlist;
-
-  // Create watchlist mutation
-  const createWatchlistMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/watchlist`, {});
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [accountEndpoint] });
-      toast({
-        title: "Watchlist Created",
-        description: "You can now add positions to your watchlist portfolio.",
-      });
-      setIsCreatingWatchlist(false);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create watchlist",
-        variant: "destructive",
-      });
-      setIsCreatingWatchlist(false);
-    },
-  });
+  const positions = realPositions;
+  const isLoading = isLoadingReal;
 
   // Fetch account details to get the specific account type
   const { data: accountData } = useQuery<IndividualAccount | CorporateAccount | JointAccount>({
     queryKey: [accountEndpoint],
     enabled: isAuthenticated && !!accountEndpoint,
   });
-
-  // Check if account has a watchlist
-  const hasWatchlist = accountData && 'watchlistPortfolioId' in accountData && !!accountData.watchlistPortfolioId;
 
   // Sync risk allocation and notes state with account data when it loads
   useEffect(() => {
@@ -752,24 +700,16 @@ export default function AccountDetails() {
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertPosition) => {
-      // If in watchlist mode and watchlist exists, add to watchlist instead
-      if (viewMode === "watchlist" && hasWatchlist) {
-        return await apiRequest("POST", `/api/accounts/${accountType}/${accountId}/watchlist/positions`, data);
-      }
       return await apiRequest("POST", "/api/positions", data);
     },
     onSuccess: async () => {
-      if (viewMode === "watchlist") {
-        await queryClient.invalidateQueries({ queryKey: [watchlistPositionsEndpoint] });
-      } else {
-        await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
-      }
+      await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
       await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       queryClient.refetchQueries({ queryKey: ["/api/households/full"] });
       toast({
         title: "Success",
-        description: viewMode === "watchlist" ? "Watchlist position created successfully" : "Position created successfully",
+        description: "Position created successfully",
       });
       handleDialogChange(false);
     },
@@ -811,11 +751,7 @@ export default function AccountDetails() {
       return await apiRequest("DELETE", `/api/positions/${id}`);
     },
     onSuccess: async () => {
-      if (viewMode === "watchlist") {
-        await queryClient.invalidateQueries({ queryKey: [watchlistPositionsEndpoint] });
-      } else {
-        await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
-      }
+      await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
       await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       await queryClient.refetchQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       queryClient.refetchQueries({ queryKey: ["/api/households/full"] });
@@ -848,13 +784,11 @@ export default function AccountDetails() {
         universalHoldingId: editingAllocation.universalHoldingId,
         targetPercentage: editingAllocation.targetPercentage,
       });
-      setAllocationIsWatchlist(editingAllocation.sourcePortfolioType === "freelance");
     } else {
       allocationForm.reset({
         universalHoldingId: "",
         targetPercentage: "",
       });
-      setAllocationIsWatchlist(false);
     }
   }, [editingAllocation, allocationForm]);
 
@@ -1483,14 +1417,10 @@ export default function AccountDetails() {
   };
 
   const onAllocationSubmit = (data: AllocationFormData) => {
-    const dataWithSource = {
-      ...data,
-      sourcePortfolioType: (allocationIsWatchlist ? "freelance" : null) as "planned" | "freelance" | null | undefined,
-    };
     if (editingAllocation) {
-      updateAllocationMutation.mutate({ id: editingAllocation.id, data: dataWithSource });
+      updateAllocationMutation.mutate({ id: editingAllocation.id, data });
     } else {
-      createAllocationMutation.mutate(dataWithSource);
+      createAllocationMutation.mutate(data);
     }
   };
 
@@ -1586,11 +1516,6 @@ export default function AccountDetails() {
 
   const handleCopyFromPortfolio = () => {
     if (selectedPortfolioId) {
-      // Check if copying from a freelance watchlist portfolio
-      const portfolio = freelancePortfolios.find(p => p.id === selectedPortfolioId);
-      const isWatchlist = selectedPortfolioType === 'freelance' && portfolio?.portfolioType === 'watchlist';
-      setLastCopiedFromWatchlist(isWatchlist);
-      
       copyFromPortfolioMutation.mutate({ 
         portfolioId: selectedPortfolioId, 
         portfolioType: selectedPortfolioType 
@@ -2196,48 +2121,11 @@ export default function AccountDetails() {
                   <div>
                     <CardTitle>Allocation</CardTitle>
                     <CardDescription>
-                      {viewMode === "real" ? "Real positions" : "Watchlist positions"} with target allocation comparison
+                      Positions with target allocation comparison
                     </CardDescription>
                   </div>
                 </button>
               </CollapsibleTrigger>
-              {/* Real / Watchlist Toggle */}
-              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-                <Button
-                  variant={viewMode === "real" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("real")}
-                  className="h-7 px-3"
-                  data-testid="button-view-real"
-                >
-                  Real
-                </Button>
-                {hasWatchlist ? (
-                  <Button
-                    variant={viewMode === "watchlist" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("watchlist")}
-                    className="h-7 px-3"
-                    data-testid="button-view-watchlist"
-                  >
-                    Watchlist
-                  </Button>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setIsCreatingWatchlist(true);
-                      createWatchlistMutation.mutate();
-                    }}
-                    disabled={isCreatingWatchlist || createWatchlistMutation.isPending}
-                    className="h-7 px-3"
-                    data-testid="button-create-watchlist"
-                  >
-                    {isCreatingWatchlist ? "Creating..." : "+ Watchlist"}
-                  </Button>
-                )}
-              </div>
             </div>
             <div className="flex gap-2 flex-wrap">
             <Button
@@ -3280,11 +3168,6 @@ export default function AccountDetails() {
                           {targetAllocations.length}
                         </Badge>
                       )}
-                      {lastCopiedFromWatchlist && (
-                        <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" data-testid="badge-watchlist-source">
-                          From Watchlist
-                        </Badge>
-                      )}
                       {accountData?.deploymentMode && (
                         <Badge variant="outline" className="ml-2 bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" data-testid="badge-deployment-mode">
                           <Rocket className="h-3 w-3 mr-1" />
@@ -3634,22 +3517,6 @@ export default function AccountDetails() {
                           );
                         }}
                       />
-                      
-                      {!accountData?.deploymentMode && (
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="checkbox" 
-                            id="allocation-watchlist" 
-                            checked={allocationIsWatchlist}
-                            onChange={(e) => setAllocationIsWatchlist(e.target.checked)}
-                            data-testid="checkbox-allocation-watchlist"
-                            className="h-4 w-4 rounded border-gray-300"
-                          />
-                          <label htmlFor="allocation-watchlist" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
-                            Mark as Watchlist (allows totals to exceed 100%)
-                          </label>
-                        </div>
-                      )}
                       
                       {(() => {
                         const riskValidation = computeRiskValidation();
@@ -4096,19 +3963,14 @@ export default function AccountDetails() {
                 <div className="mt-4 flex justify-end">
                   {(() => {
                     const total = targetAllocations.reduce((sum, a) => sum + Number(a.targetPercentage), 0);
-                    const hasWatchlist = lastCopiedFromWatchlist || targetAllocations.some(a => a.sourcePortfolioType === "freelance");
                     const isDeploymentMode = accountData?.deploymentMode ?? false;
-                    // In deployment mode or watchlist mode, allow totals > 100%; otherwise must equal 100%
-                    const isValid = (isDeploymentMode || hasWatchlist) ? total > 0 : total === 100;
+                    // In deployment mode, allow totals > 100%; otherwise must equal 100%
+                    const isValid = isDeploymentMode ? total > 0 : total === 100;
                     
                     // Determine badge label suffix
                     let badgeSuffix = "";
-                    if (total > 100) {
-                      if (isDeploymentMode) {
-                        badgeSuffix = " (Deployment)";
-                      } else if (hasWatchlist) {
-                        badgeSuffix = " (Watchlist)";
-                      }
+                    if (total > 100 && isDeploymentMode) {
+                      badgeSuffix = " (Deployment)";
                     }
                     
                     return (
