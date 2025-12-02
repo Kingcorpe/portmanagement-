@@ -44,7 +44,8 @@ import {
   Filter,
   Download,
   Printer,
-  Plus
+  Plus,
+  Mail
 } from "lucide-react";
 import { Link } from "wouter";
 import { format, isToday, isTomorrow, isThisWeek, isPast, addDays } from "date-fns";
@@ -163,6 +164,18 @@ export default function Tasks() {
     },
     onError: () => {
       toast({ title: "Failed to create task", variant: "destructive" });
+    },
+  });
+
+  const emailTasksMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/tasks/email");
+    },
+    onSuccess: () => {
+      toast({ title: "Tasks Report sent to your email" });
+    },
+    onError: () => {
+      toast({ title: "Failed to send email", variant: "destructive" });
     },
   });
 
@@ -405,6 +418,16 @@ export default function Tasks() {
           >
             <Download className="h-4 w-4 mr-2" />
             Export
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => emailTasksMutation.mutate()}
+            disabled={emailTasksMutation.isPending}
+            data-testid="button-email-pdf"
+          >
+            <Mail className="h-4 w-4 mr-2" />
+            {emailTasksMutation.isPending ? "Sending..." : "Email"}
           </Button>
         </div>
       </div>

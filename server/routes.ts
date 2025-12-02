@@ -5847,6 +5847,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Email tasks PDF
+  app.post('/api/tasks/email', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const tasks = await storage.getAllTasksForUser(userId);
+      const recipientEmail = process.env.TRADINGVIEW_REPORT_EMAIL;
+      
+      if (!recipientEmail) {
+        return res.status(400).json({ message: "No email configured. Please set TRADINGVIEW_REPORT_EMAIL." });
+      }
+      
+      // @ts-ignore
+      const PDFDocument = (await import('pdfkit')).default;
+      
+      const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+        const doc = new PDFDocument({ 
+          size: 'LETTER',
+          margins: { top: 50, bottom: 50, left: 50, right: 50 }
+        });
+        
+        const chunks: Buffer[] = [];
+        doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+
+        // Title
+        doc.fontSize(18).font('Helvetica-Bold')
+           .text('Tasks Report', { align: 'center' });
+        doc.moveDown(0.2);
+        doc.fontSize(9).font('Helvetica')
+           .fillColor('#666666')
+           .text(`${new Date().toLocaleString('en-CA', { dateStyle: 'short', timeStyle: 'short' })}`, { align: 'center' });
+        doc.fillColor('#000000');
+        doc.moveDown(0.4);
+
+        // Summary
+        const pendingTasks = tasks.filter(t => t.status !== 'completed');
+        const completedTasks = tasks.filter(t => t.status === 'completed');
+        const urgentTasks = pendingTasks.filter(t => t.priority === 'urgent');
+        
+        doc.fontSize(9).font('Helvetica');
+        let summaryText = '';
+        if (urgentTasks.length > 0) summaryText += `${urgentTasks.length} urgent • `;
+        summaryText += `${pendingTasks.length} pending • ${completedTasks.length} completed`;
+        doc.fillColor('#666666').text(summaryText, { align: 'center' });
+        doc.fillColor('#000000');
+        doc.moveDown(0.3);
+
+        // Separator
+        doc.moveTo(50, doc.y).lineTo(562, doc.y).stroke();
+        doc.moveDown(0.3);
+
+        // Group tasks by household
+        const tasksByHousehold: Record<string, typeof tasks> = {};
+        for (const task of tasks) {
+          if (!tasksByHousehold[task.householdName]) {
+            tasksByHousehold[task.householdName] = [];
+          }
+          tasksByHousehold[task.householdName].push(task);
+        }
+
+        const accountTypeLabels: Record<string, string> = {
+          cash: 'Cash', tfsa: 'TFSA', fhsa: 'FHSA', rrsp: 'RRSP', 
+          lira: 'LIRA', lif: 'LIF', rif: 'RIF',
+          corporate_cash: 'Corporate Cash', ipp: 'IPP',
+          joint_cash: 'Joint Cash', resp: 'RESP'
+        };
+
+        // Render each household
+        for (const [householdName, householdTasks] of Object.entries(tasksByHousehold)) {
+          if (doc.y > 620) {
+            doc.addPage();
+          }
+
+          doc.fontSize(12).font('Helvetica-Bold').text(householdName);
+          doc.moveDown(0.3);
+
+          const sortedTasks = [...householdTasks].sort((a, b) => {
+            if (a.status === 'completed' && b.status !== 'completed') return 1;
+            if (b.status === 'completed' && a.status !== 'completed') return -1;
+            const priorityOrder: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+            return (priorityOrder[a.priority] || 4) - (priorityOrder[b.priority] || 4);
+          });
+
+          for (const task of sortedTasks) {
+            if (doc.y > 700) {
+              doc.addPage();
+            }
+
+            const isCompleted = task.status === 'completed';
+            const accountLabel = accountTypeLabels[task.accountTypeLabel] || task.accountTypeLabel;
+            const titleColor = isCompleted ? '#999999' : '#000000';
+            
+            // Draw checkbox
+            const checkboxSize = 10;
+            const checkboxX = 50;
+            const checkboxY = doc.y;
+            doc.rect(checkboxX, checkboxY, checkboxSize, checkboxSize).stroke();
+            
+            if (isCompleted) {
+              doc.save();
+              doc.strokeColor('#666666');
+              doc.moveTo(checkboxX + 2, checkboxY + 5)
+                 .lineTo(checkboxX + 4, checkboxY + 8)
+                 .lineTo(checkboxX + 8, checkboxY + 2)
+                 .stroke();
+              doc.restore();
+            }
+            
+            doc.fontSize(10).font(isCompleted ? 'Helvetica-Oblique' : 'Helvetica-Bold').fillColor(titleColor)
+               .text(task.title, checkboxX + checkboxSize + 6, checkboxY, { continued: false });
+            
+            doc.fontSize(8).font('Helvetica').fillColor('#666666');
+            const details = [];
+            details.push(`${task.ownerName}`);
+            if (task.accountNickname) {
+              details.push(`${accountLabel} - ${task.accountNickname}`);
+            } else {
+              details.push(accountLabel);
+            }
+            if (task.dueDate) {
+              details.push(`Due: ${new Date(task.dueDate).toLocaleDateString('en-CA')}`);
+            }
+            details.push(`[${task.priority.toUpperCase()}]`);
+            doc.text(details.join(' • '), checkboxX + checkboxSize + 6);
+            
+            if (task.description) {
+              doc.fontSize(8).font('Helvetica').fillColor('#777777')
+                 .text(task.description, checkboxX + checkboxSize + 6, doc.y, { width: 450, height: 30 });
+            }
+            
+            doc.fillColor('#000000');
+            doc.moveDown(0.4);
+          }
+
+          doc.moveDown(0.2);
+        }
+
+        doc.end();
+      });
+
+      const fileName = `Account_Tasks_${new Date().toISOString().split('T')[0]}.pdf`;
+      const subject = `PracticeOS Tasks Report - ${new Date().toLocaleDateString('en-CA')}`;
+      const body = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Tasks Report</h2>
+          <p>Please find attached your Tasks Report from PracticeOS.</p>
+          <p style="color: #666; font-size: 12px; margin-top: 30px;">
+            Generated on ${new Date().toLocaleString('en-CA', { dateStyle: 'long', timeStyle: 'short' })}
+          </p>
+        </div>
+      `;
+      
+      await sendEmailWithAttachment(recipientEmail, subject, body, pdfBuffer, fileName);
+      
+      res.json({ 
+        success: true, 
+        message: `Tasks Report sent to ${recipientEmail}` 
+      });
+      
+    } catch (error: any) {
+      console.error("Error emailing tasks PDF:", error);
+      res.status(500).json({ message: error.message || "Failed to email tasks PDF" });
+    }
+  });
+
   const httpServer = createServer(app);
   
   // Background job: Refresh Universal Holdings prices every 5 minutes
