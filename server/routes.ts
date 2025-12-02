@@ -11,42 +11,35 @@ import { sendEmailWithAttachment } from "./gmail";
 import { eq } from "drizzle-orm";
 import nodemailer from "nodemailer";
 
-// SMS via Email-to-SMS Gateway (Rogers Canada)
-async function sendTradingAlertSMS(symbol: string, signal: string, price: string) {
-  const gmailAddress = "ryan@crsolutions.ca";
-  const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
-  const phoneNumber = "7809822424";
-  const carrier = "@pcs.rogers.com"; // Rogers Canada
-
-  if (!gmailAppPassword) {
-    console.log("SMS skipped: GMAIL_APP_PASSWORD not configured");
-    return;
-  }
-
+// Email alert for TradingView signals
+async function sendTradingAlertEmail(symbol: string, signal: string, price: string) {
+  const alertEmail = "ryan@crsolutions.ca";
+  
   try {
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
-      auth: {
-        user: gmailAddress,
-        pass: gmailAppPassword,
-      },
-    });
-
-    const toEmail = phoneNumber + carrier;
-    const message = `${symbol} ${signal} @ $${price}`;
-
-    await transporter.sendMail({
-      from: gmailAddress,
-      to: toEmail,
-      subject: "TRADE",
-      text: message,
-    });
-
-    console.log(`SMS sent: ${message}`);
+    const { sendEmail } = await import("./gmail");
+    
+    const signalColor = signal === 'BUY' ? '#22c55e' : '#ef4444';
+    const signalEmoji = signal === 'BUY' ? '🟢' : '🔴';
+    
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
+        <div style="background: ${signalColor}; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+          <h1 style="margin: 0; font-size: 28px;">${signalEmoji} ${signal}</h1>
+        </div>
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 10px;">
+          <h2 style="margin: 0 0 10px 0; color: #1f2937;">${symbol}</h2>
+          <p style="margin: 0; font-size: 24px; font-weight: bold; color: #374151;">$${price}</p>
+        </div>
+        <p style="color: #6b7280; font-size: 12px; margin-top: 15px; text-align: center;">
+          TradingView Alert • ${new Date().toLocaleString()}
+        </p>
+      </div>
+    `;
+    
+    await sendEmail(alertEmail, `${signal} ${symbol} @ $${price}`, htmlBody);
+    console.log(`Alert email sent: ${symbol} ${signal} @ $${price}`);
   } catch (error) {
-    console.error("Failed to send SMS:", error);
+    console.error("Failed to send alert email:", error);
   }
 }
 import {
@@ -1739,8 +1732,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         webhookData: req.body,
       });
       
-      // Send SMS notification immediately
-      await sendTradingAlertSMS(parsed.symbol, parsed.signal, parsed.price.toString());
+      // Send email notification immediately
+      await sendTradingAlertEmail(parsed.symbol, parsed.signal, parsed.price.toString());
       
       // Helper to normalize tickers for matching
       const normalizeTicker = (ticker: string): string => {
