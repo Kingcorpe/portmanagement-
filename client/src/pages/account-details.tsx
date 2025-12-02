@@ -341,18 +341,23 @@ export default function AccountDetails() {
   const [isSellPlannerExpanded, setIsSellPlannerExpanded] = useState(true);
   const [targetWithdrawalAmount, setTargetWithdrawalAmount] = useState<string>("");
   const [sellCandidates, setSellCandidates] = useState<Array<{ positionId: string; sellAmount: number }>>([]);
-  const [lastExcelImportTime, setLastExcelImportTime] = useState<number | null>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(`excel-import-${accountId}`);
-      return stored ? parseInt(stored) : null;
-    }
-    return null;
-  });
+  const [includeExistingCash, setIncludeExistingCash] = useState(false);
+  const [lastExcelImportTime, setLastExcelImportTime] = useState<number | null>(null);
   const notesInitialLoadRef = useRef(true);
   const notesSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const accountType = params?.accountType as "individual" | "corporate" | "joint" | undefined;
   const accountId = params?.accountId;
+
+  // Load last Excel import time from localStorage after accountId is available
+  useEffect(() => {
+    if (accountId && typeof window !== 'undefined') {
+      const stored = localStorage.getItem(`excel-import-${accountId}`);
+      if (stored) {
+        setLastExcelImportTime(parseInt(stored));
+      }
+    }
+  }, [accountId]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -695,8 +700,13 @@ export default function AccountDetails() {
   }, [accountData?.deploymentMode, positions, targetAllocations, universalHoldings, manualCandidates, totalMarketValue, normalizeTicker]);
 
   // Compute sell plan data when withdrawal mode is active
-  const sellPlanData = useMemo((): SellPlanData => {
+  const sellPlanData = useMemo((): SellPlanData & { existingCash: number; cashIncluded: number } => {
     const targetAmount = parseFloat(targetWithdrawalAmount) || 0;
+    
+    // Find existing CASH position
+    const cashPosition = positions.find(p => normalizeTicker(p.symbol) === 'CASH');
+    const existingCash = cashPosition ? Number(cashPosition.quantity) : 0;
+    const cashIncluded = includeExistingCash ? existingCash : 0;
     
     // Get all non-CASH positions as candidates
     const candidates: SellPlanCandidate[] = positions
@@ -726,7 +736,8 @@ export default function AccountDetails() {
       })
       .sort((a, b) => b.totalValue - a.totalValue); // Sort by value descending
     
-    const totalSelected = sellCandidates.reduce((sum, sc) => sum + (sc.sellAmount || 0), 0);
+    const totalFromSales = sellCandidates.reduce((sum, sc) => sum + (sc.sellAmount || 0), 0);
+    const totalSelected = totalFromSales + cashIncluded;
     const remaining = Math.max(0, targetAmount - totalSelected);
     
     return {
@@ -734,8 +745,10 @@ export default function AccountDetails() {
       totalSelected,
       remaining,
       candidates,
+      existingCash,
+      cashIncluded,
     };
-  }, [accountData?.withdrawalMode, positions, universalHoldings, sellCandidates, targetWithdrawalAmount, normalizeTicker]);
+  }, [accountData?.withdrawalMode, positions, universalHoldings, sellCandidates, targetWithdrawalAmount, normalizeTicker, includeExistingCash]);
 
   const form = useForm<PositionFormData>({
     resolver: zodResolver(insertPositionSchema),
@@ -4093,6 +4106,36 @@ export default function AccountDetails() {
                           </div>
                         </div>
 
+                        {/* Existing Cash Option - only show if there's cash in the account */}
+                        {sellPlanData.existingCash > 0 && (
+                          <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <Checkbox
+                                  id="include-existing-cash"
+                                  checked={includeExistingCash}
+                                  onCheckedChange={(checked) => setIncludeExistingCash(checked === true)}
+                                  data-testid="checkbox-include-existing-cash"
+                                />
+                                <label htmlFor="include-existing-cash" className="text-sm cursor-pointer">
+                                  <span className="font-medium text-green-800 dark:text-green-200">Include existing CASH</span>
+                                  <span className="text-green-600 dark:text-green-400 ml-2">
+                                    (CA${sellPlanData.existingCash.toLocaleString('en-CA', { minimumFractionDigits: 2 })})
+                                  </span>
+                                </label>
+                              </div>
+                              {includeExistingCash && (
+                                <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                  Applied
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1 ml-7">
+                              Use this cash toward your withdrawal target before selling holdings
+                            </p>
+                          </div>
+                        )}
+
                         {/* Progress Summary */}
                         {sellPlanData.targetAmount > 0 && (
                           <div className="bg-muted/50 rounded-md p-3 border border-border/50">
@@ -4102,8 +4145,22 @@ export default function AccountDetails() {
                                 <span className="font-semibold text-base">CA${sellPlanData.targetAmount.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
                               </div>
                               <div>
-                                <span className="text-muted-foreground block mb-1">Selected</span>
-                                <span className="font-semibold text-base text-red-600 dark:text-red-400">CA${sellPlanData.totalSelected.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
+                                <span className="text-muted-foreground block mb-1">
+                                  {sellPlanData.cashIncluded > 0 ? 'Total Applied' : 'Selected'}
+                                </span>
+                                <span className="font-semibold text-base text-red-600 dark:text-red-400">
+                                  CA${sellPlanData.totalSelected.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                </span>
+                                {sellPlanData.cashIncluded > 0 && (
+                                  <div className="text-[10px] mt-1 space-y-0.5">
+                                    <div className="text-green-600 dark:text-green-400">
+                                      Cash: CA${sellPlanData.cashIncluded.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                    </div>
+                                    <div className="text-red-500 dark:text-red-400">
+                                      Sales: CA${(sellPlanData.totalSelected - sellPlanData.cashIncluded).toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                               <div>
                                 <span className="text-muted-foreground block mb-1">Remaining</span>
@@ -4116,8 +4173,14 @@ export default function AccountDetails() {
                               </div>
                             </div>
                             
-                            {/* Progress bar */}
-                            <div className="h-2 bg-muted rounded-full overflow-hidden mt-3">
+                            {/* Progress bar - show cash vs sales portions */}
+                            <div className="h-2 bg-muted rounded-full overflow-hidden mt-3 flex">
+                              {sellPlanData.cashIncluded > 0 && (
+                                <div 
+                                  className="h-full bg-green-500 transition-all"
+                                  style={{ width: `${Math.min(100, (sellPlanData.cashIncluded / sellPlanData.targetAmount) * 100)}%` }}
+                                />
+                              )}
                               <div 
                                 className={cn(
                                   "h-full transition-all",
@@ -4125,7 +4188,7 @@ export default function AccountDetails() {
                                     ? "bg-green-500" 
                                     : "bg-red-500"
                                 )}
-                                style={{ width: `${Math.min(100, (sellPlanData.totalSelected / sellPlanData.targetAmount) * 100)}%` }}
+                                style={{ width: `${Math.min(100 - (sellPlanData.cashIncluded / sellPlanData.targetAmount) * 100, ((sellPlanData.totalSelected - sellPlanData.cashIncluded) / sellPlanData.targetAmount) * 100)}%` }}
                               />
                             </div>
                           </div>
