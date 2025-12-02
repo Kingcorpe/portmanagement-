@@ -109,7 +109,8 @@ function DailyTasksSection({
 }) {
   const { toast } = useToast();
   const businessDays = getBusinessDaysInMonth(month);
-  const allDays = Array.from({ length: getDaysInMonth(new Date(month.split("-")[0], parseInt(month.split("-")[1]) - 1)) }, (_, i) => i + 1);
+  const [yearStr, monthStr] = month.split("-");
+  const allDays = Array.from({ length: getDaysInMonth(new Date(parseInt(yearStr), parseInt(monthStr) - 1)) }, (_, i) => i + 1);
   const daysToUse = trackerMode === "every_day" ? allDays : businessDays;
   const [showModeDialog, setShowModeDialog] = useState(false);
   
@@ -359,7 +360,7 @@ function KanbanColumn({
 
               {/* Daily Tasks Section */}
               <div className="pt-2 border-t">
-                <DailyTasksSection objectiveId={obj.id} month={obj.month} trackerMode={obj.dailyTrackerMode} />
+                <DailyTasksSection objectiveId={obj.id} month={obj.month} trackerMode={obj.dailyTrackerMode ?? undefined} />
               </div>
 
               <div className="flex gap-2 pt-2 border-t">

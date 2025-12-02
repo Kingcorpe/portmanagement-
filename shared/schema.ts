@@ -1153,6 +1153,14 @@ export const insertInsuranceRevenueSchema = createInsertSchema(insuranceRevenue)
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  clientName: z.string().min(1, "Client name is required").max(200, "Client name must be 200 characters or less"),
+  policyType: z.string().min(1, "Policy type is required"),
+  carrier: z.string().max(200, "Carrier must be 200 characters or less").optional().nullable(),
+  policyNumber: z.string().max(100, "Policy number must be 100 characters or less").optional().nullable(),
+  notes: z.string().max(1000, "Notes must be 1000 characters or less").optional().nullable(),
+  premium: z.coerce.number().nonnegative("Premium must be a positive number"),
+  commissionAmount: z.coerce.number().nonnegative("Commission amount must be a positive number"),
 });
 
 // Insurance revenue update schema
@@ -1209,6 +1217,12 @@ export const insertInvestmentRevenueSchema = createInsertSchema(investmentRevenu
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  sourceName: z.string().min(1, "Source name is required").max(200, "Source name must be 200 characters or less"),
+  accountType: z.string().max(50, "Account type must be 50 characters or less").optional().nullable(),
+  description: z.string().max(500, "Description must be 500 characters or less").optional().nullable(),
+  notes: z.string().max(1000, "Notes must be 1000 characters or less").optional().nullable(),
+  amount: z.coerce.number().positive("Amount must be a positive number"),
 });
 
 // Investment revenue update schema
@@ -1271,6 +1285,11 @@ export const insertKpiObjectiveSchema = createInsertSchema(kpiObjectives).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  title: z.string().min(1, "Title is required").max(200, "Title must be 200 characters or less"),
+  description: z.string().max(2000, "Description must be 2000 characters or less").optional().nullable(),
+  targetMetric: z.string().max(100, "Target metric must be 100 characters or less").optional().nullable(),
+  assignedTo: z.string().max(100, "Assigned to must be 100 characters or less").optional().nullable(),
 });
 
 // KPI objectives update schema
@@ -1347,6 +1366,10 @@ export const insertReferenceLinkSchema = createInsertSchema(referenceLinks).omit
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  title: z.string().min(1, "Title is required").max(100, "Title must be 100 characters or less"),
+  url: z.string().min(1, "URL is required").url("Please enter a valid URL"),
+  description: z.string().max(500, "Description must be 500 characters or less").optional().nullable(),
 });
 
 // Reference links update schema

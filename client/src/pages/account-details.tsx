@@ -1693,10 +1693,10 @@ export default function AccountDetails() {
 
       // Invalidate all relevant queries to refresh the UI
       await queryClient.invalidateQueries({ queryKey: [positionsEndpoint] });
-      if (setAsTargetAllocation) {
-        await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
-        await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
-      }
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'target-allocations'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'change-history'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/universal-holdings'] });
 
       toast({
         title: "Import Complete",
