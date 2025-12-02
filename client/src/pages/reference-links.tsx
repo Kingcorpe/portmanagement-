@@ -7,8 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useDemoAwareQuery } from "@/lib/demo-data-service";
-import { DemoModeBanner } from "@/components/demo-mode-banner";
+import { useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { ReferenceLink } from "@shared/schema";
@@ -65,7 +64,7 @@ export default function ReferenceLinksPage() {
   const [linkToDelete, setLinkToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState({ title: "", url: "", description: "", icon: "link" });
 
-  const { data: links = [], isLoading } = useDemoAwareQuery<ReferenceLink[]>({
+  const { data: links = [], isLoading } = useQuery<ReferenceLink[]>({
     queryKey: ["/api/reference-links"],
   });
 
