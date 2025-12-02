@@ -341,6 +341,13 @@ export default function AccountDetails() {
   const [isSellPlannerExpanded, setIsSellPlannerExpanded] = useState(true);
   const [targetWithdrawalAmount, setTargetWithdrawalAmount] = useState<string>("");
   const [sellCandidates, setSellCandidates] = useState<Array<{ positionId: string; sellAmount: number }>>([]);
+  const [lastExcelImportTime, setLastExcelImportTime] = useState<number | null>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(`excel-import-${accountId}`);
+      return stored ? parseInt(stored) : null;
+    }
+    return null;
+  });
   const notesInitialLoadRef = useRef(true);
   const notesSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -1792,6 +1799,13 @@ export default function AccountDetails() {
       await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'portfolio-comparison'] });
       await queryClient.invalidateQueries({ queryKey: ['/api/accounts', accountType, accountId, 'change-history'] });
       await queryClient.invalidateQueries({ queryKey: ['/api/universal-holdings'] });
+
+      // Record successful import time to hide warning
+      const importTime = Date.now();
+      setLastExcelImportTime(importTime);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`excel-import-${accountId}`, importTime.toString());
+      }
 
       toast({
         title: "Import Complete",
@@ -4051,14 +4065,16 @@ export default function AccountDetails() {
                   </CardHeader>
                   <CollapsibleContent>
                     <CardContent className="pt-0">
-                      {/* Warning about updating prices */}
-                      <Alert className="mb-4 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
-                        <AlertTriangle className="h-4 w-4 text-amber-600" />
-                        <AlertTitle className="text-amber-800 dark:text-amber-200 text-sm">Update Prices First</AlertTitle>
-                        <AlertDescription className="text-amber-700 dark:text-amber-300 text-xs">
-                          For accurate sell planning, import an updated Excel file to refresh current prices before planning your trades.
-                        </AlertDescription>
-                      </Alert>
+                      {/* Warning about updating prices - only show if no recent import */}
+                      {!lastExcelImportTime && (
+                        <Alert className="mb-4 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+                          <AlertTriangle className="h-4 w-4 text-amber-600" />
+                          <AlertTitle className="text-amber-800 dark:text-amber-200 text-sm">Update Prices First</AlertTitle>
+                          <AlertDescription className="text-amber-700 dark:text-amber-300 text-xs">
+                            For accurate sell planning, import an updated Excel file to refresh current prices before planning your trades.
+                          </AlertDescription>
+                        </Alert>
+                      )}
 
                       {/* Target Withdrawal Amount Input */}
                       <div className="space-y-4">
