@@ -1,6 +1,8 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
+import { useDemoAwareQuery } from "@/lib/demo-data-service";
+import { DemoModeBanner } from "@/components/demo-mode-banner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -412,7 +414,7 @@ export default function KpiDashboard() {
   const currentMonth = format(new Date(), "yyyy-MM");
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set([currentMonth]));
 
-  const { data: objectives = [], isLoading } = useQuery<KpiObjective[]>({
+  const { data: objectives = [], isLoading } = useDemoAwareQuery<KpiObjective[]>({
     queryKey: ["/api/kpi-objectives"],
   });
 

@@ -4,6 +4,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useDemoMode } from "@/contexts/demo-mode-context";
+import { useDemoAwareQuery } from "@/lib/demo-data-service";
+import { DemoModeBanner } from "@/components/demo-mode-banner";
 import { AlertCard, Alert } from "@/components/alert-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -75,11 +78,13 @@ export default function Alerts() {
     }
   }, [isAuthenticated, authLoading, toast]);
 
-  const { data: alertsData = [], isLoading } = useQuery<AlertType[]>({
+  const { isDemoMode } = useDemoMode();
+
+  const { data: alertsData = [], isLoading } = useDemoAwareQuery<AlertType[]>({
     queryKey: ["/api/alerts"],
     enabled: isAuthenticated,
-    retry: (failureCount, error) => {
-      if (isUnauthorizedError(error as Error)) {
+    retry: (failureCount: number, error: Error) => {
+      if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
           description: "You are logged out. Logging in again...",

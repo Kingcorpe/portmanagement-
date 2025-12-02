@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useSearch, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { HouseholdCard, Household, HouseholdCategory, householdCategoryLabels, householdCategoryColors } from "@/components/household-card";
 import { HouseholdManagementDialogs } from "@/components/household-management-dialogs";
@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Search, LayoutList, LayoutGrid, ChevronRight, Eye, EyeOff, Folder, FolderOpen } from "lucide-react";
+import { useDemoMode } from "@/contexts/demo-mode-context";
+import { useDemoAwareQuery } from "@/lib/demo-data-service";
+import { DemoModeBanner } from "@/components/demo-mode-banner";
 import {
   Collapsible,
   CollapsibleContent,
@@ -117,8 +120,10 @@ export default function Households() {
     }
   }, [isAuthenticated, authLoading, toast]);
 
+  const { isDemoMode } = useDemoMode();
+
   // Fetch households with full details
-  const { data: householdsData = [], isLoading } = useQuery<HouseholdWithDetails[]>({
+  const { data: householdsData = [], isLoading } = useDemoAwareQuery<HouseholdWithDetails[]>({
     queryKey: ["/api/households/full"],
     enabled: isAuthenticated,
     retry: (failureCount, error) => {
@@ -138,7 +143,7 @@ export default function Households() {
   });
 
   // Fetch archived households
-  const { data: archivedData = [] } = useQuery<any[]>({
+  const { data: archivedData = [] } = useDemoAwareQuery<any[]>({
     queryKey: ["/api/households/archived"],
     enabled: isAuthenticated,
   });
@@ -570,6 +575,7 @@ export default function Households() {
 
   return (
     <div className="space-y-6 cyber-grid min-h-full">
+      <DemoModeBanner />
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold gradient-text" data-testid="text-households-title">Households</h1>
