@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, ReactNode, useCallback } from "react";
 import { queryClient } from "@/lib/queryClient";
 
 interface DemoModeContextType {
@@ -17,23 +17,19 @@ export function DemoModeProvider({ children }: { children: ReactNode }) {
     return stored === "true";
   });
 
-  useEffect(() => {
-    localStorage.setItem(DEMO_MODE_KEY, isDemoMode.toString());
-  }, [isDemoMode]);
-
   const toggleDemoMode = useCallback(() => {
-    setIsDemoMode(prev => {
-      const newValue = !prev;
-      // Clear all cached queries to prevent stale demo/real data mixing
-      queryClient.clear();
-      // Navigate to home page to ensure clean state
-      window.location.href = "/";
-      return newValue;
-    });
-  }, []);
+    const newValue = !isDemoMode;
+    // Update localStorage FIRST before redirect
+    localStorage.setItem(DEMO_MODE_KEY, newValue.toString());
+    // Clear all cached queries to prevent stale demo/real data mixing
+    queryClient.clear();
+    // Navigate to home page to ensure clean state
+    window.location.href = "/";
+  }, [isDemoMode]);
   
   const setDemoMode = useCallback((value: boolean) => {
-    setIsDemoMode(value);
+    // Update localStorage FIRST before redirect
+    localStorage.setItem(DEMO_MODE_KEY, value.toString());
     // Clear all cached queries to prevent stale demo/real data mixing
     queryClient.clear();
     // Navigate to home page to ensure clean state
