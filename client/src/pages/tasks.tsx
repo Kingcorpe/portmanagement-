@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { useDemoAwareQuery } from "@/lib/demo-data-service";
+import { useDemoMode } from "@/contexts/demo-mode-context";
+import { DemoModeBanner } from "@/components/demo-mode-banner";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -97,12 +100,14 @@ export default function Tasks() {
     }
   }, [isAuthenticated, authLoading, toast]);
 
-  const { data: households = [] } = useQuery<HouseholdBasic[]>({
+  const { isDemoMode } = useDemoMode();
+
+  const { data: households = [] } = useDemoAwareQuery<HouseholdBasic[]>({
     queryKey: ["/api/households"],
     enabled: isAuthenticated,
   });
 
-  const { data: tasks = [], isLoading } = useQuery<TaskWithContext[]>({
+  const { data: tasks = [], isLoading } = useDemoAwareQuery<TaskWithContext[]>({
     queryKey: ["/api/tasks"],
     enabled: isAuthenticated,
     retry: (failureCount, error) => {
@@ -371,6 +376,7 @@ export default function Tasks() {
 
   return (
     <div className="space-y-4 p-6 cyber-grid min-h-full">
+      <DemoModeBanner />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold gradient-text">Tasks</h1>

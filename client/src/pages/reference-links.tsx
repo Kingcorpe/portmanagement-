@@ -6,7 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { useDemoAwareQuery } from "@/lib/demo-data-service";
+import { DemoModeBanner } from "@/components/demo-mode-banner";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { ReferenceLink } from "@shared/schema";
@@ -63,7 +65,7 @@ export default function ReferenceLinksPage() {
   const [linkToDelete, setLinkToDelete] = useState<string | null>(null);
   const [formData, setFormData] = useState({ title: "", url: "", description: "", icon: "link" });
 
-  const { data: links = [], isLoading } = useQuery<ReferenceLink[]>({
+  const { data: links = [], isLoading } = useDemoAwareQuery<ReferenceLink[]>({
     queryKey: ["/api/reference-links"],
   });
 
@@ -179,6 +181,7 @@ export default function ReferenceLinksPage() {
 
   return (
     <div className="space-y-6" data-testid="page-reference-links">
+      <DemoModeBanner />
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold gradient-text" data-testid="text-page-title">
