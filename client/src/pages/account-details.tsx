@@ -3177,12 +3177,6 @@ export default function AccountDetails() {
                           {targetAllocations.length}
                         </Badge>
                       )}
-                      {accountData?.deploymentMode && (
-                        <Badge variant="outline" className="ml-2 bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" data-testid="badge-deployment-mode">
-                          <Rocket className="h-3 w-3 mr-1" />
-                          Deployment Mode
-                        </Badge>
-                      )}
                     </CardTitle>
                     <CardDescription>
                       Define target asset allocation percentages for this account
@@ -3190,13 +3184,31 @@ export default function AccountDetails() {
                   </div>
                 </button>
               </CollapsibleTrigger>
-              <div className="flex gap-2 items-center flex-wrap">
+            </div>
+            
+            {/* Toolbar - only show when expanded */}
+            {isTargetAllocationsOpen && (
+              <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t mt-3">
                 {/* Deployment Mode Toggle */}
-                <div className="flex items-center gap-2 border rounded-md px-3 py-1.5 bg-muted/50" data-testid="deployment-mode-container">
-                  <Rocket className="h-4 w-4 text-orange-500" />
+                <div 
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-3 py-2 transition-colors",
+                    accountData?.deploymentMode 
+                      ? "bg-orange-100 dark:bg-orange-900/30 border border-orange-300 dark:border-orange-700" 
+                      : "bg-muted/50 border border-transparent"
+                  )} 
+                  data-testid="deployment-mode-container"
+                >
+                  <Rocket className={cn(
+                    "h-4 w-4",
+                    accountData?.deploymentMode ? "text-orange-600 dark:text-orange-400" : "text-muted-foreground"
+                  )} />
                   <label 
                     htmlFor="deployment-mode" 
-                    className="text-sm font-medium cursor-pointer select-none"
+                    className={cn(
+                      "text-sm font-medium cursor-pointer select-none",
+                      accountData?.deploymentMode && "text-orange-700 dark:text-orange-300"
+                    )}
                   >
                     Deployment Mode
                   </label>
@@ -3209,185 +3221,188 @@ export default function AccountDetails() {
                   />
                 </div>
                 
-                <Dialog open={isDeleteAllAllocationsDialogOpen} onOpenChange={setIsDeleteAllAllocationsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="text-destructive hover:text-destructive"
-                    disabled={targetAllocations.length === 0}
-                    data-testid="button-delete-all-allocations"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete All
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Delete All Target Allocation?</DialogTitle>
-                    <DialogDescription>
-                      This will permanently delete all {targetAllocations.length} target allocation{targetAllocations.length !== 1 ? 's' : ''} for this account. This action cannot be undone.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setIsDeleteAllAllocationsDialogOpen(false)} data-testid="button-cancel-delete-all">
-                      Cancel
-                    </Button>
-                    <Button 
-                      variant="destructive" 
-                      onClick={() => deleteAllAllocationsMutation.mutate()}
-                      disabled={deleteAllAllocationsMutation.isPending}
-                      data-testid="button-confirm-delete-all"
-                    >
-                      {deleteAllAllocationsMutation.isPending ? "Deleting..." : "Delete All"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <Dialog open={isCopyDialogOpen} onOpenChange={(open) => {
-                setIsCopyDialogOpen(open);
-                if (!open) {
-                  setSelectedPortfolioId("");
-                  setSelectedPortfolioType("planned");
-                }
-              }}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" data-testid="button-copy-from-portfolio">
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copy from Model
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Copy from Model Portfolio</DialogTitle>
-                    <DialogDescription>
-                      Select a model portfolio to copy its allocations. This will replace any existing target allocations.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <Select 
-                      value={selectedPortfolioId ? `${selectedPortfolioType}:${selectedPortfolioId}` : ""} 
-                      onValueChange={(value) => {
-                        const [type, id] = value.split(':');
-                        setSelectedPortfolioType(type as "planned" | "freelance");
-                        setSelectedPortfolioId(id);
-                      }}
-                    >
-                      <SelectTrigger data-testid="select-model-portfolio">
-                        <SelectValue placeholder="Select a model portfolio" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {plannedPortfolios.length > 0 && (
-                          <>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                              Planned Portfolios
-                            </div>
-                            {plannedPortfolios.map((portfolio) => (
-                              <SelectItem 
-                                key={`planned-${portfolio.id}`} 
-                                value={`planned:${portfolio.id}`} 
-                                data-testid={`option-portfolio-planned-${portfolio.id}`}
-                              >
-                                {portfolio.name}
-                              </SelectItem>
-                            ))}
-                          </>
-                        )}
-                        {freelancePortfolios.length > 0 && (
-                          <>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-1">
-                              Freelance Portfolios
-                            </div>
-                            {freelancePortfolios.map((portfolio) => (
-                              <SelectItem 
-                                key={`freelance-${portfolio.id}`} 
-                                value={`freelance:${portfolio.id}`} 
-                                data-testid={`option-portfolio-freelance-${portfolio.id}`}
-                              >
-                                {portfolio.name}
-                              </SelectItem>
-                            ))}
-                          </>
-                        )}
-                        {plannedPortfolios.length === 0 && freelancePortfolios.length === 0 && (
-                          <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-                            No portfolios available. Create one in Model Portfolios.
-                          </div>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    
-                    {(() => {
-                      const riskValidation = computePortfolioRiskValidation();
-                      if (!riskValidation) return null;
-                      
-                      if (riskValidation.violations.length > 0) {
-                        return (
-                          <Alert variant="destructive" data-testid="alert-copy-risk-violation">
-                            <AlertTriangle className="h-4 w-4" />
-                            <AlertTitle>Risk Limit Exceeded</AlertTitle>
-                            <AlertDescription>
-                              <div className="space-y-1 mt-1">
-                                {riskValidation.violations.map((v, i) => (
-                                  <p key={i}>
-                                    {CATEGORY_LABELS[v.category]}: {v.currentPercentage.toFixed(1)}% 
-                                    (max {v.maxAllowed.toFixed(1)}% allowed)
-                                  </p>
-                                ))}
-                              </div>
-                              <p className="text-xs mt-2">
-                                This portfolio exceeds the account's risk tolerance limits. You can still copy, but consider adjusting the allocations.
-                              </p>
-                            </AlertDescription>
-                          </Alert>
-                        );
-                      }
-                      
-                      if (riskValidation.warnings.length > 0) {
-                        return (
-                          <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20" data-testid="alert-copy-risk-warning">
-                            <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                            <AlertTitle className="text-yellow-800 dark:text-yellow-400">Approaching Risk Limit</AlertTitle>
-                            <AlertDescription className="text-yellow-700 dark:text-yellow-300">
-                              <div className="space-y-1 mt-1">
-                                {riskValidation.warnings.map((w, i) => (
-                                  <p key={i}>
-                                    {CATEGORY_LABELS[w.category]}: {w.currentPercentage.toFixed(1)}% 
-                                    (max {w.maxAllowed.toFixed(1)}% allowed)
-                                  </p>
-                                ))}
-                              </div>
-                            </AlertDescription>
-                          </Alert>
-                        );
-                      }
-                      
-                      return null;
-                    })()}
-
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setIsCopyDialogOpen(false)} data-testid="button-cancel-copy">
-                        Cancel
-                      </Button>
+                {/* Action Buttons */}
+                <div className="flex gap-2 flex-wrap sm:ml-auto">
+                  <Dialog open={isDeleteAllAllocationsDialogOpen} onOpenChange={setIsDeleteAllAllocationsDialogOpen}>
+                    <DialogTrigger asChild>
                       <Button 
-                        onClick={handleCopyFromPortfolio} 
-                        disabled={!selectedPortfolioId || copyFromPortfolioMutation.isPending}
-                        data-testid="button-confirm-copy"
+                        variant="ghost" 
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        disabled={targetAllocations.length === 0}
+                        data-testid="button-delete-all-allocations"
                       >
-                        {copyFromPortfolioMutation.isPending ? "Copying..." : "Copy Allocations"}
+                        <Trash2 className="mr-1.5 h-4 w-4" />
+                        Delete All
                       </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Delete All Target Allocation?</DialogTitle>
+                        <DialogDescription>
+                          This will permanently delete all {targetAllocations.length} target allocation{targetAllocations.length !== 1 ? 's' : ''} for this account. This action cannot be undone.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setIsDeleteAllAllocationsDialogOpen(false)} data-testid="button-cancel-delete-all">
+                          Cancel
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          onClick={() => deleteAllAllocationsMutation.mutate()}
+                          disabled={deleteAllAllocationsMutation.isPending}
+                          data-testid="button-confirm-delete-all"
+                        >
+                          {deleteAllAllocationsMutation.isPending ? "Deleting..." : "Delete All"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
 
-              <Dialog open={isAllocationDialogOpen} onOpenChange={handleAllocationDialogChange}>
-                <DialogTrigger asChild>
-                  <Button data-testid="button-add-allocation">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Allocation
-                  </Button>
-                </DialogTrigger>
+                  <Dialog open={isCopyDialogOpen} onOpenChange={(open) => {
+                    setIsCopyDialogOpen(open);
+                    if (!open) {
+                      setSelectedPortfolioId("");
+                      setSelectedPortfolioType("planned");
+                    }
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" data-testid="button-copy-from-portfolio">
+                        <Copy className="mr-1.5 h-4 w-4" />
+                        Copy from Model
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Copy from Model Portfolio</DialogTitle>
+                        <DialogDescription>
+                          Select a model portfolio to copy its allocations. This will replace any existing target allocations.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <Select 
+                          value={selectedPortfolioId ? `${selectedPortfolioType}:${selectedPortfolioId}` : ""} 
+                          onValueChange={(value) => {
+                            const [type, id] = value.split(':');
+                            setSelectedPortfolioType(type as "planned" | "freelance");
+                            setSelectedPortfolioId(id);
+                          }}
+                        >
+                          <SelectTrigger data-testid="select-model-portfolio">
+                            <SelectValue placeholder="Select a model portfolio" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {plannedPortfolios.length > 0 && (
+                              <>
+                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                  Planned Portfolios
+                                </div>
+                                {plannedPortfolios.map((portfolio) => (
+                                  <SelectItem 
+                                    key={`planned-${portfolio.id}`} 
+                                    value={`planned:${portfolio.id}`} 
+                                    data-testid={`option-portfolio-planned-${portfolio.id}`}
+                                  >
+                                    {portfolio.name}
+                                  </SelectItem>
+                                ))}
+                              </>
+                            )}
+                            {freelancePortfolios.length > 0 && (
+                              <>
+                                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground mt-1">
+                                  Freelance Portfolios
+                                </div>
+                                {freelancePortfolios.map((portfolio) => (
+                                  <SelectItem 
+                                    key={`freelance-${portfolio.id}`} 
+                                    value={`freelance:${portfolio.id}`} 
+                                    data-testid={`option-portfolio-freelance-${portfolio.id}`}
+                                  >
+                                    {portfolio.name}
+                                  </SelectItem>
+                                ))}
+                              </>
+                            )}
+                            {plannedPortfolios.length === 0 && freelancePortfolios.length === 0 && (
+                              <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                                No portfolios available. Create one in Model Portfolios.
+                              </div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        
+                        {(() => {
+                          const riskValidation = computePortfolioRiskValidation();
+                          if (!riskValidation) return null;
+                          
+                          if (riskValidation.violations.length > 0) {
+                            return (
+                              <Alert variant="destructive" data-testid="alert-copy-risk-violation">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertTitle>Risk Limit Exceeded</AlertTitle>
+                                <AlertDescription>
+                                  <div className="space-y-1 mt-1">
+                                    {riskValidation.violations.map((v, i) => (
+                                      <p key={i}>
+                                        {CATEGORY_LABELS[v.category]}: {v.currentPercentage.toFixed(1)}% 
+                                        (max {v.maxAllowed.toFixed(1)}% allowed)
+                                      </p>
+                                    ))}
+                                  </div>
+                                  <p className="text-xs mt-2">
+                                    This portfolio exceeds the account's risk tolerance limits. You can still copy, but consider adjusting the allocations.
+                                  </p>
+                                </AlertDescription>
+                              </Alert>
+                            );
+                          }
+                          
+                          if (riskValidation.warnings.length > 0) {
+                            return (
+                              <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20" data-testid="alert-copy-risk-warning">
+                                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                                <AlertTitle className="text-yellow-800 dark:text-yellow-400">Approaching Risk Limit</AlertTitle>
+                                <AlertDescription className="text-yellow-700 dark:text-yellow-300">
+                                  <div className="space-y-1 mt-1">
+                                    {riskValidation.warnings.map((w, i) => (
+                                      <p key={i}>
+                                        {CATEGORY_LABELS[w.category]}: {w.currentPercentage.toFixed(1)}% 
+                                        (max {w.maxAllowed.toFixed(1)}% allowed)
+                                      </p>
+                                    ))}
+                                  </div>
+                                </AlertDescription>
+                              </Alert>
+                            );
+                          }
+                          
+                          return null;
+                        })()}
+
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" onClick={() => setIsCopyDialogOpen(false)} data-testid="button-cancel-copy">
+                            Cancel
+                          </Button>
+                          <Button 
+                            onClick={handleCopyFromPortfolio} 
+                            disabled={!selectedPortfolioId || copyFromPortfolioMutation.isPending}
+                            data-testid="button-confirm-copy"
+                          >
+                            {copyFromPortfolioMutation.isPending ? "Copying..." : "Copy Allocations"}
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
+                  <Dialog open={isAllocationDialogOpen} onOpenChange={handleAllocationDialogChange}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" data-testid="button-add-allocation">
+                        <Plus className="mr-1.5 h-4 w-4" />
+                        Add Allocation
+                      </Button>
+                    </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>{editingAllocation ? "Edit Target Allocation" : "Add Target Allocation"}</DialogTitle>
@@ -3591,11 +3606,12 @@ export default function AccountDetails() {
                       </div>
                     </form>
                   </Form>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </CardHeader>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+            )}
+          </CardHeader>
         <CollapsibleContent>
           <CardContent>
             {/* Cash Deployment Planner - Only visible in deployment mode */}
