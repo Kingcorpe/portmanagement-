@@ -4096,8 +4096,8 @@ export default function AccountDetails() {
                   </CardHeader>
                   <CollapsibleContent>
                     <CardContent className="pt-0">
-                      {/* Warning about updating prices - only show if no recent import */}
-                      {!lastExcelImportTime && (
+                      {/* Warning about updating prices - show if no import or import > 24 hours ago */}
+                      {(!lastExcelImportTime || (Date.now() - lastExcelImportTime > 24 * 60 * 60 * 1000)) && (
                         <Alert className="mb-4 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
                           <AlertTriangle className="h-4 w-4 text-amber-600" />
                           <AlertTitle className="text-amber-800 dark:text-amber-200 text-sm">Update Prices First</AlertTitle>
