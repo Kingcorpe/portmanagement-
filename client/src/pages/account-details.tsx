@@ -641,7 +641,7 @@ export default function AccountDetails() {
           targetValue,
           gap,
           allocatedCash: 0,
-          sharesToBuy: currentPrice > 0 ? Math.floor(gap / currentPrice) : 0,
+          sharesToBuy: 0,
           status: 'unfunded' as const,
         };
       })
@@ -673,7 +673,7 @@ export default function AccountDetails() {
           targetValue,
           gap,
           allocatedCash: 0,
-          sharesToBuy: currentPrice > 0 ? Math.floor(gap / currentPrice) : 0,
+          sharesToBuy: 0,
           status: 'unfunded',
         };
         return candidate;
