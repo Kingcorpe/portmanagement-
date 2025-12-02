@@ -115,7 +115,7 @@ export const demoIndividualAccounts = [
   {
     id: "demo-account-tfsa-1",
     individualId: "demo-individual-1",
-    accountType: "tfsa",
+    type: "tfsa",
     accountNumber: "TFSA-001-RT",
     custodian: "TD Direct Investing",
     notes: "Maxed contributions",
@@ -123,7 +123,7 @@ export const demoIndividualAccounts = [
   {
     id: "demo-account-rrsp-1",
     individualId: "demo-individual-1",
-    accountType: "rrsp",
+    type: "rrsp",
     accountNumber: "RRSP-001-RT",
     custodian: "TD Direct Investing",
     notes: "Converting to RIF next year",
@@ -131,7 +131,7 @@ export const demoIndividualAccounts = [
   {
     id: "demo-account-rif-1",
     individualId: "demo-individual-2",
-    accountType: "rif",
+    type: "rif",
     accountNumber: "RIF-001-MT",
     custodian: "RBC Direct Investing",
     notes: "Minimum withdrawal schedule active",
@@ -139,7 +139,7 @@ export const demoIndividualAccounts = [
   {
     id: "demo-account-tfsa-2",
     individualId: "demo-individual-2",
-    accountType: "tfsa",
+    type: "tfsa",
     accountNumber: "TFSA-002-MT",
     custodian: "RBC Direct Investing",
     notes: null,
@@ -148,7 +148,7 @@ export const demoIndividualAccounts = [
   {
     id: "demo-account-tfsa-3",
     individualId: "demo-individual-3",
-    accountType: "tfsa",
+    type: "tfsa",
     accountNumber: "TFSA-003-DW",
     custodian: "Questrade",
     notes: "Active trading account",
@@ -156,7 +156,7 @@ export const demoIndividualAccounts = [
   {
     id: "demo-account-rrsp-2",
     individualId: "demo-individual-3",
-    accountType: "rrsp",
+    type: "rrsp",
     accountNumber: "RRSP-002-DW",
     custodian: "Questrade",
     notes: "Growth focused",
@@ -164,7 +164,7 @@ export const demoIndividualAccounts = [
   {
     id: "demo-account-fhsa-1",
     individualId: "demo-individual-3",
-    accountType: "fhsa",
+    type: "fhsa",
     accountNumber: "FHSA-001-DW",
     custodian: "Questrade",
     notes: "New FHSA - first home savings",
@@ -173,7 +173,7 @@ export const demoIndividualAccounts = [
   {
     id: "demo-account-tfsa-4",
     individualId: "demo-individual-4",
-    accountType: "tfsa",
+    type: "tfsa",
     accountNumber: "TFSA-004-PP",
     custodian: "Wealthsimple",
     notes: null,
@@ -181,7 +181,7 @@ export const demoIndividualAccounts = [
   {
     id: "demo-account-rrsp-3",
     individualId: "demo-individual-4",
-    accountType: "rrsp",
+    type: "rrsp",
     accountNumber: "RRSP-003-PP",
     custodian: "Wealthsimple",
     notes: null,
@@ -189,7 +189,7 @@ export const demoIndividualAccounts = [
   {
     id: "demo-account-tfsa-5",
     individualId: "demo-individual-5",
-    accountType: "tfsa",
+    type: "tfsa",
     accountNumber: "TFSA-005-RP",
     custodian: "Wealthsimple",
     notes: null,
@@ -201,7 +201,7 @@ export const demoCorporateAccounts = [
   {
     id: "demo-account-corp-cash-1",
     corporationId: "demo-corporation-1",
-    accountType: "cash",
+    type: "cash",
     accountNumber: "CORP-001-CMG",
     custodian: "BMO Nesbitt Burns",
     notes: "Main corporate investment account",
@@ -209,7 +209,7 @@ export const demoCorporateAccounts = [
   {
     id: "demo-account-ipp-1",
     corporationId: "demo-corporation-1",
-    accountType: "ipp",
+    type: "ipp",
     accountNumber: "IPP-001-CMG",
     custodian: "BMO Nesbitt Burns",
     notes: "Individual Pension Plan for Dr. Chen",
@@ -220,14 +220,14 @@ export const demoCorporateAccounts = [
 export const demoJointAccounts = [
   {
     id: "demo-account-resp-1",
-    accountType: "resp",
+    type: "resp",
     accountNumber: "RESP-001-PATEL",
     custodian: "TD Direct Investing",
     notes: "Family RESP for children's education",
   },
   {
     id: "demo-account-joint-1",
-    accountType: "joint_cash",
+    type: "joint_cash",
     accountNumber: "JOINT-001-THOMPSON",
     custodian: "TD Direct Investing",
     notes: "Joint non-registered account",
@@ -584,14 +584,16 @@ export const demoReferenceLinks = [
 // Helper function to get account with positions and calculated balance
 export function enrichAccountWithPositions(account: any, positions: any[]) {
   const accountPositions = positions.filter(p => p.accountId === account.id);
-  const balance = accountPositions.reduce((sum, pos) => {
+  const calculatedBalance = accountPositions.reduce((sum, pos) => {
     return sum + (parseFloat(pos.quantity) * parseFloat(pos.currentPrice));
   }, 0);
   
   return {
     ...account,
     positions: accountPositions,
-    balance: balance.toFixed(2),
+    balance: calculatedBalance.toFixed(2),
+    calculatedBalance: calculatedBalance.toFixed(2),
+    performance: "0.00",
   };
 }
 
@@ -627,7 +629,8 @@ export function getDemoHouseholdsFullData() {
         const members = demoJointAccountMembers
           .filter(m => m.jointAccountId === acc.id)
           .map(m => demoIndividuals.find(ind => ind.id === m.individualId));
-        return { ...enriched, members };
+        const owners = members.filter(Boolean);
+        return { ...enriched, members, owners };
       });
 
     // Calculate total household value
