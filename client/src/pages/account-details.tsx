@@ -752,7 +752,7 @@ export default function AccountDetails() {
           isSelected: sellAmount > 0,
         };
       })
-      .sort((a, b) => b.totalValue - a.totalValue); // Sort by value descending
+      .sort((a, b) => a.ticker.localeCompare(b.ticker)); // Sort alphabetically by ticker
     
     const totalFromSales = sellCandidates.reduce((sum, sc) => sum + (sc.sellAmount || 0), 0);
     const totalSelected = totalFromSales + cashIncluded;
