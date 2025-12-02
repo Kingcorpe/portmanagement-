@@ -114,7 +114,7 @@ function DailyTasksSection({
   const daysToUse = trackerMode === "every_day" ? allDays : businessDays;
   const [showModeDialog, setShowModeDialog] = useState(false);
   
-  const { data: dailyTasks = [], isLoading } = useDemoAwareQuery<KpiDailyTask[]>({
+  const { data: dailyTasks = [], isLoading } = useQuery<KpiDailyTask[]>({
     queryKey: ['/api/kpi-objectives', objectiveId, 'daily-tasks'],
   });
 
@@ -220,7 +220,7 @@ function DailyTasksSection({
   }
 
   // Calculate progress
-  const completedCount = dailyTasks.filter(t => t.isCompleted === 1).length;
+  const completedCount = dailyTasks.filter((t: any) => t.isCompleted === 1).length;
   const totalCount = dailyTasks.length;
   const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
@@ -238,7 +238,7 @@ function DailyTasksSection({
         <span className="text-xs text-muted-foreground">{progressPercent}%</span>
       </div>
       <div className="flex flex-wrap gap-0.5">
-        {dailyTasks.map((task) => {
+        {dailyTasks.map((task: any) => {
           const dayDate = new Date(year, monthNum - 1, task.dayNumber);
           const dayLabel = format(dayDate, "EEE d");
           const isChecked = task.isCompleted === 1;
@@ -412,7 +412,7 @@ export default function KpiDashboard() {
   const currentMonth = format(new Date(), "yyyy-MM");
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set([currentMonth]));
 
-  const { data: objectives = [], isLoading } = useDemoAwareQuery<KpiObjective[]>({
+  const { data: objectives = [], isLoading } = useQuery<KpiObjective[]>({
     queryKey: ["/api/kpi-objectives"],
   });
 
@@ -545,7 +545,7 @@ export default function KpiDashboard() {
   };
 
   const months = getNext12Months();
-  const objectivesByMonth = objectives.reduce((acc, obj) => {
+  const objectivesByMonth = objectives.reduce((acc: Record<string, KpiObjective[]>, obj: any) => {
     if (!acc[obj.month]) acc[obj.month] = [];
     acc[obj.month].push(obj);
     return acc;
@@ -768,8 +768,8 @@ export default function KpiDashboard() {
         {months.map((monthData) => {
           const monthObjectives = objectivesByMonth[monthData.month] || [];
           const isOpen = openMonths.has(monthData.month);
-          const personalObjs = monthObjectives.filter(o => o.type === "personal");
-          const businessObjs = monthObjectives.filter(o => o.type === "business");
+          const personalObjs = monthObjectives.filter((o: any) => o.type === "personal");
+          const businessObjs = monthObjectives.filter((o: any) => o.type === "business");
 
           return (
             <Card key={monthData.month} className="overflow-visible" data-testid={`card-month-${monthData.month}`}>
