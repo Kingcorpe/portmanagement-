@@ -2387,7 +2387,15 @@ export default function AccountDetails() {
                     ? positions.filter(p => plannerCandidateTickers.has(normalizeTicker(p.symbol)))
                     : positions;
                   
-                  return [...filteredPositions].sort((a, b) => a.symbol.localeCompare(b.symbol)).map((position) => {
+                  return [...filteredPositions].sort((a, b) => {
+                    // CASH always at top
+                    const aIsCash = a.symbol.toUpperCase() === 'CASH' || a.symbol.toUpperCase().includes('MONEY MARKET');
+                    const bIsCash = b.symbol.toUpperCase() === 'CASH' || b.symbol.toUpperCase().includes('MONEY MARKET');
+                    if (aIsCash && !bIsCash) return -1;
+                    if (!aIsCash && bIsCash) return 1;
+                    // Then alphabetical
+                    return a.symbol.localeCompare(b.symbol);
+                  }).map((position) => {
                     // Use normalized ticker comparison to match "XIC.TO" with "XIC" etc.
                     const normalizedPositionSymbol = normalizeTicker(position.symbol);
                     const comparison = comparisonData?.comparison.find(c => normalizeTicker(c.ticker) === normalizedPositionSymbol);
