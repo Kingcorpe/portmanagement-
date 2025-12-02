@@ -46,7 +46,9 @@ import {
   Mail,
   Trash2,
   Square,
-  CheckSquare
+  CheckSquare,
+  Archive,
+  RotateCcw
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "wouter";
@@ -60,6 +62,7 @@ interface TaskWithContext {
   priority: "low" | "medium" | "high" | "urgent";
   dueDate: string | null;
   completedAt: string | null;
+  archivedAt?: string | null;
   createdAt: string;
   accountType: "individual" | "corporate" | "joint";
   accountId: string;
@@ -80,7 +83,7 @@ interface HouseholdBasic {
 export default function Tasks() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<"all" | "pending" | "completed">("pending");
+  const [activeTab, setActiveTab] = useState<"all" | "pending" | "completed" | "archived">("pending");
   const [groupBy, setGroupBy] = useState<"due" | "household" | "priority">("due");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["overdue", "today", "upcoming", "no-date"]));
   const [selectedCategory, setSelectedCategory] = useState<string | null>("anchor");
@@ -127,6 +130,11 @@ export default function Tasks() {
       }
       return failureCount < 3;
     },
+  });
+
+  const { data: archivedTasks = [], isLoading: archivedLoading } = useQuery<TaskWithContext[]>({
+    queryKey: ["/api/tasks/archived"],
+    enabled: isAuthenticated && activeTab === "archived",
   });
 
   // Map households to get category information
@@ -188,12 +196,27 @@ export default function Tasks() {
     },
     onSuccess: (data: { deleted: number; total: number }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/archived"] });
       setSelectedTasks(new Set());
       setSelectionMode(false);
-      toast({ title: `Deleted ${data.deleted} task${data.deleted !== 1 ? 's' : ''}` });
+      toast({ title: `Archived ${data.deleted} task${data.deleted !== 1 ? 's' : ''} (30 days)` });
     },
     onError: () => {
-      toast({ title: "Failed to delete tasks", variant: "destructive" });
+      toast({ title: "Failed to archive tasks", variant: "destructive" });
+    },
+  });
+
+  const restoreTaskMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      await apiRequest("POST", `/api/account-tasks/${taskId}/restore`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/archived"] });
+      toast({ title: "Task restored" });
+    },
+    onError: () => {
+      toast({ title: "Failed to restore task", variant: "destructive" });
     },
   });
 
@@ -543,6 +566,10 @@ export default function Tasks() {
             <TabsTrigger value="all" data-testid="tab-all" className="text-xs">
               All
             </TabsTrigger>
+            <TabsTrigger value="archived" data-testid="tab-archived" className="text-xs">
+              <Archive className="h-3 w-3 mr-1" />
+              Archived
+            </TabsTrigger>
           </TabsList>
         </Tabs>
         
@@ -642,7 +669,91 @@ export default function Tasks() {
 
       {/* Task List */}
       <div className="space-y-3 mt-4">
-          {isLoading ? (
+          {activeTab === "archived" ? (
+            archivedLoading ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Loading archived tasks...
+                </CardContent>
+              </Card>
+            ) : archivedTasks.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  <Archive className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  No archived tasks. Archived tasks are kept for 30 days.
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Archive className="h-4 w-4" />
+                    Archived Tasks ({archivedTasks.length})
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Tasks are automatically deleted after 30 days. Click restore to bring them back.
+                  </p>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="space-y-2">
+                    {archivedTasks.map(task => (
+                      <div 
+                        key={task.id}
+                        className="flex items-start gap-3 p-3 rounded-md border bg-card hover:bg-muted/50"
+                        data-testid={`archived-task-${task.id}`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="text-muted-foreground">
+                              <span className="font-medium">{task.title}</span>
+                              {task.description && (
+                                <p className="text-sm mt-0.5 line-clamp-2">
+                                  {task.description}
+                                </p>
+                              )}
+                            </div>
+                            <Badge variant="outline" className={getPriorityBadge(task.priority)}>
+                              {task.priority}
+                            </Badge>
+                          </div>
+                          
+                          <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+                            <span className="flex items-center gap-1">
+                              <Briefcase className="h-3 w-3" />
+                              {task.ownerName} - {task.accountNickname || task.accountTypeLabel?.toUpperCase()}
+                            </span>
+                            
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3 w-3" />
+                              {task.householdName}
+                            </span>
+                            
+                            {task.archivedAt && (
+                              <span className="flex items-center gap-1 text-orange-500">
+                                <Archive className="h-3 w-3" />
+                                Archived {format(new Date(task.archivedAt), "MMM d, yyyy")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => restoreTaskMutation.mutate(task.id)}
+                          disabled={restoreTaskMutation.isPending}
+                          data-testid={`button-restore-task-${task.id}`}
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Restore
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          ) : isLoading ? (
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
                 Loading tasks...

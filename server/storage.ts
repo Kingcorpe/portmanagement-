@@ -92,7 +92,7 @@ import {
   type UpdateReferenceLink,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, inArray, ilike, or, and, sql, isNull, isNotNull } from "drizzle-orm";
+import { eq, desc, inArray, ilike, or, and, sql, isNull, isNotNull, lt } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -264,6 +264,10 @@ export interface IStorage {
   getAllTasksForUser(userId: string): Promise<any[]>;
   updateAccountTask(id: string, task: Partial<InsertAccountTask>): Promise<AccountTask>;
   deleteAccountTask(id: string): Promise<void>;
+  archiveAccountTask(id: string): Promise<AccountTask>;
+  restoreAccountTask(id: string): Promise<AccountTask>;
+  getArchivedTasksForUser(userId: string): Promise<any[]>;
+  permanentlyDeleteArchivedTasks(olderThanDays: number): Promise<number>;
   completeAccountTask(id: string): Promise<AccountTask>;
 
   // Account audit log operations
@@ -1673,7 +1677,7 @@ export class DatabaseStorage implements IStorage {
     const householdIds = userHouseholds.map(h => h.id);
     if (householdIds.length === 0) return [];
 
-    // Get all individual accounts with their tasks
+    // Get all individual accounts with their tasks (excluding archived)
     const individualAccountsWithTasks = await db.select({
       task: accountTasks,
       account: individualAccounts,
@@ -1684,9 +1688,12 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(individualAccounts, eq(accountTasks.individualAccountId, individualAccounts.id))
       .innerJoin(individuals, eq(individualAccounts.individualId, individuals.id))
       .innerJoin(households, eq(individuals.householdId, households.id))
-      .where(inArray(households.id, householdIds));
+      .where(and(
+        inArray(households.id, householdIds),
+        isNull(accountTasks.archivedAt)
+      ));
 
-    // Get all corporate accounts with their tasks
+    // Get all corporate accounts with their tasks (excluding archived)
     const corporateAccountsWithTasks = await db.select({
       task: accountTasks,
       account: corporateAccounts,
@@ -1697,9 +1704,12 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(corporateAccounts, eq(accountTasks.corporateAccountId, corporateAccounts.id))
       .innerJoin(corporations, eq(corporateAccounts.corporationId, corporations.id))
       .innerJoin(households, eq(corporations.householdId, households.id))
-      .where(inArray(households.id, householdIds));
+      .where(and(
+        inArray(households.id, householdIds),
+        isNull(accountTasks.archivedAt)
+      ));
 
-    // Get all joint accounts with their tasks
+    // Get all joint accounts with their tasks (excluding archived)
     const jointAccountsWithTasks = await db.select({
       task: accountTasks,
       account: jointAccounts,
@@ -1708,7 +1718,10 @@ export class DatabaseStorage implements IStorage {
       .from(accountTasks)
       .innerJoin(jointAccounts, eq(accountTasks.jointAccountId, jointAccounts.id))
       .innerJoin(households, eq(jointAccounts.householdId, households.id))
-      .where(inArray(households.id, householdIds));
+      .where(and(
+        inArray(households.id, householdIds),
+        isNull(accountTasks.archivedAt)
+      ));
 
     // Combine and format all tasks
     const allTasks = [
@@ -1778,6 +1791,145 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAccountTask(id: string): Promise<void> {
     await db.delete(accountTasks).where(eq(accountTasks.id, id));
+  }
+
+  async archiveAccountTask(id: string): Promise<AccountTask> {
+    const [task] = await db
+      .update(accountTasks)
+      .set({ 
+        archivedAt: new Date(),
+        updatedAt: new Date() 
+      })
+      .where(eq(accountTasks.id, id))
+      .returning();
+    return task;
+  }
+
+  async restoreAccountTask(id: string): Promise<AccountTask> {
+    const [task] = await db
+      .update(accountTasks)
+      .set({ 
+        archivedAt: null,
+        updatedAt: new Date() 
+      })
+      .where(eq(accountTasks.id, id))
+      .returning();
+    return task;
+  }
+
+  async getArchivedTasksForUser(userId: string): Promise<any[]> {
+    // Get all households the user can access
+    const userHouseholds = await db.select({ id: households.id })
+      .from(households)
+      .leftJoin(householdShares, eq(households.id, householdShares.householdId))
+      .where(
+        or(
+          eq(households.userId, userId),
+          eq(householdShares.sharedWithUserId, userId)
+        )
+      );
+    
+    const householdIds = userHouseholds.map(h => h.id);
+    if (householdIds.length === 0) return [];
+
+    // Get all individual accounts with their archived tasks
+    const individualAccountsWithTasks = await db.select({
+      task: accountTasks,
+      account: individualAccounts,
+      individual: individuals,
+      household: households,
+    })
+      .from(accountTasks)
+      .innerJoin(individualAccounts, eq(accountTasks.individualAccountId, individualAccounts.id))
+      .innerJoin(individuals, eq(individualAccounts.individualId, individuals.id))
+      .innerJoin(households, eq(individuals.householdId, households.id))
+      .where(and(
+        inArray(households.id, householdIds),
+        isNotNull(accountTasks.archivedAt)
+      ));
+
+    // Get all corporate accounts with their archived tasks
+    const corporateAccountsWithTasks = await db.select({
+      task: accountTasks,
+      account: corporateAccounts,
+      corporation: corporations,
+      household: households,
+    })
+      .from(accountTasks)
+      .innerJoin(corporateAccounts, eq(accountTasks.corporateAccountId, corporateAccounts.id))
+      .innerJoin(corporations, eq(corporateAccounts.corporationId, corporations.id))
+      .innerJoin(households, eq(corporations.householdId, households.id))
+      .where(and(
+        inArray(households.id, householdIds),
+        isNotNull(accountTasks.archivedAt)
+      ));
+
+    // Get all joint accounts with their archived tasks
+    const jointAccountsWithTasks = await db.select({
+      task: accountTasks,
+      account: jointAccounts,
+      household: households,
+    })
+      .from(accountTasks)
+      .innerJoin(jointAccounts, eq(accountTasks.jointAccountId, jointAccounts.id))
+      .innerJoin(households, eq(jointAccounts.householdId, households.id))
+      .where(and(
+        inArray(households.id, householdIds),
+        isNotNull(accountTasks.archivedAt)
+      ));
+
+    // Combine and format all tasks
+    const allTasks = [
+      ...individualAccountsWithTasks.map(row => ({
+        ...row.task,
+        accountType: 'individual' as const,
+        accountId: row.account.id,
+        accountNickname: row.account.nickname,
+        accountTypeLabel: row.account.type,
+        ownerName: row.individual.name,
+        householdId: row.household.id,
+        householdName: row.household.name,
+      })),
+      ...corporateAccountsWithTasks.map(row => ({
+        ...row.task,
+        accountType: 'corporate' as const,
+        accountId: row.account.id,
+        accountNickname: row.account.nickname,
+        accountTypeLabel: row.account.type,
+        ownerName: row.corporation.name,
+        householdId: row.household.id,
+        householdName: row.household.name,
+      })),
+      ...jointAccountsWithTasks.map(row => ({
+        ...row.task,
+        accountType: 'joint' as const,
+        accountId: row.account.id,
+        accountNickname: row.account.nickname,
+        accountTypeLabel: row.account.type,
+        ownerName: 'Joint Account',
+        householdId: row.household.id,
+        householdName: row.household.name,
+      })),
+    ];
+
+    // Sort by archived date (most recent first)
+    return allTasks.sort((a, b) => {
+      return new Date(b.archivedAt!).getTime() - new Date(a.archivedAt!).getTime();
+    });
+  }
+
+  async permanentlyDeleteArchivedTasks(olderThanDays: number): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+    
+    const result = await db.delete(accountTasks)
+      .where(and(
+        isNotNull(accountTasks.archivedAt),
+        lt(accountTasks.archivedAt, cutoffDate)
+      ))
+      .returning();
+    
+    return result.length;
   }
 
   async completeAccountTask(id: string): Promise<AccountTask> {

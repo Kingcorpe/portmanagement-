@@ -976,6 +976,7 @@ export const accountTasks = pgTable("account_tasks", {
   priority: taskPriorityEnum("priority").notNull().default("medium"),
   dueDate: timestamp("due_date"),
   completedAt: timestamp("completed_at"),
+  archivedAt: timestamp("archived_at"), // Soft delete - tasks archived for 30 days before permanent deletion
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

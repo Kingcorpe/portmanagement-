@@ -5209,7 +5209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete task
+  // Archive task (soft delete - moves to archive for 30 days)
   app.delete('/api/account-tasks/:id', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -5237,7 +5237,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      await storage.deleteAccountTask(req.params.id);
+      // Archive instead of delete
+      await storage.archiveAccountTask(req.params.id);
       
       // Create audit log entry
       await storage.createAuditLogEntry({
@@ -5247,18 +5248,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         action: "task_delete",
         changes: { 
-          title: existing.title
+          title: existing.title,
+          archived: true
         },
       });
       
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting task:", error);
-      res.status(500).json({ message: "Failed to delete task" });
+      console.error("Error archiving task:", error);
+      res.status(500).json({ message: "Failed to archive task" });
     }
   });
 
-  // Bulk delete tasks
+  // Restore archived task
+  app.post('/api/account-tasks/:id/restore', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const existing = await storage.getAccountTask(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      if (!existing.archivedAt) {
+        return res.status(400).json({ message: "Task is not archived" });
+      }
+      
+      // Determine account type and get household ID
+      let householdId: string | null = null;
+      if (existing.individualAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('individual', existing.individualAccountId);
+      } else if (existing.corporateAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('corporate', existing.corporateAccountId);
+      } else if (existing.jointAccountId) {
+        householdId = await storage.getHouseholdIdFromAccount('joint', existing.jointAccountId);
+      }
+      
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const restored = await storage.restoreAccountTask(req.params.id);
+      res.json(restored);
+    } catch (error) {
+      console.error("Error restoring archived task:", error);
+      res.status(500).json({ message: "Failed to restore task" });
+    }
+  });
+
+  // Bulk archive tasks (soft delete - moves to archive for 30 days)
   app.post('/api/account-tasks/bulk-delete', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -5268,7 +5310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "taskIds must be a non-empty array" });
       }
       
-      let deletedCount = 0;
+      let archivedCount = 0;
       const errors: string[] = [];
       
       for (const taskId of taskIds) {
@@ -5300,7 +5342,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          await storage.deleteAccountTask(taskId);
+          // Archive instead of delete
+          await storage.archiveAccountTask(taskId);
           
           // Create audit log entry
           await storage.createAuditLogEntry({
@@ -5311,24 +5354,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             action: "task_delete",
             changes: { 
               title: existing.title,
-              bulkDelete: true
+              bulkArchive: true
             },
           });
           
-          deletedCount++;
+          archivedCount++;
         } catch (taskError) {
-          errors.push(`Failed to delete task ${taskId}`);
+          errors.push(`Failed to archive task ${taskId}`);
         }
       }
       
       res.json({ 
-        deleted: deletedCount, 
+        deleted: archivedCount, 
         total: taskIds.length,
         errors: errors.length > 0 ? errors : undefined 
       });
     } catch (error) {
-      console.error("Error bulk deleting tasks:", error);
-      res.status(500).json({ message: "Failed to bulk delete tasks" });
+      console.error("Error bulk archiving tasks:", error);
+      res.status(500).json({ message: "Failed to bulk archive tasks" });
     }
   });
 
@@ -5341,6 +5384,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching all tasks:", error);
       res.status(500).json({ message: "Failed to fetch tasks" });
+    }
+  });
+
+  // Get all archived tasks for the current user
+  app.get('/api/tasks/archived', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const tasks = await storage.getArchivedTasksForUser(userId);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching archived tasks:", error);
+      res.status(500).json({ message: "Failed to fetch archived tasks" });
     }
   });
 
