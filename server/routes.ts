@@ -5781,13 +5781,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             const isCompleted = task.status === 'completed';
-            const statusIcon = isCompleted ? '✓' : '○';
             const accountLabel = accountTypeLabels[task.accountTypeLabel] || task.accountTypeLabel;
             const titleColor = isCompleted ? '#999999' : '#000000';
             
-            doc.fontSize(10).font(isCompleted ? 'Helvetica-Oblique' : 'Helvetica-Bold').fillColor(titleColor)
-               .text(`${statusIcon} ${task.title}`);
+            // Draw checkbox
+            const checkboxSize = 10;
+            const checkboxX = 50;
+            const checkboxY = doc.y;
+            doc.rect(checkboxX, checkboxY, checkboxSize, checkboxSize).stroke();
             
+            // If completed, draw checkmark inside
+            if (isCompleted) {
+              doc.save();
+              doc.strokeColor('#666666');
+              doc.moveTo(checkboxX + 2, checkboxY + 5)
+                 .lineTo(checkboxX + 4, checkboxY + 8)
+                 .lineTo(checkboxX + 8, checkboxY + 2)
+                 .stroke();
+              doc.restore();
+            }
+            
+            // Task title (indented to account for checkbox)
+            doc.fontSize(10).font(isCompleted ? 'Helvetica-Oblique' : 'Helvetica-Bold').fillColor(titleColor)
+               .text(task.title, checkboxX + checkboxSize + 6, checkboxY, { continued: false });
+            
+            // Task details
             doc.fontSize(8).font('Helvetica').fillColor('#666666');
             const details = [];
             details.push(`${task.ownerName}`);
@@ -5800,11 +5818,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               details.push(`Due: ${new Date(task.dueDate).toLocaleDateString('en-CA')}`);
             }
             details.push(`[${task.priority.toUpperCase()}]`);
-            doc.text(details.join(' • '));
+            doc.text(details.join(' • '), checkboxX + checkboxSize + 6);
             
             if (task.description) {
               doc.fontSize(8).font('Helvetica').fillColor('#777777')
-                 .text(task.description, { width: 450, height: 30 });
+                 .text(task.description, checkboxX + checkboxSize + 6, doc.y, { width: 450, height: 30 });
             }
             
             doc.fillColor('#000000');
