@@ -94,19 +94,20 @@ export function generatePortfolioRebalanceReport(data: ReportData): Promise<Buff
       return Math.abs(b.changeNeeded) - Math.abs(a.changeNeeded);
     });
 
-    // Table header
+    // Table header - with checkbox column for print use
     const tableTop = doc.y;
-    const colWidths = [70, 60, 55, 55, 55, 75, 80];
-    const colX = [50, 120, 180, 235, 290, 345, 420];
+    const colWidths = [20, 65, 55, 50, 50, 50, 70, 75];
+    const colX = [50, 70, 135, 190, 240, 290, 340, 410];
     
     doc.fontSize(9).font('Helvetica-Bold');
-    doc.text('Symbol', colX[0], tableTop);
-    doc.text('Qty', colX[1], tableTop, { width: colWidths[1], align: 'right' });
-    doc.text('Actual %', colX[2], tableTop, { width: colWidths[2], align: 'right' });
-    doc.text('Target %', colX[3], tableTop, { width: colWidths[3], align: 'right' });
-    doc.text('Variance', colX[4], tableTop, { width: colWidths[4], align: 'right' });
-    doc.text('$ Change', colX[5], tableTop, { width: colWidths[5], align: 'right' });
-    doc.text('Action', colX[6], tableTop, { width: colWidths[6], align: 'right' });
+    doc.text('', colX[0], tableTop, { width: colWidths[0] }); // Checkbox column header (empty)
+    doc.text('Symbol', colX[1], tableTop);
+    doc.text('Qty', colX[2], tableTop, { width: colWidths[2], align: 'right' });
+    doc.text('Actual %', colX[3], tableTop, { width: colWidths[3], align: 'right' });
+    doc.text('Target %', colX[4], tableTop, { width: colWidths[4], align: 'right' });
+    doc.text('Variance', colX[5], tableTop, { width: colWidths[5], align: 'right' });
+    doc.text('$ Change', colX[6], tableTop, { width: colWidths[6], align: 'right' });
+    doc.text('Action', colX[7], tableTop, { width: colWidths[7], align: 'right' });
     
     doc.moveDown(0.3);
     doc.moveTo(50, doc.y).lineTo(562, doc.y).stroke();
@@ -123,38 +124,44 @@ export function generatePortfolioRebalanceReport(data: ReportData): Promise<Buff
       
       const rowY = doc.y;
       
+      // Checkbox for print use - draw empty square
+      const checkboxSize = 10;
+      const checkboxX = colX[0] + 2;
+      const checkboxY = rowY + 1;
+      doc.rect(checkboxX, checkboxY, checkboxSize, checkboxSize).stroke();
+      
       // Symbol and name
-      doc.text(pos.symbol, colX[0], rowY);
+      doc.text(pos.symbol, colX[1], rowY);
       if (pos.name) {
         doc.fontSize(7).fillColor('#666666')
-           .text(pos.name.substring(0, 20), colX[0], rowY + 10);
+           .text(pos.name.substring(0, 18), colX[1], rowY + 10);
         doc.fillColor('#000000').fontSize(9);
       }
       
       // Quantity
       doc.text(pos.quantity.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 
-               colX[1], rowY, { width: colWidths[1], align: 'right' });
+               colX[2], rowY, { width: colWidths[2], align: 'right' });
       
       // Actual %
       doc.text(`${pos.actualPercentage.toFixed(1)}%`, 
-               colX[2], rowY, { width: colWidths[2], align: 'right' });
+               colX[3], rowY, { width: colWidths[3], align: 'right' });
       
       // Target %
       doc.text(pos.targetPercentage > 0 ? `${pos.targetPercentage.toFixed(1)}%` : 'DEPLOY', 
-               colX[3], rowY, { width: colWidths[3], align: 'right' });
+               colX[4], rowY, { width: colWidths[4], align: 'right' });
       
       // Variance
       const varianceColor = pos.variance > 0 ? '#16a34a' : pos.variance < 0 ? '#dc2626' : '#000000';
       doc.fillColor(varianceColor)
          .text(`${pos.variance > 0 ? '+' : ''}${pos.variance.toFixed(1)}%`, 
-                colX[4], rowY, { width: colWidths[4], align: 'right' });
+                colX[5], rowY, { width: colWidths[5], align: 'right' });
       doc.fillColor('#000000');
       
       // $ Change
       const changeColor = pos.changeNeeded > 0 ? '#16a34a' : pos.changeNeeded < 0 ? '#dc2626' : '#000000';
       doc.fillColor(changeColor)
          .text(`${pos.changeNeeded > 0 ? '+' : ''}$${pos.changeNeeded.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, 
-                colX[5], rowY, { width: colWidths[5], align: 'right' });
+                colX[6], rowY, { width: colWidths[6], align: 'right' });
       doc.fillColor('#000000');
       
       // Action (Shares to Trade)
@@ -165,7 +172,7 @@ export function generatePortfolioRebalanceReport(data: ReportData): Promise<Buff
           ? `Sell ${Math.abs(pos.sharesToTrade).toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
           : 'Hold';
       doc.font('Helvetica-Bold').fillColor(actionColor)
-         .text(actionText, colX[6], rowY, { width: colWidths[6], align: 'right' });
+         .text(actionText, colX[7], rowY, { width: colWidths[7], align: 'right' });
       doc.font('Helvetica').fillColor('#000000');
       
       doc.moveDown(pos.name ? 1.2 : 0.8);
