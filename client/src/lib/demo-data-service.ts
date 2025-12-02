@@ -120,18 +120,18 @@ export function useDemoAwareQuery<TData = unknown>(
 ) {
   const { isDemoMode } = useDemoMode();
 
-  const modifiedOptions: UseQueryOptions<TData, Error, TData, QueryKeyType> = {
-    ...options,
-    queryFn: isDemoMode
-      ? async () => {
+  const modifiedOptions: UseQueryOptions<TData, Error, TData, QueryKeyType> = isDemoMode
+    ? {
+        ...options,
+        queryFn: async () => {
           const demoData = getDemoResponse(options.queryKey!);
           if (demoData !== null) {
             return demoData as TData;
           }
           throw new Error("No demo data available for this query");
-        }
-      : options.queryFn,
-  };
+        },
+      }
+    : options;
 
   return useQuery(modifiedOptions);
 }
