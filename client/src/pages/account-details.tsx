@@ -1346,6 +1346,35 @@ export default function AccountDetails() {
     },
   });
 
+  // Toggle withdrawal mode mutation
+  const toggleWithdrawalModeMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      return await apiRequest("PATCH", accountEndpoint!, { withdrawalMode: enabled });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [accountEndpoint] });
+      const newMode = !accountData?.withdrawalMode;
+      if (!newMode) {
+        // Reset sell planning state when exiting
+        setTargetWithdrawalAmount("");
+        setSellCandidates([]);
+      }
+      toast({
+        title: newMode ? "Withdrawal Mode Enabled" : "Withdrawal Mode Disabled",
+        description: newMode 
+          ? "Plan which holdings to sell to meet withdrawal target." 
+          : "Sell planning mode deactivated.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to toggle withdrawal mode",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleInlineTargetEdit = (position: Position) => {
     setEditingInlineTarget(position.id);
     setInlineTargetValue("");  // Start with empty field for faster entry
@@ -3282,8 +3311,40 @@ export default function AccountDetails() {
                     id="deployment-mode"
                     checked={accountData?.deploymentMode ?? false}
                     onCheckedChange={(checked) => toggleDeploymentModeMutation.mutate(checked)}
-                    disabled={toggleDeploymentModeMutation.isPending}
+                    disabled={toggleDeploymentModeMutation.isPending || accountData?.withdrawalMode}
                     data-testid="switch-deployment-mode"
+                  />
+                </div>
+                
+                {/* Withdrawal Mode Toggle */}
+                <div 
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-3 py-2 transition-colors",
+                    accountData?.withdrawalMode 
+                      ? "bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700" 
+                      : "bg-muted/50 border border-transparent"
+                  )} 
+                  data-testid="withdrawal-mode-container"
+                >
+                  <TrendingDown className={cn(
+                    "h-4 w-4",
+                    accountData?.withdrawalMode ? "text-red-600 dark:text-red-400" : "text-muted-foreground"
+                  )} />
+                  <label 
+                    htmlFor="withdrawal-mode" 
+                    className={cn(
+                      "text-sm font-medium cursor-pointer select-none",
+                      accountData?.withdrawalMode && "text-red-700 dark:text-red-300"
+                    )}
+                  >
+                    Withdrawal Mode
+                  </label>
+                  <Switch
+                    id="withdrawal-mode"
+                    checked={accountData?.withdrawalMode ?? false}
+                    onCheckedChange={(checked) => toggleWithdrawalModeMutation.mutate(checked)}
+                    disabled={toggleWithdrawalModeMutation.isPending || accountData?.deploymentMode}
+                    data-testid="switch-withdrawal-mode"
                   />
                 </div>
                 
@@ -3956,6 +4017,210 @@ export default function AccountDetails() {
                           )}
                         </div>
                       )}
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
+            )}
+
+            {/* Sell Planner - Only visible in withdrawal mode */}
+            {accountData?.withdrawalMode && (
+              <Collapsible open={isSellPlannerExpanded} onOpenChange={setIsSellPlannerExpanded} className="mb-6">
+                <Card className="border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20">
+                  <CardHeader className="py-3">
+                    <div className="flex items-center justify-between">
+                      <CollapsibleTrigger asChild>
+                        <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity" data-testid="button-toggle-sell-planner">
+                          {isSellPlannerExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                          <div>
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <TrendingDown className="h-4 w-4 text-red-500" />
+                              Sell Planner
+                            </CardTitle>
+                            <CardDescription className="text-xs">
+                              Plan which holdings to sell to meet your withdrawal target
+                            </CardDescription>
+                          </div>
+                        </button>
+                      </CollapsibleTrigger>
+                    </div>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0">
+                      {/* Warning about updating prices */}
+                      <Alert className="mb-4 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+                        <AlertTriangle className="h-4 w-4 text-amber-600" />
+                        <AlertTitle className="text-amber-800 dark:text-amber-200 text-sm">Update Prices First</AlertTitle>
+                        <AlertDescription className="text-amber-700 dark:text-amber-300 text-xs">
+                          For accurate sell planning, import an updated Excel file to refresh current prices before planning your trades.
+                        </AlertDescription>
+                      </Alert>
+
+                      {/* Target Withdrawal Amount Input */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <label className="text-sm font-medium whitespace-nowrap">Target Withdrawal:</label>
+                          <div className="relative flex-1 max-w-xs">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">CA$</span>
+                            <Input
+                              type="number"
+                              placeholder="0.00"
+                              className="pl-12"
+                              value={targetWithdrawalAmount}
+                              onChange={(e) => setTargetWithdrawalAmount(e.target.value)}
+                              data-testid="input-target-withdrawal"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Progress Summary */}
+                        {sellPlanData.targetAmount > 0 && (
+                          <div className="bg-muted/50 rounded-md p-3 border border-border/50">
+                            <div className="grid grid-cols-3 gap-4 text-xs">
+                              <div>
+                                <span className="text-muted-foreground block mb-1">Target</span>
+                                <span className="font-semibold text-base">CA${sellPlanData.targetAmount.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground block mb-1">Selected</span>
+                                <span className="font-semibold text-base text-red-600 dark:text-red-400">CA${sellPlanData.totalSelected.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground block mb-1">Remaining</span>
+                                <span className={cn(
+                                  "font-semibold text-base",
+                                  sellPlanData.remaining > 0 ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"
+                                )}>
+                                  CA${sellPlanData.remaining.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {/* Progress bar */}
+                            <div className="h-2 bg-muted rounded-full overflow-hidden mt-3">
+                              <div 
+                                className={cn(
+                                  "h-full transition-all",
+                                  sellPlanData.totalSelected >= sellPlanData.targetAmount 
+                                    ? "bg-green-500" 
+                                    : "bg-red-500"
+                                )}
+                                style={{ width: `${Math.min(100, (sellPlanData.totalSelected / sellPlanData.targetAmount) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Holdings to Sell */}
+                        {sellPlanData.candidates.length > 0 ? (
+                          <div className="space-y-2 pt-2 border-t">
+                            <h4 className="text-sm font-medium">Select Holdings to Sell</h4>
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="text-xs w-24">Ticker</TableHead>
+                                  <TableHead className="text-xs text-right">Qty Held</TableHead>
+                                  <TableHead className="text-xs text-right">Price</TableHead>
+                                  <TableHead className="text-xs text-right">Total Value</TableHead>
+                                  <TableHead className="text-xs text-right w-36">Amount to Sell</TableHead>
+                                  <TableHead className="text-xs text-right">Shares</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {sellPlanData.candidates.map((candidate) => (
+                                  <TableRow 
+                                    key={candidate.positionId} 
+                                    className={cn(candidate.isSelected && "bg-red-50 dark:bg-red-950/20")}
+                                    data-testid={`row-sell-candidate-${candidate.positionId}`}
+                                  >
+                                    <TableCell className="py-2">
+                                      <span className="font-mono text-xs font-medium">{candidate.ticker}</span>
+                                    </TableCell>
+                                    <TableCell className="py-2 text-right text-xs">
+                                      {candidate.quantityHeld.toLocaleString()}
+                                    </TableCell>
+                                    <TableCell className="py-2 text-right text-xs">
+                                      CA${candidate.currentPrice.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell className="py-2 text-right text-xs font-medium">
+                                      CA${candidate.totalValue.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell className="py-2 text-right">
+                                      <div className="relative w-32 ml-auto">
+                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                                        <Input
+                                          type="number"
+                                          placeholder="0"
+                                          className="h-7 text-xs pl-5 pr-2"
+                                          value={sellCandidates.find(sc => sc.positionId === candidate.positionId)?.sellAmount || ""}
+                                          onChange={(e) => {
+                                            const value = parseFloat(e.target.value) || 0;
+                                            const maxValue = candidate.totalValue;
+                                            const clampedValue = Math.min(value, maxValue);
+                                            
+                                            setSellCandidates(prev => {
+                                              const existing = prev.find(sc => sc.positionId === candidate.positionId);
+                                              if (clampedValue <= 0) {
+                                                return prev.filter(sc => sc.positionId !== candidate.positionId);
+                                              }
+                                              if (existing) {
+                                                return prev.map(sc => 
+                                                  sc.positionId === candidate.positionId 
+                                                    ? { ...sc, sellAmount: clampedValue }
+                                                    : sc
+                                                );
+                                              }
+                                              return [...prev, { positionId: candidate.positionId, sellAmount: clampedValue }];
+                                            });
+                                          }}
+                                          data-testid={`input-sell-amount-${candidate.positionId}`}
+                                        />
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="py-2 text-right text-xs font-medium text-red-600 dark:text-red-400">
+                                      {candidate.sharesToSell > 0 ? `-${candidate.sharesToSell}` : '-'}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+
+                            {/* Summary */}
+                            {sellPlanData.totalSelected > 0 && (
+                              <div className="flex justify-between items-center pt-3 border-t mt-3">
+                                <div className="text-sm">
+                                  <span className="text-muted-foreground">Total to sell: </span>
+                                  <span className="font-semibold text-red-600 dark:text-red-400">
+                                    CA${sellPlanData.totalSelected.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                  </span>
+                                  {sellPlanData.totalSelected >= sellPlanData.targetAmount && (
+                                    <Badge className="ml-2 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                      Target Met
+                                    </Badge>
+                                  )}
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setSellCandidates([])}
+                                  data-testid="button-clear-sell-selections"
+                                >
+                                  <X className="h-3 w-3 mr-2" />
+                                  Clear All
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-muted-foreground text-center py-4 text-sm">
+                            No holdings available to sell. Add positions to this account first.
+                          </p>
+                        )}
+                      </div>
                     </CardContent>
                   </CollapsibleContent>
                 </Card>
