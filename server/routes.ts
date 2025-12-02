@@ -451,6 +451,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Archive (soft delete) household
+  app.delete('/api/households/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const householdId = req.params.id;
+      
+      // Verify user has edit access (owner or editor share)
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      await storage.deleteHousehold(householdId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error archiving household:", error);
+      res.status(500).json({ message: "Failed to archive household" });
+    }
+  });
+
   // Restore archived household (must come before /api/households/:id routes)
   app.post('/api/households/:id/restore', isAuthenticated, async (req: any, res) => {
     try {
