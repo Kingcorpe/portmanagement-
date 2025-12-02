@@ -2834,77 +2834,79 @@ export default function AccountDetails() {
         </Card>
       </Collapsible>
 
-      {/* Account Notes Section */}
-      <Collapsible open={isNotesExpanded} onOpenChange={setIsNotesExpanded}>
-        <Card>
-          <CardHeader className="pb-3">
-            <CollapsibleTrigger asChild>
-              <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity w-full" data-testid="button-toggle-notes">
-                {isNotesExpanded ? (
-                  <ChevronDown className="h-5 w-5" />
-                ) : (
-                  <ChevronRight className="h-5 w-5" />
-                )}
-                <div className="flex items-center gap-2">
-                  <StickyNote className="h-5 w-5" />
-                  <CardTitle>Account Notes</CardTitle>
-                </div>
-              </button>
-            </CollapsibleTrigger>
-          </CardHeader>
-          <CollapsibleContent>
-            <CardContent className="pt-0">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between min-h-[28px]">
-                  <span className="text-sm text-muted-foreground">Quick notes and reference info for this account</span>
-                  {immediateNotes && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
-                      onClick={() => setImmediateNotes("")}
-                      data-testid="button-clear-immediate-notes"
-                    >
-                      <X className="h-3 w-3 mr-1" />
-                      Clear
-                    </Button>
+      {/* Notes & Tasks Side-by-Side Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Account Notes Section */}
+        <Collapsible open={isNotesExpanded} onOpenChange={setIsNotesExpanded}>
+          <Card className="h-full">
+            <CardHeader className="pb-3">
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity w-full" data-testid="button-toggle-notes">
+                  {isNotesExpanded ? (
+                    <ChevronDown className="h-5 w-5" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5" />
                   )}
+                  <div className="flex items-center gap-2">
+                    <StickyNote className="h-5 w-5" />
+                    <CardTitle>Account Notes</CardTitle>
+                  </div>
+                </button>
+              </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent className="pt-0">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between min-h-[28px]">
+                    <span className="text-sm text-muted-foreground">Quick notes and reference info</span>
+                    {immediateNotes && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive"
+                        onClick={() => setImmediateNotes("")}
+                        data-testid="button-clear-immediate-notes"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <div className="border rounded-md p-3 bg-background">
+                    <RichNotesEditor
+                      value={immediateNotes}
+                      onChange={setImmediateNotes}
+                      placeholder="Add notes, reference info, or reminders..."
+                      data-testid="notes-immediate"
+                    />
+                  </div>
                 </div>
-                <div className="border rounded-md p-3 bg-background">
-                  <RichNotesEditor
-                    value={immediateNotes}
-                    onChange={setImmediateNotes}
-                    placeholder="Add notes, reference info, or reminders..."
-                    data-testid="notes-immediate"
-                  />
+                <div className="flex justify-end mt-2">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1" data-testid="notes-autosave-status">
+                    {notesAutoSaveStatus === "saving" && (
+                      <>
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        Saving...
+                      </>
+                    )}
+                    {notesAutoSaveStatus === "saved" && (
+                      <>
+                        <Check className="h-3 w-3 text-green-600" />
+                        Saved
+                      </>
+                    )}
+                    {notesAutoSaveStatus === "idle" && "Autosave enabled"}
+                  </span>
                 </div>
-              </div>
-              <div className="flex justify-end mt-2">
-                <span className="text-xs text-muted-foreground flex items-center gap-1" data-testid="notes-autosave-status">
-                  {notesAutoSaveStatus === "saving" && (
-                    <>
-                      <RefreshCw className="h-3 w-3 animate-spin" />
-                      Saving...
-                    </>
-                  )}
-                  {notesAutoSaveStatus === "saved" && (
-                    <>
-                      <Check className="h-3 w-3 text-green-600" />
-                      Saved
-                    </>
-                  )}
-                  {notesAutoSaveStatus === "idle" && "Autosave enabled"}
-                </span>
-              </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
-      {/* Account Tasks Section */}
-      <Collapsible open={isTasksExpanded} onOpenChange={setIsTasksExpanded}>
-        <Card>
-          <CardHeader className="pb-3">
+        {/* Account Tasks Section */}
+        <Collapsible open={isTasksExpanded} onOpenChange={setIsTasksExpanded}>
+          <Card className="h-full">
+            <CardHeader className="pb-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <CollapsibleTrigger asChild>
                 <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity" data-testid="button-toggle-tasks">
@@ -3142,8 +3144,9 @@ export default function AccountDetails() {
               })()}
             </CardContent>
           </CollapsibleContent>
-        </Card>
-      </Collapsible>
+          </Card>
+        </Collapsible>
+      </div>
 
       {/* Target Allocations Management Section */}
       <Collapsible open={isTargetAllocationsOpen} onOpenChange={setIsTargetAllocationsOpen}>
