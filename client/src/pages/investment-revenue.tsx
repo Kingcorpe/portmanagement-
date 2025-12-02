@@ -5,6 +5,9 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { formatNumberInput, parseNumberInput } from "@/lib/currencyInput";
+import { useDemoMode } from "@/contexts/demo-mode-context";
+import { useDemoAwareQuery } from "@/lib/demo-data-service";
+import { DemoModeBanner } from "@/components/demo-mode-banner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -175,11 +178,13 @@ export default function InvestmentRevenuePage() {
     }
   }, [isAuthenticated, authLoading, toast]);
 
-  const { data: entries = [], isLoading } = useQuery<InvestmentRevenue[]>({
+  const { isDemoMode } = useDemoMode();
+  
+  const { data: entries = [], isLoading } = useDemoAwareQuery<InvestmentRevenue[]>({
     queryKey: ["/api/investment-revenue"],
     enabled: isAuthenticated,
-    retry: (failureCount, error) => {
-      if (isUnauthorizedError(error as Error)) {
+    retry: (failureCount: number, error: Error) => {
+      if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
           description: "You are logged out. Logging in again...",
@@ -519,6 +524,7 @@ export default function InvestmentRevenuePage() {
 
   return (
     <div className="space-y-6" data-testid="page-investment-revenue">
+      <DemoModeBanner />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold gradient-text" data-testid="text-page-title">
