@@ -123,8 +123,13 @@ interface SellPlanCandidate {
   ticker: string;
   name: string;
   currentPrice: number;
+  entryPrice: number;
   quantityHeld: number;
   totalValue: number;
+  bookValue: number;
+  gainLoss: number;
+  gainLossPercent: number;
+  isAboveBook: boolean;
   sellAmount: number;
   sharesToSell: number;
   isSelected: boolean;
@@ -717,8 +722,13 @@ export default function AccountDetails() {
       .map(position => {
         const holding = universalHoldings.find(h => normalizeTicker(h.ticker) === normalizeTicker(position.symbol));
         const currentPrice = Number(position.currentPrice) || 0;
+        const entryPrice = Number(position.entryPrice) || 0;
         const quantityHeld = Number(position.quantity) || 0;
         const totalValue = currentPrice * quantityHeld;
+        const bookValue = entryPrice * quantityHeld;
+        const gainLoss = totalValue - bookValue;
+        const gainLossPercent = bookValue > 0 ? ((totalValue - bookValue) / bookValue) * 100 : 0;
+        const isAboveBook = currentPrice > entryPrice;
         
         // Check if this position is selected for selling
         const sellCandidate = sellCandidates.find(sc => sc.positionId === position.id);
@@ -730,8 +740,13 @@ export default function AccountDetails() {
           ticker: position.symbol,
           name: holding?.name || position.symbol,
           currentPrice,
+          entryPrice,
           quantityHeld,
           totalValue,
+          bookValue,
+          gainLoss,
+          gainLossPercent,
+          isAboveBook,
           sellAmount,
           sharesToSell: Math.min(sharesToSell, quantityHeld), // Can't sell more than held
           isSelected: sellAmount > 0,
@@ -4215,11 +4230,13 @@ export default function AccountDetails() {
                             <Table>
                               <TableHeader>
                                 <TableRow>
-                                  <TableHead className="text-xs w-24">Ticker</TableHead>
-                                  <TableHead className="text-xs text-right">Qty Held</TableHead>
+                                  <TableHead className="text-xs w-28">Ticker</TableHead>
+                                  <TableHead className="text-xs text-right">Qty</TableHead>
                                   <TableHead className="text-xs text-right">Price</TableHead>
-                                  <TableHead className="text-xs text-right">Total Value</TableHead>
-                                  <TableHead className="text-xs text-right w-36">Amount to Sell</TableHead>
+                                  <TableHead className="text-xs text-right">Book</TableHead>
+                                  <TableHead className="text-xs text-center w-24">Gain/Loss</TableHead>
+                                  <TableHead className="text-xs text-right">Value</TableHead>
+                                  <TableHead className="text-xs text-right w-32">Sell Amount</TableHead>
                                   <TableHead className="text-xs text-right">Shares</TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -4231,19 +4248,39 @@ export default function AccountDetails() {
                                     data-testid={`row-sell-candidate-${candidate.positionId}`}
                                   >
                                     <TableCell className="py-2">
-                                      <span className="font-mono text-xs font-medium">{candidate.ticker}</span>
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-mono text-xs font-medium">{candidate.ticker}</span>
+                                        {candidate.isAboveBook && (
+                                          <TrendingUp className="h-3 w-3 text-green-600 dark:text-green-400" />
+                                        )}
+                                      </div>
                                     </TableCell>
                                     <TableCell className="py-2 text-right text-xs">
                                       {candidate.quantityHeld.toLocaleString()}
                                     </TableCell>
                                     <TableCell className="py-2 text-right text-xs">
-                                      CA${candidate.currentPrice.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                      ${candidate.currentPrice.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell className="py-2 text-right text-xs text-muted-foreground">
+                                      ${candidate.entryPrice.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell className="py-2 text-center">
+                                      <Badge 
+                                        className={cn(
+                                          "text-[10px] px-1.5 py-0",
+                                          candidate.isAboveBook 
+                                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" 
+                                            : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                        )}
+                                      >
+                                        {candidate.isAboveBook ? '+' : ''}{candidate.gainLossPercent.toFixed(1)}%
+                                      </Badge>
                                     </TableCell>
                                     <TableCell className="py-2 text-right text-xs font-medium">
-                                      CA${candidate.totalValue.toLocaleString('en-CA', { minimumFractionDigits: 2 })}
+                                      ${candidate.totalValue.toLocaleString('en-CA', { minimumFractionDigits: 0 })}
                                     </TableCell>
                                     <TableCell className="py-2 text-right">
-                                      <div className="relative w-32 ml-auto">
+                                      <div className="relative w-28 ml-auto">
                                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
                                         <Input
                                           type="number"
