@@ -2332,27 +2332,33 @@ export default function AccountDetails() {
             if (tradesNeeded.length === 0) return null;
             
             return (
-              <div className="border rounded-lg p-4 bg-card" data-testid="trades-needed-section">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    <h4 className="font-medium">Trades Needed to Reach Target</h4>
-                  </div>
-                  <div className="flex gap-3 text-sm">
-                    {buyTrades.length > 0 && (
-                      <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" data-testid="badge-total-buy">
-                        Buy: ${totalBuyAmount.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </Badge>
-                    )}
-                    {sellTrades.length > 0 && (
-                      <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" data-testid="badge-total-sell">
-                        Sell: ${totalSellAmount.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Collapsible defaultOpen={!accountData?.deploymentMode}>
+                <div className="border rounded-lg bg-card" data-testid="trades-needed-section">
+                  <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover-elevate rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      <h4 className="font-medium text-sm">Trades Needed to Reach Target</h4>
+                      {accountData?.deploymentMode && (
+                        <Badge variant="outline" className="text-xs ml-2">Reference Only</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      {buyTrades.length > 0 && (
+                        <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" data-testid="badge-total-buy">
+                          Buy: ${totalBuyAmount.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </Badge>
+                      )}
+                      {sellTrades.length > 0 && (
+                        <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" data-testid="badge-total-sell">
+                          Sell: ${totalSellAmount.toLocaleString('en-CA', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </Badge>
+                      )}
+                      <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>*>&]:rotate-180" />
+                    </div>
+                  </CollapsibleTrigger>
+                  
+                  <CollapsibleContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 pt-0">
                   {/* Buy Orders */}
                   {buyTrades.length > 0 && (
                     <div className="space-y-2">
@@ -2440,8 +2446,10 @@ export default function AccountDetails() {
                       </div>
                     </div>
                   )}
+                    </div>
+                  </CollapsibleContent>
                 </div>
-              </div>
+              </Collapsible>
             );
           })()}
 
