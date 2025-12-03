@@ -558,6 +558,107 @@ export const tradesRelations = relations(trades, ({ one }) => ({
   }),
 }));
 
+// Trading journal outcome enum
+export const journalEntryOutcomeEnum = pgEnum("journal_entry_outcome", [
+  "pending",
+  "win",
+  "loss",
+  "partial",
+]);
+
+// Trading journal entries table
+export const tradingJournalEntries = pgTable("trading_journal_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text("title").notNull(),
+  notes: text("notes"),
+  symbol: varchar("symbol", { length: 20 }), // Optional ticker reference
+  tradeId: varchar("trade_id").references(() => trades.id, { onDelete: 'set null' }), // Optional link to trades table
+  entryDate: timestamp("entry_date").notNull().defaultNow(),
+  convictionScore: integer("conviction_score"), // 1-10 scale
+  modelVersion: text("model_version"), // Track strategy evolution
+  hypothesis: text("hypothesis"), // Investment thesis
+  outcome: journalEntryOutcomeEnum("outcome").notNull().default("pending"),
+  realizedPnL: decimal("realized_pnl", { precision: 15, scale: 2 }), // When outcome is known
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const tradingJournalEntriesRelations = relations(tradingJournalEntries, ({ one, many }) => ({
+  user: one(users, {
+    fields: [tradingJournalEntries.userId],
+    references: [users.id],
+  }),
+  trade: one(trades, {
+    fields: [tradingJournalEntries.tradeId],
+    references: [trades.id],
+  }),
+  images: many(tradingJournalImages),
+  entryTags: many(tradingJournalEntryTags),
+}));
+
+// Trading journal images table
+export const tradingJournalImages = pgTable("trading_journal_images", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entryId: varchar("entry_id").notNull().references(() => tradingJournalEntries.id, { onDelete: 'cascade' }),
+  objectPath: text("object_path").notNull(), // Path in object storage
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileSize: decimal("file_size", { precision: 15, scale: 0 }), // Size in bytes
+  mimeType: varchar("mime_type", { length: 100 }).default("image/jpeg"),
+  caption: text("caption"), // Optional caption
+  sortOrder: integer("sort_order").notNull().default(0),
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+});
+
+export const tradingJournalImagesRelations = relations(tradingJournalImages, ({ one }) => ({
+  entry: one(tradingJournalEntries, {
+    fields: [tradingJournalImages.entryId],
+    references: [tradingJournalEntries.id],
+  }),
+}));
+
+// Trading journal tags table
+export const tradingJournalTags = pgTable("trading_journal_tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: varchar("name", { length: 100 }).notNull(),
+  color: varchar("color", { length: 7 }), // Hex color code
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  // Unique constraint: user can't have duplicate tag names
+  uniqueIndex("idx_trading_journal_tags_user_name").on(table.userId, table.name),
+]);
+
+export const tradingJournalTagsRelations = relations(tradingJournalTags, ({ one, many }) => ({
+  user: one(users, {
+    fields: [tradingJournalTags.userId],
+    references: [users.id],
+  }),
+  entryTags: many(tradingJournalEntryTags),
+}));
+
+// Trading journal entry tags (many-to-many relationship)
+export const tradingJournalEntryTags = pgTable("trading_journal_entry_tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entryId: varchar("entry_id").notNull().references(() => tradingJournalEntries.id, { onDelete: 'cascade' }),
+  tagId: varchar("tag_id").notNull().references(() => tradingJournalTags.id, { onDelete: 'cascade' }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  // Unique constraint: prevent duplicate tag assignments
+  uniqueIndex("idx_trading_journal_entry_tags_unique").on(table.entryId, table.tagId),
+]);
+
+export const tradingJournalEntryTagsRelations = relations(tradingJournalEntryTags, ({ one }) => ({
+  entry: one(tradingJournalEntries, {
+    fields: [tradingJournalEntryTags.entryId],
+    references: [tradingJournalEntries.id],
+  }),
+  tag: one(tradingJournalTags, {
+    fields: [tradingJournalEntryTags.tagId],
+    references: [tradingJournalTags.id],
+  }),
+}));
+
 // Zod schemas for validation
 
 // User Settings insert schema
@@ -742,6 +843,68 @@ export const insertTradeSchema = createInsertSchema(trades).omit({
 }).extend({
   quantity: z.coerce.number().positive().transform(val => val.toString()),
   price: z.coerce.number().positive().transform(val => val.toString()),
+});
+
+// Trading Journal Entry insert schema
+export const insertTradingJournalEntrySchema = createInsertSchema(tradingJournalEntries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  userId: true,
+  convictionScore: true,
+  realizedPnL: true,
+  entryDate: true,
+}).extend({
+  title: z.string().min(1, "Title is required").max(500, "Title must be 500 characters or less"),
+  notes: z.string().max(10000, "Notes must be 10000 characters or less").optional().nullable(),
+  symbol: z.string().max(20, "Symbol must be 20 characters or less").optional().nullable(),
+  tradeId: z.string().optional().nullable(),
+  convictionScore: z.coerce.number().min(1).max(10).int().optional().nullable(),
+  modelVersion: z.string().max(200, "Model version must be 200 characters or less").optional().nullable(),
+  hypothesis: z.string().max(2000, "Hypothesis must be 2000 characters or less").optional().nullable(),
+  outcome: z.enum(["pending", "win", "loss", "partial"]).optional().default("pending"),
+  realizedPnL: z.coerce.number().optional().nullable().transform(val => val !== null && val !== undefined ? val.toString() : null),
+  entryDate: z.coerce.date().optional(),
+});
+
+// Trading Journal Entry update schema
+export const updateTradingJournalEntrySchema = insertTradingJournalEntrySchema.partial();
+
+// Trading Journal Image insert schema
+export const insertTradingJournalImageSchema = createInsertSchema(tradingJournalImages).omit({
+  id: true,
+  uploadedAt: true,
+  sortOrder: true,
+  fileSize: true,
+}).extend({
+  entryId: z.string().min(1, "Entry ID is required"),
+  objectPath: z.string().min(1, "Object path is required"),
+  fileName: z.string().min(1, "File name is required").max(255, "File name must be 255 characters or less"),
+  fileSize: z.coerce.number().nonnegative().optional().transform(val => val?.toString()),
+  mimeType: z.string().max(100, "MIME type must be 100 characters or less").optional().default("image/jpeg"),
+  caption: z.string().max(500, "Caption must be 500 characters or less").optional().nullable(),
+  sortOrder: z.coerce.number().int().nonnegative().optional().default(0),
+});
+
+// Trading Journal Tag insert schema
+export const insertTradingJournalTagSchema = createInsertSchema(tradingJournalTags)
+  .omit({
+    id: true,
+    createdAt: true,
+    userId: true,
+  })
+  .extend({
+    name: z.string().min(1, "Tag name is required").max(100, "Tag name must be 100 characters or less"),
+    color: z.string().regex(/^#([A-Fa-f0-9]{6})$/, "Color must be a valid hex color code").optional().nullable(),
+  });
+
+// Trading Journal Entry Tag insert schema
+export const insertTradingJournalEntryTagSchema = createInsertSchema(tradingJournalEntryTags).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  entryId: z.string().min(1, "Entry ID is required"),
+  tagId: z.string().min(1, "Tag ID is required"),
 });
 
 // Universal Holdings insert schema
@@ -1472,3 +1635,32 @@ export const updateMilestoneSchema = createInsertSchema(milestones).omit({
 export type InsertMilestone = z.infer<typeof insertMilestoneSchema>;
 export type UpdateMilestone = z.infer<typeof updateMilestoneSchema>;
 export type Milestone = typeof milestones.$inferSelect;
+
+// Trading Journal types
+export type InsertTradingJournalEntry = z.infer<typeof insertTradingJournalEntrySchema>;
+export type UpdateTradingJournalEntry = z.infer<typeof updateTradingJournalEntrySchema>;
+export type TradingJournalEntry = typeof tradingJournalEntries.$inferSelect;
+
+export type InsertTradingJournalImage = z.infer<typeof insertTradingJournalImageSchema>;
+export type TradingJournalImage = typeof tradingJournalImages.$inferSelect;
+
+export type InsertTradingJournalTag = z.infer<typeof insertTradingJournalTagSchema>;
+export type TradingJournalTag = typeof tradingJournalTags.$inferSelect;
+
+export type InsertTradingJournalEntryTag = z.infer<typeof insertTradingJournalEntryTagSchema>;
+export type TradingJournalEntryTag = typeof tradingJournalEntryTags.$inferSelect;
+
+// Trading Journal Entry with related data
+export type TradingJournalEntryWithImages = TradingJournalEntry & {
+  images: TradingJournalImage[];
+};
+
+export type TradingJournalEntryWithTags = TradingJournalEntry & {
+  entryTags: (TradingJournalEntryTag & { tag: TradingJournalTag })[];
+};
+
+export type TradingJournalEntryWithDetails = TradingJournalEntry & {
+  images: TradingJournalImage[];
+  entryTags: (TradingJournalEntryTag & { tag: TradingJournalTag })[];
+  trade?: Trade | null;
+};
