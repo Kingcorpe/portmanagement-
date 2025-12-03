@@ -1389,7 +1389,13 @@ export type InsertReferenceLink = z.infer<typeof insertReferenceLinkSchema>;
 export type UpdateReferenceLink = z.infer<typeof updateReferenceLinkSchema>;
 export type ReferenceLink = typeof referenceLinks.$inferSelect;
 
-// Milestone category enum
+// Milestone type enum (business vs personal)
+export const milestoneTypeEnum = pgEnum("milestone_type", [
+  "business",
+  "personal",
+]);
+
+// Business milestone category enum
 export const milestoneCategoryEnum = pgEnum("milestone_category", [
   "client_win",
   "personal_growth",
@@ -1399,13 +1405,28 @@ export const milestoneCategoryEnum = pgEnum("milestone_category", [
   "other",
 ]);
 
+// Personal milestone category enum
+export const personalMilestoneCategoryEnum = pgEnum("personal_milestone_category", [
+  "health_fitness",
+  "family",
+  "learning",
+  "hobbies",
+  "travel",
+  "financial",
+  "relationships",
+  "self_care",
+  "personal_other",
+]);
+
 // Milestones table (for capturing wins and achievements)
 export const milestones = pgTable("milestones", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }),
+  milestoneType: milestoneTypeEnum("milestone_type").notNull().default("business"),
   title: text("title").notNull(),
   description: text("description"),
   category: milestoneCategoryEnum("category").notNull().default("other"),
+  personalCategory: personalMilestoneCategoryEnum("personal_category"),
   impactValue: varchar("impact_value"), // e.g., "$500K AUM", "20 new clients"
   achievedDate: timestamp("achieved_date").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -1425,8 +1446,11 @@ export const insertMilestoneSchema = createInsertSchema(milestones).omit({
   createdAt: true,
   updatedAt: true,
 }).extend({
+  milestoneType: z.enum(["business", "personal"]).default("business"),
   title: z.string().min(1, "Title is required").max(200, "Title must be 200 characters or less"),
   description: z.string().max(2000, "Description must be 2000 characters or less").optional().nullable(),
+  category: z.enum(["client_win", "personal_growth", "business_milestone", "team_achievement", "process_improvement", "other"]).optional().nullable(),
+  personalCategory: z.enum(["health_fitness", "family", "learning", "hobbies", "travel", "financial", "relationships", "self_care", "personal_other"]).optional().nullable(),
   impactValue: z.string().max(100, "Impact value must be 100 characters or less").optional().nullable(),
   achievedDate: z.coerce.date(),
 });
@@ -1438,6 +1462,9 @@ export const updateMilestoneSchema = createInsertSchema(milestones).omit({
   createdAt: true,
   updatedAt: true,
 }).extend({
+  milestoneType: z.enum(["business", "personal"]).optional(),
+  category: z.enum(["client_win", "personal_growth", "business_milestone", "team_achievement", "process_improvement", "other"]).optional().nullable(),
+  personalCategory: z.enum(["health_fitness", "family", "learning", "hobbies", "travel", "financial", "relationships", "self_care", "personal_other"]).optional().nullable(),
   achievedDate: z.coerce.date().optional(),
 }).partial();
 
