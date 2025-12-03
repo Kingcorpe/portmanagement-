@@ -158,11 +158,34 @@ try {
   console.log('👤 Migrating Individuals...');
   const localIndividuals = await localDb.select().from(schema.individuals);
   
+  // Build a map of local household IDs to Railway household IDs (by name)
+  const householdIdMap = new Map();
+  const railwayHouseholds = await railwayDb
+    .select()
+    .from(schema.households)
+    .where(isNull(schema.households.deletedAt));
+  
+  for (const localHousehold of localHouseholds) {
+    const railwayHousehold = railwayHouseholds.find(h => h.name === localHousehold.name);
+    if (railwayHousehold) {
+      householdIdMap.set(localHousehold.id, railwayHousehold.id);
+    }
+  }
+  
   if (localIndividuals.length === 0) {
     console.log('  ℹ No individuals to migrate\n');
   } else {
     for (const individual of localIndividuals) {
       try {
+        // Map householdId from local to Railway
+        const railwayHouseholdId = householdIdMap.get(individual.householdId);
+        if (!railwayHouseholdId) {
+          stats.individuals.errors++;
+          console.error(`  ✗ ${individual.name}: Household ID ${individual.householdId} not found in Railway`);
+          console.error(`    ⚠ Skipping - household "${localHouseholds.find(h => h.id === individual.householdId)?.name || 'unknown'}" not migrated or not found`);
+          continue;
+        }
+        
         // Check if individual exists by name and householdId
         const existing = await railwayDb
           .select()
@@ -170,19 +193,24 @@ try {
           .where(
             and(
               eq(schema.individuals.name, individual.name),
-              eq(schema.individuals.householdId, individual.householdId)
+              eq(schema.individuals.householdId, railwayHouseholdId)
             )
           )
           .limit(1);
         
+        const individualData = {
+          ...individual,
+          householdId: railwayHouseholdId, // Use Railway household ID
+        };
+        
         if (existing.length > 0) {
           await railwayDb
             .update(schema.individuals)
-            .set({ ...individual, updatedAt: new Date() })
+            .set({ ...individualData, updatedAt: new Date() })
             .where(eq(schema.individuals.id, existing[0].id));
           stats.individuals.updated++;
         } else {
-          await railwayDb.insert(schema.individuals).values(individual);
+          await railwayDb.insert(schema.individuals).values(individualData);
           stats.individuals.imported++;
           console.log(`  ✓ ${individual.name}`);
         }
@@ -191,11 +219,6 @@ try {
         console.error(`  ✗ ${individual.name}: ${error.message}`);
         if (error.code) {
           console.error(`    Error code: ${error.code}, Detail: ${error.detail || 'N/A'}`);
-        }
-        // Check if it's a foreign key constraint (householdId doesn't exist)
-        if (error.code === '23503' && error.detail && error.detail.includes('household')) {
-          console.error(`    ⚠ Household ID ${individual.householdId} doesn't exist in Railway yet`);
-          console.error(`    This individual will be skipped. Migrate households first, or this individual's household wasn't migrated.`);
         }
       }
     }
@@ -211,6 +234,14 @@ try {
   } else {
     for (const corp of localCorporations) {
       try {
+        // Map householdId from local to Railway
+        const railwayHouseholdId = householdIdMap.get(corp.householdId);
+        if (!railwayHouseholdId) {
+          stats.corporations.errors++;
+          console.error(`  ✗ ${corp.name}: Household ID ${corp.householdId} not found in Railway`);
+          continue;
+        }
+        
         // Check if corporation exists by name and householdId
         const existing = await railwayDb
           .select()
@@ -218,19 +249,24 @@ try {
           .where(
             and(
               eq(schema.corporations.name, corp.name),
-              eq(schema.corporations.householdId, corp.householdId)
+              eq(schema.corporations.householdId, railwayHouseholdId)
             )
           )
           .limit(1);
         
+        const corpData = {
+          ...corp,
+          householdId: railwayHouseholdId, // Use Railway household ID
+        };
+        
         if (existing.length > 0) {
           await railwayDb
             .update(schema.corporations)
-            .set({ ...corp, updatedAt: new Date() })
+            .set({ ...corpData, updatedAt: new Date() })
             .where(eq(schema.corporations.id, existing[0].id));
           stats.corporations.updated++;
         } else {
-          await railwayDb.insert(schema.corporations).values(corp);
+          await railwayDb.insert(schema.corporations).values(corpData);
           stats.corporations.imported++;
           console.log(`  ✓ ${corp.name}`);
         }
@@ -245,6 +281,38 @@ try {
   }
   console.log(`  ✅ Corporations: ${stats.corporations.imported} imported, ${stats.corporations.updated} updated, ${stats.corporations.errors} errors\n`);
 
+  // Build maps for individuals and corporations (local ID -> Railway ID)
+  const individualIdMap = new Map();
+  const corporationIdMap = new Map();
+  
+  // Get all Railway individuals and corporations to build the maps
+  const railwayIndividuals = await railwayDb.select().from(schema.individuals);
+  const railwayCorporations = await railwayDb.select().from(schema.corporations);
+  
+  for (const localIndividual of localIndividuals) {
+    const railwayHouseholdId = householdIdMap.get(localIndividual.householdId);
+    if (railwayHouseholdId) {
+      const railwayIndividual = railwayIndividuals.find(
+        i => i.name === localIndividual.name && i.householdId === railwayHouseholdId
+      );
+      if (railwayIndividual) {
+        individualIdMap.set(localIndividual.id, railwayIndividual.id);
+      }
+    }
+  }
+  
+  for (const localCorp of localCorporations) {
+    const railwayHouseholdId = householdIdMap.get(localCorp.householdId);
+    if (railwayHouseholdId) {
+      const railwayCorp = railwayCorporations.find(
+        c => c.name === localCorp.name && c.householdId === railwayHouseholdId
+      );
+      if (railwayCorp) {
+        corporationIdMap.set(localCorp.id, railwayCorp.id);
+      }
+    }
+  }
+
   // 5. Migrate Accounts (Individual, Corporate, Joint)
   console.log('💼 Migrating Accounts...');
   
@@ -252,6 +320,13 @@ try {
   const localIndividualAccounts = await localDb.select().from(schema.individualAccounts);
   for (const account of localIndividualAccounts) {
     try {
+      const railwayIndividualId = individualIdMap.get(account.individualId);
+      if (!railwayIndividualId) {
+        stats.accounts.errors++;
+        console.error(`  ✗ Individual Account: Individual ID ${account.individualId} not found in Railway`);
+        continue;
+      }
+      
       const existing = await railwayDb
         .select()
         .from(schema.individualAccounts)
@@ -259,11 +334,17 @@ try {
         .limit(1);
       
       if (existing.length === 0) {
-        await railwayDb.insert(schema.individualAccounts).values(account);
+        const accountData = {
+          ...account,
+          individualId: railwayIndividualId, // Use Railway individual ID
+        };
+        await railwayDb.insert(schema.individualAccounts).values(accountData);
         stats.accounts.imported++;
+        console.log(`  ✓ Individual Account: ${account.type}`);
       }
     } catch (error) {
       stats.accounts.errors++;
+      console.error(`  ✗ Individual Account: ${error.message}`);
     }
   }
   
@@ -271,6 +352,13 @@ try {
   const localCorporateAccounts = await localDb.select().from(schema.corporateAccounts);
   for (const account of localCorporateAccounts) {
     try {
+      const railwayCorporationId = corporationIdMap.get(account.corporationId);
+      if (!railwayCorporationId) {
+        stats.accounts.errors++;
+        console.error(`  ✗ Corporate Account: Corporation ID ${account.corporationId} not found in Railway`);
+        continue;
+      }
+      
       const existing = await railwayDb
         .select()
         .from(schema.corporateAccounts)
@@ -278,18 +366,31 @@ try {
         .limit(1);
       
       if (existing.length === 0) {
-        await railwayDb.insert(schema.corporateAccounts).values(account);
+        const accountData = {
+          ...account,
+          corporationId: railwayCorporationId, // Use Railway corporation ID
+        };
+        await railwayDb.insert(schema.corporateAccounts).values(accountData);
         stats.accounts.imported++;
+        console.log(`  ✓ Corporate Account: ${account.type}`);
       }
     } catch (error) {
       stats.accounts.errors++;
+      console.error(`  ✗ Corporate Account: ${error.message}`);
     }
   }
   
-  // Joint Accounts
+  // Joint Accounts (they reference households directly, which we've already mapped)
   const localJointAccounts = await localDb.select().from(schema.jointAccounts);
   for (const account of localJointAccounts) {
     try {
+      const railwayHouseholdId = householdIdMap.get(account.householdId);
+      if (!railwayHouseholdId) {
+        stats.accounts.errors++;
+        console.error(`  ✗ Joint Account: Household ID ${account.householdId} not found in Railway`);
+        continue;
+      }
+      
       const existing = await railwayDb
         .select()
         .from(schema.jointAccounts)
@@ -297,14 +398,20 @@ try {
         .limit(1);
       
       if (existing.length === 0) {
-        await railwayDb.insert(schema.jointAccounts).values(account);
+        const accountData = {
+          ...account,
+          householdId: railwayHouseholdId, // Use Railway household ID
+        };
+        await railwayDb.insert(schema.jointAccounts).values(accountData);
         stats.accounts.imported++;
+        console.log(`  ✓ Joint Account: ${account.type}`);
       }
     } catch (error) {
       stats.accounts.errors++;
+      console.error(`  ✗ Joint Account: ${error.message}`);
     }
   }
-  console.log(`  ✅ Accounts: ${stats.accounts.imported} imported\n`);
+  console.log(`  ✅ Accounts: ${stats.accounts.imported} imported, ${stats.accounts.errors} errors\n`);
 
   // 6. Migrate Positions
   console.log('📊 Migrating Positions...');
