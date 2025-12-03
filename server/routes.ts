@@ -53,6 +53,9 @@ async function sendTradingAlertEmail(symbol: string, signal: string, price: stri
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
         },
+        connectionTimeout: 10000, // 10 seconds
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
       });
       
       const signalColor = signal === 'BUY' ? '#22c55e' : '#ef4444';
