@@ -96,27 +96,49 @@ export async function setupAuth(app: Express) {
     
     // Use existing Replit user ID to access existing data
     // Change this to your Replit user ID if you have existing data
-    const devUserId = process.env.DEV_USER_ID || "50142011";
+    let devUserId = process.env.DEV_USER_ID || "50142011";
     
-    // Only upsert if user doesn't exist (to preserve existing user data)
-    // Wrap in try-catch to handle case where user with same email but different ID exists
+    // CRITICAL: Ensure user exists in database
+    // Handle both cases: user doesn't exist, or user exists with different ID but same email
     try {
-      const existingUser = await storage.getUser(devUserId);
+      let existingUser = await storage.getUser(devUserId);
       if (!existingUser) {
-        await storage.upsertUser({
-          id: devUserId,
-          email: "dev@localhost",
-          firstName: "Local",
-          lastName: "Developer",
-          profileImageUrl: null,
-        });
+        // Try to create user
+        try {
+          existingUser = await storage.upsertUser({
+            id: devUserId,
+            email: "dev@localhost",
+            firstName: "Local",
+            lastName: "Developer",
+            profileImageUrl: null,
+          });
+          console.log(`User ${devUserId} created successfully`);
+        } catch (createError: any) {
+          // If duplicate email, find existing user and use that ID
+          if (createError?.code === '23505' && createError?.constraint === 'users_email_unique') {
+            const { db } = await import("./db");
+            const { users } = await import("@shared/schema");
+            const { eq } = await import("drizzle-orm");
+            const usersWithEmail = await db.select().from(users).where(eq(users.email, "dev@localhost"));
+            if (usersWithEmail.length > 0) {
+              existingUser = usersWithEmail[0];
+              console.log(`User with email dev@localhost already exists with ID ${existingUser.id}, using that`);
+              // Update devUserId to match existing user
+              devUserId = existingUser.id;
+            } else {
+              throw createError;
+            }
+          } else {
+            throw createError;
+          }
+        }
+      }
+      if (!existingUser) {
+        throw new Error("Failed to ensure user exists in database");
       }
     } catch (error: any) {
-      // Ignore duplicate key errors (user already exists with same email)
-      if (error?.code !== '23505') {
-        throw error;
-      }
-      console.log("User already exists, skipping creation");
+      console.error("Error ensuring user exists:", error);
+      // Don't throw - let the app start, but log the error
     }
     
     passport.serializeUser((user: Express.User, cb) => cb(null, user));
