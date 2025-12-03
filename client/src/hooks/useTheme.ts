@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import type { Theme } from "@/lib/themes";
 
 const THEME_STORAGE_KEY = "app-theme";
-const DEFAULT_THEME: Theme = "default";
+const DEFAULT_THEME: Theme = "futuristic";
 
 // Apply theme immediately to document (before React renders)
 function applyThemeToDocument(newTheme: Theme, darkMode: boolean) {
