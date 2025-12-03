@@ -96,15 +96,24 @@ export async function setupAuth(app: Express) {
     const devUserId = process.env.DEV_USER_ID || "50142011";
     
     // Only upsert if user doesn't exist (to preserve existing user data)
-    const existingUser = await storage.getUser(devUserId);
-    if (!existingUser) {
-      await storage.upsertUser({
-        id: devUserId,
-        email: "dev@localhost",
-        firstName: "Local",
-        lastName: "Developer",
-        profileImageUrl: null,
-      });
+    // Wrap in try-catch to handle case where user with same email but different ID exists
+    try {
+      const existingUser = await storage.getUser(devUserId);
+      if (!existingUser) {
+        await storage.upsertUser({
+          id: devUserId,
+          email: "dev@localhost",
+          firstName: "Local",
+          lastName: "Developer",
+          profileImageUrl: null,
+        });
+      }
+    } catch (error: any) {
+      // Ignore duplicate key errors (user already exists with same email)
+      if (error?.code !== '23505') {
+        throw error;
+      }
+      console.log("User already exists, skipping creation");
     }
     
     passport.serializeUser((user: Express.User, cb) => cb(null, user));
