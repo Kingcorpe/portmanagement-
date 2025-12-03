@@ -140,7 +140,8 @@ export function AppSidebar() {
     location.startsWith("/key-metrics") || 
     location.startsWith("/insurance-revenue") || 
     location.startsWith("/investment-revenue") ||
-    location.startsWith("/milestones")
+    location.startsWith("/milestones") ||
+    location.startsWith("/personal-milestones")
   );
   const [libraryOpen, setLibraryOpen] = useState(location.startsWith("/library"));
   const [investmentDivisionOpen, setInvestmentDivisionOpen] = useState(
@@ -161,7 +162,8 @@ export function AppSidebar() {
     location.startsWith("/key-metrics") || 
     location.startsWith("/insurance-revenue") || 
     location.startsWith("/investment-revenue") ||
-    location.startsWith("/milestones");
+    location.startsWith("/milestones") ||
+    location.startsWith("/personal-milestones");
   const isLibraryActive = location.startsWith("/library");
   const isInvestmentDivisionActive = 
     location.startsWith("/model-portfolios") || 
