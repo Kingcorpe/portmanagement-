@@ -1388,3 +1388,58 @@ export const updateReferenceLinkSchema = createInsertSchema(referenceLinks).omit
 export type InsertReferenceLink = z.infer<typeof insertReferenceLinkSchema>;
 export type UpdateReferenceLink = z.infer<typeof updateReferenceLinkSchema>;
 export type ReferenceLink = typeof referenceLinks.$inferSelect;
+
+// Milestone category enum
+export const milestoneCategoryEnum = pgEnum("milestone_category", [
+  "client_win",
+  "personal_growth",
+  "business_milestone",
+  "team_achievement",
+  "process_improvement",
+  "other",
+]);
+
+// Milestones table (for capturing wins and achievements)
+export const milestones = pgTable("milestones", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }),
+  title: text("title").notNull(),
+  description: text("description"),
+  category: milestoneCategoryEnum("category").notNull().default("other"),
+  impactValue: varchar("impact_value"), // e.g., "$500K AUM", "20 new clients"
+  achievedDate: timestamp("achieved_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const milestonesRelations = relations(milestones, ({ one }) => ({
+  user: one(users, {
+    fields: [milestones.userId],
+    references: [users.id],
+  }),
+}));
+
+// Milestones insert schema
+export const insertMilestoneSchema = createInsertSchema(milestones).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  title: z.string().min(1, "Title is required").max(200, "Title must be 200 characters or less"),
+  description: z.string().max(2000, "Description must be 2000 characters or less").optional().nullable(),
+  impactValue: z.string().max(100, "Impact value must be 100 characters or less").optional().nullable(),
+  achievedDate: z.coerce.date(),
+});
+
+// Milestones update schema
+export const updateMilestoneSchema = createInsertSchema(milestones).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
+
+// Milestones types
+export type InsertMilestone = z.infer<typeof insertMilestoneSchema>;
+export type UpdateMilestone = z.infer<typeof updateMilestoneSchema>;
+export type Milestone = typeof milestones.$inferSelect;
