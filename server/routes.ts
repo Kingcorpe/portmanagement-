@@ -518,26 +518,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const parsed = insertHouseholdSchema.parse(req.body);
       
-      // Ensure user exists in database (for local dev mode)
-      if (isLocalDev) {
+      // CRITICAL: Ensure user exists in database BEFORE creating household
+      // This fixes the foreign key constraint violation
+      let user = await storage.getUser(userId);
+      if (!user) {
+        console.log(`User ${userId} not found, creating user...`);
         try {
-          const user = await storage.getUser(userId);
-          if (!user) {
-            // Auto-create user if it doesn't exist (local dev mode)
-            await storage.upsertUser({
-              id: userId,
-              email: req.user.claims.email || "dev@localhost",
-              firstName: req.user.claims.first_name || "Local",
-              lastName: req.user.claims.last_name || "Developer",
-              profileImageUrl: req.user.claims.profile_image_url || null,
-            });
-          }
+          // Auto-create user if it doesn't exist
+          user = await storage.upsertUser({
+            id: userId,
+            email: req.user.claims.email || req.user.claims.email_address || "dev@localhost",
+            firstName: req.user.claims.first_name || req.user.claims.given_name || "Local",
+            lastName: req.user.claims.last_name || req.user.claims.family_name || "Developer",
+            profileImageUrl: req.user.claims.profile_image_url || null,
+          });
+          console.log(`User ${userId} created successfully`);
         } catch (userError: any) {
-          // Ignore duplicate key errors
-          if (userError?.code !== '23505') {
-            console.error("Error ensuring user exists:", userError);
+          // If duplicate key error, user was created by another request - fetch it
+          if (userError?.code === '23505') {
+            console.log(`User ${userId} already exists (duplicate key), fetching...`);
+            user = await storage.getUser(userId);
+            if (!user) {
+              throw new Error(`Failed to create or fetch user ${userId}: ${userError.message}`);
+            }
+          } else {
+            console.error("Error creating user:", userError);
+            throw new Error(`Failed to create user: ${userError.message}`);
           }
         }
+      }
+      
+      if (!user) {
+        throw new Error(`User ${userId} does not exist and could not be created`);
       }
       
       // Check for duplicate household name
