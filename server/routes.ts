@@ -4101,7 +4101,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/universal-holdings', isAuthenticated, async (req, res) => {
     try {
-      const parsed = insertUniversalHoldingSchema.parse(req.body);
+      // Normalize crypto tickers (e.g., "btcusd" -> "BTC-USD") before validation
+      const normalizedData = {
+        ...req.body,
+        ticker: req.body.ticker ? normalizeCryptoTicker(req.body.ticker) : req.body.ticker,
+      };
+      
+      const parsed = insertUniversalHoldingSchema.parse(normalizedData);
       const holding = await storage.createUniversalHolding(parsed);
       res.json(holding);
     } catch (error: any) {
@@ -4627,6 +4633,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.patch('/api/universal-holdings/:id', isAuthenticated, async (req, res) => {
+    // Normalize crypto tickers if ticker is being updated
+    if (req.body.ticker) {
+      req.body.ticker = normalizeCryptoTicker(req.body.ticker);
+    }
     try {
       const parsed = updateUniversalHoldingSchema.parse(req.body);
       const holding = await storage.updateUniversalHolding(req.params.id, parsed);
