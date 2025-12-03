@@ -190,7 +190,7 @@ export default function PersonalMilestonesPage() {
 
     const submitData = {
       ...formData,
-      achievedDate: new Date(formData.achievedDate).toISOString(),
+      achievedDate: new Date(formData.achievedDate + "T12:00:00").toISOString(),
     };
 
     if (editingMilestone) {
