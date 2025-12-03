@@ -438,75 +438,117 @@ try {
   console.log('📋 Migrating Planned Portfolios...');
   const localPortfolios = await localDb.select().from(schema.plannedPortfolios);
   
-  for (const portfolio of localPortfolios) {
-    try {
-      // Check if portfolio exists by name (since IDs might differ)
-      const existingByName = await railwayDb
-        .select()
-        .from(schema.plannedPortfolios)
-        .where(eq(schema.plannedPortfolios.name, portfolio.name))
-        .limit(1);
-      
-      let portfolioId = portfolio.id;
-      
-      if (existingByName.length > 0) {
-        // Portfolio with same name exists, use that ID
-        portfolioId = existingByName[0].id;
-        stats.portfolios.updated++;
-        console.log(`  ⊘ ${portfolio.name}: Already exists, updating allocations`);
-      } else {
-        // Create new portfolio, but update userId to match Railway user
-        const portfolioData = {
-          ...portfolio,
-          userId: railwayUserId || portfolio.userId, // Use Railway user ID if available
-        };
-        await railwayDb.insert(schema.plannedPortfolios).values(portfolioData);
-        stats.portfolios.imported++;
-        console.log(`  ✓ ${portfolio.name}`);
-      }
-      
-      // Migrate portfolio allocations
-      const allocations = await localDb
-        .select()
-        .from(schema.plannedPortfolioAllocations)
-        .where(eq(schema.plannedPortfolioAllocations.plannedPortfolioId, portfolio.id));
-      
-      let allocationsImported = 0;
-      for (const allocation of allocations) {
-        try {
-          // Check if allocation already exists
-          const existingAlloc = await railwayDb
-            .select()
-            .from(schema.plannedPortfolioAllocations)
-            .where(
-              and(
-                eq(schema.plannedPortfolioAllocations.plannedPortfolioId, portfolioId),
-                eq(schema.plannedPortfolioAllocations.universalHoldingId, allocation.universalHoldingId)
-              )
-            )
-            .limit(1);
-          
-          if (existingAlloc.length === 0) {
-            await railwayDb.insert(schema.plannedPortfolioAllocations).values({
-              ...allocation,
-              plannedPortfolioId: portfolioId, // Use the correct portfolio ID
-            });
-            allocationsImported++;
-          }
-        } catch (e) {
-          // Skip if error (might be duplicate or foreign key issue)
-          console.error(`    ⚠ Allocation error: ${e.message}`);
-        }
-      }
-      if (allocationsImported > 0) {
-        console.log(`    → ${allocationsImported} allocations imported`);
-      }
-    } catch (error) {
-      stats.portfolios.errors++;
-      console.error(`  ✗ ${portfolio.name}: ${error.message}`);
+  // Build a map of local holding IDs to Railway holding IDs (by ticker)
+  const holdingIdMap = new Map();
+  const railwayHoldings = await railwayDb.select().from(schema.universalHoldings);
+  const localHoldings = await localDb.select().from(schema.universalHoldings);
+  
+  for (const localHolding of localHoldings) {
+    const railwayHolding = railwayHoldings.find(h => h.ticker === localHolding.ticker);
+    if (railwayHolding) {
+      holdingIdMap.set(localHolding.id, railwayHolding.id);
     }
   }
-  console.log(`  ✅ Portfolios: ${stats.portfolios.imported} imported, ${stats.portfolios.updated} updated\n`);
+  
+  if (localPortfolios.length === 0) {
+    console.log('  ℹ No planned portfolios to migrate\n');
+  } else {
+    for (const portfolio of localPortfolios) {
+      try {
+        // Check if portfolio exists by name and userId (since IDs might differ)
+        const existingByName = await railwayDb
+          .select()
+          .from(schema.plannedPortfolios)
+          .where(
+            and(
+              eq(schema.plannedPortfolios.name, portfolio.name),
+              railwayUserId ? eq(schema.plannedPortfolios.userId, railwayUserId) : undefined
+            )
+          )
+          .limit(1);
+        
+        let portfolioId = portfolio.id;
+        
+        if (existingByName.length > 0) {
+          // Portfolio with same name exists, use that ID
+          portfolioId = existingByName[0].id;
+          stats.portfolios.updated++;
+          console.log(`  ⊘ ${portfolio.name}: Already exists, updating allocations`);
+        } else {
+          // Create new portfolio, but update userId to match Railway user
+          const portfolioData = {
+            ...portfolio,
+            userId: railwayUserId || portfolio.userId, // Use Railway user ID if available
+          };
+          const inserted = await railwayDb.insert(schema.plannedPortfolios).values(portfolioData).returning();
+          portfolioId = inserted[0].id;
+          stats.portfolios.imported++;
+          console.log(`  ✓ ${portfolio.name}`);
+        }
+        
+        // Migrate portfolio allocations
+        const allocations = await localDb
+          .select()
+          .from(schema.plannedPortfolioAllocations)
+          .where(eq(schema.plannedPortfolioAllocations.plannedPortfolioId, portfolio.id));
+        
+        let allocationsImported = 0;
+        let allocationsErrors = 0;
+        
+        for (const allocation of allocations) {
+          try {
+            // Map universalHoldingId from local to Railway
+            const railwayHoldingId = holdingIdMap.get(allocation.universalHoldingId);
+            if (!railwayHoldingId) {
+              allocationsErrors++;
+              console.error(`    ⚠ Allocation: Holding ID ${allocation.universalHoldingId} not found in Railway`);
+              continue;
+            }
+            
+            // Check if allocation already exists
+            const existingAlloc = await railwayDb
+              .select()
+              .from(schema.plannedPortfolioAllocations)
+              .where(
+                and(
+                  eq(schema.plannedPortfolioAllocations.plannedPortfolioId, portfolioId),
+                  eq(schema.plannedPortfolioAllocations.universalHoldingId, railwayHoldingId)
+                )
+              )
+              .limit(1);
+            
+            if (existingAlloc.length === 0) {
+              await railwayDb.insert(schema.plannedPortfolioAllocations).values({
+                ...allocation,
+                plannedPortfolioId: portfolioId, // Use the correct portfolio ID
+                universalHoldingId: railwayHoldingId, // Use Railway holding ID
+              });
+              allocationsImported++;
+            }
+          } catch (e) {
+            allocationsErrors++;
+            console.error(`    ⚠ Allocation error: ${e.message}`);
+            if (e.code) {
+              console.error(`      Error code: ${e.code}, Detail: ${e.detail || 'N/A'}`);
+            }
+          }
+        }
+        if (allocationsImported > 0) {
+          console.log(`    → ${allocationsImported} allocations imported`);
+        }
+        if (allocationsErrors > 0) {
+          console.log(`    ⚠ ${allocationsErrors} allocation errors`);
+        }
+      } catch (error) {
+        stats.portfolios.errors++;
+        console.error(`  ✗ ${portfolio.name}: ${error.message}`);
+        if (error.code) {
+          console.error(`    Error code: ${error.code}, Detail: ${error.detail || 'N/A'}`);
+        }
+      }
+    }
+  }
+  console.log(`  ✅ Portfolios: ${stats.portfolios.imported} imported, ${stats.portfolios.updated} updated, ${stats.portfolios.errors} errors\n`);
 
   // Summary
   console.log('\n' + '='.repeat(50));
