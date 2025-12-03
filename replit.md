@@ -15,6 +15,18 @@ PracticeOS is a comprehensive practice management system designed for Canadian f
 ### UI/UX Decisions
 The platform features a household-based client management interface with collapsible cards, creation dialogs for all entities and account types, and robust form validation. Monetary values are consistently displayed in Canadian dollars (CA$) and performance indicators are color-coded for quick visual assessment.
 
+### Theme & Styling Standards
+- **Default Theme**: "futuristic" theme is set as the default for all users
+- **Card Styling**: All `<Card>` components must include futuristic utility classes:
+  - `glow-border` - Adds glowing border effect in futuristic theme
+  - `corner-accents` - Adds corner accent decorations (use for main section cards)
+  - `holo-card` - Adds holographic/shimmer effect (use for interactive or highlight cards)
+- **Usage Pattern**: 
+  - Stats/summary cards: `className="glow-border corner-accents"`
+  - Interactive/clickable cards: `className="glow-border holo-card"`
+  - Table/data cards: `className="glow-border corner-accents"`
+- **Theme Storage**: Uses localStorage with key "app-theme", syncs to document.documentElement class
+
 ### Technical Implementations
 - **Technology Stack**: React, TypeScript, Vite, Wouter (Frontend); Express, TypeScript (Backend); PostgreSQL (Neon) (Database); Drizzle (ORM); Replit Auth (OIDC) (Authentication); Zod (Validation).
 - **Data Model**: Household-based hierarchy supporting diverse Canadian account types (Individual, Corporate, Joint). Account balances are dynamically calculated from positions.
