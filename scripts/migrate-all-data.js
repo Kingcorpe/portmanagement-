@@ -91,16 +91,17 @@ try {
   }
   console.log(`  ✅ Holdings: ${stats.holdings.imported} imported, ${stats.holdings.updated} updated\n`);
 
+  // Get the current user ID in Railway (for userId mapping) - do this once at the start
+  const railwayUsers = await railwayDb.select().from(schema.users).limit(1);
+  const railwayUserId = railwayUsers.length > 0 ? railwayUsers[0].id : null;
+  console.log(`ℹ Using Railway user ID: ${railwayUserId || 'none'}\n`);
+
   // 2. Migrate Households
   console.log('🏠 Migrating Households...');
   const localHouseholds = await localDb
     .select()
     .from(schema.households)
     .where(isNull(schema.households.deletedAt)); // Only active households
-  
-  // Get the current user ID in Railway (for userId mapping)
-  const railwayUsers = await railwayDb.select().from(schema.users).limit(1);
-  const railwayUserId = railwayUsers.length > 0 ? railwayUsers[0].id : null;
   
   if (localHouseholds.length === 0) {
     console.log('  ℹ No households to migrate\n');
@@ -324,10 +325,6 @@ try {
   // 7. Migrate Planned Portfolios
   console.log('📋 Migrating Planned Portfolios...');
   const localPortfolios = await localDb.select().from(schema.plannedPortfolios);
-  
-  // Get the current user ID in Railway (for userId mapping)
-  const railwayUsers = await railwayDb.select().from(schema.users).limit(1);
-  const railwayUserId = railwayUsers.length > 0 ? railwayUsers[0].id : null;
   
   for (const portfolio of localPortfolios) {
     try {
