@@ -277,20 +277,35 @@ export function generateMilestonesReport(milestones: Milestone[]): Promise<Buffe
       return dateB.getTime() - dateA.getTime();
     });
 
-    // Render each month section
+    // Timeline settings
+    const timelineX = 70;        // X position for the vertical timeline line
+    const contentX = 90;         // X position where content starts (after timeline)
+    const contentWidth = 460;    // Width of content area
+    const dotRadius = 4;         // Size of timeline dots
+    const primaryColor = '#2563eb';  // Blue color for timeline
+    const lineColor = '#d1d5db';     // Gray color for timeline line
+
+    // Render each month section with timeline
     for (const [monthLabel, monthMilestones] of sortedMonths) {
       // Check if we need a new page
-      if (doc.y > 650) {
+      if (doc.y > 620) {
         doc.addPage();
         doc.y = 50;
       }
 
-      // Month header
-      doc.fontSize(14).font('Helvetica-Bold')
-         .fillColor('#374151')
-         .text(monthLabel);
+      // Month header with calendar icon indicator
+      doc.fontSize(16).font('Helvetica-Bold')
+         .fillColor('#1f2937')
+         .text(monthLabel, contentX, doc.y);
+      
+      // Badge showing count
+      const countBadgeX = contentX + doc.widthOfString(monthLabel) + 10;
+      doc.fontSize(9).font('Helvetica')
+         .fillColor('#6b7280')
+         .text(`(${monthMilestones.length})`, countBadgeX, doc.y - 14);
+      
       doc.fillColor('#000000');
-      doc.moveDown(0.3);
+      doc.moveDown(0.6);
 
       // Sort milestones within month by date (newest first)
       const sortedMilestones = monthMilestones.sort((a, b) => {
@@ -299,56 +314,83 @@ export function generateMilestonesReport(milestones: Milestone[]): Promise<Buffe
         return dateB - dateA;
       });
 
+      // Track start of timeline section for drawing the vertical line
+      const timelineStartY = doc.y;
+      let timelineEndY = timelineStartY;
+
       for (const milestone of sortedMilestones) {
         // Check if we need a new page
-        if (doc.y > 680) {
+        if (doc.y > 660) {
+          // Draw timeline line for current page before moving
+          if (timelineEndY > timelineStartY) {
+            doc.save();
+            doc.strokeColor(lineColor).lineWidth(2);
+            doc.moveTo(timelineX, timelineStartY).lineTo(timelineX, timelineEndY).stroke();
+            doc.restore();
+          }
           doc.addPage();
           doc.y = 50;
         }
 
+        const cardStartY = doc.y;
         const catInfo = MILESTONE_CATEGORIES[milestone.category || 'other'] || MILESTONE_CATEGORIES.other;
         const achievedDate = milestone.achievedDate 
           ? new Date(milestone.achievedDate).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
           : '';
 
+        // Draw timeline dot
+        doc.save();
+        doc.circle(timelineX, cardStartY + 8, dotRadius).fill(primaryColor);
+        doc.restore();
+
         // Category badge
-        doc.fontSize(8).font('Helvetica-Bold')
+        doc.fontSize(9).font('Helvetica-Bold')
            .fillColor(catInfo.color)
-           .text(catInfo.label.toUpperCase(), { continued: true });
+           .text(catInfo.label.toUpperCase(), contentX, doc.y, { continued: true });
         
-        // Date
+        // Date next to category
         doc.font('Helvetica')
-           .fillColor('#666666')
+           .fillColor('#6b7280')
            .text(`  ${achievedDate}`);
         
         doc.fillColor('#000000');
+        doc.moveDown(0.15);
+
+        // Title - larger and bold
+        doc.fontSize(13).font('Helvetica-Bold')
+           .fillColor('#111827')
+           .text(milestone.title, contentX, doc.y, { width: contentWidth });
+        doc.fillColor('#000000');
         doc.moveDown(0.2);
 
-        // Title
-        doc.fontSize(12).font('Helvetica-Bold')
-           .text(milestone.title);
-        doc.moveDown(0.1);
-
-        // Impact value if present
+        // Impact value if present - prominent green
         if (milestone.impactValue) {
-          doc.fontSize(10).font('Helvetica')
-             .fillColor('#16a34a')
-             .text(`Impact: ${milestone.impactValue}`);
+          doc.fontSize(12).font('Helvetica-Bold')
+             .fillColor('#059669')
+             .text(milestone.impactValue, contentX);
           doc.fillColor('#000000');
+          doc.moveDown(0.15);
         }
 
         // Description if present
         if (milestone.description) {
-          doc.fontSize(9).font('Helvetica')
+          doc.fontSize(10).font('Helvetica')
              .fillColor('#4b5563')
-             .text(milestone.description, { width: 500 });
+             .text(milestone.description, contentX, doc.y, { width: contentWidth });
           doc.fillColor('#000000');
         }
 
-        doc.moveDown(0.8);
+        doc.moveDown(1);
+        timelineEndY = doc.y - 10;
       }
 
-      doc.moveDown(0.5);
+      // Draw the vertical timeline line for this month's milestones
+      doc.save();
+      doc.strokeColor(lineColor).lineWidth(2);
+      doc.moveTo(timelineX, timelineStartY).lineTo(timelineX, timelineEndY).stroke();
+      doc.restore();
+
+      doc.moveDown(0.8);
     }
 
     // Footer
