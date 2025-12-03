@@ -221,43 +221,7 @@ export default function BusinessMilestonesPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-semibold text-foreground" data-testid="page-title-milestones">
-            <Briefcase className="w-8 h-8 inline-block mr-2 -mt-1" />
-            Business Milestones
-          </h1>
-          <p className="text-muted-foreground mt-1">Track your professional achievements and business wins</p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-[180px]" data-testid="filter-category">
-              <SelectValue placeholder="Filter by category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {Object.entries(CATEGORIES).map(([key, { label }]) => (
-                <SelectItem key={key} value={key}>{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            onClick={handleDownloadPdf}
-            disabled={isDownloading || milestones.length === 0}
-            data-testid="button-download-pdf"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            {isDownloading ? "Downloading..." : "Download PDF"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setEmailDialogOpen(true)}
-            disabled={milestones.length === 0}
-            data-testid="button-email-pdf"
-          >
-            <Mail className="w-4 h-4 mr-2" />
-            Email PDF
-          </Button>
+        <div className="flex items-center gap-4 flex-wrap">
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button 
@@ -354,6 +318,44 @@ export default function BusinessMilestonesPage() {
               </form>
             </DialogContent>
           </Dialog>
+          <div>
+            <h1 className="text-3xl font-semibold text-foreground" data-testid="page-title-milestones">
+              <Briefcase className="w-8 h-8 inline-block mr-2 -mt-1" />
+              Business Milestones
+            </h1>
+            <p className="text-muted-foreground mt-1">Track your professional achievements and business wins</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className="w-[180px]" data-testid="filter-category">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {Object.entries(CATEGORIES).map(([key, { label }]) => (
+                <SelectItem key={key} value={key}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            onClick={handleDownloadPdf}
+            disabled={isDownloading || milestones.length === 0}
+            data-testid="button-download-pdf"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {isDownloading ? "Downloading..." : "Download PDF"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setEmailDialogOpen(true)}
+            disabled={milestones.length === 0}
+            data-testid="button-email-pdf"
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Email PDF
+          </Button>
         </div>
       </div>
 

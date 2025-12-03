@@ -224,43 +224,7 @@ export default function PersonalMilestonesPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-3xl font-semibold text-foreground" data-testid="page-title-personal-milestones">
-            <User className="w-8 h-8 inline-block mr-2 -mt-1" />
-            Personal Milestones
-          </h1>
-          <p className="text-muted-foreground mt-1">Celebrate your personal growth and life achievements</p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-[180px]" data-testid="filter-personal-category">
-              <SelectValue placeholder="Filter by category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {Object.entries(PERSONAL_CATEGORIES).map(([key, { label }]) => (
-                <SelectItem key={key} value={key}>{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            onClick={handleDownloadPdf}
-            disabled={isDownloading || milestones.length === 0}
-            data-testid="button-download-personal-pdf"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            {isDownloading ? "Downloading..." : "Download PDF"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setEmailDialogOpen(true)}
-            disabled={milestones.length === 0}
-            data-testid="button-email-personal-pdf"
-          >
-            <Mail className="w-4 h-4 mr-2" />
-            Email PDF
-          </Button>
+        <div className="flex items-center gap-4 flex-wrap">
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button 
@@ -357,6 +321,44 @@ export default function PersonalMilestonesPage() {
               </form>
             </DialogContent>
           </Dialog>
+          <div>
+            <h1 className="text-3xl font-semibold text-foreground" data-testid="page-title-personal-milestones">
+              <User className="w-8 h-8 inline-block mr-2 -mt-1" />
+              Personal Milestones
+            </h1>
+            <p className="text-muted-foreground mt-1">Celebrate your personal growth and life achievements</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className="w-[180px]" data-testid="filter-personal-category">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {Object.entries(PERSONAL_CATEGORIES).map(([key, { label }]) => (
+                <SelectItem key={key} value={key}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            onClick={handleDownloadPdf}
+            disabled={isDownloading || milestones.length === 0}
+            data-testid="button-download-personal-pdf"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {isDownloading ? "Downloading..." : "Download PDF"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setEmailDialogOpen(true)}
+            disabled={milestones.length === 0}
+            data-testid="button-email-personal-pdf"
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Email PDF
+          </Button>
         </div>
       </div>
 
