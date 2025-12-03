@@ -193,8 +193,22 @@ export async function setupAuth(app: Express) {
       res.redirect("/");
     });
 
-    app.get("/api/logout", (req, res) => {
-      res.redirect("/");
+    app.get("/api/logout", (req: any, res) => {
+      // Destroy the session to actually log out
+      req.logout((err: any) => {
+        if (err) {
+          console.error("Logout error:", err);
+        }
+        // Destroy the session
+        req.session.destroy((err: any) => {
+          if (err) {
+            console.error("Session destroy error:", err);
+          }
+          // Clear the session cookie
+          res.clearCookie('connect.sid');
+          res.redirect("/");
+        });
+      });
     });
 
     return;
