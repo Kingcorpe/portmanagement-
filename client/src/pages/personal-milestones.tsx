@@ -263,8 +263,13 @@ export default function PersonalMilestonesPage() {
           </Button>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={handleAddClick} data-testid="button-add-personal-milestone">
-                <Plus className="w-4 h-4 mr-2" />
+              <Button 
+                onClick={handleAddClick} 
+                size="lg"
+                className="bg-primary hover-elevate shadow-lg font-semibold"
+                data-testid="button-add-personal-milestone"
+              >
+                <Plus className="w-5 h-5 mr-2" />
                 Add Milestone
               </Button>
             </DialogTrigger>
