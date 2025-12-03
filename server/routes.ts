@@ -6887,7 +6887,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/milestones', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const milestones = await storage.getMilestonesByUser(userId);
+      const { type } = req.query;
+      const milestoneType = type === 'personal' ? 'personal' : type === 'business' ? 'business' : undefined;
+      const milestones = await storage.getMilestonesByUser(userId, milestoneType);
       res.json(milestones);
     } catch (error: any) {
       console.error("Error fetching milestones:", error);
@@ -6948,11 +6950,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/milestones/export/pdf', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const milestones = await storage.getMilestonesByUser(userId);
+      const { type } = req.query;
+      const milestoneType = type === 'personal' ? 'personal' : type === 'business' ? 'business' : undefined;
+      const milestones = await storage.getMilestonesByUser(userId, milestoneType);
       
-      const pdfBuffer = await generateMilestonesReport(milestones);
+      const reportTitle = type === 'personal' ? 'Personal Milestones' : type === 'business' ? 'Business Milestones' : 'Milestones & Wins';
+      const pdfBuffer = await generateMilestonesReport(milestones, reportTitle);
       
-      const fileName = `Milestones_${new Date().toISOString().split('T')[0]}.pdf`;
+      const filePrefix = type === 'personal' ? 'Personal_Milestones' : type === 'business' ? 'Business_Milestones' : 'Milestones';
+      const fileName = `${filePrefix}_${new Date().toISOString().split('T')[0]}.pdf`;
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
       res.send(pdfBuffer);
@@ -6966,14 +6972,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/milestones/export/email', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { to, subject, message } = req.body;
+      const { to, subject, message, type } = req.body;
       
       if (!to || !to.includes('@')) {
         return res.status(400).json({ message: "Valid email address required" });
       }
       
-      const milestones = await storage.getMilestonesByUser(userId);
-      const pdfBuffer = await generateMilestonesReport(milestones);
+      const milestoneType = type === 'personal' ? 'personal' : type === 'business' ? 'business' : undefined;
+      const milestones = await storage.getMilestonesByUser(userId, milestoneType);
+      const reportTitle = type === 'personal' ? 'Personal Milestones' : type === 'business' ? 'Business Milestones' : 'Milestones & Wins';
+      const pdfBuffer = await generateMilestonesReport(milestones, reportTitle);
       
       const fileName = `Milestones_${new Date().toISOString().split('T')[0]}.pdf`;
       const emailSubject = subject || 'Milestones & Wins Report';

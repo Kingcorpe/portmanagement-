@@ -192,7 +192,7 @@ export function generatePortfolioRebalanceReport(data: ReportData): Promise<Buff
   });
 }
 
-// Category labels and colors for milestones
+// Business category labels and colors for milestones
 const MILESTONE_CATEGORIES: Record<string, { label: string; color: string }> = {
   client_win: { label: 'Client Win', color: '#16a34a' },
   personal_growth: { label: 'Personal Growth', color: '#9333ea' },
@@ -202,7 +202,20 @@ const MILESTONE_CATEGORIES: Record<string, { label: string; color: string }> = {
   other: { label: 'Other', color: '#6b7280' },
 };
 
-export function generateMilestonesReport(milestones: Milestone[]): Promise<Buffer> {
+// Personal category labels and colors
+const PERSONAL_MILESTONE_CATEGORIES: Record<string, { label: string; color: string }> = {
+  health_fitness: { label: 'Health & Fitness', color: '#16a34a' },
+  family: { label: 'Family', color: '#ec4899' },
+  learning: { label: 'Learning', color: '#8b5cf6' },
+  hobbies: { label: 'Hobbies', color: '#f59e0b' },
+  travel: { label: 'Travel', color: '#06b6d4' },
+  financial: { label: 'Financial', color: '#10b981' },
+  relationships: { label: 'Relationships', color: '#ef4444' },
+  self_care: { label: 'Self Care', color: '#6366f1' },
+  personal_other: { label: 'Other', color: '#6b7280' },
+};
+
+export function generateMilestonesReport(milestones: Milestone[], title: string = 'Milestones & Wins'): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ 
       size: 'LETTER',
@@ -216,7 +229,7 @@ export function generateMilestonesReport(milestones: Milestone[]): Promise<Buffe
 
     // Header
     doc.fontSize(22).font('Helvetica-Bold')
-       .text('Milestones & Wins', { align: 'center' });
+       .text(title, { align: 'center' });
     doc.moveDown(0.3);
     
     doc.fontSize(10).font('Helvetica')
@@ -235,15 +248,17 @@ export function generateMilestonesReport(milestones: Milestone[]): Promise<Buffe
     doc.fontSize(10).font('Helvetica')
        .text(`Total Milestones: ${milestones.length}`);
     
-    // Count by category
+    // Count by category (handles both business and personal categories)
     const categoryCounts: Record<string, number> = {};
     milestones.forEach(m => {
-      const cat = m.category || 'other';
+      const cat = m.milestoneType === 'personal' 
+        ? (m.personalCategory || 'personal_other')
+        : (m.category || 'other');
       categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
     });
     
     Object.entries(categoryCounts).forEach(([cat, count]) => {
-      const catInfo = MILESTONE_CATEGORIES[cat] || MILESTONE_CATEGORIES.other;
+      const catInfo = MILESTONE_CATEGORIES[cat] || PERSONAL_MILESTONE_CATEGORIES[cat] || MILESTONE_CATEGORIES.other;
       doc.fillColor(catInfo.color)
          .text(`${catInfo.label}: ${count}`);
     });
@@ -333,7 +348,11 @@ export function generateMilestonesReport(milestones: Milestone[]): Promise<Buffe
         }
 
         const cardStartY = doc.y;
-        const catInfo = MILESTONE_CATEGORIES[milestone.category || 'other'] || MILESTONE_CATEGORIES.other;
+        // Get category info based on milestone type
+        const catKey = milestone.milestoneType === 'personal' 
+          ? (milestone.personalCategory || 'personal_other')
+          : (milestone.category || 'other');
+        const catInfo = MILESTONE_CATEGORIES[catKey] || PERSONAL_MILESTONE_CATEGORIES[catKey] || MILESTONE_CATEGORIES.other;
         const achievedDate = milestone.achievedDate 
           ? new Date(milestone.achievedDate).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
           : '';
