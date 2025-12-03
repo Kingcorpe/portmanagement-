@@ -1398,7 +1398,7 @@ export const milestoneTypeEnum = pgEnum("milestone_type", [
 // Business milestone category enum
 export const milestoneCategoryEnum = pgEnum("milestone_category", [
   "client_win",
-  "personal_growth",
+  "technology",
   "business_milestone",
   "team_achievement",
   "process_improvement",
@@ -1449,7 +1449,7 @@ export const insertMilestoneSchema = createInsertSchema(milestones).omit({
   milestoneType: z.enum(["business", "personal"]).default("business"),
   title: z.string().min(1, "Title is required").max(200, "Title must be 200 characters or less"),
   description: z.string().max(2000, "Description must be 2000 characters or less").optional().nullable(),
-  category: z.enum(["client_win", "personal_growth", "business_milestone", "team_achievement", "process_improvement", "other"]).optional().nullable(),
+  category: z.enum(["client_win", "technology", "business_milestone", "team_achievement", "process_improvement", "other"]).optional().nullable(),
   personalCategory: z.enum(["health_fitness", "family", "learning", "hobbies", "travel", "financial", "relationships", "self_care", "personal_other"]).optional().nullable(),
   impactValue: z.string().max(100, "Impact value must be 100 characters or less").optional().nullable(),
   achievedDate: z.coerce.date(),
@@ -1463,7 +1463,7 @@ export const updateMilestoneSchema = createInsertSchema(milestones).omit({
   updatedAt: true,
 }).extend({
   milestoneType: z.enum(["business", "personal"]).optional(),
-  category: z.enum(["client_win", "personal_growth", "business_milestone", "team_achievement", "process_improvement", "other"]).optional().nullable(),
+  category: z.enum(["client_win", "technology", "business_milestone", "team_achievement", "process_improvement", "other"]).optional().nullable(),
   personalCategory: z.enum(["health_fitness", "family", "learning", "hobbies", "travel", "financial", "relationships", "self_care", "personal_other"]).optional().nullable(),
   achievedDate: z.coerce.date().optional(),
 }).partial();

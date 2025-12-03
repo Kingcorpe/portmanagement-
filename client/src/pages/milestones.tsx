@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Trophy, Star, TrendingUp, Users, Lightbulb, Sparkles, Calendar, Download, Mail, Briefcase } from "lucide-react";
+import { Plus, Pencil, Trash2, Trophy, Monitor, TrendingUp, Users, Lightbulb, Sparkles, Calendar, Download, Mail, Briefcase } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -17,7 +17,7 @@ import { format } from "date-fns";
 
 const CATEGORIES = {
   client_win: { label: "Client Win", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200", icon: Trophy },
-  personal_growth: { label: "Personal Growth", color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200", icon: Star },
+  technology: { label: "Technology", color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200", icon: Monitor },
   business_milestone: { label: "Business Milestone", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", icon: TrendingUp },
   team_achievement: { label: "Team Achievement", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200", icon: Users },
   process_improvement: { label: "Process Improvement", color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200", icon: Lightbulb },

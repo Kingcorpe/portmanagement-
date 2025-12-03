@@ -195,7 +195,7 @@ export function generatePortfolioRebalanceReport(data: ReportData): Promise<Buff
 // Business category labels and colors for milestones
 const MILESTONE_CATEGORIES: Record<string, { label: string; color: string }> = {
   client_win: { label: 'Client Win', color: '#16a34a' },
-  personal_growth: { label: 'Personal Growth', color: '#9333ea' },
+  technology: { label: 'Technology', color: '#9333ea' },
   business_milestone: { label: 'Business Milestone', color: '#2563eb' },
   team_achievement: { label: 'Team Achievement', color: '#d97706' },
   process_improvement: { label: 'Process Improvement', color: '#0891b2' },
