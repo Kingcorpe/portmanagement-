@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { XCircle, Filter, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { XCircle, Filter, ChevronDown, ChevronUp, Loader2, RefreshCw } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Alert as AlertType } from "@shared/schema";
 
@@ -80,9 +80,10 @@ export default function Alerts() {
 
   const { isDemoMode } = useDemoMode();
 
-  const { data: alertsData = [], isLoading } = useDemoAwareQuery<AlertType[]>({
+  const { data: alertsData = [], isLoading, dataUpdatedAt } = useDemoAwareQuery<AlertType[]>({
     queryKey: ["/api/alerts"],
     enabled: isAuthenticated,
+    refetchInterval: 15000, // Auto-refresh every 15 seconds
     retry: (failureCount: number, error: Error) => {
       if (isUnauthorizedError(error)) {
         toast({
@@ -246,9 +247,20 @@ export default function Alerts() {
 
   return (
     <div className="space-y-6 p-6 cyber-grid min-h-full">
-      <div>
-        <h1 className="text-3xl font-bold gradient-text" data-testid="text-alerts-title">TradingView Alerts</h1>
-        <p className="text-muted-foreground">Manage incoming trading signals</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold gradient-text" data-testid="text-alerts-title">TradingView Alerts</h1>
+          <p className="text-muted-foreground">Manage incoming trading signals</p>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <RefreshCw className="h-4 w-4 animate-spin" style={{ animationDuration: '3s' }} />
+          <span>Auto-refresh every 15s</span>
+          {dataUpdatedAt && (
+            <Badge variant="outline" className="text-xs">
+              Last: {new Date(dataUpdatedAt).toLocaleTimeString()}
+            </Badge>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="pending" className="w-full">
