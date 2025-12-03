@@ -5,6 +5,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { useDemoAwareQuery } from "@/lib/demo-data-service";
 import { DemoModeBanner } from "@/components/demo-mode-banner";
 import { MetricCard } from "@/components/metric-card";
+import { KeyMetricsSkeleton } from "@/components/ui/loading-skeletons";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
   DollarSign, 
@@ -202,13 +203,7 @@ export default function KeyMetrics() {
     .sort((a, b) => b[1].balance - a[1].balance);
 
   if (authLoading || householdsLoading) {
-    return (
-      <div className="flex items-center justify-center h-full" data-testid="loading-state">
-        <div className="text-center">
-          <div className="text-lg">Loading metrics...</div>
-        </div>
-      </div>
-    );
+    return <KeyMetricsSkeleton />;
   }
 
   return (

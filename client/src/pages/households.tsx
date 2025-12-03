@@ -7,6 +7,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { HouseholdCard, Household, HouseholdCategory, householdCategoryLabels, householdCategoryColors } from "@/components/household-card";
 import { HouseholdManagementDialogs } from "@/components/household-management-dialogs";
 import { ShareHouseholdDialog } from "@/components/share-household-dialog";
+import { HouseholdsSkeleton } from "@/components/ui/loading-skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -564,13 +565,7 @@ export default function Households() {
       .sort((a, b) => a.name.localeCompare(b.name));
 
   if (authLoading || isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="text-lg">Loading households...</div>
-        </div>
-      </div>
-    );
+    return <HouseholdsSkeleton />;
   }
 
   return (

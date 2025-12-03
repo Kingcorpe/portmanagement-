@@ -10,6 +10,7 @@ import { generatePortfolioRebalanceReport, generateMilestonesReport } from "./pd
 import { sendEmailWithAttachment } from "./gmail";
 import { eq } from "drizzle-orm";
 import nodemailer from "nodemailer";
+import { registerMarketDataRoutes } from "./marketData";
 
 // Email alert for TradingView signals
 async function sendTradingAlertEmail(symbol: string, signal: string, price: string) {
@@ -6179,6 +6180,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message || "Failed to email tasks PDF" });
     }
   });
+
+  // Register market data routes (Canadian market status, exchange rates, economic calendar, etc.)
+  registerMarketDataRoutes(app);
 
   const httpServer = createServer(app);
   

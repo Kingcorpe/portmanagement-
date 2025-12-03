@@ -132,10 +132,31 @@ export default function Alerts() {
     mutationFn: async ({ id, status }: { id: string; status: "executed" | "dismissed" }) => {
       await apiRequest("PATCH", `/api/alerts/${id}`, { status });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
+    // Optimistic update for instant UI feedback
+    onMutate: async ({ id, status }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/alerts"] });
+      
+      // Snapshot the previous value
+      const previousAlerts = queryClient.getQueryData<AlertType[]>(["/api/alerts"]);
+      
+      // Optimistically update the cache
+      if (previousAlerts) {
+        queryClient.setQueryData<AlertType[]>(["/api/alerts"], (old) =>
+          old?.map((alert) =>
+            alert.id === id ? { ...alert, status } : alert
+          ) ?? []
+        );
+      }
+      
+      return { previousAlerts };
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _variables, context) => {
+      // Rollback on error
+      if (context?.previousAlerts) {
+        queryClient.setQueryData(["/api/alerts"], context.previousAlerts);
+      }
+      
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -152,6 +173,10 @@ export default function Alerts() {
         description: "Failed to update alert",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      // Always refetch to ensure server state
+      queryClient.invalidateQueries({ queryKey: ["/api/alerts"] });
     },
   });
 

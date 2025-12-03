@@ -1,0 +1,45 @@
+//@version=5
+indicator("Ryan's Perfect Alerts – SMA30 RED + RSI (CLEAN)", overlay=true)
+
+// ────── SETTINGS ─────
+smaLength = 30
+rsiLength = 14
+rsiBuy    = 35
+rsiSell   = 65
+
+// ───── WEBHOOK SECRET (for security) ─────
+// This matches your TRADINGVIEW_WEBHOOK_SECRET environment variable
+webhookSecret = "2e3cb66bdc008494d7d7c989072760e3"
+
+// ───── CALCULATIONS ─────
+sma30 = ta.sma(close, smaLength)
+rsi   = ta.rsi(close, rsiLength)
+
+buySignal  = close < sma30 and rsi < rsiBuy
+sellSignal = close > sma30 and rsi > rsiSell
+
+// ───── JSON FOR YOUR WEBHOOK ─────
+// Updated to include the secret for authentication
+buyJson  = '{"symbol": "' + syminfo.ticker + '", "signal": "BUY",  "price": ' + str.tostring(close, "#.########") + ', "email": "ryan@crsolutions.ca", "secret": "' + webhookSecret + '"}'
+sellJson = '{"symbol": "' + syminfo.ticker + '", "signal": "SELL", "price": ' + str.tostring(close, "#.########") + ', "email": "ryan@crsolutions.ca", "secret": "' + webhookSecret + '"}'
+
+if buySignal
+    alert(buyJson, alert.freq_once_per_bar)
+if sellSignal
+    alert(sellJson, alert.freq_once_per_bar)
+
+// ───── CLEAN PRICE CHART ─────
+plot(sma30, color=color.red, linewidth=2, title="30 SMA")   // ← RED now
+
+plotshape(buySignal and barstate.isconfirmed,  title="BUY",  location=location.belowbar, color=color.green, style=shape.triangleup,   size=size.large)
+plotshape(sellSignal and barstate.isconfirmed, title="SELL", location=location.abovebar, color=color.red,   style=shape.triangledown, size=size.large)
+
+bgcolor(buySignal and barstate.isconfirmed ? color.new(color.green, 90) : na)
+bgcolor(sellSignal and barstate.isconfirmed ? color.new(color.red, 90) : na)
+
+// ───── RSI PANE BELOW ─────
+rsiPlot = plot(rsi, title="RSI", color=color.purple, linewidth=2)
+hline(rsiBuy,  "RSI Buy Level",  color=color.green, linestyle=hline.style_dashed)
+hline(rsiSell, "RSI Sell Level", color=color.red,   linestyle=hline.style_dashed)
+hline(50, "Midline", color=color.gray, linestyle=hline.style_dotted)
+

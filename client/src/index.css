@@ -88,53 +88,79 @@
 }
 
 .dark {
-  --button-outline: rgba(255,255,255, .10);
-  --badge-outline: rgba(255,255,255, .05);
+  --button-outline: rgba(255,255,255, .12);
+  --badge-outline: rgba(255,255,255, .08);
   --opaque-button-border-intensity: 9;
-  --elevate-1: rgba(255,255,255, .04);
-  --elevate-2: rgba(255,255,255, .09);
-  --background: 222 18% 8%;
-  --foreground: 210 40% 96%;
-  --border: 217 19% 18%;
-  --card: 222 17% 10%;
-  --card-foreground: 210 40% 96%;
-  --card-border: 217 18% 14%;
-  --sidebar: 222 17% 12%;
-  --sidebar-foreground: 210 40% 96%;
-  --sidebar-border: 217 18% 16%;
-  --sidebar-primary: 221 83% 53%;
+  --elevate-1: rgba(255,255,255, .05);
+  --elevate-2: rgba(255,255,255, .10);
+  
+  /* Refined dark background - slightly warmer, easier on eyes */
+  --background: 220 20% 7%;
+  --foreground: 210 25% 93%;
+  
+  /* Better contrast borders */
+  --border: 217 18% 20%;
+  
+  /* Card colors with better depth */
+  --card: 220 18% 9%;
+  --card-foreground: 210 25% 93%;
+  --card-border: 217 16% 16%;
+  
+  /* Sidebar - slightly elevated from background */
+  --sidebar: 220 18% 10%;
+  --sidebar-foreground: 210 25% 93%;
+  --sidebar-border: 217 16% 18%;
+  --sidebar-primary: 217 91% 60%;
   --sidebar-primary-foreground: 210 40% 98%;
-  --sidebar-accent: 220 16% 16%;
-  --sidebar-accent-foreground: 210 40% 96%;
-  --sidebar-ring: 221 83% 53%;
-  --popover: 222 17% 14%;
-  --popover-foreground: 210 40% 96%;
-  --popover-border: 217 18% 18%;
-  --primary: 221 83% 53%;
+  --sidebar-accent: 217 16% 15%;
+  --sidebar-accent-foreground: 210 25% 93%;
+  --sidebar-ring: 217 91% 60%;
+  
+  /* Popover - elevated surface */
+  --popover: 220 18% 11%;
+  --popover-foreground: 210 25% 93%;
+  --popover-border: 217 16% 20%;
+  
+  /* Primary - slightly softer blue, less eye strain */
+  --primary: 217 91% 60%;
   --primary-foreground: 210 40% 98%;
-  --secondary: 220 16% 18%;
-  --secondary-foreground: 210 40% 96%;
-  --muted: 220 16% 17%;
-  --muted-foreground: 217 15% 65%;
-  --accent: 217 16% 16%;
-  --accent-foreground: 210 40% 96%;
-  --destructive: 0 84% 60%;
+  
+  /* Secondary surfaces */
+  --secondary: 217 16% 16%;
+  --secondary-foreground: 210 25% 93%;
+  
+  /* Muted - better contrast for readability */
+  --muted: 217 14% 15%;
+  --muted-foreground: 215 16% 58%;
+  
+  /* Accent */
+  --accent: 217 14% 14%;
+  --accent-foreground: 210 25% 93%;
+  
+  /* Destructive - slightly toned down for dark mode */
+  --destructive: 0 72% 55%;
   --destructive-foreground: 0 0% 98%;
-  --input: 217 20% 32%;
-  --ring: 221 83% 53%;
-  --chart-1: 217 91% 70%;
-  --chart-2: 142 76% 65%;
-  --chart-3: 262 83% 75%;
-  --chart-4: 35 91% 68%;
-  --chart-5: 340 82% 68%;
-  --shadow-2xs: 0px 2px 0px 0px hsl(222 18% 8% / 0.00);
-  --shadow-xs: 0px 2px 0px 0px hsl(222 18% 8% / 0.00);
-  --shadow-sm: 0px 2px 0px 0px hsl(222 18% 8% / 0.00), 0px 1px 2px -1px hsl(222 18% 8% / 0.00);
-  --shadow: 0px 2px 0px 0px hsl(222 18% 8% / 0.00), 0px 1px 2px -1px hsl(222 18% 8% / 0.00);
-  --shadow-md: 0px 2px 0px 0px hsl(222 18% 8% / 0.00), 0px 2px 4px -1px hsl(222 18% 8% / 0.00);
-  --shadow-lg: 0px 2px 0px 0px hsl(222 18% 8% / 0.00), 0px 4px 6px -1px hsl(222 18% 8% / 0.00);
-  --shadow-xl: 0px 2px 0px 0px hsl(222 18% 8% / 0.00), 0px 8px 10px -1px hsl(222 18% 8% / 0.00);
-  --shadow-2xl: 0px 2px 0px 0px hsl(222 18% 8% / 0.00);
+  
+  /* Input - visible but not harsh */
+  --input: 217 16% 25%;
+  --ring: 217 91% 60%;
+  
+  /* Chart colors - optimized for dark backgrounds */
+  --chart-1: 217 91% 68%;
+  --chart-2: 142 70% 55%;
+  --chart-3: 262 75% 70%;
+  --chart-4: 35 85% 60%;
+  --chart-5: 340 75% 65%;
+  
+  /* Softer shadows for dark mode */
+  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.3);
+  --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.3);
+  --shadow-sm: 0px 1px 3px 0px hsl(0 0% 0% / 0.3), 0px 1px 2px -1px hsl(0 0% 0% / 0.3);
+  --shadow: 0px 1px 3px 0px hsl(0 0% 0% / 0.3), 0px 1px 2px -1px hsl(0 0% 0% / 0.3);
+  --shadow-md: 0px 4px 6px -1px hsl(0 0% 0% / 0.4), 0px 2px 4px -2px hsl(0 0% 0% / 0.3);
+  --shadow-lg: 0px 10px 15px -3px hsl(0 0% 0% / 0.4), 0px 4px 6px -4px hsl(0 0% 0% / 0.3);
+  --shadow-xl: 0px 20px 25px -5px hsl(0 0% 0% / 0.4), 0px 8px 10px -6px hsl(0 0% 0% / 0.3);
+  --shadow-2xl: 0px 25px 50px -12px hsl(0 0% 0% / 0.5);
 
 /* Fallback for older browsers */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
@@ -306,20 +332,55 @@
   /* Futuristic Theme Styles */
   .theme-futuristic .glow-border {
     position: relative;
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.35), inset 0 0 20px hsl(var(--primary) / 0.12);
-    transition: box-shadow 0.3s ease;
+    box-shadow: 
+      0 0 20px hsl(var(--primary) / 0.35), 
+      inset 0 0 20px hsl(var(--primary) / 0.12),
+      0 1px 3px hsl(var(--primary) / 0.1);
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+    border: 1px solid hsl(var(--primary) / 0.2);
   }
   
   .theme-futuristic .glow-border:hover {
-    box-shadow: 0 0 30px hsl(var(--primary) / 0.5), inset 0 0 30px hsl(var(--primary) / 0.18);
+    box-shadow: 
+      0 0 35px hsl(var(--primary) / 0.5), 
+      inset 0 0 30px hsl(var(--primary) / 0.18),
+      0 4px 20px hsl(var(--primary) / 0.2);
+    transform: translateY(-1px);
+    border-color: hsl(var(--primary) / 0.4);
   }
   
   .dark.theme-futuristic .glow-border {
-    box-shadow: 0 0 25px hsl(var(--primary) / 0.4), inset 0 0 25px hsl(var(--primary) / 0.1);
+    box-shadow: 
+      0 0 25px hsl(var(--primary) / 0.4), 
+      inset 0 0 25px hsl(var(--primary) / 0.1),
+      0 0 60px hsl(var(--primary) / 0.1);
+    border: 1px solid hsl(var(--primary) / 0.25);
   }
   
   .dark.theme-futuristic .glow-border:hover {
-    box-shadow: 0 0 40px hsl(var(--primary) / 0.6), inset 0 0 40px hsl(var(--primary) / 0.15);
+    box-shadow: 
+      0 0 45px hsl(var(--primary) / 0.6), 
+      inset 0 0 40px hsl(var(--primary) / 0.15),
+      0 0 80px hsl(var(--primary) / 0.15);
+    border-color: hsl(var(--primary) / 0.5);
+  }
+  
+  /* Animated glow border option */
+  .theme-futuristic .glow-border-animated {
+    animation: glowPulse 3s ease-in-out infinite;
+  }
+  
+  @keyframes glowPulse {
+    0%, 100% {
+      box-shadow: 
+        0 0 20px hsl(var(--primary) / 0.3), 
+        inset 0 0 15px hsl(var(--primary) / 0.1);
+    }
+    50% {
+      box-shadow: 
+        0 0 35px hsl(var(--primary) / 0.5), 
+        inset 0 0 25px hsl(var(--primary) / 0.15);
+    }
   }
   
   .theme-futuristic .corner-accents::before,
@@ -339,6 +400,47 @@
       0 0 5px hsl(var(--primary) / 0.8),
       0 0 15px hsl(var(--primary) / 0.5),
       0 0 30px hsl(var(--primary) / 0.3);
+  }
+  
+  /* Gradient metric card backgrounds */
+  .theme-futuristic .metric-card-primary {
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--primary) / 0.08) 100%);
+  }
+  
+  .theme-futuristic .metric-card-success {
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--chart-2) / 0.08) 100%);
+  }
+  
+  .theme-futuristic .metric-card-warning {
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--chart-4) / 0.08) 100%);
+  }
+  
+  .dark.theme-futuristic .metric-card-primary {
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--primary) / 0.15) 100%);
+  }
+  
+  .dark.theme-futuristic .metric-card-success {
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--chart-2) / 0.12) 100%);
+  }
+  
+  .dark.theme-futuristic .metric-card-warning {
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--chart-4) / 0.12) 100%);
+  }
+  
+  /* Subtle scan-line effect for dark mode */
+  .dark.theme-futuristic .scanlines::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      hsl(var(--primary) / 0.02) 2px,
+      hsl(var(--primary) / 0.02) 4px
+    );
+    border-radius: inherit;
   }
   
   .theme-futuristic .holo-card {
@@ -574,5 +676,99 @@
   .theme-minimal .corner-accents::before,
   .theme-minimal .corner-accents::after {
     display: none;
+  }
+
+  /* ===== TRANSITION UTILITIES ===== */
+  
+  /* Smooth transitions for interactive elements */
+  .transition-smooth {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .transition-colors-smooth {
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  }
+  
+  .transition-transform-smooth {
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Hover lift effect */
+  .hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px hsl(var(--primary) / 0.15);
+  }
+  
+  /* Press effect */
+  .active-press:active {
+    transform: scale(0.98);
+  }
+  
+  /* Fade in animation */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease forwards;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  /* Slide up animation */
+  .animate-slide-up {
+    animation: slideUp 0.3s ease forwards;
+  }
+  
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* Scale in animation */
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease forwards;
+  }
+  
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  
+  /* Stagger delay utilities */
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.1s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.2s; }
+  .stagger-5 { animation-delay: 0.25s; }
+  .stagger-6 { animation-delay: 0.3s; }
+  
+  /* Card hover glow (enhanced for futuristic theme) */
+  .theme-futuristic .card-hover-glow {
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+  }
+  
+  .theme-futuristic .card-hover-glow:hover {
+    box-shadow: 
+      0 0 30px hsl(var(--primary) / 0.25),
+      0 0 60px hsl(var(--primary) / 0.1),
+      inset 0 0 20px hsl(var(--primary) / 0.05);
+  }
+  
+  /* Pulse border animation */
+  .animate-pulse-border {
+    animation: pulseBorder 2s ease-in-out infinite;
+  }
+  
+  @keyframes pulseBorder {
+    0%, 100% { 
+      border-color: hsl(var(--primary) / 0.3);
+    }
+    50% { 
+      border-color: hsl(var(--primary) / 0.6);
+    }
   }
 }

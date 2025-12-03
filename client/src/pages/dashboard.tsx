@@ -7,6 +7,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { MetricCard } from "@/components/metric-card";
 import { AlertCard, Alert } from "@/components/alert-card";
 import { PositionsTable, Position } from "@/components/positions-table";
+import { DashboardSkeleton } from "@/components/ui/loading-skeletons";
 import { Button } from "@/components/ui/button";
 import { Users, Bell, Upload, UserPlus, Briefcase, BookOpen, ListTodo, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -121,13 +122,7 @@ export default function Dashboard() {
   };
 
   if (authLoading || householdsLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="text-lg">Loading...</div>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (

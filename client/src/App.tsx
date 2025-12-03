@@ -2,6 +2,7 @@ import { Switch, Route, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -10,6 +11,35 @@ import { ThemeSelector } from "@/components/theme-selector";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { DemoModeProvider } from "@/contexts/demo-mode-context";
+
+// Page transition variants
+const pageVariants = {
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 }
+};
+
+const pageTransition = {
+  type: "tween",
+  ease: "easeOut",
+  duration: 0.2
+};
+
+// Animated page wrapper component
+function AnimatedPage({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={pageTransition}
+      className="h-full"
+    >
+      {children}
+    </motion.div>
+  );
+}
 import Dashboard from "@/pages/dashboard";
 import Households from "@/pages/households";
 import ModelPortfolios from "@/pages/model-portfolios";
@@ -30,37 +60,45 @@ import ReferenceLinks from "@/pages/reference-links";
 import BusinessMilestones from "@/pages/milestones";
 import PersonalMilestones from "@/pages/personal-milestones";
 import KpiDashboard from "@/pages/kpi-dashboard";
+import MarketDashboard from "@/pages/market-dashboard";
 import Admin from "@/pages/admin";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedRoutes() {
+  const [location] = useLocation();
+  
   return (
-    <Switch>
-      <Route path="/" component={KpiDashboard} />
-      <Route path="/households" component={Households} />
-      <Route path="/model-portfolios" component={ModelPortfolios} />
-      <Route path="/tasks" component={Tasks} />
-      <Route path="/insurance-tasks" component={InsuranceTasks} />
-      <Route path="/investment-division" component={InvestmentDivisionPage} />
-      <Route path="/insurance-division" component={InsuranceDivisionPage} />
-      <Route path="/holdings-search" component={HoldingsSearch} />
-      <Route path="/admin/dividends" component={AdminDividends} />
-      <Route path="/account/:accountType/:accountId" component={AccountDetails} />
-      <Route path="/library/reports" component={LibraryReports} />
-      <Route path="/library/strategies" component={LibraryStrategies} />
-      <Route path="/key-metrics" component={KeyMetrics} />
-      <Route path="/alerts" component={Alerts} />
-      <Route path="/insurance-revenue" component={InsuranceRevenue} />
-      <Route path="/investment-revenue" component={InvestmentRevenue} />
-      <Route path="/reference-links" component={ReferenceLinks} />
-      <Route path="/milestones" component={BusinessMilestones} />
-      <Route path="/personal-milestones" component={PersonalMilestones} />
-      <Route path="/kpi" component={KpiDashboard} />
-      <Route path="/kpi-dashboard" component={KpiDashboard} />
-      <Route path="/admin" component={Admin} />
-      <Route component={NotFound} />
-    </Switch>
+    <AnimatePresence mode="wait">
+      <AnimatedPage key={location}>
+        <Switch location={location}>
+          <Route path="/" component={KpiDashboard} />
+          <Route path="/households" component={Households} />
+          <Route path="/model-portfolios" component={ModelPortfolios} />
+          <Route path="/tasks" component={Tasks} />
+          <Route path="/insurance-tasks" component={InsuranceTasks} />
+          <Route path="/investment-division" component={InvestmentDivisionPage} />
+          <Route path="/insurance-division" component={InsuranceDivisionPage} />
+          <Route path="/holdings-search" component={HoldingsSearch} />
+          <Route path="/admin/dividends" component={AdminDividends} />
+          <Route path="/account/:accountType/:accountId" component={AccountDetails} />
+          <Route path="/library/reports" component={LibraryReports} />
+          <Route path="/library/strategies" component={LibraryStrategies} />
+          <Route path="/key-metrics" component={KeyMetrics} />
+          <Route path="/alerts" component={Alerts} />
+          <Route path="/insurance-revenue" component={InsuranceRevenue} />
+          <Route path="/investment-revenue" component={InvestmentRevenue} />
+          <Route path="/reference-links" component={ReferenceLinks} />
+          <Route path="/milestones" component={BusinessMilestones} />
+          <Route path="/personal-milestones" component={PersonalMilestones} />
+          <Route path="/kpi" component={KpiDashboard} />
+          <Route path="/kpi-dashboard" component={KpiDashboard} />
+          <Route path="/market" component={MarketDashboard} />
+          <Route path="/admin" component={Admin} />
+          <Route component={NotFound} />
+        </Switch>
+      </AnimatedPage>
+    </AnimatePresence>
   );
 }
 
