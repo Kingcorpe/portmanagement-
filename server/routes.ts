@@ -254,9 +254,62 @@ function identifyETFProvider(ticker: string): { provider: string | null; product
   return { provider: null, productPage: null, fundFacts: null };
 }
 
+// Helper function to convert crypto ticker formats to Yahoo Finance format
+// Converts "btcusd" -> "BTC-USD", "ethusd" -> "ETH-USD", etc.
+function normalizeCryptoTicker(ticker: string): string {
+  const upper = ticker.toUpperCase();
+  
+  // Common crypto/USD pairs
+  const cryptoPairs: Record<string, string> = {
+    'BTCUSD': 'BTC-USD',
+    'ETHUSD': 'ETH-USD',
+    'BNBUSD': 'BNB-USD',
+    'SOLUSD': 'SOL-USD',
+    'ADAUSD': 'ADA-USD',
+    'XRPUSD': 'XRP-USD',
+    'DOGEUSD': 'DOGE-USD',
+    'DOTUSD': 'DOT-USD',
+    'MATICUSD': 'MATIC-USD',
+    'AVAXUSD': 'AVAX-USD',
+    'LINKUSD': 'LINK-USD',
+    'UNIUSD': 'UNI-USD',
+    'LTCUSD': 'LTC-USD',
+    'ATOMUSD': 'ATOM-USD',
+    'ETCUSD': 'ETC-USD',
+    'XLMUSD': 'XLM-USD',
+    'ALGOUSD': 'ALGO-USD',
+    'VETUSD': 'VET-USD',
+    'ICPUSD': 'ICP-USD',
+    'FILUSD': 'FIL-USD',
+    'TRXUSD': 'TRX-USD',
+    'EOSUSD': 'EOS-USD',
+    'AAVEUSD': 'AAVE-USD',
+    'THETAUSD': 'THETA-USD',
+    'XTZUSD': 'XTZ-USD',
+    'NEARUSD': 'NEAR-USD',
+    'FTMUSD': 'FTM-USD',
+    'HBARUSD': 'HBAR-USD',
+    'QNTUSD': 'QNT-USD',
+    'EGLDUSD': 'EGLD-USD',
+  };
+  
+  // Check if it's a known crypto pair
+  if (cryptoPairs[upper]) {
+    return cryptoPairs[upper];
+  }
+  
+  // Try to detect pattern: 3-4 letter crypto code + USD/USDT
+  const cryptoMatch = upper.match(/^([A-Z]{2,5})(USD|USDT)$/);
+  if (cryptoMatch) {
+    return `${cryptoMatch[1]}-USD`;
+  }
+  
+  return upper;
+}
+
 // Enhanced ticker lookup that fetches data from multiple sources
 async function enhancedTickerLookup(ticker: string): Promise<EnhancedTickerData> {
-  const normalizedTicker = ticker.toUpperCase();
+  const normalizedTicker = normalizeCryptoTicker(ticker);
   const result: EnhancedTickerData = {
     ticker: normalizedTicker,
     name: `${normalizedTicker} (Auto-added)`,
@@ -268,10 +321,12 @@ async function enhancedTickerLookup(ticker: string): Promise<EnhancedTickerData>
     provider: null
   };
   
-  // Identify the ETF provider
-  const providerInfo = identifyETFProvider(normalizedTicker);
-  result.provider = providerInfo.provider;
-  result.fundFactsUrl = providerInfo.fundFacts;
+  // Identify the ETF provider (skip for crypto)
+  if (!normalizedTicker.includes('-')) {
+    const providerInfo = identifyETFProvider(normalizedTicker);
+    result.provider = providerInfo.provider;
+    result.fundFactsUrl = providerInfo.fundFacts;
+  }
   
   try {
     // Try Yahoo Finance first for basic data
@@ -463,6 +518,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const parsed = insertHouseholdSchema.parse(req.body);
       
+      // Ensure user exists in database (for local dev mode)
+      if (isLocalDev) {
+        try {
+          const user = await storage.getUser(userId);
+          if (!user) {
+            // Auto-create user if it doesn't exist (local dev mode)
+            await storage.upsertUser({
+              id: userId,
+              email: req.user.claims.email || "dev@localhost",
+              firstName: req.user.claims.first_name || "Local",
+              lastName: req.user.claims.last_name || "Developer",
+              profileImageUrl: req.user.claims.profile_image_url || null,
+            });
+          }
+        } catch (userError: any) {
+          // Ignore duplicate key errors
+          if (userError?.code !== '23505') {
+            console.error("Error ensuring user exists:", userError);
+          }
+        }
+      }
+      
       // Check for duplicate household name
       const nameExists = await storage.checkHouseholdNameExists(parsed.name, userId);
       if (nameExists) {
@@ -474,10 +551,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(household);
     } catch (error: any) {
       console.error("Error creating household:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        detail: error.detail,
+        userId: req.user?.claims?.sub,
+        body: req.body
+      });
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
-      res.status(500).json({ message: "Failed to create household" });
+      // Return more detailed error in development
+      const errorMessage = isLocalDev 
+        ? `Failed to create household: ${error.message || error.detail || 'Unknown error'}`
+        : "Failed to create household";
+      res.status(500).json({ message: errorMessage });
     }
   });
 
@@ -1821,8 +1909,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await sendTradingAlertEmail(parsed.symbol, parsed.signal, parsed.price.toString());
       
       // Helper to normalize tickers for matching
+      // Handles both stock tickers (AAPL.TO -> AAPL) and crypto (BTC-USD -> BTCUSD, BTCUSD -> BTCUSD)
       const normalizeTicker = (ticker: string): string => {
-        return ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+        return ticker.toUpperCase()
+          .replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '') // Remove exchange suffixes
+          .replace(/-/g, ''); // Remove dashes (for crypto like BTC-USD -> BTCUSD)
       };
       
       // Helper to check if position matches the alert signal criteria
@@ -4833,7 +4924,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Ticker lookup endpoint using Yahoo Finance
   app.get('/api/ticker-lookup/:ticker', isAuthenticated, async (req, res) => {
     try {
-      const ticker = req.params.ticker.toUpperCase();
+      const inputTicker = req.params.ticker;
+      const ticker = normalizeCryptoTicker(inputTicker);
       
       // First, search for the ticker to get basic info
       const searchResponse = await fetch(
