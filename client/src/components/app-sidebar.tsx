@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Eye, Settings, Trophy } from "lucide-react";
+import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Eye, Settings, Trophy, User } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -30,9 +30,14 @@ const keyMetricsItems = [
     icon: Target,
   },
   {
-    title: "Milestones & Wins",
+    title: "Business Milestones",
     url: "/milestones",
-    icon: Trophy,
+    icon: Briefcase,
+  },
+  {
+    title: "Personal Milestones",
+    url: "/personal-milestones",
+    icon: User,
   },
   {
     title: "Key Metrics",

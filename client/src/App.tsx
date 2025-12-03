@@ -27,7 +27,8 @@ import AdminDividends from "@/pages/admin-dividends";
 import InsuranceRevenue from "@/pages/insurance-revenue";
 import InvestmentRevenue from "@/pages/investment-revenue";
 import ReferenceLinks from "@/pages/reference-links";
-import Milestones from "@/pages/milestones";
+import BusinessMilestones from "@/pages/milestones";
+import PersonalMilestones from "@/pages/personal-milestones";
 import KpiDashboard from "@/pages/kpi-dashboard";
 import Admin from "@/pages/admin";
 import Landing from "@/pages/landing";
@@ -53,7 +54,8 @@ function AuthenticatedRoutes() {
       <Route path="/insurance-revenue" component={InsuranceRevenue} />
       <Route path="/investment-revenue" component={InvestmentRevenue} />
       <Route path="/reference-links" component={ReferenceLinks} />
-      <Route path="/milestones" component={Milestones} />
+      <Route path="/milestones" component={BusinessMilestones} />
+      <Route path="/personal-milestones" component={PersonalMilestones} />
       <Route path="/kpi" component={KpiDashboard} />
       <Route path="/kpi-dashboard" component={KpiDashboard} />
       <Route path="/admin" component={Admin} />
