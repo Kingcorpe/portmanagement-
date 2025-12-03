@@ -6948,7 +6948,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/milestones/export/pdf', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const milestones = await storage.getMilestonesByUserId(userId);
+      const milestones = await storage.getMilestonesByUser(userId);
       
       const pdfBuffer = await generateMilestonesReport(milestones);
       
@@ -6972,7 +6972,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Valid email address required" });
       }
       
-      const milestones = await storage.getMilestonesByUserId(userId);
+      const milestones = await storage.getMilestonesByUser(userId);
       const pdfBuffer = await generateMilestonesReport(milestones);
       
       const fileName = `Milestones_${new Date().toISOString().split('T')[0]}.pdf`;

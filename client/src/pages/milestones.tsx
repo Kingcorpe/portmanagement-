@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Trophy, Star, TrendingUp, Users, Lightbulb, Sparkles, Calendar } from "lucide-react";
+import { Plus, Pencil, Trash2, Trophy, Star, TrendingUp, Users, Lightbulb, Sparkles, Calendar, Download, Mail } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -33,6 +33,9 @@ export default function MilestonesPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [milestoneToDelete, setMilestoneToDelete] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailAddress, setEmailAddress] = useState("");
+  const [isDownloading, setIsDownloading] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -84,6 +87,52 @@ export default function MilestonesPage() {
       toast({ description: error.message || "Failed to delete milestone", variant: "destructive" });
     },
   });
+
+  const emailMutation = useMutation({
+    mutationFn: async (to: string) => apiRequest("POST", "/api/milestones/export/email", { to }),
+    onSuccess: () => {
+      setEmailDialogOpen(false);
+      setEmailAddress("");
+      toast({ description: "Email sent successfully" });
+    },
+    onError: (error: any) => {
+      toast({ description: error.message || "Failed to send email", variant: "destructive" });
+    },
+  });
+
+  const handleDownloadPdf = async () => {
+    setIsDownloading(true);
+    try {
+      const response = await fetch("/api/milestones/export/pdf", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to download PDF");
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Milestones_${format(new Date(), "yyyy-MM-dd")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast({ description: "PDF downloaded successfully" });
+    } catch (error: any) {
+      toast({ description: error.message || "Failed to download PDF", variant: "destructive" });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleSendEmail = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailAddress || !emailAddress.includes("@")) {
+      toast({ description: "Please enter a valid email address", variant: "destructive" });
+      return;
+    }
+    emailMutation.mutate(emailAddress);
+  };
 
   const resetForm = () => {
     setFormData({
@@ -187,6 +236,24 @@ export default function MilestonesPage() {
               ))}
             </SelectContent>
           </Select>
+          <Button
+            variant="outline"
+            onClick={handleDownloadPdf}
+            disabled={isDownloading || milestones.length === 0}
+            data-testid="button-download-pdf"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {isDownloading ? "Downloading..." : "Download PDF"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setEmailDialogOpen(true)}
+            disabled={milestones.length === 0}
+            data-testid="button-email-pdf"
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Email PDF
+          </Button>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={handleAddClick} data-testid="button-add-milestone">
@@ -402,6 +469,44 @@ export default function MilestonesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle data-testid="dialog-email-title">Email Milestones Report</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSendEmail} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="emailAddress">Email Address</Label>
+              <Input
+                id="emailAddress"
+                type="email"
+                data-testid="input-email-address"
+                value={emailAddress}
+                onChange={(e) => setEmailAddress(e.target.value)}
+                placeholder="recipient@example.com"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEmailDialogOpen(false)}
+                data-testid="button-email-cancel"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={emailMutation.isPending}
+                data-testid="button-email-send"
+              >
+                {emailMutation.isPending ? "Sending..." : "Send Email"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
