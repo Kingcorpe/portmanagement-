@@ -383,28 +383,19 @@ export default function MilestonesPage() {
                       className="relative hover-elevate"
                       data-testid={`milestone-card-${milestone.id}`}
                     >
-                      <div className="absolute -left-[33px] top-6 w-4 h-4 rounded-full bg-primary border-4 border-background" />
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-4 flex-wrap">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${categoryInfo.color}`}>
-                              <CategoryIcon className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <CardTitle className="text-lg" data-testid={`milestone-title-${milestone.id}`}>
-                                {milestone.title}
-                              </CardTitle>
-                              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                <Badge className={categoryInfo.color}>
-                                  {categoryInfo.label}
-                                </Badge>
-                                <span className="text-sm text-muted-foreground">
-                                  {format(new Date(milestone.achievedDate), "MMM d, yyyy")}
-                                </span>
-                              </div>
-                            </div>
+                      <div className="absolute -left-[33px] top-4 w-4 h-4 rounded-full bg-primary border-4 border-background" />
+                      <CardHeader className="py-3 px-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <Badge variant="secondary" className={`${categoryInfo.color} shrink-0`}>
+                              <CategoryIcon className="w-3 h-3 mr-1" />
+                              {categoryInfo.label}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground shrink-0">
+                              {format(new Date(milestone.achievedDate), "MMM d, yyyy")}
+                            </span>
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 shrink-0">
                             <Button
                               size="icon"
                               variant="ghost"
@@ -423,21 +414,20 @@ export default function MilestonesPage() {
                             </Button>
                           </div>
                         </div>
+                        <CardTitle className="text-base mt-1" data-testid={`milestone-title-${milestone.id}`}>
+                          {milestone.title}
+                        </CardTitle>
+                        {milestone.impactValue && (
+                          <span className="text-sm font-semibold text-primary" data-testid={`milestone-impact-${milestone.id}`}>
+                            {milestone.impactValue}
+                          </span>
+                        )}
                       </CardHeader>
-                      {(milestone.impactValue || milestone.description) && (
-                        <CardContent className="pt-0">
-                          {milestone.impactValue && (
-                            <div className="mb-2">
-                              <span className="text-lg font-bold text-primary font-mono" data-testid={`milestone-impact-${milestone.id}`}>
-                                {milestone.impactValue}
-                              </span>
-                            </div>
-                          )}
-                          {milestone.description && (
-                            <p className="text-muted-foreground text-sm" data-testid={`milestone-description-${milestone.id}`}>
-                              {milestone.description}
-                            </p>
-                          )}
+                      {milestone.description && (
+                        <CardContent className="pt-0 pb-3 px-4">
+                          <p className="text-muted-foreground text-sm" data-testid={`milestone-description-${milestone.id}`}>
+                            {milestone.description}
+                          </p>
                         </CardContent>
                       )}
                     </Card>
