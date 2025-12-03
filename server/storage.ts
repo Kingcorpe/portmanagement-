@@ -27,6 +27,7 @@ import {
   kpiObjectives,
   kpiDailyTasks,
   referenceLinks,
+  milestones,
   type User,
   type UpsertUser,
   type Household,
@@ -90,6 +91,9 @@ import {
   type ReferenceLink,
   type InsertReferenceLink,
   type UpdateReferenceLink,
+  type Milestone,
+  type InsertMilestone,
+  type UpdateMilestone,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, inArray, ilike, or, and, sql, isNull, isNotNull, lt } from "drizzle-orm";
@@ -282,6 +286,13 @@ export interface IStorage {
   getInvestmentRevenueById(id: string): Promise<InvestmentRevenue | undefined>;
   updateInvestmentRevenue(id: string, data: UpdateInvestmentRevenue): Promise<InvestmentRevenue>;
   deleteInvestmentRevenue(id: string): Promise<void>;
+
+  // Milestones operations
+  createMilestone(data: InsertMilestone): Promise<Milestone>;
+  getMilestonesByUser(userId: string): Promise<Milestone[]>;
+  getMilestoneById(id: string): Promise<Milestone | undefined>;
+  updateMilestone(id: string, data: UpdateMilestone): Promise<Milestone>;
+  deleteMilestone(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2150,6 +2161,39 @@ export class DatabaseStorage implements IStorage {
 
   async deleteReferenceLink(id: string): Promise<void> {
     await db.delete(referenceLinks).where(eq(referenceLinks.id, id));
+  }
+
+  // Milestones operations
+  async createMilestone(data: InsertMilestone): Promise<Milestone> {
+    const [milestone] = await db.insert(milestones).values(data).returning();
+    return milestone;
+  }
+
+  async getMilestonesByUser(userId: string): Promise<Milestone[]> {
+    return await db.select()
+      .from(milestones)
+      .where(eq(milestones.userId, userId))
+      .orderBy(desc(milestones.achievedDate));
+  }
+
+  async getMilestoneById(id: string): Promise<Milestone | undefined> {
+    const [milestone] = await db.select()
+      .from(milestones)
+      .where(eq(milestones.id, id));
+    return milestone;
+  }
+
+  async updateMilestone(id: string, data: UpdateMilestone): Promise<Milestone> {
+    const [milestone] = await db
+      .update(milestones)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(milestones.id, id))
+      .returning();
+    return milestone;
+  }
+
+  async deleteMilestone(id: string): Promise<void> {
+    await db.delete(milestones).where(eq(milestones.id, id));
   }
 }
 
