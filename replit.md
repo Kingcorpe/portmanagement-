@@ -37,6 +37,7 @@ The platform features a household-based client management interface with collaps
 - **Investment Revenue Tracking**: Dedicated page for tracking dividends and new AUM, with status workflows and separate goal tracking for dividends and AUM.
 - **Reference Links**: A page to manage quick-access links with icon support and CRUD operations.
 - **KPI Dashboard**: Tracks monthly objectives with daily task management and PDF export functionality.
+- **Milestones & Wins**: A dedicated page for capturing achievements and wins that weren't initially KPIs. Features timeline-style display grouped by month, category filtering (Client Win, Personal Growth, Business Milestone, Team Achievement, Process Improvement, Other), impact value tracking, and full CRUD operations.
 - **Admin Section**: Provides system management tools including Universal Holdings management (CRUD, bulk price/dividend refresh, categorization), webhook logs, and system settings (webhook URL, email config, price refresh schedule, demo mode toggle).
 
 ## External Dependencies

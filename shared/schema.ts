@@ -1437,6 +1437,8 @@ export const updateMilestoneSchema = createInsertSchema(milestones).omit({
   userId: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  achievedDate: z.coerce.date().optional(),
 }).partial();
 
 // Milestones types

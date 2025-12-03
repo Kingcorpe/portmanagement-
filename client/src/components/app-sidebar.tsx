@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Eye, Settings } from "lucide-react";
+import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Eye, Settings, Trophy } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -28,6 +28,11 @@ const keyMetricsItems = [
     title: "KPI's Dashboard",
     url: "/kpi-dashboard",
     icon: Target,
+  },
+  {
+    title: "Milestones & Wins",
+    url: "/milestones",
+    icon: Trophy,
   },
   {
     title: "Key Metrics",
@@ -129,7 +134,8 @@ export function AppSidebar() {
   const [keyMetricsOpen, setKeyMetricsOpen] = useState(
     location.startsWith("/key-metrics") || 
     location.startsWith("/insurance-revenue") || 
-    location.startsWith("/investment-revenue")
+    location.startsWith("/investment-revenue") ||
+    location.startsWith("/milestones")
   );
   const [libraryOpen, setLibraryOpen] = useState(location.startsWith("/library"));
   const [investmentDivisionOpen, setInvestmentDivisionOpen] = useState(
@@ -149,7 +155,8 @@ export function AppSidebar() {
   const isKeyMetricsActive = 
     location.startsWith("/key-metrics") || 
     location.startsWith("/insurance-revenue") || 
-    location.startsWith("/investment-revenue");
+    location.startsWith("/investment-revenue") ||
+    location.startsWith("/milestones");
   const isLibraryActive = location.startsWith("/library");
   const isInvestmentDivisionActive = 
     location.startsWith("/model-portfolios") || 
