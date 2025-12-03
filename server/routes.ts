@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated, isLocalDev } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { generatePortfolioRebalanceReport, generateMilestonesReport } from "./pdf-report";
@@ -399,7 +399,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      
+      // In local dev mode, return user from session if database lookup fails
+      if (isLocalDev) {
+        try {
+          const user = await storage.getUser(userId);
+          if (user) {
+            return res.json(user);
+          }
+        } catch (error) {
+          // If user doesn't exist in DB, return user from session
+        }
+        
+        // Return user from session for local dev
+        return res.json({
+          id: req.user.claims.sub,
+          email: req.user.claims.email || "dev@localhost",
+          firstName: req.user.claims.first_name || "Local",
+          lastName: req.user.claims.last_name || "Developer",
+          profileImageUrl: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+      
+      // Production mode - must exist in database
       const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);

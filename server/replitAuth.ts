@@ -10,7 +10,7 @@ import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
 // Check if running in local development mode
-const isLocalDev = process.env.LOCAL_DEV === "true" || !process.env.REPL_ID;
+export const isLocalDev = process.env.LOCAL_DEV === "true" || !process.env.REPL_ID;
 
 const getOidcConfig = memoize(
   async () => {
