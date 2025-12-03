@@ -518,11 +518,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const parsed = insertHouseholdSchema.parse(req.body);
       
-      // Verify user exists (should already exist from auth setup, but double-check)
+      console.log(`[Household Creation] User ID from session: ${userId}`);
+      
+      // CRITICAL: Ensure user exists - this MUST happen before creating household
       let user = await storage.getUser(userId);
+      console.log(`[Household Creation] User lookup result: ${user ? 'found' : 'not found'}`);
+      
       if (!user) {
-        // User should have been created during auth setup, but if not, create it now
+        console.log(`[Household Creation] User ${userId} not found, creating now...`);
         const userEmail = req.user.claims.email || req.user.claims.email_address || "dev@localhost";
+        
         try {
           user = await storage.upsertUser({
             id: userId,
@@ -531,8 +536,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lastName: req.user.claims.last_name || req.user.claims.family_name || "Developer",
             profileImageUrl: req.user.claims.profile_image_url || null,
           });
+          console.log(`[Household Creation] User ${userId} created successfully`);
         } catch (userError: any) {
-          // If duplicate email, find existing user
+          console.error(`[Household Creation] Error creating user:`, userError);
+          // If duplicate email, find existing user by email
           if (userError?.code === '23505') {
             const { db } = await import("./db");
             const { users } = await import("@shared/schema");
@@ -540,22 +547,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const existingUsers = await db.select().from(users).where(eq(users.email, userEmail));
             if (existingUsers.length > 0) {
               user = existingUsers[0];
+              console.log(`[Household Creation] Found existing user with email ${userEmail}, ID: ${user.id}`);
             }
           }
           if (!user) {
-            throw new Error(`User does not exist and could not be created: ${userError.message}`);
+            console.error(`[Household Creation] Failed to create or find user: ${userError.message}`);
+            return res.status(500).json({ 
+              message: `Failed to create household: User does not exist and could not be created. Error: ${userError.message}` 
+            });
           }
         }
       }
       
+      if (!user) {
+        return res.status(500).json({ message: "Failed to create household: User does not exist" });
+      }
+      
+      console.log(`[Household Creation] Using user ID: ${user.id} for household creation`);
+      
       // Check for duplicate household name
-      const nameExists = await storage.checkHouseholdNameExists(parsed.name, userId);
+      const nameExists = await storage.checkHouseholdNameExists(parsed.name, user.id);
       if (nameExists) {
         return res.status(400).json({ message: "A household with this name already exists" });
       }
       
-      // Create household with the current user as owner
-      const household = await storage.createHousehold({ ...parsed, userId });
+      // Create household with the user ID (use user.id to ensure we have the correct ID)
+      const household = await storage.createHousehold({ ...parsed, userId: user.id });
       res.json(household);
     } catch (error: any) {
       console.error("Error creating household:", error);
@@ -7414,4 +7431,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   return httpServer;
 }
+
 
