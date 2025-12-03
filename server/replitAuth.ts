@@ -145,7 +145,13 @@ export async function setupAuth(app: Express) {
     passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
     // Auto-login middleware for local dev
+    // Skip auto-login if user is logging out
     app.use((req: any, res, next) => {
+      // Don't auto-login if this is a logout request
+      if (req.path === '/api/logout') {
+        return next();
+      }
+      
       if (!req.user) {
         const user = {
           claims: {
@@ -194,6 +200,10 @@ export async function setupAuth(app: Express) {
     });
 
     app.get("/api/logout", (req: any, res) => {
+      // Clear user from request before destroying session
+      req.user = null;
+      req.isAuthenticated = () => false;
+      
       // Destroy the session to actually log out
       req.logout((err: any) => {
         if (err) {
@@ -205,8 +215,14 @@ export async function setupAuth(app: Express) {
             console.error("Session destroy error:", err);
           }
           // Clear the session cookie
-          res.clearCookie('connect.sid');
-          res.redirect("/");
+          res.clearCookie('connect.sid', {
+            path: '/',
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax'
+          });
+          // Redirect to a page that won't auto-login
+          res.redirect("/?loggedOut=true");
         });
       });
     });
