@@ -98,87 +98,146 @@ try {
     .from(schema.households)
     .where(isNull(schema.households.deletedAt)); // Only active households
   
-  for (const household of localHouseholds) {
-    try {
-      const existing = await railwayDb
-        .select()
-        .from(schema.households)
-        .where(eq(schema.households.id, household.id))
-        .limit(1);
-      
-      if (existing.length > 0) {
-        await railwayDb
-          .update(schema.households)
-          .set({ ...household, updatedAt: new Date() })
-          .where(eq(schema.households.id, household.id));
-        stats.households.updated++;
-      } else {
-        await railwayDb.insert(schema.households).values(household);
-        stats.households.imported++;
-        console.log(`  ✓ ${household.name}`);
+  // Get the current user ID in Railway (for userId mapping)
+  const railwayUsers = await railwayDb.select().from(schema.users).limit(1);
+  const railwayUserId = railwayUsers.length > 0 ? railwayUsers[0].id : null;
+  
+  if (localHouseholds.length === 0) {
+    console.log('  ℹ No households to migrate\n');
+  } else {
+    for (const household of localHouseholds) {
+      try {
+        // Check if household exists by name (since IDs might differ, and userId might differ)
+        const existingByName = await railwayDb
+          .select()
+          .from(schema.households)
+          .where(
+            and(
+              eq(schema.households.name, household.name),
+              isNull(schema.households.deletedAt)
+            )
+          )
+          .limit(1);
+        
+        if (existingByName.length > 0) {
+          // Household with same name exists, update it
+          await railwayDb
+            .update(schema.households)
+            .set({ 
+              ...household, 
+              userId: railwayUserId || household.userId, // Use Railway user ID
+              updatedAt: new Date() 
+            })
+            .where(eq(schema.households.id, existingByName[0].id));
+          stats.households.updated++;
+          console.log(`  ⊘ ${household.name}: Already exists, updated`);
+        } else {
+          // Create new household, but update userId to match Railway user
+          const householdData = {
+            ...household,
+            userId: railwayUserId || household.userId, // Use Railway user ID if available
+          };
+          await railwayDb.insert(schema.households).values(householdData);
+          stats.households.imported++;
+          console.log(`  ✓ ${household.name}`);
+        }
+      } catch (error) {
+        stats.households.errors++;
+        console.error(`  ✗ ${household.name}: ${error.message}`);
+        // Log more details for debugging
+        if (error.code) {
+          console.error(`    Error code: ${error.code}, Detail: ${error.detail || 'N/A'}`);
+        }
       }
-    } catch (error) {
-      stats.households.errors++;
-      console.error(`  ✗ ${household.name}: ${error.message}`);
     }
   }
-  console.log(`  ✅ Households: ${stats.households.imported} imported, ${stats.households.updated} updated\n`);
+  console.log(`  ✅ Households: ${stats.households.imported} imported, ${stats.households.updated} updated, ${stats.households.errors} errors\n`);
 
   // 3. Migrate Individuals
   console.log('👤 Migrating Individuals...');
   const localIndividuals = await localDb.select().from(schema.individuals);
-  for (const individual of localIndividuals) {
-    try {
-      const existing = await railwayDb
-        .select()
-        .from(schema.individuals)
-        .where(eq(schema.individuals.id, individual.id))
-        .limit(1);
-      
-      if (existing.length > 0) {
-        await railwayDb
-          .update(schema.individuals)
-          .set({ ...individual, updatedAt: new Date() })
-          .where(eq(schema.individuals.id, individual.id));
-        stats.individuals.updated++;
-      } else {
-        await railwayDb.insert(schema.individuals).values(individual);
-        stats.individuals.imported++;
+  
+  if (localIndividuals.length === 0) {
+    console.log('  ℹ No individuals to migrate\n');
+  } else {
+    for (const individual of localIndividuals) {
+      try {
+        // Check if individual exists by name and householdId
+        const existing = await railwayDb
+          .select()
+          .from(schema.individuals)
+          .where(
+            and(
+              eq(schema.individuals.name, individual.name),
+              eq(schema.individuals.householdId, individual.householdId)
+            )
+          )
+          .limit(1);
+        
+        if (existing.length > 0) {
+          await railwayDb
+            .update(schema.individuals)
+            .set({ ...individual, updatedAt: new Date() })
+            .where(eq(schema.individuals.id, existing[0].id));
+          stats.individuals.updated++;
+        } else {
+          await railwayDb.insert(schema.individuals).values(individual);
+          stats.individuals.imported++;
+          console.log(`  ✓ ${individual.name}`);
+        }
+      } catch (error) {
+        stats.individuals.errors++;
+        console.error(`  ✗ ${individual.name}: ${error.message}`);
+        if (error.code) {
+          console.error(`    Error code: ${error.code}, Detail: ${error.detail || 'N/A'}`);
+        }
       }
-    } catch (error) {
-      stats.individuals.errors++;
-      console.error(`  ✗ ${individual.name}: ${error.message}`);
     }
   }
-  console.log(`  ✅ Individuals: ${stats.individuals.imported} imported, ${stats.individuals.updated} updated\n`);
+  console.log(`  ✅ Individuals: ${stats.individuals.imported} imported, ${stats.individuals.updated} updated, ${stats.individuals.errors} errors\n`);
 
   // 4. Migrate Corporations
   console.log('🏢 Migrating Corporations...');
   const localCorporations = await localDb.select().from(schema.corporations);
-  for (const corp of localCorporations) {
-    try {
-      const existing = await railwayDb
-        .select()
-        .from(schema.corporations)
-        .where(eq(schema.corporations.id, corp.id))
-        .limit(1);
-      
-      if (existing.length > 0) {
-        await railwayDb
-          .update(schema.corporations)
-          .set({ ...corp, updatedAt: new Date() })
-          .where(eq(schema.corporations.id, corp.id));
-        stats.corporations.updated++;
-      } else {
-        await railwayDb.insert(schema.corporations).values(corp);
-        stats.corporations.imported++;
+  
+  if (localCorporations.length === 0) {
+    console.log('  ℹ No corporations to migrate\n');
+  } else {
+    for (const corp of localCorporations) {
+      try {
+        // Check if corporation exists by name and householdId
+        const existing = await railwayDb
+          .select()
+          .from(schema.corporations)
+          .where(
+            and(
+              eq(schema.corporations.name, corp.name),
+              eq(schema.corporations.householdId, corp.householdId)
+            )
+          )
+          .limit(1);
+        
+        if (existing.length > 0) {
+          await railwayDb
+            .update(schema.corporations)
+            .set({ ...corp, updatedAt: new Date() })
+            .where(eq(schema.corporations.id, existing[0].id));
+          stats.corporations.updated++;
+        } else {
+          await railwayDb.insert(schema.corporations).values(corp);
+          stats.corporations.imported++;
+          console.log(`  ✓ ${corp.name}`);
+        }
+      } catch (error) {
+        stats.corporations.errors++;
+        console.error(`  ✗ ${corp.name}: ${error.message}`);
+        if (error.code) {
+          console.error(`    Error code: ${error.code}, Detail: ${error.detail || 'N/A'}`);
+        }
       }
-    } catch (error) {
-      stats.corporations.errors++;
-      console.error(`  ✗ ${corp.name}: ${error.message}`);
     }
   }
-  console.log(`  ✅ Corporations: ${stats.corporations.imported} imported, ${stats.corporations.updated} updated\n`);
+  console.log(`  ✅ Corporations: ${stats.corporations.imported} imported, ${stats.corporations.updated} updated, ${stats.corporations.errors} errors\n`);
 
   // 5. Migrate Accounts (Individual, Corporate, Joint)
   console.log('💼 Migrating Accounts...');
