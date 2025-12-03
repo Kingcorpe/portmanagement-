@@ -389,15 +389,25 @@ export default function BusinessMilestonesPage() {
                     >
                       <div className="absolute -left-[33px] top-4 w-4 h-4 rounded-full bg-primary border-4 border-background" />
                       <CardHeader className="py-3 px-4">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <Badge variant="secondary" className={`${categoryInfo.color} shrink-0`}>
-                              <CategoryIcon className="w-3 h-3 mr-1" />
-                              {categoryInfo.label}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground shrink-0">
-                              {format(new Date(milestone.achievedDate), "MMM d, yyyy")}
-                            </span>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <CardTitle className="text-lg font-semibold leading-tight" data-testid={`milestone-title-${milestone.id}`}>
+                              {milestone.title}
+                            </CardTitle>
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                              <Badge variant="secondary" className={`${categoryInfo.color} shrink-0`}>
+                                <CategoryIcon className="w-3 h-3 mr-1" />
+                                {categoryInfo.label}
+                              </Badge>
+                              <span className="text-sm text-muted-foreground shrink-0">
+                                {format(new Date(milestone.achievedDate), "MMM d, yyyy")}
+                              </span>
+                              {milestone.impactValue && (
+                                <span className="text-sm font-semibold text-primary" data-testid={`milestone-impact-${milestone.id}`}>
+                                  {milestone.impactValue}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <Button
@@ -418,14 +428,6 @@ export default function BusinessMilestonesPage() {
                             </Button>
                           </div>
                         </div>
-                        <CardTitle className="text-base mt-1" data-testid={`milestone-title-${milestone.id}`}>
-                          {milestone.title}
-                        </CardTitle>
-                        {milestone.impactValue && (
-                          <span className="text-sm font-semibold text-primary" data-testid={`milestone-impact-${milestone.id}`}>
-                            {milestone.impactValue}
-                          </span>
-                        )}
                       </CardHeader>
                       {milestone.description && (
                         <CardContent className="pt-0 pb-3 px-4">
