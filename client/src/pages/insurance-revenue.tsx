@@ -1139,7 +1139,7 @@ export default function InsuranceRevenuePage() {
         </div>
 
         {monthlyRevenue.length > 0 && (
-          <Card data-testid="card-monthly-breakdown">
+          <Card data-testid="card-monthly-breakdown" className="glow-border corner-accents">
             <CardHeader>
               <CardTitle>Monthly Revenue Breakdown</CardTitle>
             </CardHeader>
@@ -1188,7 +1188,7 @@ export default function InsuranceRevenuePage() {
       </div>
 
       {/* Revenue Table */}
-      <Card data-testid="card-revenue-table">
+      <Card data-testid="card-revenue-table" className="glow-border corner-accents">
         <CardHeader>
           <CardTitle>Revenue Entries</CardTitle>
         </CardHeader>

@@ -852,7 +852,7 @@ export default function InvestmentRevenuePage() {
       {/* Goal Progress Section */}
       <div className="grid gap-4 md:grid-cols-2">
         {/* Dividend Goals */}
-        <Card>
+        <Card className="glow-border corner-accents">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="h-5 w-5 text-emerald-500" />
@@ -907,7 +907,7 @@ export default function InvestmentRevenuePage() {
         </Card>
 
         {/* AUM Goals */}
-        <Card>
+        <Card className="glow-border corner-accents">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="h-5 w-5 text-blue-500" />
@@ -1022,7 +1022,7 @@ export default function InvestmentRevenuePage() {
 
       {/* Monthly Revenue Breakdown */}
       {monthlyRevenue.length > 0 && (
-        <Card data-testid="card-monthly-breakdown">
+        <Card data-testid="card-monthly-breakdown" className="glow-border corner-accents">
           <CardHeader>
             <CardTitle>Monthly Revenue Breakdown</CardTitle>
           </CardHeader>
@@ -1074,7 +1074,7 @@ export default function InvestmentRevenuePage() {
       )}
 
       {/* Revenue Table */}
-      <Card data-testid="card-revenue-table">
+      <Card data-testid="card-revenue-table" className="glow-border corner-accents">
         <CardHeader>
           <CardTitle>Revenue Entries</CardTitle>
         </CardHeader>

@@ -286,7 +286,7 @@ export default function ReferenceLinksPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {allLinks.map((link) => (
-          <Card key={link.id} className="hover-elevate transition-all" data-testid={`card-link-${link.id}`}>
+          <Card key={link.id} className="hover-elevate transition-all glow-border holo-card" data-testid={`card-link-${link.id}`}>
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 flex-1 min-w-0">

@@ -671,20 +671,20 @@ export default function Tasks() {
       <div className="space-y-3 mt-4">
           {activeTab === "archived" ? (
             archivedLoading ? (
-              <Card>
+              <Card className="glow-border corner-accents">
                 <CardContent className="py-8 text-center text-muted-foreground">
                   Loading archived tasks...
                 </CardContent>
               </Card>
             ) : archivedTasks.length === 0 ? (
-              <Card>
+              <Card className="glow-border corner-accents">
                 <CardContent className="py-8 text-center text-muted-foreground">
                   <Archive className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   No archived tasks. Archived tasks are kept for 30 days.
                 </CardContent>
               </Card>
             ) : (
-              <Card>
+              <Card className="glow-border corner-accents">
                 <CardHeader className="py-3">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <Archive className="h-4 w-4" />
@@ -754,13 +754,13 @@ export default function Tasks() {
               </Card>
             )
           ) : isLoading ? (
-            <Card>
+            <Card className="glow-border corner-accents">
               <CardContent className="py-8 text-center text-muted-foreground">
                 Loading tasks...
               </CardContent>
             </Card>
           ) : filteredTasks.length === 0 ? (
-            <Card>
+            <Card className="glow-border corner-accents">
               <CardContent className="py-8 text-center text-muted-foreground">
                 {activeTab === "pending" 
                   ? "No pending tasks. Great job!"
@@ -776,7 +776,7 @@ export default function Tasks() {
                 open={expandedGroups.has(groupKey)}
                 onOpenChange={() => toggleGroup(groupKey)}
               >
-                <Card>
+                <Card className="glow-border corner-accents">
                   <CardHeader className="py-3">
                     <CollapsibleTrigger asChild>
                       <button 

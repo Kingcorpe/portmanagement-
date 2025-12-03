@@ -2061,7 +2061,7 @@ export default function AccountDetails() {
 
       </div>
 
-      <Card>
+      <Card className="glow-border holo-card">
         <CardContent className="py-4">
           <div className="flex flex-wrap items-center gap-6">
             <div className="flex items-center gap-3">
@@ -2248,7 +2248,7 @@ export default function AccountDetails() {
 
       {/* Unified Holdings & Portfolio Comparison Section */}
       <Collapsible open={isHoldingsExpanded} onOpenChange={setIsHoldingsExpanded}>
-        <Card>
+        <Card className="glow-border corner-accents">
           <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
             <div className="flex items-center gap-4">
               <CollapsibleTrigger asChild>
@@ -2986,7 +2986,7 @@ export default function AccountDetails() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Account Notes Section */}
         <Collapsible open={isNotesExpanded} onOpenChange={setIsNotesExpanded}>
-          <Card className="h-full">
+          <Card className="h-full glow-border holo-card">
             <CardHeader className="pb-3">
               <CollapsibleTrigger asChild>
                 <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity w-full" data-testid="button-toggle-notes">
@@ -3053,7 +3053,7 @@ export default function AccountDetails() {
 
         {/* Account Tasks Section */}
         <Collapsible open={isTasksExpanded} onOpenChange={setIsTasksExpanded}>
-          <Card className="h-full">
+          <Card className="h-full glow-border holo-card">
             <CardHeader className="pb-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <CollapsibleTrigger asChild>
@@ -3298,7 +3298,7 @@ export default function AccountDetails() {
 
       {/* Target Allocations Management Section */}
       <Collapsible open={isTargetAllocationsOpen} onOpenChange={setIsTargetAllocationsOpen}>
-        <Card>
+        <Card className="glow-border corner-accents">
           <CardHeader>
             <div className="flex items-center justify-between flex-wrap gap-2">
               <CollapsibleTrigger asChild>
@@ -4800,7 +4800,7 @@ export default function AccountDetails() {
 
       {/* Change History Section - At bottom of page, collapsible, default closed */}
       <Collapsible open={isAuditLogExpanded} onOpenChange={setIsAuditLogExpanded}>
-        <Card className="border-dashed">
+        <Card className="border-dashed glow-border">
           <CardHeader className="py-3">
             <CollapsibleTrigger asChild>
               <button className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity w-full" data-testid="button-toggle-audit-log">

@@ -37,7 +37,7 @@ export default function InsuranceTasks() {
         </div>
       </div>
 
-      <Card>
+      <Card className="glow-border corner-accents">
         <CardHeader>
           <CardTitle>Insurance Tasks Management</CardTitle>
           <CardDescription>

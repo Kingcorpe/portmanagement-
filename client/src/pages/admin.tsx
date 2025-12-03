@@ -284,7 +284,7 @@ export default function Admin() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="glow-border corner-accents">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
             <CardTitle className="text-sm font-medium">Total Holdings</CardTitle>
             <Database className="h-4 w-4 text-muted-foreground" />
@@ -299,7 +299,7 @@ export default function Admin() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="glow-border corner-accents">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
             <CardTitle className="text-sm font-medium">With Prices</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -314,7 +314,7 @@ export default function Admin() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="glow-border corner-accents">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
             <CardTitle className="text-sm font-medium">With Dividends</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -329,7 +329,7 @@ export default function Admin() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="glow-border corner-accents">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
             <CardTitle className="text-sm font-medium">Categories</CardTitle>
             <Settings className="h-4 w-4 text-muted-foreground" />
@@ -368,7 +368,7 @@ export default function Admin() {
 
         {/* Universal Holdings Tab */}
         <TabsContent value="holdings" className="space-y-4">
-          <Card>
+          <Card className="glow-border corner-accents">
             <CardHeader>
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
@@ -545,7 +545,7 @@ export default function Admin() {
 
         {/* Webhook Logs Tab */}
         <TabsContent value="webhooks" className="space-y-4">
-          <Card>
+          <Card className="glow-border corner-accents">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -566,7 +566,7 @@ export default function Admin() {
 
         {/* Settings Tab */}
         <TabsContent value="settings" className="space-y-4">
-          <Card>
+          <Card className="glow-border corner-accents">
             <CardHeader>
               <CardTitle>System Settings</CardTitle>
               <CardDescription>Configure application behavior and integrations</CardDescription>

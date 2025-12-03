@@ -336,7 +336,7 @@ function KanbanColumn({
             };
             
             return (
-            <Card key={obj.id} className={`p-3 space-y-2 bg-card ${getStatusColor(obj.status)}`} data-testid={`objective-${obj.id}`}>
+            <Card key={obj.id} className={`p-3 space-y-2 bg-card glow-border holo-card ${getStatusColor(obj.status)}`} data-testid={`objective-${obj.id}`}>
               <div 
                 className="space-y-1 cursor-pointer hover-elevate rounded px-2 py-1 -mx-2 -my-1"
                 onClick={() => onEdit(obj)}
@@ -772,7 +772,7 @@ export default function KpiDashboard() {
           const businessObjs = monthObjectives.filter((o: any) => o.type === "business");
 
           return (
-            <Card key={monthData.month} className="overflow-visible" data-testid={`card-month-${monthData.month}`}>
+            <Card key={monthData.month} className="overflow-visible glow-border corner-accents" data-testid={`card-month-${monthData.month}`}>
               <Collapsible
                 open={isOpen}
                 onOpenChange={() => toggleMonth(monthData.month)}

@@ -360,7 +360,7 @@ export default function BusinessMilestonesPage() {
       </div>
 
       {filteredMilestones.length === 0 ? (
-        <Card className="p-12" data-testid="empty-state">
+        <Card className="p-12 glow-border corner-accents" data-testid="empty-state">
           <div className="text-center">
             <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">No business milestones yet</h3>
@@ -391,7 +391,7 @@ export default function BusinessMilestonesPage() {
                   return (
                     <Card
                       key={milestone.id}
-                      className="relative hover-elevate"
+                      className="relative hover-elevate glow-border holo-card"
                       data-testid={`milestone-card-${milestone.id}`}
                     >
                       <div className="absolute -left-[33px] top-4 w-4 h-4 rounded-full bg-primary border-4 border-background" />

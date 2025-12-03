@@ -452,7 +452,7 @@ function SortableFreelancePortfolioCard({
   return (
     <div ref={setNodeRef} style={style}>
       <Collapsible open={isOpen} onOpenChange={onToggle}>
-        <Card data-testid={`card-freelance-portfolio-${portfolio.id}`}>
+        <Card data-testid={`card-freelance-portfolio-${portfolio.id}`} className="glow-border holo-card">
           <CardHeader className="flex flex-row items-start justify-between gap-2 pb-3">
             <div className="flex items-center gap-3">
               <button
@@ -1706,7 +1706,7 @@ export default function ModelPortfolios() {
                       open={isExpanded} 
                       onOpenChange={() => toggleCategory(category)}
                     >
-                      <Card>
+                      <Card className="glow-border corner-accents">
                         <CollapsibleTrigger className="w-full" data-testid={`toggle-category-${category}`}>
                           <CardHeader className="flex flex-row items-center justify-between py-3 cursor-pointer hover-elevate">
                             <div className="flex items-center gap-3">
