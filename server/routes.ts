@@ -1,4 +1,4 @@
-// Based on blueprint:javascript_log_in_with_replit
+// API Routes
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -51,8 +51,8 @@ async function sendTradingAlertEmail(symbol: string, signal: string, price: stri
       return;
     }
     
-    // Try Replit Gmail integration (for backward compatibility)
-    if (process.env.REPL_IDENTITY || process.env.WEB_REPL_RENEWAL) {
+          // Try Replit Gmail integration (for Replit deployments only)
+          if (process.env.REPL_ID && (process.env.REPL_IDENTITY || process.env.WEB_REPL_RENEWAL)) {
       const { sendEmail } = await import("./gmail");
       await sendEmail(alertEmail, `${signal} ${symbol} @ $${price}`, htmlBody);
       console.log(`Alert email sent: ${symbol} ${signal} @ $${price}`);

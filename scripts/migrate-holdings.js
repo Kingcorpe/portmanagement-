@@ -5,11 +5,17 @@
  * Usage: node scripts/migrate-holdings.js
  */
 
-import { Pool } from '@neondatabase/serverless';
-import ws from 'ws';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import { eq } from 'drizzle-orm';
-import { universalHoldings } from '@shared/schema';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+
+// Use dynamic imports for ESM modules
+const { Pool } = await import('@neondatabase/serverless');
+const ws = (await import('ws')).default;
+const { drizzle } = await import('drizzle-orm/neon-serverless');
+const { eq } = await import('drizzle-orm');
+// Import schema using relative path (tsx will handle TypeScript)
+const schemaModule = await import('../shared/schema.ts');
+const { universalHoldings } = schemaModule;
 
 const { neonConfig } = await import('@neondatabase/serverless');
 neonConfig.webSocketConstructor = ws;

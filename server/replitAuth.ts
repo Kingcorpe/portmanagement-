@@ -1,4 +1,4 @@
-// Based on blueprint:javascript_log_in_with_replit
+// Authentication service - supports both Replit OIDC and local dev mode
 import * as client from "openid-client";
 import { Strategy, type VerifyFunction } from "openid-client/passport";
 
@@ -90,12 +90,12 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Local development mode - skip Replit OIDC setup
+  // Local development mode - skip OIDC setup (works on Railway/local)
   if (isLocalDev) {
     console.log("🔓 Running in LOCAL DEV mode - authentication bypassed");
     
-    // Use existing Replit user ID to access existing data
-    // Change this to your Replit user ID if you have existing data
+    // Use existing user ID to access existing data
+    // Change this to your user ID if you have existing data
     let devUserId = process.env.DEV_USER_ID || "50142011";
     
     // CRITICAL: Ensure user exists in database

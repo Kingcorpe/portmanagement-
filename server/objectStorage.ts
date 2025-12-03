@@ -1,5 +1,5 @@
-// Object Storage Service for Replit's built-in object storage
-// Reference: blueprint:javascript_object_storage
+// Object Storage Service for Google Cloud Storage
+// Supports both Replit's sidecar (for Replit deployments) and direct GCS (for Railway/production)
 import { Storage, File } from "@google-cloud/storage";
 import { Response } from "express";
 import { randomUUID } from "crypto";
@@ -12,24 +12,47 @@ import {
 } from "./objectAcl";
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
+const isReplit = process.env.REPL_ID !== undefined;
 
-export const objectStorageClient = new Storage({
-  credentials: {
-    audience: "replit",
-    subject_token_type: "access_token",
-    token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
-    type: "external_account",
-    credential_source: {
-      url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
-      format: {
-        type: "json",
-        subject_token_field_name: "access_token",
+// Initialize Google Cloud Storage client
+// On Replit: use sidecar endpoint for credentials
+// On Railway/production: use GOOGLE_APPLICATION_CREDENTIALS or service account key
+let objectStorageClient: Storage;
+
+if (isReplit) {
+  // Replit mode: use sidecar endpoint
+  objectStorageClient = new Storage({
+    credentials: {
+      audience: "replit",
+      subject_token_type: "access_token",
+      token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
+      type: "external_account",
+      credential_source: {
+        url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
+        format: {
+          type: "json",
+          subject_token_field_name: "access_token",
+        },
       },
+      universe_domain: "googleapis.com",
     },
-    universe_domain: "googleapis.com",
-  },
-  projectId: "",
-});
+    projectId: "",
+  });
+} else {
+  // Production mode: use service account credentials
+  // Will use GOOGLE_APPLICATION_CREDENTIALS env var if set, or default credentials
+  objectStorageClient = new Storage({
+    // If GOOGLE_APPLICATION_CREDENTIALS is set, it will be used automatically
+    // Otherwise, you can pass credentials via GOOGLE_SERVICE_ACCOUNT_KEY (JSON string)
+    ...(process.env.GOOGLE_SERVICE_ACCOUNT_KEY
+      ? {
+          credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
+        }
+      : {}),
+  });
+}
+
+export { objectStorageClient };
 
 export class ObjectNotFoundError extends Error {
   constructor() {
@@ -246,29 +269,43 @@ async function signObjectURL({
   method: "GET" | "PUT" | "DELETE" | "HEAD";
   ttlSec: number;
 }): Promise<string> {
-  const request = {
-    bucket_name: bucketName,
-    object_name: objectName,
-    method,
-    expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
-  };
-  const response = await fetch(
-    `${REPLIT_SIDECAR_ENDPOINT}/object-storage/signed-object-url`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(request),
-    }
-  );
-  if (!response.ok) {
-    throw new Error(
-      `Failed to sign object URL, errorcode: ${response.status}, ` +
-        `make sure you're running on Replit`
+  if (isReplit) {
+    // Replit mode: use sidecar endpoint
+    const request = {
+      bucket_name: bucketName,
+      object_name: objectName,
+      method,
+      expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
+    };
+    const response = await fetch(
+      `${REPLIT_SIDECAR_ENDPOINT}/object-storage/signed-object-url`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(request),
+      }
     );
-  }
+    if (!response.ok) {
+      throw new Error(
+        `Failed to sign object URL via Replit sidecar, errorcode: ${response.status}`
+      );
+    }
 
-  const { signed_url: signedURL } = await response.json();
-  return signedURL;
+    const { signed_url: signedURL } = await response.json();
+    return signedURL;
+  } else {
+    // Production mode: use Google Cloud Storage SDK directly
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    
+    const [signedURL] = await file.getSignedUrl({
+      version: "v4",
+      action: method.toLowerCase() as "read" | "write" | "delete" | "resumable",
+      expires: Date.now() + ttlSec * 1000,
+    });
+    
+    return signedURL;
+  }
 }

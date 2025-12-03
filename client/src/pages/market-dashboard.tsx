@@ -185,7 +185,7 @@ function IndexCard({ index }: { index: MarketIndex }) {
           <div
             className={cn(
               "text-right",
-              isPositive ? "text-emerald-500" : "text-red-500"
+              isPositive ? "text-emerald-500" : "text-orange-500"
             )}
           >
             <div className="flex items-center justify-end gap-1">
@@ -262,7 +262,7 @@ function CryptoCard({ crypto, onClick }: { crypto: CryptoPrice; onClick?: () => 
             <div
               className={cn(
                 "flex items-center justify-end gap-1 text-sm",
-                isPositive ? "text-emerald-500" : "text-red-500"
+                isPositive ? "text-emerald-500" : "text-orange-500"
               )}
             >
               {isPositive ? (
@@ -297,7 +297,7 @@ function ExchangeRateWidget({ rate }: { rate: ExchangeRate }) {
             <p className="text-sm text-muted-foreground">{rate.pair}</p>
             <p className="text-2xl font-bold">{rate.rate.toFixed(4)}</p>
           </div>
-          <div className={cn("text-right", isPositive ? "text-emerald-500" : "text-red-500")}>
+          <div className={cn("text-right", isPositive ? "text-emerald-500" : "text-orange-500")}>
             <p className="font-medium">{isPositive ? "+" : ""}{rate.change.toFixed(4)}</p>
             <p className="text-xs">{isPositive ? "+" : ""}{rate.changePercent.toFixed(2)}%</p>
           </div>
@@ -310,7 +310,7 @@ function ExchangeRateWidget({ rate }: { rate: ExchangeRate }) {
 // Interest Rates Widget
 function InterestRatesWidget({ rates }: { rates: InterestRateData }) {
   const trendIcons = {
-    up: <TrendingUp className="h-4 w-4 text-red-500" />,
+    up: <TrendingUp className="h-4 w-4 text-orange-500" />,
     down: <TrendingDown className="h-4 w-4 text-emerald-500" />,
     hold: <Minus className="h-4 w-4 text-zinc-500" />,
   };
@@ -365,7 +365,7 @@ function InterestRatesWidget({ rates }: { rates: InterestRateData }) {
 // Economic Calendar Widget
 function EconomicCalendarWidget({ events }: { events: EconomicEvent[] }) {
   const importanceColors = {
-    high: "bg-red-500/20 text-red-400 border-red-500/30",
+    high: "bg-orange-500/20 text-orange-400 border-orange-500/30",
     medium: "bg-amber-500/20 text-amber-400 border-amber-500/30",
     low: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
   };

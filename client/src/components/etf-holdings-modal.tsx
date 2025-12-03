@@ -281,7 +281,7 @@ export function ETFHoldingsModal({ symbol, isOpen, onClose }: ETFHoldingsModalPr
                                 <div
                                   className={cn(
                                     "flex items-center justify-end gap-1 text-xs",
-                                    isIncrease ? "text-emerald-500" : "text-red-500"
+                                    isIncrease ? "text-emerald-500" : "text-orange-500"
                                   )}
                                 >
                                   {isIncrease ? (

@@ -125,7 +125,7 @@ function PriceHistoryTab({ history, currentPrice }: { history: { date: string; p
                   <div
                     className={cn(
                       "flex items-center gap-1 text-xs",
-                      isPositive ? "text-emerald-500" : "text-red-500"
+                      isPositive ? "text-emerald-500" : "text-orange-500"
                     )}
                   >
                     {isPositive ? (
@@ -141,7 +141,7 @@ function PriceHistoryTab({ history, currentPrice }: { history: { date: string; p
                 <div
                   className={cn(
                     "h-full transition-all",
-                    isPositive ? "bg-emerald-500/50" : "bg-red-500/50"
+                    isPositive ? "bg-emerald-500/50" : "bg-orange-500/50"
                   )}
                   style={{ width: `${percentage}%` }}
                 />
@@ -304,7 +304,7 @@ export function CryptoDetailModal({ symbol, name, isOpen, onClose }: CryptoDetai
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-2xl font-bold text-red-500">
+                      <p className="text-2xl font-bold text-orange-500">
                         ${formatPrice(detail.dayLow)}
                       </p>
                     </CardContent>

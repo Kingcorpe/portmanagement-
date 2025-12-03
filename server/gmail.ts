@@ -1,4 +1,4 @@
-// Gmail integration using Replit's Google Mail connector
+// Gmail integration - supports both Replit connectors and direct SMTP
 import { google } from 'googleapis';
 
 let connectionSettings: any;

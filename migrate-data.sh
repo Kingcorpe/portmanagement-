@@ -62,8 +62,24 @@ echo ""
 echo "🔄 Starting migration..."
 echo ""
 
-# Run the Node.js migration script
-node scripts/migrate-holdings.js
+# Ask what to migrate
+echo ""
+echo "What would you like to migrate?"
+echo "  1) Universal Holdings only (quick)"
+echo "  2) All data (holdings, households, accounts, positions, portfolios)"
+echo ""
+read -p "Enter choice (1 or 2) [default: 2]: " MIGRATE_CHOICE
+MIGRATE_CHOICE=${MIGRATE_CHOICE:-2}
+
+if [ "$MIGRATE_CHOICE" = "1" ]; then
+    echo ""
+    echo "🔄 Migrating Universal Holdings only..."
+    npx tsx scripts/migrate-holdings.js
+else
+    echo ""
+    echo "🔄 Migrating ALL data..."
+    npx tsx scripts/migrate-all-data.js
+fi
 
 if [ $? -eq 0 ]; then
     echo ""
