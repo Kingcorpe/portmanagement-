@@ -88,6 +88,8 @@ import {
   updateKpiObjectiveSchema,
   insertReferenceLinkSchema,
   updateReferenceLinkSchema,
+  insertMilestoneSchema,
+  updateMilestoneSchema,
   type InsertAccountAuditLog,
   type Position,
 } from "@shared/schema";
@@ -6878,6 +6880,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting reference link:", error);
       res.status(500).json({ message: error.message || "Failed to delete reference link" });
+    }
+  });
+
+  // Milestones API routes
+  app.get('/api/milestones', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const milestones = await storage.getMilestonesByUser(userId);
+      res.json(milestones);
+    } catch (error: any) {
+      console.error("Error fetching milestones:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch milestones" });
+    }
+  });
+
+  app.post('/api/milestones', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const data = insertMilestoneSchema.parse({ ...req.body, userId });
+      const milestone = await storage.createMilestone(data);
+      res.status(201).json(milestone);
+    } catch (error: any) {
+      console.error("Error creating milestone:", error);
+      res.status(500).json({ message: error.message || "Failed to create milestone" });
+    }
+  });
+
+  app.patch('/api/milestones/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      const existing = await storage.getMilestoneById(id);
+      if (!existing || existing.userId !== userId) {
+        return res.status(404).json({ message: "Milestone not found" });
+      }
+      
+      const data = updateMilestoneSchema.parse(req.body);
+      const milestone = await storage.updateMilestone(id, data);
+      res.json(milestone);
+    } catch (error: any) {
+      console.error("Error updating milestone:", error);
+      res.status(500).json({ message: error.message || "Failed to update milestone" });
+    }
+  });
+
+  app.delete('/api/milestones/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      
+      const existing = await storage.getMilestoneById(id);
+      if (!existing || existing.userId !== userId) {
+        return res.status(404).json({ message: "Milestone not found" });
+      }
+      
+      await storage.deleteMilestone(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting milestone:", error);
+      res.status(500).json({ message: error.message || "Failed to delete milestone" });
     }
   });
 
