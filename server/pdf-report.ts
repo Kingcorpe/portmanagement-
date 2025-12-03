@@ -1,6 +1,7 @@
-// PDF Report Generation for Portfolio Rebalancing
+// PDF Report Generation for Portfolio Rebalancing and Milestones
 // @ts-ignore - pdfkit types are installed but may not resolve correctly
 import PDFDocument from 'pdfkit';
+import type { Milestone } from '@shared/schema';
 
 interface PortfolioPosition {
   symbol: string;
@@ -186,6 +187,177 @@ export function generatePortfolioRebalanceReport(data: ReportData): Promise<Buff
     doc.fontSize(8).fillColor('#666666')
        .text('This report is for informational purposes only and does not constitute investment advice.', { align: 'center' })
        .text('Please consult with your financial advisor before making any investment decisions.', { align: 'center' });
+
+    doc.end();
+  });
+}
+
+// Category labels and colors for milestones
+const MILESTONE_CATEGORIES: Record<string, { label: string; color: string }> = {
+  client_win: { label: 'Client Win', color: '#16a34a' },
+  personal_growth: { label: 'Personal Growth', color: '#9333ea' },
+  business_milestone: { label: 'Business Milestone', color: '#2563eb' },
+  team_achievement: { label: 'Team Achievement', color: '#d97706' },
+  process_improvement: { label: 'Process Improvement', color: '#0891b2' },
+  other: { label: 'Other', color: '#6b7280' },
+};
+
+export function generateMilestonesReport(milestones: Milestone[]): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ 
+      size: 'LETTER',
+      margins: { top: 50, bottom: 50, left: 50, right: 50 }
+    });
+    
+    const chunks: Buffer[] = [];
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    // Header
+    doc.fontSize(22).font('Helvetica-Bold')
+       .text('Milestones & Wins', { align: 'center' });
+    doc.moveDown(0.3);
+    
+    doc.fontSize(10).font('Helvetica')
+       .fillColor('#666666')
+       .text(`Generated: ${new Date().toLocaleString('en-CA', { dateStyle: 'long', timeStyle: 'short' })}`, { align: 'center' });
+    doc.fillColor('#000000');
+    doc.moveDown(0.5);
+
+    // Separator line
+    doc.moveTo(50, doc.y).lineTo(562, doc.y).stroke();
+    doc.moveDown(0.5);
+
+    // Summary
+    doc.fontSize(14).font('Helvetica-Bold').text('Summary');
+    doc.moveDown(0.3);
+    doc.fontSize(10).font('Helvetica')
+       .text(`Total Milestones: ${milestones.length}`);
+    
+    // Count by category
+    const categoryCounts: Record<string, number> = {};
+    milestones.forEach(m => {
+      const cat = m.category || 'other';
+      categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+    });
+    
+    Object.entries(categoryCounts).forEach(([cat, count]) => {
+      const catInfo = MILESTONE_CATEGORIES[cat] || MILESTONE_CATEGORIES.other;
+      doc.fillColor(catInfo.color)
+         .text(`${catInfo.label}: ${count}`);
+    });
+    doc.fillColor('#000000');
+    doc.moveDown(1);
+
+    if (milestones.length === 0) {
+      doc.fontSize(12).font('Helvetica')
+         .fillColor('#666666')
+         .text('No milestones recorded yet.', { align: 'center' });
+      doc.end();
+      return;
+    }
+
+    // Group milestones by month
+    const groupedByMonth: Record<string, Milestone[]> = {};
+    milestones.forEach(m => {
+      const date = m.achievedDate ? new Date(m.achievedDate) : new Date();
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const monthLabel = date.toLocaleString('en-CA', { month: 'long', year: 'numeric' });
+      if (!groupedByMonth[monthLabel]) {
+        groupedByMonth[monthLabel] = [];
+      }
+      groupedByMonth[monthLabel].push(m);
+    });
+
+    // Sort months in descending order
+    const sortedMonths = Object.entries(groupedByMonth).sort((a, b) => {
+      const dateA = new Date(a[1][0].achievedDate || new Date());
+      const dateB = new Date(b[1][0].achievedDate || new Date());
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    // Render each month section
+    for (const [monthLabel, monthMilestones] of sortedMonths) {
+      // Check if we need a new page
+      if (doc.y > 650) {
+        doc.addPage();
+        doc.y = 50;
+      }
+
+      // Month header
+      doc.fontSize(14).font('Helvetica-Bold')
+         .fillColor('#374151')
+         .text(monthLabel);
+      doc.fillColor('#000000');
+      doc.moveDown(0.3);
+
+      // Sort milestones within month by date (newest first)
+      const sortedMilestones = monthMilestones.sort((a, b) => {
+        const dateA = a.achievedDate ? new Date(a.achievedDate).getTime() : 0;
+        const dateB = b.achievedDate ? new Date(b.achievedDate).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      for (const milestone of sortedMilestones) {
+        // Check if we need a new page
+        if (doc.y > 680) {
+          doc.addPage();
+          doc.y = 50;
+        }
+
+        const catInfo = MILESTONE_CATEGORIES[milestone.category || 'other'] || MILESTONE_CATEGORIES.other;
+        const achievedDate = milestone.achievedDate 
+          ? new Date(milestone.achievedDate).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })
+          : '';
+
+        // Category badge
+        doc.fontSize(8).font('Helvetica-Bold')
+           .fillColor(catInfo.color)
+           .text(catInfo.label.toUpperCase(), { continued: true });
+        
+        // Date
+        doc.font('Helvetica')
+           .fillColor('#666666')
+           .text(`  ${achievedDate}`);
+        
+        doc.fillColor('#000000');
+        doc.moveDown(0.2);
+
+        // Title
+        doc.fontSize(12).font('Helvetica-Bold')
+           .text(milestone.title);
+        doc.moveDown(0.1);
+
+        // Impact value if present
+        if (milestone.impactValue) {
+          doc.fontSize(10).font('Helvetica')
+             .fillColor('#16a34a')
+             .text(`Impact: ${milestone.impactValue}`);
+          doc.fillColor('#000000');
+        }
+
+        // Description if present
+        if (milestone.description) {
+          doc.fontSize(9).font('Helvetica')
+             .fillColor('#4b5563')
+             .text(milestone.description, { width: 500 });
+          doc.fillColor('#000000');
+        }
+
+        doc.moveDown(0.8);
+      }
+
+      doc.moveDown(0.5);
+    }
+
+    // Footer
+    doc.moveDown(0.5);
+    doc.moveTo(50, doc.y).lineTo(562, doc.y).stroke();
+    doc.moveDown(0.5);
+    
+    doc.fontSize(8).fillColor('#666666')
+       .text('This report was generated from PracticeOS - Your Practice Management Platform', { align: 'center' });
 
     doc.end();
   });
