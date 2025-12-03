@@ -439,9 +439,9 @@ try {
   const localPortfolios = await localDb.select().from(schema.plannedPortfolios);
   
   // Build a map of local holding IDs to Railway holding IDs (by ticker)
+  // Reuse localHoldings from earlier in the script
   const holdingIdMap = new Map();
   const railwayHoldings = await railwayDb.select().from(schema.universalHoldings);
-  const localHoldings = await localDb.select().from(schema.universalHoldings);
   
   for (const localHolding of localHoldings) {
     const railwayHolding = railwayHoldings.find(h => h.ticker === localHolding.ticker);
