@@ -121,24 +121,22 @@ try {
           .limit(1);
         
         if (existingByName.length > 0) {
-          // Household with same name exists, update it
-          await railwayDb
-            .update(schema.households)
-            .set({ 
-              ...household, 
-              userId: railwayUserId || household.userId, // Use Railway user ID
-              updatedAt: new Date() 
-            })
-            .where(eq(schema.households.id, existingByName[0].id));
+          // Household with same name exists, just use it (don't update to avoid FK constraint issues)
+          // Map the local ID to Railway ID for later use
+          householdIdMap.set(household.id, existingByName[0].id);
           stats.households.updated++;
-          console.log(`  ⊘ ${household.name}: Already exists, updated`);
+          console.log(`  ⊘ ${household.name}: Already exists, skipping update`);
         } else {
           // Create new household, but update userId to match Railway user
           const householdData = {
             ...household,
             userId: railwayUserId || household.userId, // Use Railway user ID if available
           };
-          await railwayDb.insert(schema.households).values(householdData);
+          const inserted = await railwayDb.insert(schema.households).values(householdData).returning();
+          // Map the local ID to Railway ID for later use
+          if (inserted[0]) {
+            householdIdMap.set(household.id, inserted[0].id);
+          }
           stats.households.imported++;
           console.log(`  ✓ ${household.name}`);
         }
@@ -159,18 +157,25 @@ try {
   const localIndividuals = await localDb.select().from(schema.individuals);
   
   // Build a map of local household IDs to Railway household IDs (by name)
-  const householdIdMap = new Map();
+  // Note: householdIdMap was already populated during household migration
+  // But we need to ensure it's complete by checking all Railway households
   const railwayHouseholds = await railwayDb
     .select()
     .from(schema.households)
     .where(isNull(schema.households.deletedAt));
   
+  // Fill in any missing mappings
   for (const localHousehold of localHouseholds) {
-    const railwayHousehold = railwayHouseholds.find(h => h.name === localHousehold.name);
-    if (railwayHousehold) {
-      householdIdMap.set(localHousehold.id, railwayHousehold.id);
+    if (!householdIdMap.has(localHousehold.id)) {
+      const railwayHousehold = railwayHouseholds.find(h => h.name === localHousehold.name);
+      if (railwayHousehold) {
+        householdIdMap.set(localHousehold.id, railwayHousehold.id);
+      }
     }
   }
+  
+  // Initialize individualIdMap for tracking local -> Railway ID mappings
+  const individualIdMap = new Map();
   
   if (localIndividuals.length === 0) {
     console.log('  ℹ No individuals to migrate\n');
@@ -204,13 +209,16 @@ try {
         };
         
         if (existing.length > 0) {
-          await railwayDb
-            .update(schema.individuals)
-            .set({ ...individualData, updatedAt: new Date() })
-            .where(eq(schema.individuals.id, existing[0].id));
+          // Individual already exists, just map the ID (don't update to avoid FK constraint issues)
+          individualIdMap.set(individual.id, existing[0].id);
           stats.individuals.updated++;
+          console.log(`  ⊘ ${individual.name}: Already exists, skipping update`);
         } else {
-          await railwayDb.insert(schema.individuals).values(individualData);
+          const inserted = await railwayDb.insert(schema.individuals).values(individualData).returning();
+          // Map the local ID to Railway ID for later use
+          if (inserted[0]) {
+            individualIdMap.set(individual.id, inserted[0].id);
+          }
           stats.individuals.imported++;
           console.log(`  ✓ ${individual.name}`);
         }
@@ -260,13 +268,16 @@ try {
         };
         
         if (existing.length > 0) {
-          await railwayDb
-            .update(schema.corporations)
-            .set({ ...corpData, updatedAt: new Date() })
-            .where(eq(schema.corporations.id, existing[0].id));
+          // Corporation already exists, just map the ID (don't update to avoid FK constraint issues)
+          corporationIdMap.set(corp.id, existing[0].id);
           stats.corporations.updated++;
+          console.log(`  ⊘ ${corp.name}: Already exists, skipping update`);
         } else {
-          await railwayDb.insert(schema.corporations).values(corpData);
+          const inserted = await railwayDb.insert(schema.corporations).values(corpData).returning();
+          // Map the local ID to Railway ID for later use
+          if (inserted[0]) {
+            corporationIdMap.set(corp.id, inserted[0].id);
+          }
           stats.corporations.imported++;
           console.log(`  ✓ ${corp.name}`);
         }
@@ -281,34 +292,24 @@ try {
   }
   console.log(`  ✅ Corporations: ${stats.corporations.imported} imported, ${stats.corporations.updated} updated, ${stats.corporations.errors} errors\n`);
 
-  // Build maps for individuals and corporations (local ID -> Railway ID)
-  const individualIdMap = new Map();
+  // Build maps for corporations (local ID -> Railway ID)
+  // Note: individualIdMap was already populated during individual migration
   const corporationIdMap = new Map();
   
-  // Get all Railway individuals and corporations to build the maps
-  const railwayIndividuals = await railwayDb.select().from(schema.individuals);
+  // Get all Railway corporations to build the map
   const railwayCorporations = await railwayDb.select().from(schema.corporations);
   
-  for (const localIndividual of localIndividuals) {
-    const railwayHouseholdId = householdIdMap.get(localIndividual.householdId);
-    if (railwayHouseholdId) {
-      const railwayIndividual = railwayIndividuals.find(
-        i => i.name === localIndividual.name && i.householdId === railwayHouseholdId
-      );
-      if (railwayIndividual) {
-        individualIdMap.set(localIndividual.id, railwayIndividual.id);
-      }
-    }
-  }
-  
+  // Fill in any missing corporation mappings
   for (const localCorp of localCorporations) {
-    const railwayHouseholdId = householdIdMap.get(localCorp.householdId);
-    if (railwayHouseholdId) {
-      const railwayCorp = railwayCorporations.find(
-        c => c.name === localCorp.name && c.householdId === railwayHouseholdId
-      );
-      if (railwayCorp) {
-        corporationIdMap.set(localCorp.id, railwayCorp.id);
+    if (!corporationIdMap.has(localCorp.id)) {
+      const railwayHouseholdId = householdIdMap.get(localCorp.householdId);
+      if (railwayHouseholdId) {
+        const railwayCorp = railwayCorporations.find(
+          c => c.name === localCorp.name && c.householdId === railwayHouseholdId
+        );
+        if (railwayCorp) {
+          corporationIdMap.set(localCorp.id, railwayCorp.id);
+        }
       }
     }
   }
@@ -471,20 +472,34 @@ try {
         let portfolioId = portfolio.id;
         
         if (existingByName.length > 0) {
-          // Portfolio with same name exists, use that ID
+          // Portfolio with same name exists, use that ID (don't update to avoid FK constraint issues)
           portfolioId = existingByName[0].id;
           stats.portfolios.updated++;
-          console.log(`  ⊘ ${portfolio.name}: Already exists, updating allocations`);
+          console.log(`  ⊘ ${portfolio.name}: Already exists, updating allocations only`);
         } else {
-          // Create new portfolio, but update userId to match Railway user
-          const portfolioData = {
-            ...portfolio,
-            userId: railwayUserId || portfolio.userId, // Use Railway user ID if available
-          };
-          const inserted = await railwayDb.insert(schema.plannedPortfolios).values(portfolioData).returning();
-          portfolioId = inserted[0].id;
-          stats.portfolios.imported++;
-          console.log(`  ✓ ${portfolio.name}`);
+          // Check if portfolio with same ID already exists (might have been imported before)
+          const existingById = await railwayDb
+            .select()
+            .from(schema.plannedPortfolios)
+            .where(eq(schema.plannedPortfolios.id, portfolio.id))
+            .limit(1);
+          
+          if (existingById.length > 0) {
+            // Portfolio with same ID exists, use that
+            portfolioId = existingById[0].id;
+            stats.portfolios.updated++;
+            console.log(`  ⊘ ${portfolio.name}: Already exists (by ID), updating allocations only`);
+          } else {
+            // Create new portfolio, but update userId to match Railway user
+            const portfolioData = {
+              ...portfolio,
+              userId: railwayUserId || portfolio.userId, // Use Railway user ID if available
+            };
+            const inserted = await railwayDb.insert(schema.plannedPortfolios).values(portfolioData).returning();
+            portfolioId = inserted[0].id;
+            stats.portfolios.imported++;
+            console.log(`  ✓ ${portfolio.name}`);
+          }
         }
         
         // Migrate portfolio allocations
