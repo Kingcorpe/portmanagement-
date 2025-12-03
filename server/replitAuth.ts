@@ -25,35 +25,38 @@ const getOidcConfig = memoize(
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   
-  // Use memory store for local development
-  if (isLocalDev) {
+  // Use database store if DATABASE_URL is available (Railway/production)
+  // Use memory store only for true local dev (when DATABASE_URL is not set)
+  if (process.env.DATABASE_URL) {
+    const pgStore = connectPg(session);
+    const sessionStore = new pgStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: true, // Create table if it doesn't exist
+      ttl: sessionTtl,
+      tableName: "sessions",
+    });
     return session({
       secret: process.env.SESSION_SECRET || "local-dev-secret-change-in-production",
+      store: sessionStore,
       resave: false,
       saveUninitialized: false,
       cookie: {
         httpOnly: true,
-        secure: false, // Allow HTTP in local dev
+        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
         maxAge: sessionTtl,
+        sameSite: 'lax',
       },
     });
   }
   
-  const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
+  // Memory store only for true local dev (no database)
   return session({
-    secret: process.env.SESSION_SECRET!,
-    store: sessionStore,
+    secret: process.env.SESSION_SECRET || "local-dev-secret-change-in-production",
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: false, // Allow HTTP in local dev
       maxAge: sessionTtl,
     },
   });
