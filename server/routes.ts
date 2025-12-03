@@ -515,7 +515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/households', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      let userId = req.user.claims.sub;
       const parsed = insertHouseholdSchema.parse(req.body);
       
       // CRITICAL: Ensure user exists in database BEFORE creating household
