@@ -666,7 +666,7 @@ async function fetchDividendCalendar(symbols: string[]): Promise<DividendEvent[]
         try {
           const result = await yahooFinance.quoteSummary(trySymbol, {
             modules: ["summaryDetail", "calendarEvents", "price"],
-          });
+          }) as any;
           
           if (result?.calendarEvents?.exDividendDate || result?.summaryDetail?.exDividendDate) {
             const exDate = result.calendarEvents?.exDividendDate || result.summaryDetail?.exDividendDate;
@@ -765,7 +765,7 @@ async function fetchETFHoldings(symbol: string): Promise<ETFHoldingsData | null>
     
     const result = await yahooFinance.quoteSummary(trySymbol, {
       modules: ["topHoldings", "assetProfile", "price"],
-    });
+    }) as any;
     
     if (!result?.topHoldings?.holdings) {
       return null;
@@ -822,7 +822,7 @@ async function fetchDistributionHistory(symbol: string): Promise<DistributionRec
       period1: oneYearAgo,
       period2: new Date(),
       events: "div",
-    });
+    }) as any;
     
     const distributions: DistributionRecord[] = [];
     

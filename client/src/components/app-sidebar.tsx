@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Eye, Settings, Trophy, User, Globe, Activity } from "lucide-react";
+import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Eye, Settings, Trophy, User, Globe, Activity, BookMarked } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -92,6 +92,11 @@ const investmentDivisionItems = [
     url: "/holdings-search",
     icon: Search,
   },
+  {
+    title: "Trading Journal",
+    url: "/trading-journal",
+    icon: BookMarked,
+  },
 ];
 
 const librarySubItems = [
@@ -155,7 +160,8 @@ export function AppSidebar() {
     location.startsWith("/holdings-search") || 
     location.startsWith("/alerts") ||
     location.startsWith("/investment-division") ||
-    location.startsWith("/market")
+    location.startsWith("/market") ||
+    location.startsWith("/trading-journal")
   );
   const [insuranceDivisionOpen, setInsuranceDivisionOpen] = useState(
     location.startsWith("/insurance-tasks") || 
@@ -177,7 +183,8 @@ export function AppSidebar() {
     location.startsWith("/holdings-search") || 
     location.startsWith("/alerts") ||
     location.startsWith("/investment-division") ||
-    location.startsWith("/market");
+    location.startsWith("/market") ||
+    location.startsWith("/trading-journal");
   const isInsuranceDivisionActive = 
     location.startsWith("/insurance-tasks") || 
     location.startsWith("/insurance-division") ||

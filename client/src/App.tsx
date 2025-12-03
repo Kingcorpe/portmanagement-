@@ -61,6 +61,7 @@ import BusinessMilestones from "@/pages/milestones";
 import PersonalMilestones from "@/pages/personal-milestones";
 import KpiDashboard from "@/pages/kpi-dashboard";
 import MarketDashboard from "@/pages/market-dashboard";
+import TradingJournal from "@/pages/trading-journal";
 import Admin from "@/pages/admin";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
@@ -94,6 +95,7 @@ function AuthenticatedRoutes() {
           <Route path="/kpi" component={KpiDashboard} />
           <Route path="/kpi-dashboard" component={KpiDashboard} />
           <Route path="/market" component={MarketDashboard} />
+          <Route path="/trading-journal" component={TradingJournal} />
           <Route path="/admin" component={Admin} />
           <Route component={NotFound} />
         </Switch>

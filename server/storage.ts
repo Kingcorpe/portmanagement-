@@ -28,6 +28,10 @@ import {
   kpiDailyTasks,
   referenceLinks,
   milestones,
+  tradingJournalEntries,
+  tradingJournalImages,
+  tradingJournalTags,
+  tradingJournalEntryTags,
   type User,
   type UpsertUser,
   type Household,
@@ -94,6 +98,17 @@ import {
   type Milestone,
   type InsertMilestone,
   type UpdateMilestone,
+  type TradingJournalEntry,
+  type InsertTradingJournalEntry,
+  type UpdateTradingJournalEntry,
+  type TradingJournalEntryWithDetails,
+  type TradingJournalImage,
+  type InsertTradingJournalImage,
+  type TradingJournalTag,
+  type InsertTradingJournalTag,
+  type TradingJournalEntryTag,
+  type InsertTradingJournalEntryTag,
+  type Trade,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, inArray, ilike, or, and, sql, isNull, isNotNull, lt } from "drizzle-orm";
@@ -293,6 +308,53 @@ export interface IStorage {
   getMilestoneById(id: string): Promise<Milestone | undefined>;
   updateMilestone(id: string, data: UpdateMilestone): Promise<Milestone>;
   deleteMilestone(id: string): Promise<void>;
+
+  // Trading Journal Entry operations
+  createJournalEntry(userId: string, data: InsertTradingJournalEntry): Promise<TradingJournalEntry>;
+  getJournalEntries(
+    userId: string,
+    filters?: {
+      symbol?: string;
+      tagIds?: string[];
+      startDate?: Date;
+      endDate?: Date;
+      outcome?: "pending" | "win" | "loss" | "partial";
+      search?: string;
+    }
+  ): Promise<TradingJournalEntry[]>;
+  getJournalEntryById(id: string): Promise<TradingJournalEntry | undefined>;
+  getJournalEntryWithDetails(id: string): Promise<TradingJournalEntryWithDetails | undefined>;
+  updateJournalEntry(id: string, data: UpdateTradingJournalEntry): Promise<TradingJournalEntry>;
+  deleteJournalEntry(id: string): Promise<void>;
+
+  // Trading Journal Image operations
+  addJournalImage(data: InsertTradingJournalImage): Promise<TradingJournalImage>;
+  getJournalImages(entryId: string): Promise<TradingJournalImage[]>;
+  updateJournalImageSortOrder(imageId: string, sortOrder: number): Promise<TradingJournalImage>;
+  removeJournalImage(imageId: string): Promise<void>;
+
+  // Trading Journal Tag operations
+  createTag(userId: string, data: InsertTradingJournalTag): Promise<TradingJournalTag>;
+  getTags(userId: string): Promise<TradingJournalTag[]>;
+  getTagById(id: string): Promise<TradingJournalTag | undefined>;
+  linkTagToEntry(entryId: string, tagId: string): Promise<TradingJournalEntryTag>;
+  unlinkTagFromEntry(entryId: string, tagId: string): Promise<void>;
+  getEntryTags(entryId: string): Promise<(TradingJournalEntryTag & { tag: TradingJournalTag })[]>;
+  updateEntryTags(entryId: string, tagIds: string[]): Promise<void>;
+
+  // Trading Journal Analytics
+  getJournalAnalytics(userId: string): Promise<{
+    totalEntries: number;
+    winCount: number;
+    lossCount: number;
+    pendingCount: number;
+    partialCount: number;
+    totalRealizedPnL: number;
+    averageConvictionScore: number;
+    entriesBySymbol: Array<{ symbol: string; count: number }>;
+    entriesByTag: Array<{ tagId: string; tagName: string; count: number }>;
+    entriesByOutcome: Array<{ outcome: string; count: number }>;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2200,6 +2262,344 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMilestone(id: string): Promise<void> {
     await db.delete(milestones).where(eq(milestones.id, id));
+  }
+
+  // Trading Journal Entry operations
+  async createJournalEntry(userId: string, data: InsertTradingJournalEntry): Promise<TradingJournalEntry> {
+    const [entry] = await db.insert(tradingJournalEntries).values({
+      ...data,
+      userId,
+    }).returning();
+    return entry;
+  }
+
+  async getJournalEntries(
+    userId: string,
+    filters?: {
+      symbol?: string;
+      tagIds?: string[];
+      startDate?: Date;
+      endDate?: Date;
+      outcome?: "pending" | "win" | "loss" | "partial";
+      search?: string;
+    }
+  ): Promise<TradingJournalEntry[]> {
+    // Handle tag filtering first (requires join)
+    if (filters?.tagIds && filters.tagIds.length > 0) {
+      const entriesWithTags = await db
+        .selectDistinct({ id: tradingJournalEntries.id })
+        .from(tradingJournalEntries)
+        .innerJoin(
+          tradingJournalEntryTags,
+          eq(tradingJournalEntries.id, tradingJournalEntryTags.entryId)
+        )
+        .where(
+          and(
+            eq(tradingJournalEntries.userId, userId),
+            inArray(tradingJournalEntryTags.tagId, filters.tagIds)
+          )
+        );
+      
+      const entryIds = entriesWithTags.map(e => e.id);
+      if (entryIds.length === 0) {
+        return [];
+      }
+      
+      // Build additional conditions for filtered entries
+      const conditions: any[] = [inArray(tradingJournalEntries.id, entryIds)];
+      
+      if (filters?.symbol) {
+        conditions.push(eq(tradingJournalEntries.symbol, filters.symbol));
+      }
+      if (filters?.startDate) {
+        conditions.push(sql`${tradingJournalEntries.entryDate} >= ${filters.startDate}`);
+      }
+      if (filters?.endDate) {
+        conditions.push(sql`${tradingJournalEntries.entryDate} <= ${filters.endDate}`);
+      }
+      if (filters?.outcome) {
+        conditions.push(eq(tradingJournalEntries.outcome, filters.outcome));
+      }
+      if (filters?.search) {
+        conditions.push(or(
+          ilike(tradingJournalEntries.title, `%${filters.search}%`),
+          ilike(tradingJournalEntries.notes, `%${filters.search}%`),
+          ilike(tradingJournalEntries.symbol, `%${filters.search}%`)
+        ));
+      }
+      
+      return await db
+        .select()
+        .from(tradingJournalEntries)
+        .where(conditions.length > 1 ? and(...conditions) : conditions[0])
+        .orderBy(desc(tradingJournalEntries.entryDate));
+    }
+
+    // Build conditions for regular query
+    const conditions: any[] = [eq(tradingJournalEntries.userId, userId)];
+    
+    if (filters?.symbol) {
+      conditions.push(eq(tradingJournalEntries.symbol, filters.symbol));
+    }
+    if (filters?.startDate) {
+      conditions.push(sql`${tradingJournalEntries.entryDate} >= ${filters.startDate}`);
+    }
+    if (filters?.endDate) {
+      conditions.push(sql`${tradingJournalEntries.entryDate} <= ${filters.endDate}`);
+    }
+    if (filters?.outcome) {
+      conditions.push(eq(tradingJournalEntries.outcome, filters.outcome));
+    }
+    if (filters?.search) {
+      conditions.push(or(
+        ilike(tradingJournalEntries.title, `%${filters.search}%`),
+        ilike(tradingJournalEntries.notes, `%${filters.search}%`),
+        ilike(tradingJournalEntries.symbol, `%${filters.search}%`)
+      ));
+    }
+
+    return await db
+      .select()
+      .from(tradingJournalEntries)
+      .where(conditions.length > 1 ? and(...conditions) : conditions[0])
+      .orderBy(desc(tradingJournalEntries.entryDate));
+  }
+
+  async getJournalEntryById(id: string): Promise<TradingJournalEntry | undefined> {
+    const [entry] = await db.select()
+      .from(tradingJournalEntries)
+      .where(eq(tradingJournalEntries.id, id));
+    return entry;
+  }
+
+  async getJournalEntryWithDetails(id: string): Promise<TradingJournalEntryWithDetails | undefined> {
+    const entry = await this.getJournalEntryById(id);
+    if (!entry) return undefined;
+
+    const images = await db.select()
+      .from(tradingJournalImages)
+      .where(eq(tradingJournalImages.entryId, id))
+      .orderBy(tradingJournalImages.sortOrder);
+
+    const entryTags = await db
+      .select({
+        id: tradingJournalEntryTags.id,
+        entryId: tradingJournalEntryTags.entryId,
+        tagId: tradingJournalEntryTags.tagId,
+        createdAt: tradingJournalEntryTags.createdAt,
+        tag: tradingJournalTags,
+      })
+      .from(tradingJournalEntryTags)
+      .innerJoin(tradingJournalTags, eq(tradingJournalEntryTags.tagId, tradingJournalTags.id))
+      .where(eq(tradingJournalEntryTags.entryId, id));
+
+    let trade: Trade | null = null;
+    if (entry.tradeId) {
+      const [linkedTrade] = await db.select()
+        .from(trades)
+        .where(eq(trades.id, entry.tradeId));
+      trade = linkedTrade || null;
+    }
+
+    return {
+      ...entry,
+      images,
+      entryTags,
+      trade,
+    };
+  }
+
+  async updateJournalEntry(id: string, data: UpdateTradingJournalEntry): Promise<TradingJournalEntry> {
+    const [entry] = await db
+      .update(tradingJournalEntries)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(tradingJournalEntries.id, id))
+      .returning();
+    return entry;
+  }
+
+  async deleteJournalEntry(id: string): Promise<void> {
+    await db.delete(tradingJournalEntries).where(eq(tradingJournalEntries.id, id));
+  }
+
+  // Trading Journal Image operations
+  async addJournalImage(data: InsertTradingJournalImage): Promise<TradingJournalImage> {
+    const [image] = await db.insert(tradingJournalImages).values(data).returning();
+    return image;
+  }
+
+  async getJournalImages(entryId: string): Promise<TradingJournalImage[]> {
+    return await db.select()
+      .from(tradingJournalImages)
+      .where(eq(tradingJournalImages.entryId, entryId))
+      .orderBy(tradingJournalImages.sortOrder);
+  }
+
+  async updateJournalImageSortOrder(imageId: string, sortOrder: number): Promise<TradingJournalImage> {
+    const [image] = await db
+      .update(tradingJournalImages)
+      .set({ sortOrder })
+      .where(eq(tradingJournalImages.id, imageId))
+      .returning();
+    return image;
+  }
+
+  async removeJournalImage(imageId: string): Promise<void> {
+    await db.delete(tradingJournalImages).where(eq(tradingJournalImages.id, imageId));
+  }
+
+  // Trading Journal Tag operations
+  async createTag(userId: string, data: InsertTradingJournalTag): Promise<TradingJournalTag> {
+    const [tag] = await db.insert(tradingJournalTags).values({
+      ...data,
+      userId,
+    }).returning();
+    return tag;
+  }
+
+  async getTags(userId: string): Promise<TradingJournalTag[]> {
+    return await db.select()
+      .from(tradingJournalTags)
+      .where(eq(tradingJournalTags.userId, userId))
+      .orderBy(tradingJournalTags.name);
+  }
+
+  async getTagById(id: string): Promise<TradingJournalTag | undefined> {
+    const [tag] = await db.select()
+      .from(tradingJournalTags)
+      .where(eq(tradingJournalTags.id, id));
+    return tag;
+  }
+
+  async linkTagToEntry(entryId: string, tagId: string): Promise<TradingJournalEntryTag> {
+    const [entryTag] = await db.insert(tradingJournalEntryTags).values({
+      entryId,
+      tagId,
+    }).returning();
+    return entryTag;
+  }
+
+  async unlinkTagFromEntry(entryId: string, tagId: string): Promise<void> {
+    await db.delete(tradingJournalEntryTags)
+      .where(and(
+        eq(tradingJournalEntryTags.entryId, entryId),
+        eq(tradingJournalEntryTags.tagId, tagId)
+      ));
+  }
+
+  async getEntryTags(entryId: string): Promise<(TradingJournalEntryTag & { tag: TradingJournalTag })[]> {
+    return await db
+      .select({
+        id: tradingJournalEntryTags.id,
+        entryId: tradingJournalEntryTags.entryId,
+        tagId: tradingJournalEntryTags.tagId,
+        createdAt: tradingJournalEntryTags.createdAt,
+        tag: tradingJournalTags,
+      })
+      .from(tradingJournalEntryTags)
+      .innerJoin(tradingJournalTags, eq(tradingJournalEntryTags.tagId, tradingJournalTags.id))
+      .where(eq(tradingJournalEntryTags.entryId, entryId));
+  }
+
+  async updateEntryTags(entryId: string, tagIds: string[]): Promise<void> {
+    // Remove all existing tags
+    await db.delete(tradingJournalEntryTags).where(eq(tradingJournalEntryTags.entryId, entryId));
+
+    // Add new tags
+    if (tagIds.length > 0) {
+      await db.insert(tradingJournalEntryTags).values(
+        tagIds.map(tagId => ({ entryId, tagId }))
+      );
+    }
+  }
+
+  // Trading Journal Analytics
+  async getJournalAnalytics(userId: string): Promise<{
+    totalEntries: number;
+    winCount: number;
+    lossCount: number;
+    pendingCount: number;
+    partialCount: number;
+    totalRealizedPnL: number;
+    averageConvictionScore: number;
+    entriesBySymbol: Array<{ symbol: string; count: number }>;
+    entriesByTag: Array<{ tagId: string; tagName: string; count: number }>;
+    entriesByOutcome: Array<{ outcome: string; count: number }>;
+  }> {
+    const allEntries = await db.select()
+      .from(tradingJournalEntries)
+      .where(eq(tradingJournalEntries.userId, userId));
+
+    const totalEntries = allEntries.length;
+    const winCount = allEntries.filter(e => e.outcome === "win").length;
+    const lossCount = allEntries.filter(e => e.outcome === "loss").length;
+    const pendingCount = allEntries.filter(e => e.outcome === "pending").length;
+    const partialCount = allEntries.filter(e => e.outcome === "partial").length;
+
+    const totalRealizedPnL = allEntries
+      .filter(e => e.realizedPnL !== null)
+      .reduce((sum, e) => sum + parseFloat(e.realizedPnL || "0"), 0);
+
+    const convictionScores = allEntries
+      .filter(e => e.convictionScore !== null)
+      .map(e => e.convictionScore || 0);
+    const averageConvictionScore = convictionScores.length > 0
+      ? convictionScores.reduce((sum, score) => sum + score, 0) / convictionScores.length
+      : 0;
+
+    // Entries by symbol
+    const symbolMap = new Map<string, number>();
+    allEntries.forEach(entry => {
+      if (entry.symbol) {
+        symbolMap.set(entry.symbol, (symbolMap.get(entry.symbol) || 0) + 1);
+      }
+    });
+    const entriesBySymbol = Array.from(symbolMap.entries())
+      .map(([symbol, count]) => ({ symbol, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Entries by tag
+    const allEntryTags = await db
+      .select({
+        entryId: tradingJournalEntryTags.entryId,
+        tagId: tradingJournalTags.id,
+        tagName: tradingJournalTags.name,
+      })
+      .from(tradingJournalEntryTags)
+      .innerJoin(tradingJournalTags, eq(tradingJournalEntryTags.tagId, tradingJournalTags.id))
+      .innerJoin(tradingJournalEntries, eq(tradingJournalEntryTags.entryId, tradingJournalEntries.id))
+      .where(eq(tradingJournalEntries.userId, userId));
+
+    const tagMap = new Map<string, { tagName: string; count: number }>();
+    allEntryTags.forEach(et => {
+      const existing = tagMap.get(et.tagId) || { tagName: et.tagName, count: 0 };
+      existing.count++;
+      tagMap.set(et.tagId, existing);
+    });
+    const entriesByTag = Array.from(tagMap.entries())
+      .map(([tagId, data]) => ({ tagId, tagName: data.tagName, count: data.count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Entries by outcome
+    const entriesByOutcome = [
+      { outcome: "pending", count: pendingCount },
+      { outcome: "win", count: winCount },
+      { outcome: "loss", count: lossCount },
+      { outcome: "partial", count: partialCount },
+    ];
+
+    return {
+      totalEntries,
+      winCount,
+      lossCount,
+      pendingCount,
+      partialCount,
+      totalRealizedPnL,
+      averageConvictionScore,
+      entriesBySymbol,
+      entriesByTag,
+      entriesByOutcome,
+    };
   }
 }
 
