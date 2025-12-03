@@ -122,7 +122,7 @@ export async function setupAuth(app: Express) {
     // Auto-login middleware for local dev
     app.use((req: any, res, next) => {
       if (!req.user) {
-        req.user = {
+        const user = {
           claims: {
             sub: devUserId,
             email: "dev@localhost",
@@ -131,13 +131,37 @@ export async function setupAuth(app: Express) {
           },
           expires_at: Math.floor(Date.now() / 1000) + 86400 * 365, // 1 year from now
         };
+        req.user = user;
         req.isAuthenticated = () => true;
+        // Save to session so it persists
+        req.login(user, (err: any) => {
+          if (err) console.error("Session save error:", err);
+          next();
+        });
+      } else {
+        next();
       }
-      next();
     });
 
-    app.get("/api/login", (req, res) => {
-      res.redirect("/");
+    app.get("/api/login", (req: any, res) => {
+      // Ensure user is logged in
+      if (!req.user) {
+        const user = {
+          claims: {
+            sub: devUserId,
+            email: "dev@localhost",
+            first_name: "Local",
+            last_name: "Developer",
+          },
+          expires_at: Math.floor(Date.now() / 1000) + 86400 * 365,
+        };
+        req.login(user, (err: any) => {
+          if (err) console.error("Login error:", err);
+          res.redirect("/");
+        });
+      } else {
+        res.redirect("/");
+      }
     });
 
     app.get("/api/callback", (req, res) => {
