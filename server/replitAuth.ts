@@ -9,6 +9,9 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
+// Check if running in local development mode
+const isLocalDev = process.env.LOCAL_DEV === "true" || !process.env.REPL_ID;
+
 const getOidcConfig = memoize(
   async () => {
     return await client.discovery(
@@ -21,6 +24,21 @@ const getOidcConfig = memoize(
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  
+  // Use memory store for local development
+  if (isLocalDev) {
+    return session({
+      secret: process.env.SESSION_SECRET || "local-dev-secret-change-in-production",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        secure: false, // Allow HTTP in local dev
+        maxAge: sessionTtl,
+      },
+    });
+  }
+  
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
@@ -69,6 +87,62 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Local development mode - skip Replit OIDC setup
+  if (isLocalDev) {
+    console.log("🔓 Running in LOCAL DEV mode - authentication bypassed");
+    
+    // Use existing Replit user ID to access existing data
+    // Change this to your Replit user ID if you have existing data
+    const devUserId = process.env.DEV_USER_ID || "50142011";
+    
+    // Only upsert if user doesn't exist (to preserve existing user data)
+    const existingUser = await storage.getUser(devUserId);
+    if (!existingUser) {
+      await storage.upsertUser({
+        id: devUserId,
+        email: "dev@localhost",
+        firstName: "Local",
+        lastName: "Developer",
+        profileImageUrl: null,
+      });
+    }
+    
+    passport.serializeUser((user: Express.User, cb) => cb(null, user));
+    passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+
+    // Auto-login middleware for local dev
+    app.use((req: any, res, next) => {
+      if (!req.user) {
+        req.user = {
+          claims: {
+            sub: devUserId,
+            email: "dev@localhost",
+            first_name: "Local",
+            last_name: "Developer",
+          },
+          expires_at: Math.floor(Date.now() / 1000) + 86400 * 365, // 1 year from now
+        };
+        req.isAuthenticated = () => true;
+      }
+      next();
+    });
+
+    app.get("/api/login", (req, res) => {
+      res.redirect("/");
+    });
+
+    app.get("/api/callback", (req, res) => {
+      res.redirect("/");
+    });
+
+    app.get("/api/logout", (req, res) => {
+      res.redirect("/");
+    });
+
+    return;
+  }
+
+  // Production mode - use Replit OIDC
   const config = await getOidcConfig();
 
   const verify: VerifyFunction = async (
@@ -134,6 +208,11 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // In local dev mode, always allow
+  if (isLocalDev) {
+    return next();
+  }
+
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {
