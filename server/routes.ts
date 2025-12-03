@@ -4991,17 +4991,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const result = quoteData?.chart?.result?.[0];
           const meta = result?.meta;
           
-          if (meta && meta.regularMarketPrice) {
-            // Successfully found crypto data
+          if (meta) {
+            // Check if we have price data (crypto might have null price if market is closed)
+            const price = meta.regularMarketPrice ?? meta.previousClose ?? null;
             const cryptoName = meta.shortName || meta.longName || ticker.replace('-USD', '');
+            
+            // Return success even if price is null (crypto might not have price data)
             return res.json({
               ticker: ticker,
-              name: `${cryptoName} (${ticker.replace('-USD', '')})`,
+              name: cryptoName || `${ticker.replace('-USD', '')} (${ticker})`,
               exchange: 'CCC', // Crypto exchange code
               type: 'CRYPTOCURRENCY',
-              price: meta.regularMarketPrice
+              price: price
             });
+          } else {
+            console.log(`[Ticker Lookup] Crypto ${ticker}: Chart API returned OK but no meta data`);
           }
+        } else {
+          console.log(`[Ticker Lookup] Crypto ${ticker}: Chart API returned ${quoteResponse.status}`);
         }
       }
       
@@ -5022,6 +5029,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const searchData = await searchResponse.json();
       
       if (!searchData.quotes || searchData.quotes.length === 0) {
+        // If this was a crypto ticker and search failed, provide a more helpful error
+        if (isCrypto) {
+          return res.status(404).json({ message: `Crypto ticker ${ticker} not found. Please verify the ticker symbol.` });
+        }
         return res.status(404).json({ message: "Ticker not found" });
       }
       
@@ -5057,8 +5068,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: searchQuote.quoteType,
         price: price
       });
-    } catch (error) {
-      console.error("Error looking up ticker:", error);
+    } catch (error: any) {
+      console.error(`[Ticker Lookup] Error looking up ticker ${req.params.ticker}:`, error);
       res.status(500).json({ message: "Failed to look up ticker" });
     }
   });
