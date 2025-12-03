@@ -846,7 +846,7 @@ export const insertTradeSchema = createInsertSchema(trades).omit({
 });
 
 // Trading Journal Entry insert schema
-export const insertTradingJournalEntrySchema = createInsertSchema(tradingJournalEntries).omit({
+const _insertTradingJournalEntrySchemaBase = createInsertSchema(tradingJournalEntries).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -854,7 +854,8 @@ export const insertTradingJournalEntrySchema = createInsertSchema(tradingJournal
   convictionScore: true,
   realizedPnL: true,
   entryDate: true,
-}).extend({
+});
+export const insertTradingJournalEntrySchema = _insertTradingJournalEntrySchemaBase.extend({
   title: z.string().min(1, "Title is required").max(500, "Title must be 500 characters or less"),
   notes: z.string().max(10000, "Notes must be 10000 characters or less").optional().nullable(),
   symbol: z.string().max(20, "Symbol must be 20 characters or less").optional().nullable(),
@@ -871,12 +872,13 @@ export const insertTradingJournalEntrySchema = createInsertSchema(tradingJournal
 export const updateTradingJournalEntrySchema = insertTradingJournalEntrySchema.partial();
 
 // Trading Journal Image insert schema
-export const insertTradingJournalImageSchema = createInsertSchema(tradingJournalImages).omit({
+const _insertTradingJournalImageSchemaBase = createInsertSchema(tradingJournalImages).omit({
   id: true,
   uploadedAt: true,
   sortOrder: true,
   fileSize: true,
-}).extend({
+});
+export const insertTradingJournalImageSchema = _insertTradingJournalImageSchemaBase.extend({
   entryId: z.string().min(1, "Entry ID is required"),
   objectPath: z.string().min(1, "Object path is required"),
   fileName: z.string().min(1, "File name is required").max(255, "File name must be 255 characters or less"),
