@@ -62,6 +62,11 @@ const stats = {
 };
 
 try {
+  // Get the current user ID in Railway (for userId mapping) - do this once at the start
+  const railwayUsers = await railwayDb.select().from(schema.users).limit(1);
+  const railwayUserId = railwayUsers.length > 0 ? railwayUsers[0].id : null;
+  console.log(`ℹ Using Railway user ID: ${railwayUserId || 'none'}\n`);
+
   // 1. Migrate Universal Holdings
   console.log('📦 Migrating Universal Holdings...');
   const localHoldings = await localDb.select().from(schema.universalHoldings);
@@ -90,11 +95,6 @@ try {
     }
   }
   console.log(`  ✅ Holdings: ${stats.holdings.imported} imported, ${stats.holdings.updated} updated\n`);
-
-  // Get the current user ID in Railway (for userId mapping) - do this once at the start
-  const railwayUsers = await railwayDb.select().from(schema.users).limit(1);
-  const railwayUserId = railwayUsers.length > 0 ? railwayUsers[0].id : null;
-  console.log(`ℹ Using Railway user ID: ${railwayUserId || 'none'}\n`);
 
   // 2. Migrate Households
   console.log('🏠 Migrating Households...');
@@ -191,6 +191,11 @@ try {
         console.error(`  ✗ ${individual.name}: ${error.message}`);
         if (error.code) {
           console.error(`    Error code: ${error.code}, Detail: ${error.detail || 'N/A'}`);
+        }
+        // Check if it's a foreign key constraint (householdId doesn't exist)
+        if (error.code === '23503' && error.detail && error.detail.includes('household')) {
+          console.error(`    ⚠ Household ID ${individual.householdId} doesn't exist in Railway yet`);
+          console.error(`    This individual will be skipped. Migrate households first, or this individual's household wasn't migrated.`);
         }
       }
     }
