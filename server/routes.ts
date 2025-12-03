@@ -255,9 +255,17 @@ function identifyETFProvider(ticker: string): { provider: string | null; product
 }
 
 // Helper function to convert crypto ticker formats to Yahoo Finance format
-// Converts "btcusd" -> "BTC-USD", "ethusd" -> "ETH-USD", etc.
+// Converts "btcusd" -> "BTC-USD", "btc-usd" -> "BTC-USD", "BTC-USD" -> "BTC-USD", etc.
 function normalizeCryptoTicker(ticker: string): string {
-  const upper = ticker.toUpperCase();
+  const upper = ticker.toUpperCase().trim();
+  
+  // If it already has the correct format (e.g., "BTC-USD"), return it
+  if (upper.match(/^[A-Z]{2,5}-USD$/)) {
+    return upper;
+  }
+  
+  // Remove dashes and normalize (e.g., "btc-usd" -> "BTCUSD")
+  const normalized = upper.replace(/-/g, '');
   
   // Common crypto/USD pairs
   const cryptoPairs: Record<string, string> = {
@@ -294,16 +302,17 @@ function normalizeCryptoTicker(ticker: string): string {
   };
   
   // Check if it's a known crypto pair
-  if (cryptoPairs[upper]) {
-    return cryptoPairs[upper];
+  if (cryptoPairs[normalized]) {
+    return cryptoPairs[normalized];
   }
   
   // Try to detect pattern: 3-4 letter crypto code + USD/USDT
-  const cryptoMatch = upper.match(/^([A-Z]{2,5})(USD|USDT)$/);
+  const cryptoMatch = normalized.match(/^([A-Z]{2,5})(USD|USDT)$/);
   if (cryptoMatch) {
     return `${cryptoMatch[1]}-USD`;
   }
   
+  // If no match, return the original (uppercased) - might be a stock ticker
   return upper;
 }
 
@@ -4962,7 +4971,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const inputTicker = req.params.ticker;
       const ticker = normalizeCryptoTicker(inputTicker);
       
-      // First, search for the ticker to get basic info
+      // For crypto tickers (format: XXX-USD), try chart API directly first
+      // Yahoo Finance search sometimes doesn't return crypto results
+      const isCrypto = ticker.includes('-USD') && ticker.match(/^[A-Z]{2,5}-USD$/);
+      
+      if (isCrypto) {
+        // Try chart API directly for crypto
+        const quoteResponse = await fetch(
+          `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
+          {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          }
+        );
+        
+        if (quoteResponse.ok) {
+          const quoteData = await quoteResponse.json();
+          const result = quoteData?.chart?.result?.[0];
+          const meta = result?.meta;
+          
+          if (meta && meta.regularMarketPrice) {
+            // Successfully found crypto data
+            const cryptoName = meta.shortName || meta.longName || ticker.replace('-USD', '');
+            return res.json({
+              ticker: ticker,
+              name: `${cryptoName} (${ticker.replace('-USD', '')})`,
+              exchange: 'CCC', // Crypto exchange code
+              type: 'CRYPTOCURRENCY',
+              price: meta.regularMarketPrice
+            });
+          }
+        }
+      }
+      
+      // For stocks or if crypto lookup failed, use search API
       const searchResponse = await fetch(
         `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(ticker)}&quotesCount=5&newsCount=0`,
         {
