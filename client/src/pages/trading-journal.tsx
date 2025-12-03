@@ -682,7 +682,7 @@ export default function TradingJournal() {
                   )}
                   {entry.realizedPnL && (
                     <p className={`text-sm font-semibold ${
-                      parseFloat(entry.realizedPnL) >= 0 ? "text-green-600" : "text-red-600"
+                      parseFloat(entry.realizedPnL) >= 0 ? "text-green-600" : "text-orange-600"
                     }`}>
                       P&L: ${parseFloat(entry.realizedPnL).toFixed(2)}
                     </p>
@@ -774,7 +774,7 @@ export default function TradingJournal() {
                             )}
                             {entry.realizedPnL && (
                               <p className={`text-sm font-semibold ${
-                                parseFloat(entry.realizedPnL) >= 0 ? "text-green-600" : "text-red-600"
+                                parseFloat(entry.realizedPnL) >= 0 ? "text-green-600" : "text-orange-600"
                               }`}>
                                 P&L: ${parseFloat(entry.realizedPnL).toFixed(2)}
                               </p>

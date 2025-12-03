@@ -522,20 +522,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // This fixes the foreign key constraint violation
       let user = await storage.getUser(userId);
       if (!user) {
-        console.log(`User ${userId} not found, creating user...`);
+        console.log(`User ${userId} not found, attempting to create user...`);
+        const userEmail = req.user.claims.email || req.user.claims.email_address || "dev@localhost";
+        
         try {
           // Auto-create user if it doesn't exist
           user = await storage.upsertUser({
             id: userId,
-            email: req.user.claims.email || req.user.claims.email_address || "dev@localhost",
+            email: userEmail,
             firstName: req.user.claims.first_name || req.user.claims.given_name || "Local",
             lastName: req.user.claims.last_name || req.user.claims.family_name || "Developer",
             profileImageUrl: req.user.claims.profile_image_url || null,
           });
           console.log(`User ${userId} created successfully`);
         } catch (userError: any) {
-          // If duplicate key error, user was created by another request - fetch it
-          if (userError?.code === '23505') {
+          // If duplicate key error on email, try to find existing user by email
+          if (userError?.code === '23505' && userError?.constraint === 'users_email_unique') {
+            console.log(`User with email ${userEmail} already exists, finding existing user...`);
+            // Try to find user by email - we'll need to query the database directly
+            const { db } = await import("./db");
+            const { users } = await import("@shared/schema");
+            const { eq } = await import("drizzle-orm");
+            const existingUsers = await db.select().from(users).where(eq(users.email, userEmail));
+            
+            if (existingUsers.length > 0) {
+              // Use the existing user's ID instead
+              const existingUser = existingUsers[0];
+              console.log(`Found existing user with email ${userEmail}, using ID: ${existingUser.id}`);
+              user = existingUser;
+              // Update userId to match existing user
+              userId = existingUser.id;
+            } else {
+              // Email exists but we can't find it - this shouldn't happen
+              throw new Error(`User with email ${userEmail} exists but could not be retrieved`);
+            }
+          } else if (userError?.code === '23505') {
+            // Other duplicate key error - user might have been created by another request
             console.log(`User ${userId} already exists (duplicate key), fetching...`);
             user = await storage.getUser(userId);
             if (!user) {
@@ -552,14 +574,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error(`User ${userId} does not exist and could not be created`);
       }
       
+      // Use the actual user ID (in case we switched to an existing user)
+      const actualUserId = user.id;
+      
       // Check for duplicate household name
-      const nameExists = await storage.checkHouseholdNameExists(parsed.name, userId);
+      const nameExists = await storage.checkHouseholdNameExists(parsed.name, actualUserId);
       if (nameExists) {
         return res.status(400).json({ message: "A household with this name already exists" });
       }
       
       // Create household with the current user as owner
-      const household = await storage.createHousehold({ ...parsed, userId });
+      const household = await storage.createHousehold({ ...parsed, userId: actualUserId });
       res.json(household);
     } catch (error: any) {
       console.error("Error creating household:", error);

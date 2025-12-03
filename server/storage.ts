@@ -1122,13 +1122,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPositionsBySymbol(symbol: string): Promise<Position[]> {
-    // Normalize the input symbol (remove exchange suffixes)
-    const normalizedSymbol = symbol.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+    // Normalize the input symbol (remove exchange suffixes and dashes for crypto)
+    const normalizedSymbol = symbol.toUpperCase()
+      .replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '') // Remove exchange suffixes
+      .replace(/-/g, ''); // Remove dashes (for crypto like BTC-USD -> BTCUSD)
     
     // Get all positions and filter for matching symbols (case-insensitive, normalized)
     const allPositions = await db.select().from(positions);
     return allPositions.filter(pos => {
-      const normalizedPosSymbol = pos.symbol.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+      const normalizedPosSymbol = pos.symbol.toUpperCase()
+        .replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '') // Remove exchange suffixes
+        .replace(/-/g, ''); // Remove dashes (for crypto like BTC-USD -> BTCUSD)
       return normalizedPosSymbol === normalizedSymbol;
     });
   }
