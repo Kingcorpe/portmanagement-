@@ -14,33 +14,81 @@ import { registerMarketDataRoutes } from "./marketData";
 
 // Email alert for TradingView signals
 async function sendTradingAlertEmail(symbol: string, signal: string, price: string) {
-  const alertEmail = "ryan@crsolutions.ca";
+  const alertEmail = process.env.TRADINGVIEW_REPORT_EMAIL || "ryan@crsolutions.ca";
   
   try {
-    const { sendEmail } = await import("./gmail");
-    
-    const signalColor = signal === 'BUY' ? '#22c55e' : '#ef4444';
-    const signalEmoji = signal === 'BUY' ? '🟢' : '🔴';
-    
-    const htmlBody = `
-      <div style="font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
-        <div style="background: ${signalColor}; color: white; padding: 15px; border-radius: 8px; text-align: center;">
-          <h1 style="margin: 0; font-size: 28px;">${signalEmoji} ${signal}</h1>
+    // Try Replit Gmail integration first (for backward compatibility)
+    if (process.env.REPL_IDENTITY || process.env.WEB_REPL_RENEWAL) {
+      const { sendEmail } = await import("./gmail");
+      const signalColor = signal === 'BUY' ? '#22c55e' : '#ef4444';
+      const signalEmoji = signal === 'BUY' ? '🟢' : '🔴';
+      
+      const htmlBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
+          <div style="background: ${signalColor}; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+            <h1 style="margin: 0; font-size: 28px;">${signalEmoji} ${signal}</h1>
+          </div>
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 10px;">
+            <h2 style="margin: 0 0 10px 0; color: #1f2937;">${symbol}</h2>
+            <p style="margin: 0; font-size: 24px; font-weight: bold; color: #374151;">$${price}</p>
+          </div>
+          <p style="color: #6b7280; font-size: 12px; margin-top: 15px; text-align: center;">
+            TradingView Alert • ${new Date().toLocaleString()}
+          </p>
         </div>
-        <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 10px;">
-          <h2 style="margin: 0 0 10px 0; color: #1f2937;">${symbol}</h2>
-          <p style="margin: 0; font-size: 24px; font-weight: bold; color: #374151;">$${price}</p>
-        </div>
-        <p style="color: #6b7280; font-size: 12px; margin-top: 15px; text-align: center;">
-          TradingView Alert • ${new Date().toLocaleString()}
-        </p>
-      </div>
-    `;
+      `;
+      
+      await sendEmail(alertEmail, `${signal} ${symbol} @ $${price}`, htmlBody);
+      console.log(`Alert email sent: ${symbol} ${signal} @ $${price}`);
+      return;
+    }
     
-    await sendEmail(alertEmail, `${signal} ${symbol} @ $${price}`, htmlBody);
-    console.log(`Alert email sent: ${symbol} ${signal} @ $${price}`);
+    // Fallback to nodemailer with SMTP (for Railway/production)
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+      
+      const signalColor = signal === 'BUY' ? '#22c55e' : '#ef4444';
+      const signalEmoji = signal === 'BUY' ? '🟢' : '🔴';
+      
+      const htmlBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
+          <div style="background: ${signalColor}; color: white; padding: 15px; border-radius: 8px; text-align: center;">
+            <h1 style="margin: 0; font-size: 28px;">${signalEmoji} ${signal}</h1>
+          </div>
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 10px;">
+            <h2 style="margin: 0 0 10px 0; color: #1f2937;">${symbol}</h2>
+            <p style="margin: 0; font-size: 24px; font-weight: bold; color: #374151;">$${price}</p>
+          </div>
+          <p style="color: #6b7280; font-size: 12px; margin-top: 15px; text-align: center;">
+            TradingView Alert • ${new Date().toLocaleString()}
+          </p>
+        </div>
+      `;
+      
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: alertEmail,
+        subject: `${signal} ${symbol} @ $${price}`,
+        html: htmlBody,
+      });
+      
+      console.log(`Alert email sent via SMTP: ${symbol} ${signal} @ $${price}`);
+      return;
+    }
+    
+    // If no email configuration, just log
+    console.log(`Alert received (email not configured): ${symbol} ${signal} @ $${price} → ${alertEmail}`);
   } catch (error) {
     console.error("Failed to send alert email:", error);
+    // Don't throw - we don't want email failures to break the webhook
   }
 }
 import {
