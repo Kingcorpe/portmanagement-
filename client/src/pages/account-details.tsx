@@ -8,6 +8,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send, DollarSign, Shield, StickyNote, Clock, Zap, ListTodo, Calendar, Circle, CheckCircle2, AlertCircle, Flag, X, Coins, PauseCircle, XCircle, Ban, RotateCcw } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, TrendingUp, TrendingDown, Minus, AlertTriangle, Copy, Target, Upload, FileSpreadsheet, RefreshCw, Check, ChevronsUpDown, ChevronDown, ChevronRight, Mail, Send, DollarSign, Shield, StickyNote, Clock, Zap, ListTodo, Calendar, Circle, CheckCircle2, AlertCircle, Flag, X, Coins, PauseCircle, XCircle, Ban, RotateCcw, Building2, User } from "lucide-react";
 import { RichNotesEditor } from "@/components/rich-notes-editor";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -203,6 +204,54 @@ function TaskForm({ task, accountType, accountId, onSubmit, isPending }: TaskFor
   const [priority, setPriority] = useState<"low" | "medium" | "high" | "urgent">(task?.priority || "medium");
   const [dueDate, setDueDate] = useState(task?.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : "");
 
+  // Parse TradingView alert information from description
+  const parseTradingViewAlert = (desc: string) => {
+    if (!desc || !desc.includes('TradingView')) return null;
+    
+    const lines = desc.split('\n').map(l => l.trim()).filter(l => l);
+    const result: {
+      symbol?: string;
+      signal?: string;
+      alertPrice?: string;
+      storedPrice?: string;
+      household?: string;
+      account?: string;
+      currentAllocation?: string;
+      targetAllocation?: string;
+      variance?: string;
+      action?: string;
+      shares?: string;
+      dollarAmount?: string;
+    } = {};
+    
+    for (const line of lines) {
+      if (line.includes('Symbol:')) result.symbol = line.split('Symbol:')[1]?.trim();
+      if (line.includes('Alert Price')) result.alertPrice = line.match(/\$[\d,]+\.?\d*/)?.[0];
+      if (line.includes('Stored Price')) result.storedPrice = line.match(/\$[\d,]+\.?\d*/)?.[0];
+      if (line.includes('Household:')) result.household = line.split('Household:')[1]?.trim();
+      if (line.includes('Account:')) result.account = line.split('Account:')[1]?.trim();
+      if (line.includes('Current:')) result.currentAllocation = line.split('Current:')[1]?.trim();
+      if (line.includes('Target:')) result.targetAllocation = line.split('Target:')[1]?.trim();
+      if (line.includes('Variance:')) result.variance = line.split('Variance:')[1]?.trim();
+      if (line.includes('Buy:') || line.includes('Sell:')) {
+        const actionMatch = line.match(/(Buy|Sell):\s*([\d,]+\.?\d*)/);
+        if (actionMatch) {
+          result.action = actionMatch[1];
+          result.shares = actionMatch[2];
+        }
+      }
+      if (line.includes('At Alert Price')) {
+        const amountMatch = line.match(/\$[\d,]+\.?\d*/);
+        if (amountMatch) result.dollarAmount = amountMatch[0];
+      }
+    }
+    
+    return Object.keys(result).length > 0 ? result : null;
+  };
+
+  const tradingViewData = task?.description ? parseTradingViewAlert(task.description) : null;
+  const isTradingViewAlert = !!tradingViewData;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
@@ -219,6 +268,99 @@ function TaskForm({ task, accountType, accountId, onSubmit, isPending }: TaskFor
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* TradingView Alert Order Details - Prominent Display */}
+      {isTradingViewAlert && tradingViewData && (
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <h3 className="font-semibold text-lg text-blue-900 dark:text-blue-100">Trading Order</h3>
+          </div>
+          
+          {/* Order Action - Most Prominent */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border-2 border-blue-300 dark:border-blue-700">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-muted-foreground">Action</span>
+              <Badge variant={tradingViewData.action === 'Buy' ? 'default' : 'destructive'} className="text-base px-3 py-1">
+                {tradingViewData.action?.toUpperCase()}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-blue-900 dark:text-blue-100">
+                  {tradingViewData.shares || 'N/A'}
+                </span>
+                <span className="text-lg text-muted-foreground">
+                  {tradingViewData.symbol === 'CASH' ? 'units' : 'shares'}
+                </span>
+                <span className="text-lg font-medium text-muted-foreground">
+                  of {tradingViewData.symbol || 'N/A'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-lg">
+                <span className="text-muted-foreground">Total Cost:</span>
+                <span className="font-bold text-green-600 dark:text-green-400">
+                  {tradingViewData.dollarAmount || 'N/A'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Price Information */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-800">
+              <div className="text-xs text-muted-foreground mb-1">Alert Price</div>
+              <div className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                {tradingViewData.alertPrice || 'N/A'}
+              </div>
+            </div>
+            {tradingViewData.storedPrice && (
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-800">
+                <div className="text-xs text-muted-foreground mb-1">Stored Price</div>
+                <div className="text-lg font-semibold text-muted-foreground">
+                  {tradingViewData.storedPrice}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Allocation Status */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-800">
+            <div className="text-xs font-medium text-muted-foreground mb-2">Allocation Status</div>
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div>
+                <div className="text-muted-foreground">Current</div>
+                <div className="font-semibold">{tradingViewData.currentAllocation || 'N/A'}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Target</div>
+                <div className="font-semibold">{tradingViewData.targetAllocation || 'N/A'}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Variance</div>
+                <div className={`font-semibold ${tradingViewData.variance?.startsWith('-') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                  {tradingViewData.variance || 'N/A'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Location */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-800">
+            <div className="text-xs font-medium text-muted-foreground mb-2">Location</div>
+            <div className="space-y-1 text-sm">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{tradingViewData.household || 'N/A'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span>{tradingViewData.account || 'N/A'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
         <label className="text-sm font-medium">Title</label>
         <Input 
@@ -231,10 +373,12 @@ function TaskForm({ task, accountType, accountId, onSubmit, isPending }: TaskFor
       </div>
       <div className="space-y-2">
         <label className="text-sm font-medium">Description (Optional)</label>
-        <Input 
+        <Textarea 
           value={description} 
           onChange={(e) => setDescription(e.target.value)} 
           placeholder="Task description" 
+          rows={6}
+          className="font-mono text-sm"
           data-testid="input-task-description" 
         />
       </div>
