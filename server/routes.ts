@@ -6612,9 +6612,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const entryPrice = parseFloat(position.entryPrice || '0');
           const gainPercent = entryPrice > 0 ? ((newPrice - entryPrice) / entryPrice) * 100 : 0;
           
-          // Log positions meeting protection threshold for debugging
-          if (gainPercent >= PROTECTION_THRESHOLD_PERCENT) {
-            log.debug(`[Background Job] Position ${position.symbol}: gain=${gainPercent.toFixed(1)}% (>=${PROTECTION_THRESHOLD_PERCENT}%), entry=$${entryPrice.toFixed(2)}, current=$${newPrice.toFixed(2)}, hasProtection=${!!position.protectionPercent}`);
+          // Log positions with significant gains for debugging
+          if (gainPercent >= 10) {
+            log.debug(`[Background Job] Position ${position.symbol}: gain=${gainPercent.toFixed(1)}%, entry=$${entryPrice.toFixed(2)}, current=$${newPrice.toFixed(2)}, hasProtection=${!!position.protectionPercent}`);
           }
           
           if (entryPrice > 0 && !position.protectionPercent && gainPercent >= PROTECTION_THRESHOLD_PERCENT) {
