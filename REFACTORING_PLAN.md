@@ -73,6 +73,18 @@
 - **Contains:** Insurance and Investment revenue endpoints (GET, POST, PATCH, DELETE for both)
 - **Lines Extracted:** ~125 lines
 
+### 10. KPI Routes ✅
+- **File:** `server/routes/kpi.ts`
+- **Status:** Extracted and working
+- **Contains:** KPI objectives, daily tasks, and export endpoints
+- **Lines Extracted:** ~247 lines
+
+### 11. Trading Journal Routes ✅
+- **File:** `server/routes/trading-journal.ts`
+- **Status:** Extracted and working
+- **Contains:** Trading journal entries, images, tags, and analytics endpoints
+- **Lines Extracted:** ~222 lines
+
 ---
 
 ## 🔄 In Progress
@@ -98,13 +110,13 @@
 6. ⏳ Position Routes - ~600 lines
 7. ⏳ Alert Routes - ~200 lines
 8. ⏳ Task Routes - ~400 lines
-9. ⏳ Trading Journal Routes - ~300 lines
+9. ✅ Trading Journal Routes - DONE
 
 ### Phase 3: Admin & Reports
 10. ⏳ Report Routes - ~400 lines
 11. ⏳ Admin Routes - ~300 lines
 12. ✅ Revenue Routes - DONE
-13. ⏳ KPI Routes - ~300 lines
+13. ✅ KPI Routes - DONE
 
 ### Phase 4: Supporting Routes
 14. ✅ User Settings Routes - DONE
@@ -128,11 +140,11 @@ server/
     positions.ts          # ⏳ Position tracking
     alerts.ts             # ⏳ Alert management
     tasks.ts              # ⏳ Task management
-    trading-journal.ts    # ⏳ Trading journal
+    trading-journal.ts    # ✅ Trading journal
     reports.ts            # ⏳ Report generation
     admin.ts              # ⏳ Admin routes
     revenue.ts            # ✅ Revenue tracking
-    kpi.ts                # ⏳ KPI dashboard
+    kpi.ts                # ✅ KPI dashboard
     settings.ts           # ✅ User settings
     library.ts            # ✅ Library documents
     milestones.ts         # ✅ Milestones
@@ -193,9 +205,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 ## 🎯 Progress Tracking
 
-**Lines Extracted:** ~1,526 / 7,906 (19.3%)  
-**Modules Extracted:** 9 / 17 (53%)  
-**Estimated Remaining:** ~6,380 lines
+**Lines Extracted:** ~1,995 / 7,906 (25.2%)  
+**Modules Extracted:** 11 / 17 (65%)  
+**Estimated Remaining:** ~5,911 lines
 
 **Note:** Webhook routes are large (~740 lines) and complex. Consider extracting after smaller modules are done.
 
