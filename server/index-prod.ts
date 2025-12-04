@@ -1,9 +1,16 @@
+console.log("[STARTUP] Beginning server initialization...");
+
 import fs from "node:fs";
 import path from "node:path";
 import { type Server } from "node:http";
 
+console.log("[STARTUP] Core modules loaded");
+
 import express, { type Express } from "express";
+console.log("[STARTUP] Express loaded");
+
 import runApp from "./app";
+console.log("[STARTUP] App module loaded");
 
 export async function serveStatic(app: Express, _server: Server) {
   // Look for dist/public relative to project root (one level up from server/)
