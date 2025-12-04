@@ -2099,10 +2099,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (shouldProcess) {
             console.log(`[TradingView Webhook] ✓ Creating task for ${householdName} - ${account.type} (${actualPercent.toFixed(2)}% < ${targetPercent.toFixed(2)}%)`);
             try {
-              // Calculate shares needed
+              // Use TradingView alert price for calculations (current market price)
+              const alertPrice = Number(parsed.price);
+              const storedPrice = Number(position.currentPrice); // Stored price for reference
+              
+              // Calculate shares needed using alert price (current market price)
               const targetValue = (targetPercent / 100) * totalActualValue;
-              const sharePrice = Number(position.currentPrice);
-              const sharesToTrade = sharePrice > 0 ? (targetValue - positionValue) / sharePrice : 0;
+              const sharesToTrade = alertPrice > 0 ? (targetValue - positionValue) / alertPrice : 0;
               
               // Create task with trade details
               const accountTypeLabels: Record<string, string> = {
@@ -2119,14 +2122,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const taskTitle = `TradingView ${parsed.signal} Alert: ${parsed.symbol}`;
               const variance = actualPercent - targetPercent;
               const sharesNeeded = Math.abs(sharesToTrade);
-              const dollarAmount = Math.abs(sharesToTrade * sharePrice);
-              const alertPrice = parsed.price; // Price from TradingView alert
+              const dollarAmountAtAlertPrice = sharesNeeded * alertPrice;
               
               const taskDescription = 
                 `📊 TradingView ${parsed.signal} Alert\n\n` +
                 `Symbol: ${parsed.symbol}\n` +
-                `Alert Price: $${alertPrice.toFixed(2)}\n` +
-                `Current Price: $${sharePrice.toFixed(2)}\n\n` +
+                `Alert Price (Market): $${alertPrice.toFixed(2)}\n` +
+                `${storedPrice !== alertPrice ? `Stored Price: $${storedPrice.toFixed(2)}\n` : ''}\n` +
                 `📍 Location\n` +
                 `Household: ${householdName}\n` +
                 `Account: ${fullAccountName}\n\n` +
@@ -2136,8 +2138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 `Variance: ${variance.toFixed(2)}%\n\n` +
                 `💰 Action Required\n` +
                 `${parsed.signal === 'BUY' ? 'Buy' : 'Sell'}: ${sharesNeeded.toFixed(2)} ${parsed.symbol === 'CASH' ? 'units' : 'shares'}\n` +
-                `At Alert Price ($${alertPrice.toFixed(2)}): $${(sharesNeeded * alertPrice).toFixed(2)}\n` +
-                `At Current Price ($${sharePrice.toFixed(2)}): $${dollarAmount.toFixed(2)}`;
+                `At Alert Price ($${alertPrice.toFixed(2)}): $${dollarAmountAtAlertPrice.toFixed(2)}`;
               
               // Create task based on account type
               let task;
