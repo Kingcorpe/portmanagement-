@@ -6556,80 +6556,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let updatedCount = 0;
       let errorCount = 0;
       
-      // Check if Twelve Data API key is configured
+      // Check which API key is configured (prefer Marketstack)
+      const marketstackApiKey = process.env.MARKETSTACK_API_KEY;
       const twelveDataApiKey = process.env.TWELVE_DATA_API_KEY;
       
-      console.log(`[PROTECTION] Using price source: ${twelveDataApiKey ? 'Twelve Data (batch) + Yahoo (fallback)' : 'Yahoo Finance only'}`);
+      const priceSource = marketstackApiKey ? 'Marketstack' : twelveDataApiKey ? 'Twelve Data' : 'Yahoo Finance';
+      console.log(`[PROTECTION] Using price source: ${priceSource}`);
       
-      // Batch fetch from Twelve Data (up to 8 symbols per request to stay under rate limit)
-      async function batchFetchFromTwelveData(rawSymbols: string[]): Promise<Record<string, number>> {
-        if (!twelveDataApiKey || rawSymbols.length === 0) return {};
+      // Batch fetch from Marketstack (up to 100 symbols per request)
+      async function batchFetchFromMarketstack(rawSymbols: string[]): Promise<Record<string, number>> {
+        if (!marketstackApiKey || rawSymbols.length === 0) return {};
         
         const results: Record<string, number> = {};
         
-        // Convert symbols to Twelve Data format (most Canadian ETFs are on TSX)
+        // Convert symbols to Marketstack format
+        // TSX uses .XTSE suffix, TSXV uses .XTSV suffix
         const symbolMap: Record<string, string> = {}; // apiSymbol -> rawSymbol
         const apiSymbols: string[] = [];
         
         for (const raw of rawSymbols) {
           let apiSymbol = raw;
           if (raw.endsWith('.TO')) {
-            apiSymbol = raw.replace('.TO', '') + ':TSX';
+            apiSymbol = raw.replace('.TO', '.XTSE');
           } else if (raw.endsWith('.V')) {
-            apiSymbol = raw.replace('.V', '') + ':TSXV';
-          } else if (!raw.includes('.') && !raw.includes(':')) {
+            apiSymbol = raw.replace('.V', '.XTSV');
+          } else if (!raw.includes('.')) {
             // Assume TSX for bare Canadian symbols
-            apiSymbol = raw + ':TSX';
+            apiSymbol = raw + '.XTSE';
           }
-          symbolMap[apiSymbol] = raw;
+          symbolMap[apiSymbol.toUpperCase()] = raw;
           apiSymbols.push(apiSymbol);
         }
         
-        // Batch into groups of 8 (Twelve Data free tier limit per minute)
-        const batchSize = 8;
+        // Marketstack allows up to 100 symbols per request
+        const batchSize = 100;
         for (let i = 0; i < apiSymbols.length; i += batchSize) {
           const batch = apiSymbols.slice(i, i + batchSize);
           const symbolsParam = batch.join(',');
           
           try {
-            const url = `https://api.twelvedata.com/price?symbol=${encodeURIComponent(symbolsParam)}&apikey=${twelveDataApiKey}`;
+            // Use eod/latest for end-of-day prices (works on basic plan)
+            const url = `http://api.marketstack.com/v1/eod/latest?access_key=${marketstackApiKey}&symbols=${encodeURIComponent(symbolsParam)}`;
             const response = await fetch(url);
             
             if (!response.ok) {
-              console.log(`[PROTECTION] Twelve Data batch HTTP error: ${response.status}`);
+              console.log(`[PROTECTION] Marketstack HTTP error: ${response.status}`);
               continue;
             }
             
             const data = await response.json();
             
-            // Handle single symbol response (returns {price: "X"}) vs multi ({SYM: {price: "X"}})
-            if (batch.length === 1 && data.price) {
-              const rawSymbol = symbolMap[batch[0]];
-              results[rawSymbol] = parseFloat(data.price);
-              console.log(`[PROTECTION] Twelve Data: ${batch[0]} = $${data.price}`);
-            } else {
-              // Multi-symbol response
-              for (const [apiSym, priceData] of Object.entries(data)) {
-                const pd = priceData as any;
-                if (pd.price) {
-                  const rawSymbol = symbolMap[apiSym];
+            if (data.error) {
+              console.log(`[PROTECTION] Marketstack API error: ${data.error.code} - ${data.error.message}`);
+              continue;
+            }
+            
+            if (data.data && Array.isArray(data.data)) {
+              for (const quote of data.data) {
+                if (quote.close && quote.symbol) {
+                  const rawSymbol = symbolMap[quote.symbol.toUpperCase()];
                   if (rawSymbol) {
-                    results[rawSymbol] = parseFloat(pd.price);
-                    console.log(`[PROTECTION] Twelve Data: ${apiSym} = $${pd.price}`);
+                    results[rawSymbol] = quote.close;
+                    console.log(`[PROTECTION] Marketstack: ${quote.symbol} = $${quote.close}`);
                   }
-                } else if (pd.code) {
-                  console.log(`[PROTECTION] Twelve Data ${apiSym}: ${pd.code} - ${pd.message?.substring(0, 50) || 'error'}`);
                 }
               }
             }
+            
+            console.log(`[PROTECTION] Marketstack batch returned ${data.data?.length || 0} prices`);
           } catch (error: any) {
-            console.log(`[PROTECTION] Twelve Data batch error: ${error.message}`);
-          }
-          
-          // Wait 60+ seconds between batches to respect rate limit (8/min)
-          if (i + batchSize < apiSymbols.length) {
-            console.log(`[PROTECTION] Waiting 65s for rate limit (batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(apiSymbols.length/batchSize)})...`);
-            await new Promise(resolve => setTimeout(resolve, 65000));
+            console.log(`[PROTECTION] Marketstack error: ${error.message}`);
           }
         }
         
@@ -6687,13 +6683,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[PROTECTION] Processing ${realSymbols.length} real symbols, ${cashSymbols.length} cash positions`);
       
-      // Try Twelve Data batch first (if API key is set)
-      if (twelveDataApiKey && realSymbols.length > 0) {
-        const twelveDataPrices = await batchFetchFromTwelveData(realSymbols);
-        for (const [symbol, price] of Object.entries(twelveDataPrices)) {
+      // Try Marketstack first (best coverage for Canadian ETFs)
+      if (marketstackApiKey && realSymbols.length > 0) {
+        const marketstackPrices = await batchFetchFromMarketstack(realSymbols);
+        for (const [symbol, price] of Object.entries(marketstackPrices)) {
           priceCache[symbol] = price;
         }
-        console.log(`[PROTECTION] Twelve Data found ${Object.keys(twelveDataPrices).length}/${realSymbols.length} prices`);
+        console.log(`[PROTECTION] Marketstack found ${Object.keys(marketstackPrices).length}/${realSymbols.length} prices`);
       }
       
       // Fall back to Yahoo for symbols not found in Twelve Data
