@@ -6578,6 +6578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             symbolsToTry.push(`${rawSymbol}.NE`);
           }
           
+          const errors: string[] = [];
           for (const symbol of symbolsToTry) {
             try {
               const result = await yahooFinance.quote(symbol);
@@ -6586,15 +6587,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.log(`[PROTECTION] Found price for ${rawSymbol} via ${symbol}: $${quote.regularMarketPrice}`);
                 break;
               }
-            } catch (e) {
-              // Try next suffix
+            } catch (e: any) {
+              errors.push(`${symbol}: ${e.message || e}`);
             }
           }
           
           if (quote && quote.regularMarketPrice) {
             priceCache[rawSymbol] = quote.regularMarketPrice;
           } else {
-            console.log(`[PROTECTION] No price found for ${rawSymbol} (tried: ${symbolsToTry.join(', ')})`);
+            console.log(`[PROTECTION] No price found for ${rawSymbol} - Errors: ${errors.join(' | ')}`);
             priceCache[rawSymbol] = null;
             errorCount++;
           }
