@@ -1,4 +1,4 @@
-// Authentication service - supports both Replit OIDC and local dev mode
+// Authentication service - supports Replit OIDC, Railway single-user, and local dev mode
 import * as client from "openid-client";
 import { Strategy, type VerifyFunction } from "openid-client/passport";
 
@@ -13,6 +13,10 @@ import { storage } from "./storage";
 // CRITICAL FIX #3: More explicit local dev check with production safety
 // Require explicit LOCAL_DEV flag AND ensure not in production
 export const isLocalDev = process.env.LOCAL_DEV === "true" && process.env.NODE_ENV !== 'production';
+
+// Check if running on Railway (no REPL_ID) - requires RAILWAY_USER_ID to be set
+// This mode uses a fixed user ID for single-user deployment on Railway
+export const isRailwayMode = !process.env.REPL_ID && !!process.env.RAILWAY_USER_ID;
 
 // Safety check: Prevent accidental dev mode in production
 if (process.env.LOCAL_DEV === "true" && process.env.NODE_ENV === 'production') {
@@ -248,7 +252,108 @@ export async function setupAuth(app: Express) {
     return;
   }
 
-  // Production mode - use Replit OIDC
+  // Railway mode - single user deployment without Replit OIDC
+  if (isRailwayMode) {
+    const railwayUserId = process.env.RAILWAY_USER_ID!;
+    console.log(`🚂 Railway single-user mode enabled (User ID: ${railwayUserId})`);
+    
+    // Ensure user exists in database
+    try {
+      let existingUser = await storage.getUser(railwayUserId);
+      if (!existingUser) {
+        existingUser = await storage.upsertUser({
+          id: railwayUserId,
+          email: process.env.RAILWAY_USER_EMAIL || "admin@railway.local",
+          firstName: process.env.RAILWAY_USER_FIRST_NAME || "Railway",
+          lastName: process.env.RAILWAY_USER_LAST_NAME || "Admin",
+          profileImageUrl: null,
+        });
+        console.log(`User ${railwayUserId} created successfully for Railway mode`);
+      }
+    } catch (error: any) {
+      console.error("Error ensuring Railway user exists:", error);
+    }
+    
+    passport.serializeUser((user: Express.User, cb) => cb(null, user));
+    passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+
+    // Auto-login middleware for Railway single-user mode
+    app.use((req: any, res, next) => {
+      if (req.path === '/api/logout') {
+        return next();
+      }
+      
+      if (!req.user) {
+        const user = {
+          claims: {
+            sub: railwayUserId,
+            email: process.env.RAILWAY_USER_EMAIL || "admin@railway.local",
+            first_name: process.env.RAILWAY_USER_FIRST_NAME || "Railway",
+            last_name: process.env.RAILWAY_USER_LAST_NAME || "Admin",
+          },
+          expires_at: Math.floor(Date.now() / 1000) + 86400 * 365,
+        };
+        req.user = user;
+        req.isAuthenticated = () => true;
+        req.login(user, (err: any) => {
+          if (err) console.error("Session save error:", err);
+          next();
+        });
+      } else {
+        next();
+      }
+    });
+
+    app.get("/api/login", (req: any, res) => {
+      if (!req.user) {
+        const user = {
+          claims: {
+            sub: railwayUserId,
+            email: process.env.RAILWAY_USER_EMAIL || "admin@railway.local",
+            first_name: process.env.RAILWAY_USER_FIRST_NAME || "Railway",
+            last_name: process.env.RAILWAY_USER_LAST_NAME || "Admin",
+          },
+          expires_at: Math.floor(Date.now() / 1000) + 86400 * 365,
+        };
+        req.login(user, (err: any) => {
+          if (err) console.error("Login error:", err);
+          res.redirect("/");
+        });
+      } else {
+        res.redirect("/");
+      }
+    });
+
+    app.get("/api/callback", (req, res) => {
+      res.redirect("/");
+    });
+
+    app.get("/api/logout", (req: any, res) => {
+      req.user = null;
+      req.isAuthenticated = () => false;
+      req.logout((err: any) => {
+        if (err) console.error("Logout error:", err);
+        req.session.destroy((err: any) => {
+          if (err) console.error("Session destroy error:", err);
+          res.clearCookie('connect.sid', {
+            path: '/',
+            httpOnly: true,
+            secure: true,
+            sameSite: 'lax'
+          });
+          res.redirect("/?loggedOut=true");
+        });
+      });
+    });
+
+    return;
+  }
+
+  // Production mode - use Replit OIDC (requires REPL_ID)
+  if (!process.env.REPL_ID) {
+    throw new Error("REPL_ID environment variable is required for Replit OIDC authentication. Set RAILWAY_USER_ID for Railway deployment.");
+  }
+  
   const config = await getOidcConfig();
 
   const verify: VerifyFunction = async (
