@@ -2057,17 +2057,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const actualPercent = (positionValue / totalActualValue) * 100;
           
           // Find target allocation for this symbol
+          console.log(`[TradingView Webhook] Looking for target allocation. Position symbol: ${position.symbol}, Normalized alert: ${normalizedAlertSymbol}`);
+          console.log(`[TradingView Webhook] Available target allocations:`, targetAllocations.map(t => ({
+            ticker: t.holding?.ticker,
+            normalized: t.holding?.ticker ? normalizeTicker(t.holding.ticker) : 'N/A',
+            targetPercent: t.targetPercentage
+          })));
+          
           const targetAlloc = targetAllocations.find(t => {
             if (!t.holding?.ticker) return false;
             const normalizedTicker = normalizeTicker(t.holding.ticker);
-            return normalizedTicker === normalizedAlertSymbol;
+            const matches = normalizedTicker === normalizedAlertSymbol;
+            if (matches) {
+              console.log(`[TradingView Webhook] ✓ Found matching target allocation: ${t.holding.ticker} (normalized: ${normalizedTicker}) = ${normalizedAlertSymbol}`);
+            }
+            return matches;
           });
           const targetPercent = targetAlloc ? Number(targetAlloc.targetPercentage) : 0;
+          
+          if (!targetAlloc) {
+            console.log(`[TradingView Webhook] ✗ No target allocation found for ${normalizedAlertSymbol} in account ${accountId}`);
+          }
           
           console.log(`[TradingView Webhook] Account ${accountId} (${householdName}): actual=${actualPercent.toFixed(2)}%, target=${targetPercent.toFixed(2)}%, signal=${parsed.signal}`);
           
           // Check if position matches signal criteria
-          if (shouldProcessPosition(actualPercent, targetPercent, parsed.signal)) {
+          const shouldProcess = shouldProcessPosition(actualPercent, targetPercent, parsed.signal);
+          console.log(`[TradingView Webhook] shouldProcessPosition(${actualPercent.toFixed(2)}, ${targetPercent.toFixed(2)}, ${parsed.signal}) = ${shouldProcess}`);
+          
+          if (shouldProcess) {
             console.log(`[TradingView Webhook] ✓ Creating task for ${householdName} - ${account.type} (${actualPercent.toFixed(2)}% < ${targetPercent.toFixed(2)}%)`);
             try {
               // Calculate shares needed
