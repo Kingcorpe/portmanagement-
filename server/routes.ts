@@ -4977,38 +4977,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (isCrypto) {
         // Try chart API directly for crypto
-        const quoteResponse = await fetch(
-          `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
-          {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        try {
+          const quoteResponse = await fetch(
+            `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
+            {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              }
             }
-          }
-        );
-        
-        if (quoteResponse.ok) {
-          const quoteData = await quoteResponse.json();
-          const result = quoteData?.chart?.result?.[0];
-          const meta = result?.meta;
+          );
           
-          if (meta) {
-            // Check if we have price data (crypto might have null price if market is closed)
-            const price = meta.regularMarketPrice ?? meta.previousClose ?? null;
-            const cryptoName = meta.shortName || meta.longName || ticker.replace('-USD', '');
+          if (quoteResponse.ok) {
+            const quoteData = await quoteResponse.json();
+            const result = quoteData?.chart?.result?.[0];
             
-            // Return success even if price is null (crypto might not have price data)
-            return res.json({
-              ticker: ticker,
-              name: cryptoName || `${ticker.replace('-USD', '')} (${ticker})`,
-              exchange: 'CCC', // Crypto exchange code
-              type: 'CRYPTOCURRENCY',
-              price: price
-            });
+            // Check for errors in the result
+            if (result?.error) {
+              console.log(`[Ticker Lookup] Crypto ${ticker}: Chart API returned error:`, result.error);
+            } else if (result?.meta) {
+              const meta = result.meta;
+              // Check if we have price data (crypto might have null price if market is closed)
+              const price = meta.regularMarketPrice ?? meta.previousClose ?? meta.chartPreviousClose ?? null;
+              const cryptoName = meta.shortName || meta.longName || meta.symbol || ticker.replace('-USD', '');
+              
+              // Return success even if price is null (crypto might not have price data)
+              return res.json({
+                ticker: ticker,
+                name: cryptoName || `${ticker.replace('-USD', '')} (${ticker})`,
+                exchange: 'CCC', // Crypto exchange code
+                type: 'CRYPTOCURRENCY',
+                price: price
+              });
+            } else {
+              console.log(`[Ticker Lookup] Crypto ${ticker}: Chart API returned OK but no result or meta data`);
+            }
           } else {
-            console.log(`[Ticker Lookup] Crypto ${ticker}: Chart API returned OK but no meta data`);
+            console.log(`[Ticker Lookup] Crypto ${ticker}: Chart API returned ${quoteResponse.status}`);
           }
-        } else {
-          console.log(`[Ticker Lookup] Crypto ${ticker}: Chart API returned ${quoteResponse.status}`);
+        } catch (cryptoError: any) {
+          console.error(`[Ticker Lookup] Crypto ${ticker} chart API error:`, cryptoError.message);
         }
       }
       
