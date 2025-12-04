@@ -1960,6 +1960,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return false;
       };
       
+      // Debug logging
+      console.log(`[TradingView Webhook] Received ${parsed.signal} alert for ${parsed.symbol}`);
+      const normalizedAlertSymbol = normalizeTicker(parsed.symbol);
+      console.log(`[TradingView Webhook] Normalized symbol: ${normalizedAlertSymbol}`);
+      
       // Process alerts for both BUY and SELL signals
       const tasksCreated: string[] = [];
       const reportsSent: string[] = [];
@@ -1972,6 +1977,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Find all positions for this symbol
         const positionsForSymbol = await storage.getPositionsBySymbol(parsed.symbol);
+        console.log(`[TradingView Webhook] Found ${positionsForSymbol.length} positions for ${parsed.symbol}`);
         
         // Process each position to check if it matches the signal
         for (const position of positionsForSymbol) {
@@ -2047,18 +2053,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (totalActualValue <= 0) continue;
           
           // Find the position's actual allocation
-          const normalizedAlertSymbol = normalizeTicker(parsed.symbol);
           const positionValue = Number(position.quantity) * Number(position.currentPrice);
           const actualPercent = (positionValue / totalActualValue) * 100;
           
           // Find target allocation for this symbol
-          const targetAlloc = targetAllocations.find(t => 
-            t.holding?.ticker && normalizeTicker(t.holding.ticker) === normalizedAlertSymbol
-          );
+          const targetAlloc = targetAllocations.find(t => {
+            if (!t.holding?.ticker) return false;
+            const normalizedTicker = normalizeTicker(t.holding.ticker);
+            return normalizedTicker === normalizedAlertSymbol;
+          });
           const targetPercent = targetAlloc ? Number(targetAlloc.targetPercentage) : 0;
+          
+          console.log(`[TradingView Webhook] Account ${accountId} (${householdName}): actual=${actualPercent.toFixed(2)}%, target=${targetPercent.toFixed(2)}%, signal=${parsed.signal}`);
           
           // Check if position matches signal criteria
           if (shouldProcessPosition(actualPercent, targetPercent, parsed.signal)) {
+            console.log(`[TradingView Webhook] ✓ Creating task for ${householdName} - ${account.type} (${actualPercent.toFixed(2)}% < ${targetPercent.toFixed(2)}%)`);
             try {
               // Calculate shares needed
               const targetValue = (targetPercent / 100) * totalActualValue;
@@ -2254,7 +2264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // These accounts have planned to hold this ticker but haven't bought yet
         if (parsed.signal === 'BUY') {
           const targetAllocationsForSymbol = await storage.getAccountTargetAllocationsBySymbol(parsed.symbol);
-          const normalizedAlertSymbol = normalizeTicker(parsed.symbol);
+          console.log(`[TradingView Webhook] Found ${targetAllocationsForSymbol.length} target allocations (no positions) for ${parsed.symbol}`);
           
           for (const allocation of targetAllocationsForSymbol) {
             const accountKey = `${allocation.accountType}:${allocation.accountId}`;
