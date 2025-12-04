@@ -4971,55 +4971,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const inputTicker = req.params.ticker;
       const ticker = normalizeCryptoTicker(inputTicker);
       
-      // For crypto tickers (format: XXX-USD), try chart API directly first
-      // Yahoo Finance search sometimes doesn't return crypto results
+      // Check if this is a crypto ticker (format: XXX-USD)
       const isCrypto = ticker.includes('-USD') && ticker.match(/^[A-Z]{2,5}-USD$/);
       
+      // For crypto tickers, try multiple approaches
       if (isCrypto) {
-        // Try chart API directly for crypto
+        // Approach 1: Try chart API directly for crypto
         try {
           const quoteResponse = await fetch(
             `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
             {
               headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-              }
-            }
+              },
+              timeout: 5000
+            } as any
           );
           
           if (quoteResponse.ok) {
             const quoteData = await quoteResponse.json();
             const result = quoteData?.chart?.result?.[0];
             
-            // Check for errors in the result
-            if (result?.error) {
-              console.log(`[Ticker Lookup] Crypto ${ticker}: Chart API returned error:`, result.error);
-            } else if (result?.meta) {
+            if (result && !result.error && result.meta) {
               const meta = result.meta;
-              // Check if we have price data (crypto might have null price if market is closed)
               const price = meta.regularMarketPrice ?? meta.previousClose ?? meta.chartPreviousClose ?? null;
               const cryptoName = meta.shortName || meta.longName || meta.symbol || ticker.replace('-USD', '');
               
-              // Return success even if price is null (crypto might not have price data)
               return res.json({
                 ticker: ticker,
                 name: cryptoName || `${ticker.replace('-USD', '')} (${ticker})`,
-                exchange: 'CCC', // Crypto exchange code
+                exchange: 'CCC',
                 type: 'CRYPTOCURRENCY',
                 price: price
               });
-            } else {
-              console.log(`[Ticker Lookup] Crypto ${ticker}: Chart API returned OK but no result or meta data`);
             }
-          } else {
-            console.log(`[Ticker Lookup] Crypto ${ticker}: Chart API returned ${quoteResponse.status}`);
           }
         } catch (cryptoError: any) {
-          console.error(`[Ticker Lookup] Crypto ${ticker} chart API error:`, cryptoError.message);
+          // Chart API failed, continue to fallback
         }
+        
+        // Approach 2: Try search API as fallback
+        try {
+          const searchResponse = await fetch(
+            `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(ticker)}&quotesCount=5&newsCount=0`,
+            {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+              },
+              timeout: 5000
+            } as any
+          );
+          
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            if (searchData.quotes && searchData.quotes.length > 0) {
+              const exactMatch = searchData.quotes.find((q: any) => q.symbol === ticker);
+              const searchQuote = exactMatch || searchData.quotes[0];
+              
+              return res.json({
+                ticker: ticker,
+                name: searchQuote.shortname || searchQuote.longname || `${ticker.replace('-USD', '')} (${ticker})`,
+                exchange: searchQuote.exchange || 'CCC',
+                type: 'CRYPTOCURRENCY',
+                price: null
+              });
+            }
+          }
+        } catch (searchError: any) {
+          // Search API failed, continue to final fallback
+        }
+        
+        // Approach 3: Final fallback - return basic crypto response
+        // This ensures crypto tickers can always be added even if APIs fail
+        const cryptoCode = ticker.replace('-USD', '');
+        return res.json({
+          ticker: ticker,
+          name: `${cryptoCode} (${ticker})`,
+          exchange: 'CCC',
+          type: 'CRYPTOCURRENCY',
+          price: null
+        });
       }
       
-      // For stocks or if crypto lookup failed, use search API
+      // For non-crypto tickers, use standard search API
       const searchResponse = await fetch(
         `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(ticker)}&quotesCount=5&newsCount=0`,
         {
@@ -5036,17 +5070,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const searchData = await searchResponse.json();
       
       if (!searchData.quotes || searchData.quotes.length === 0) {
-        // If this was a crypto ticker and search failed, allow it anyway with a basic response
-        // User can manually enter the name
-        if (isCrypto) {
-          return res.json({
-            ticker: ticker,
-            name: `${ticker.replace('-USD', '')} (${ticker})`,
-            exchange: 'CCC',
-            type: 'CRYPTOCURRENCY',
-            price: null
-          });
-        }
         return res.status(404).json({ message: "Ticker not found" });
       }
       
