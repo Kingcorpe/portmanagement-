@@ -90,23 +90,38 @@ app.use((req, res, next) => {
 export default async function runApp(
   setup: (app: Express, server: Server) => Promise<void>,
 ) {
-  const server = await registerRoutes(app);
+  console.log("[APP] runApp starting...");
+  
+  try {
+    console.log("[APP] Registering routes...");
+    const server = await registerRoutes(app);
+    console.log("[APP] Routes registered successfully");
 
-  // HIGH PRIORITY FIX #8: Use sanitized error handler
-  const { createErrorHandler } = await import("./errorUtils");
-  app.use(createErrorHandler(process.env.NODE_ENV === 'production'));
+    // HIGH PRIORITY FIX #8: Use sanitized error handler
+    console.log("[APP] Loading error handler...");
+    const { createErrorHandler } = await import("./errorUtils");
+    app.use(createErrorHandler(process.env.NODE_ENV === 'production'));
+    console.log("[APP] Error handler loaded");
 
-  // importantly run the final setup after setting up all the other routes so
-  // the catch-all route doesn't interfere with the other routes
-  await setup(app, server);
+    // importantly run the final setup after setting up all the other routes so
+    // the catch-all route doesn't interfere with the other routes
+    console.log("[APP] Running setup...");
+    await setup(app, server);
+    console.log("[APP] Setup complete");
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  const host = process.env.LOCAL_DEV === 'true' ? '127.0.0.1' : '0.0.0.0';
-  server.listen(port, host, () => {
-    log(`serving on http://${host}:${port}`);
-  });
+    // ALWAYS serve the app on the port specified in the environment variable PORT
+    // Other ports are firewalled. Default to 5000 if not specified.
+    // this serves both the API and the client.
+    // It is the only port that is not firewalled.
+    const port = parseInt(process.env.PORT || '5000', 10);
+    const host = process.env.LOCAL_DEV === 'true' ? '127.0.0.1' : '0.0.0.0';
+    console.log(`[APP] Starting server on ${host}:${port}...`);
+    server.listen(port, host, () => {
+      log(`serving on http://${host}:${port}`);
+      console.log(`[APP] Server successfully listening on ${host}:${port}`);
+    });
+  } catch (error) {
+    console.error("[APP] FATAL ERROR during startup:", error);
+    process.exit(1);
+  }
 }

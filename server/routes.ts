@@ -531,8 +531,12 @@ function validateCsrfToken(req: any, res: any, next: any) {
 import { generalRateLimiter, webhookRateLimiter, rateLimit, authRateLimiter } from "./routes/rateLimiter";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  console.log("[ROUTES] Starting route registration...");
+  
   // Set up authentication middleware
+  console.log("[ROUTES] Setting up auth...");
   await setupAuth(app);
+  console.log("[ROUTES] Auth setup complete");
 
   // CRITICAL FIX #2: CSRF token endpoint (must be before CSRF validation and rate limiting)
   app.get('/api/csrf-token', (req: any, res) => {
