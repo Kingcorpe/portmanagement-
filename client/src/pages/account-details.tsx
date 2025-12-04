@@ -3165,11 +3165,18 @@ export default function AccountDetails() {
                     {filteredTasks.map((task) => (
                       <div
                         key={task.id}
-                        className="flex items-start gap-3 p-3 rounded-lg border hover-elevate"
+                        className="flex items-start gap-3 p-3 rounded-lg border hover-elevate cursor-pointer"
                         data-testid={`task-item-${task.id}`}
+                        onClick={() => {
+                          setEditingTask(task);
+                          setIsTaskDialogOpen(true);
+                        }}
                       >
                         <button
-                          onClick={() => completeTaskMutation.mutate(task.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            completeTaskMutation.mutate(task.id);
+                          }}
                           disabled={task.status === "completed" || task.status === "cancelled" || completeTaskMutation.isPending}
                           className="mt-0.5 flex-shrink-0"
                           data-testid={`button-complete-task-${task.id}`}
@@ -3247,7 +3254,7 @@ export default function AccountDetails() {
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                           {task.status === "completed" ? (
                             <Button
                               variant="ghost"
@@ -3270,6 +3277,7 @@ export default function AccountDetails() {
                                 setIsTaskDialogOpen(true);
                               }}
                               data-testid={`button-edit-task-${task.id}`}
+                              title="Edit task"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -3281,6 +3289,7 @@ export default function AccountDetails() {
                             onClick={() => deleteTaskMutation.mutate(task.id)}
                             disabled={deleteTaskMutation.isPending}
                             data-testid={`button-delete-task-${task.id}`}
+                            title="Delete task"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
