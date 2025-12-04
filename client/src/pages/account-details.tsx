@@ -1675,6 +1675,15 @@ export default function AccountDetails() {
     }
   };
 
+  // Clear protection - sets field to null
+  const handleClearProtection = (position: Position, field: 'protectionPercent' | 'stopPrice' | 'limitPrice') => {
+    updateProtectionMutation.mutate({
+      positionId: position.id,
+      field,
+      value: "",  // Empty string will be converted to null
+    });
+  };
+
   const handleProtectionSave = (position: Position) => {
     if (!editingProtection) return;
     
@@ -3068,22 +3077,39 @@ export default function AccountDetails() {
                             </Button>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => handleProtectionEdit(position, 'protectionPercent')}
-                            className="text-right hover:bg-muted/50 px-2 py-1 rounded cursor-pointer w-full"
-                            data-testid={`button-edit-protection-pct-${position.id}`}
-                          >
-                            {position.protectionPercent 
-                              ? <span className="text-amber-600 dark:text-amber-400">{Number(position.protectionPercent).toFixed(0)}%</span>
-                              : <span className="text-muted-foreground">-</span>
-                            }
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => handleProtectionEdit(position, 'protectionPercent')}
+                              className="text-right hover:bg-muted/50 px-2 py-1 rounded cursor-pointer flex-1"
+                              data-testid={`button-edit-protection-pct-${position.id}`}
+                            >
+                              {position.protectionPercent && Number(position.protectionPercent) > 0
+                                ? <span className="text-amber-600 dark:text-amber-400">{Number(position.protectionPercent).toFixed(0)}%</span>
+                                : <span className="text-muted-foreground">-</span>
+                              }
+                            </button>
+                            {position.protectionPercent && Number(position.protectionPercent) > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleClearProtection(position, 'protectionPercent');
+                                }}
+                                title="Clear protection"
+                                data-testid={`button-clear-protection-pct-${position.id}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
                         )}
                       </TableCell>
                       
                       {/* Protect Shares - calculated from protectionPercent * quantity */}
                       <TableCell className="text-right" data-testid={`text-protect-shares-${position.id}`}>
-                        {position.protectionPercent ? (
+                        {position.protectionPercent && Number(position.protectionPercent) > 0 ? (
                           <span className="text-amber-600 dark:text-amber-400 font-medium">
                             {Math.round((Number(position.protectionPercent) / 100) * Number(position.quantity)).toLocaleString()}
                           </span>
@@ -3127,16 +3153,33 @@ export default function AccountDetails() {
                             </Button>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => handleProtectionEdit(position, 'stopPrice')}
-                            className="text-right hover:bg-muted/50 px-2 py-1 rounded cursor-pointer w-full"
-                            data-testid={`button-edit-stop-price-${position.id}`}
-                          >
-                            {position.stopPrice 
-                              ? <span className="text-amber-600 dark:text-amber-400">${Number(position.stopPrice).toFixed(2)}</span>
-                              : <span className="text-muted-foreground">-</span>
-                            }
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => handleProtectionEdit(position, 'stopPrice')}
+                              className="text-right hover:bg-muted/50 px-2 py-1 rounded cursor-pointer flex-1"
+                              data-testid={`button-edit-stop-price-${position.id}`}
+                            >
+                              {position.stopPrice && Number(position.stopPrice) > 0
+                                ? <span className="text-amber-600 dark:text-amber-400">${Number(position.stopPrice).toFixed(2)}</span>
+                                : <span className="text-muted-foreground">-</span>
+                              }
+                            </button>
+                            {position.stopPrice && Number(position.stopPrice) > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleClearProtection(position, 'stopPrice');
+                                }}
+                                title="Clear stop price"
+                                data-testid={`button-clear-stop-price-${position.id}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
                         )}
                       </TableCell>
                       
