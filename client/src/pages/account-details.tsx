@@ -1683,6 +1683,58 @@ export default function AccountDetails() {
     }
   };
 
+  // Parse CSV with proper handling of quoted fields (RFC 4180 compliant)
+  const parseCSV = (text: string): string[][] => {
+    const rows: string[][] = [];
+    const lines = text.split(/\r?\n/).filter(line => line.trim());
+    
+    for (const line of lines) {
+      const row: string[] = [];
+      let currentField = '';
+      let insideQuotes = false;
+      let i = 0;
+      
+      while (i < line.length) {
+        const char = line[i];
+        const nextChar = line[i + 1];
+        
+        if (char === '"') {
+          if (insideQuotes && nextChar === '"') {
+            // Escaped quote (double quote)
+            currentField += '"';
+            i += 2;
+          } else if (insideQuotes && (nextChar === ',' || nextChar === undefined || nextChar === '\r')) {
+            // End of quoted field
+            insideQuotes = false;
+            i++;
+          } else if (!insideQuotes && currentField === '') {
+            // Start of quoted field
+            insideQuotes = true;
+            i++;
+          } else {
+            // Quote in unquoted field (shouldn't happen in valid CSV, but handle gracefully)
+            currentField += char;
+            i++;
+          }
+        } else if (char === ',' && !insideQuotes) {
+          // End of field
+          row.push(currentField.trim().replace(/['"$]/g, ''));
+          currentField = '';
+          i++;
+        } else {
+          currentField += char;
+          i++;
+        }
+      }
+      
+      // Add the last field
+      row.push(currentField.trim().replace(/['"$]/g, ''));
+      rows.push(row);
+    }
+    
+    return rows;
+  };
+
   // Process file (CSV and Excel)
   const processFile = async (file: File) => {
     setIsUploading(true);
@@ -1693,10 +1745,9 @@ export default function AccountDetails() {
       let rows: string[][] = [];
 
       if (fileExtension === 'csv') {
-        // Parse CSV
+        // Parse CSV with proper quoted field handling
         const text = await file.text();
-        const lines = text.split('\n').filter(line => line.trim());
-        rows = lines.map(line => line.split(',').map(v => v.trim().replace(/['"$]/g, '')));
+        rows = parseCSV(text);
       } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
         // Parse Excel
         const arrayBuffer = await file.arrayBuffer();
