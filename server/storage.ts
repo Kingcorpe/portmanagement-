@@ -32,6 +32,7 @@ import {
   tradingJournalImages,
   tradingJournalTags,
   tradingJournalEntryTags,
+  prospects,
   type User,
   type UpsertUser,
   type Household,
@@ -109,6 +110,9 @@ import {
   type TradingJournalEntryTag,
   type InsertTradingJournalEntryTag,
   type Trade,
+  type Prospect,
+  type InsertProspect,
+  type UpdateProspect,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, inArray, ilike, or, and, sql, isNull, isNotNull, lt } from "drizzle-orm";
@@ -357,6 +361,14 @@ export interface IStorage {
     entriesByTag: Array<{ tagId: string; tagName: string; count: number }>;
     entriesByOutcome: Array<{ outcome: string; count: number }>;
   }>;
+
+  // Prospect operations
+  createProspect(data: InsertProspect): Promise<Prospect>;
+  getProspects(userId?: string): Promise<Prospect[]>;
+  getProspectById(id: string): Promise<Prospect | undefined>;
+  updateProspect(id: string, data: UpdateProspect): Promise<Prospect>;
+  deleteProspect(id: string): Promise<void>;
+  getProspectsByStatus(status: string): Promise<Prospect[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2721,6 +2733,45 @@ export class DatabaseStorage implements IStorage {
       entriesByTag,
       entriesByOutcome,
     };
+  }
+
+  // Prospect operations
+  async createProspect(data: InsertProspect): Promise<Prospect> {
+    const [prospect] = await db.insert(prospects).values(data).returning();
+    return prospect;
+  }
+
+  async getProspects(userId?: string): Promise<Prospect[]> {
+    if (userId) {
+      return await db.select().from(prospects).where(eq(prospects.userId, userId)).orderBy(desc(prospects.createdAt));
+    }
+    return await db.select().from(prospects).orderBy(desc(prospects.createdAt));
+  }
+
+  async getProspectById(id: string): Promise<Prospect | undefined> {
+    const [prospect] = await db.select().from(prospects).where(eq(prospects.id, id));
+    return prospect;
+  }
+
+  async updateProspect(id: string, data: UpdateProspect): Promise<Prospect> {
+    const [prospect] = await db
+      .update(prospects)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(prospects.id, id))
+      .returning();
+    return prospect;
+  }
+
+  async deleteProspect(id: string): Promise<void> {
+    await db.delete(prospects).where(eq(prospects.id, id));
+  }
+
+  async getProspectsByStatus(status: string): Promise<Prospect[]> {
+    return await db
+      .select()
+      .from(prospects)
+      .where(eq(prospects.status, status as any))
+      .orderBy(desc(prospects.createdAt));
   }
 }
 

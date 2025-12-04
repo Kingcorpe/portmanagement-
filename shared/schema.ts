@@ -1638,6 +1638,140 @@ export type InsertMilestone = z.infer<typeof insertMilestoneSchema>;
 export type UpdateMilestone = z.infer<typeof updateMilestoneSchema>;
 export type Milestone = typeof milestones.$inferSelect;
 
+// Prospect status enum
+export const prospectStatusEnum = pgEnum("prospect_status", [
+  "new",
+  "contacted",
+  "scheduled",
+  "in_progress",
+  "qualified",
+  "converted",
+  "not_qualified",
+  "archived",
+]);
+
+// Prospect interest type enum
+export const prospectInterestEnum = pgEnum("prospect_interest", [
+  "wealth_management",
+  "retirement_planning",
+  "tax_planning",
+  "insurance",
+  "estate_planning",
+  "education_savings",
+  "general_consultation",
+  "other",
+]);
+
+// Prospect referral source enum
+export const prospectReferralSourceEnum = pgEnum("prospect_referral_source", [
+  "website",
+  "referral",
+  "social_media",
+  "event",
+  "cold_outreach",
+  "other",
+]);
+
+// Prospects table (for client intake forms)
+export const prospects = pgTable("prospects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }), // Assigned advisor
+  
+  // Basic Information
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  email: varchar("email", { length: 255 }).notNull(),
+  phone: varchar("phone", { length: 50 }),
+  preferredContact: varchar("preferred_contact", { length: 20 }).default("email"), // email, phone, either
+  
+  // Financial Profile
+  interestType: prospectInterestEnum("interest_type").notNull().default("general_consultation"),
+  estimatedAssets: varchar("estimated_assets", { length: 100 }), // e.g., "500k-1M", "1M-5M"
+  currentlyWorkingWithAdvisor: boolean("currently_working_with_advisor").default(false),
+  
+  // Discussion Details
+  bestTimeToContact: varchar("best_time_to_contact", { length: 100 }),
+  urgency: varchar("urgency", { length: 50 }), // immediate, within_month, exploring
+  goals: text("goals"), // What they hope to achieve
+  questions: text("questions"), // Initial questions they have
+  additionalNotes: text("additional_notes"),
+  
+  // Source and Tracking
+  referralSource: prospectReferralSourceEnum("referral_source").default("website"),
+  referredBy: varchar("referred_by", { length: 200 }), // Name of referrer if applicable
+  
+  // Status Tracking
+  status: prospectStatusEnum("status").notNull().default("new"),
+  followUpDate: timestamp("follow_up_date"),
+  lastContactedAt: timestamp("last_contacted_at"),
+  
+  // Internal Notes
+  internalNotes: text("internal_notes"), // Private notes for the advisor
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const prospectsRelations = relations(prospects, ({ one }) => ({
+  assignedUser: one(users, {
+    fields: [prospects.userId],
+    references: [users.id],
+  }),
+}));
+
+// Prospect insert schema (for public intake form - minimal validation)
+export const insertProspectSchema = createInsertSchema(prospects).omit({
+  id: true,
+  userId: true,
+  status: true,
+  lastContactedAt: true,
+  internalNotes: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  firstName: z.string().min(1, "First name is required").max(100, "First name must be 100 characters or less"),
+  lastName: z.string().min(1, "Last name is required").max(100, "Last name must be 100 characters or less"),
+  email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
+  phone: z.string().max(50, "Phone must be 50 characters or less").optional().nullable(),
+  preferredContact: z.enum(["email", "phone", "either"]).optional().default("email"),
+  interestType: z.enum([
+    "wealth_management",
+    "retirement_planning",
+    "tax_planning",
+    "insurance",
+    "estate_planning",
+    "education_savings",
+    "general_consultation",
+    "other"
+  ]).optional().default("general_consultation"),
+  estimatedAssets: z.string().max(100).optional().nullable(),
+  currentlyWorkingWithAdvisor: z.boolean().optional().default(false),
+  bestTimeToContact: z.string().max(100).optional().nullable(),
+  urgency: z.enum(["immediate", "within_month", "exploring"]).optional().nullable(),
+  goals: z.string().max(2000, "Goals must be 2000 characters or less").optional().nullable(),
+  questions: z.string().max(2000, "Questions must be 2000 characters or less").optional().nullable(),
+  additionalNotes: z.string().max(2000, "Additional notes must be 2000 characters or less").optional().nullable(),
+  referralSource: z.enum(["website", "referral", "social_media", "event", "cold_outreach", "other"]).optional().default("website"),
+  referredBy: z.string().max(200).optional().nullable(),
+  followUpDate: z.coerce.date().optional().nullable(),
+});
+
+// Prospect update schema (for internal management)
+export const updateProspectSchema = createInsertSchema(prospects).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  status: z.enum(["new", "contacted", "scheduled", "in_progress", "qualified", "converted", "not_qualified", "archived"]).optional(),
+  followUpDate: z.coerce.date().optional().nullable(),
+  lastContactedAt: z.coerce.date().optional().nullable(),
+  internalNotes: z.string().max(5000).optional().nullable(),
+}).partial();
+
+// Prospect types
+export type InsertProspect = z.infer<typeof insertProspectSchema>;
+export type UpdateProspect = z.infer<typeof updateProspectSchema>;
+export type Prospect = typeof prospects.$inferSelect;
+
 // Trading Journal types
 export type InsertTradingJournalEntry = z.infer<typeof insertTradingJournalEntrySchema>;
 export type UpdateTradingJournalEntry = z.infer<typeof updateTradingJournalEntrySchema>;

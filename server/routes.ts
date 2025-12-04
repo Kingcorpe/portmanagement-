@@ -5652,6 +5652,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { registerTradingJournalRoutes } = await import("./routes/trading-journal");
   registerTradingJournalRoutes(app);
 
+  // Prospects routes for intake forms and prospect management
+  const { registerProspectsRoutes } = await import("./routes/prospects");
+  registerProspectsRoutes(app);
+
   // Account audit log routes
   app.get('/api/accounts/:accountType/:accountId/audit-log', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
@@ -6565,20 +6569,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
             apiSymbol = symbol.replace('.TO', '') + ':TSX';
           } else if (symbol.endsWith('.V')) {
             apiSymbol = symbol.replace('.V', '') + ':TSXV';
+          } else if (!symbol.includes(':') && !symbol.includes('.')) {
+            // Try as TSX first for bare symbols
+            apiSymbol = symbol + ':TSX';
           }
           
-          const response = await fetch(
-            `https://api.twelvedata.com/price?symbol=${encodeURIComponent(apiSymbol)}&apikey=${twelveDataApiKey}`
-          );
+          const url = `https://api.twelvedata.com/price?symbol=${encodeURIComponent(apiSymbol)}&apikey=${twelveDataApiKey}`;
+          const response = await fetch(url);
           
-          if (!response.ok) return null;
+          if (!response.ok) {
+            console.log(`[PROTECTION] Twelve Data HTTP error for ${apiSymbol}: ${response.status}`);
+            return null;
+          }
           
           const data = await response.json();
           if (data.price) {
+            console.log(`[PROTECTION] Twelve Data found ${apiSymbol}: $${data.price}`);
             return parseFloat(data.price);
           }
+          if (data.code || data.message) {
+            console.log(`[PROTECTION] Twelve Data error for ${apiSymbol}: ${data.code} - ${data.message}`);
+          }
           return null;
-        } catch (error) {
+        } catch (error: any) {
+          console.log(`[PROTECTION] Twelve Data exception for ${symbol}: ${error.message}`);
           return null;
         }
       }
