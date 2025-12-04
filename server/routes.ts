@@ -6884,3 +6884,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   return httpServer;
 }
+// Force rebuild Thu Dec  4 13:44:11 MST 2025
