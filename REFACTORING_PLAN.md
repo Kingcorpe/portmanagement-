@@ -61,6 +61,18 @@
 - **Contains:** All reference link endpoints (GET, POST, PATCH, DELETE)
 - **Lines Extracted:** ~60 lines
 
+### 8. Settings Routes ✅
+- **File:** `server/routes/settings.ts`
+- **Status:** Extracted and working
+- **Contains:** User settings endpoints (GET, PATCH, regenerate webhook secret)
+- **Lines Extracted:** ~69 lines
+
+### 9. Revenue Routes ✅
+- **File:** `server/routes/revenue.ts`
+- **Status:** Extracted and working
+- **Contains:** Insurance and Investment revenue endpoints (GET, POST, PATCH, DELETE for both)
+- **Lines Extracted:** ~125 lines
+
 ---
 
 ## 🔄 In Progress
@@ -91,11 +103,11 @@
 ### Phase 3: Admin & Reports
 10. ⏳ Report Routes - ~400 lines
 11. ⏳ Admin Routes - ~300 lines
-12. ⏳ Revenue Routes - ~400 lines
+12. ✅ Revenue Routes - DONE
 13. ⏳ KPI Routes - ~300 lines
 
 ### Phase 4: Supporting Routes
-14. ⏳ User Settings Routes - ~200 lines
+14. ✅ User Settings Routes - DONE
 15. ✅ Library Routes - DONE
 16. ✅ Milestone Routes - DONE
 17. ✅ Reference Links Routes - DONE
@@ -119,9 +131,9 @@ server/
     trading-journal.ts    # ⏳ Trading journal
     reports.ts            # ⏳ Report generation
     admin.ts              # ⏳ Admin routes
-    revenue.ts            # ⏳ Revenue tracking
+    revenue.ts            # ✅ Revenue tracking
     kpi.ts                # ⏳ KPI dashboard
-    settings.ts           # ⏳ User settings
+    settings.ts           # ✅ User settings
     library.ts            # ✅ Library documents
     milestones.ts         # ✅ Milestones
     reference-links.ts    # ✅ Reference links
@@ -181,9 +193,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 ## 🎯 Progress Tracking
 
-**Lines Extracted:** ~1,332 / 7,906 (16.8%)  
-**Modules Extracted:** 7 / 17 (41%)  
-**Estimated Remaining:** ~6,574 lines
+**Lines Extracted:** ~1,526 / 7,906 (19.3%)  
+**Modules Extracted:** 9 / 17 (53%)  
+**Estimated Remaining:** ~6,380 lines
 
 **Note:** Webhook routes are large (~740 lines) and complex. Consider extracting after smaller modules are done.
 
