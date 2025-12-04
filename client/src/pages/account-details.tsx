@@ -448,7 +448,6 @@ export default function AccountDetails() {
   const [selectedPortfolioType, setSelectedPortfolioType] = useState<"planned" | "freelance">("planned");
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [clearExisting, setClearExisting] = useState(true);
   const [setAsTargetAllocation, setSetAsTargetAllocation] = useState(false);
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
   const [cashAmount, setCashAmount] = useState("");
@@ -2025,12 +2024,12 @@ export default function AccountDetails() {
         throw new Error("No valid positions found in file");
       }
 
-      // Upload to server
+      // Upload to server (always remove positions not in file since Excel is source of truth)
       const response = await apiRequest("POST", "/api/positions/bulk", {
         positions,
         accountType,
         accountId,
-        clearExisting,
+        clearExisting: true, // Always true - Excel file is source of truth
         setAsTargetAllocation
       }) as unknown as { success: boolean; created: number; deleted?: number; errors?: any[]; message: string };
 
@@ -4741,22 +4740,6 @@ export default function AccountDetails() {
           </Button>
         </div>
         <div className="space-y-3 px-4 py-3 bg-muted/50 rounded-lg">
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="clear-existing"
-              checked={clearExisting}
-              onChange={(e) => setClearExisting(e.target.checked)}
-              className="h-4 w-4"
-              data-testid="checkbox-clear-existing"
-            />
-            <label htmlFor="clear-existing" className="text-sm cursor-pointer flex-1">
-              <span className="font-medium">Clear existing positions before import</span>
-              <span className="text-muted-foreground block text-xs mt-1">
-                Replace all current positions with the imported file (makes the file your source of truth)
-              </span>
-            </label>
-          </div>
           <div className="flex items-center gap-3">
             <input
               type="checkbox"
