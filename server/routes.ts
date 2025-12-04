@@ -6635,6 +6635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           if (entryPrice > 0 && !hasProtection && gainPercent >= PROTECTION_THRESHOLD_PERCENT) {
+            console.log(`[PROTECTION] Adding ${position.symbol} to protection list: entry=$${entryPrice}, current=$${newPrice}, gain=${gainPercent.toFixed(1)}%, hasProtection=${hasProtection}`);
             positionsNeedingProtection.push({
               position,
               gainPercent,
@@ -6645,10 +6646,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Create tasks for positions needing protection review
+      console.log(`[PROTECTION] Positions needing protection: ${positionsNeedingProtection.length}`);
       if (positionsNeedingProtection.length > 0) {
         log.debug(`[Background Job] Found ${positionsNeedingProtection.length} positions exceeding ${PROTECTION_THRESHOLD_PERCENT}% gain threshold`);
         
         for (const { position, gainPercent, newPrice } of positionsNeedingProtection) {
+          console.log(`[PROTECTION] Processing ${position.symbol}: accountType=${position.accountType}, accountId=${position.accountId}, gain=${gainPercent.toFixed(1)}%`);
           try {
             // Check if a similar task already exists (to avoid duplicates)
             let existingTasks: AccountTask[] = [];
@@ -6663,6 +6666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 existingTasks = await storage.getTasksByJointAccount(position.accountId);
                 break;
             }
+            console.log(`[PROTECTION] Found ${existingTasks.length} existing tasks for account`);
             
             // Look for existing pending/in_progress protection task for this symbol
             const taskTitle = `Review protection for ${position.symbol}`;
@@ -6671,6 +6675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               (t.status === 'pending' || t.status === 'in_progress') &&
               !t.archivedAt
             );
+            console.log(`[PROTECTION] Has pending task for ${position.symbol}: ${hasPendingTask}`);
             
             if (!hasPendingTask) {
               // Create the protection review task
@@ -6694,13 +6699,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   break;
               }
               
-              await storage.createAccountTask(taskData);
+              console.log(`[PROTECTION] Creating task:`, JSON.stringify(taskData));
+              const createdTask = await storage.createAccountTask(taskData);
+              console.log(`[PROTECTION] Task created successfully:`, JSON.stringify(createdTask));
               log.debug(`[Background Job] Created protection task for ${position.symbol} (${gainPercent.toFixed(1)}% gain)`);
+            } else {
+              console.log(`[PROTECTION] Skipping ${position.symbol} - pending task already exists`);
             }
-          } catch (taskError) {
+          } catch (taskError: any) {
+            console.error(`[PROTECTION] ERROR creating task for ${position.symbol}:`, taskError?.message || taskError);
             log.error(`[Background Job] Error creating protection task for ${position.symbol}`, taskError);
           }
         }
+      } else {
+        console.log(`[PROTECTION] No positions need protection tasks`);
       }
       
       log.debug(`[Background Job] Position price refresh complete: ${updatedCount} updated, ${errorCount} errors, ${positionsNeedingProtection.length} protection tasks checked`);
