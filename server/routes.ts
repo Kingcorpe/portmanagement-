@@ -3094,8 +3094,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Helper function to normalize symbols for matching (removes exchange suffixes)
+      const normalizeSymbolForMatching = (sym: string) => {
+        return sym.toUpperCase().trim().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+      };
+      
       // Get existing positions if not clearing (to preserve protection details)
-      let existingPositionsMap = new Map<string, Position>();
+      let existingPositionsMap = new Map<string, Position>(); // Key: normalized symbol, Value: position
+      let existingPositionsByOriginalSymbol = new Map<string, Position>(); // Key: original symbol, Value: position
       if (!clearExisting) {
         let existingPositions: Position[] = [];
         if (accountType === 'individual') {
@@ -3106,9 +3112,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           existingPositions = await storage.getPositionsByJointAccount(accountId);
         }
         
-        // Create a map of symbol -> position for quick lookup
+        // Create maps for both normalized and original symbols for flexible matching
         for (const existingPos of existingPositions) {
-          const normalizedSymbol = existingPos.symbol.toUpperCase().trim();
+          const originalSymbol = existingPos.symbol.toUpperCase().trim();
+          const normalizedSymbol = normalizeSymbolForMatching(existingPos.symbol);
+          existingPositionsByOriginalSymbol.set(originalSymbol, existingPos);
           existingPositionsMap.set(normalizedSymbol, existingPos);
         }
       }
@@ -3184,26 +3192,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Check if position already exists (when not clearing existing)
-          // Try exact match first, then try normalized match (without exchange suffixes)
-          let existingPosition = existingPositionsMap.get(positionData.symbol);
+          // Try multiple matching strategies:
+          // 1. Exact match with original symbol (before normalization)
+          // 2. Exact match with normalized symbol (after potential .TO suffix addition)
+          // 3. Normalized match (comparing base symbols without suffixes)
+          let existingPosition: Position | undefined = undefined;
           
-          // If no exact match, try matching by normalized symbol (without exchange suffixes)
-          if (!existingPosition && !clearExisting) {
-            const normalizeSymbol = (sym: string) => sym.toUpperCase().trim().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
-            const normalizedNewSymbol = normalizeSymbol(positionData.symbol);
+          if (!clearExisting) {
+            // Try exact match with current symbol (after potential normalization)
+            existingPosition = existingPositionsByOriginalSymbol.get(positionData.symbol);
             
-            for (const [existingSymbol, existingPos] of existingPositionsMap.entries()) {
-              const normalizedExistingSymbol = normalizeSymbol(existingSymbol);
-              if (normalizedExistingSymbol === normalizedNewSymbol) {
-                existingPosition = existingPos;
-                break;
+            // If no exact match, try normalized symbol matching
+            if (!existingPosition) {
+              const normalizedSymbol = normalizeSymbolForMatching(positionData.symbol);
+              existingPosition = existingPositionsMap.get(normalizedSymbol);
+              if (existingPosition) {
+                console.log(`[Bulk Upload] Matched position by normalized symbol: ${positionData.symbol} (normalized: ${normalizedSymbol}) matches existing ${existingPosition.symbol}`);
               }
+            } else {
+              console.log(`[Bulk Upload] Matched position by exact symbol: ${positionData.symbol}`);
             }
           }
           
           if (existingPosition && !clearExisting) {
             // Update existing position, preserving protection details
             const updateData: any = {
+              symbol: positionData.symbol, // Update symbol in case it was normalized (e.g., B -> B.TO)
               quantity: positionData.quantity,
               entryPrice: positionData.entryPrice,
               currentPrice: positionData.currentPrice,
@@ -3212,6 +3226,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               stopPrice: existingPosition.stopPrice,
               limitPrice: existingPosition.limitPrice,
             };
+            
+            console.log(`[Bulk Upload] Updating position ${existingPosition.id} (${existingPosition.symbol} -> ${positionData.symbol}), preserving protection: ${existingPosition.protectionPercent}%, stop: ${existingPosition.stopPrice}, limit: ${existingPosition.limitPrice}`);
             
             const parsed = insertPositionSchema.parse(updateData);
             const updatedPosition = await storage.updatePosition(existingPosition.id, parsed);
