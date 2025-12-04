@@ -5036,9 +5036,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const searchData = await searchResponse.json();
       
       if (!searchData.quotes || searchData.quotes.length === 0) {
-        // If this was a crypto ticker and search failed, provide a more helpful error
+        // If this was a crypto ticker and search failed, allow it anyway with a basic response
+        // User can manually enter the name
         if (isCrypto) {
-          return res.status(404).json({ message: `Crypto ticker ${ticker} not found. Please verify the ticker symbol.` });
+          return res.json({
+            ticker: ticker,
+            name: `${ticker.replace('-USD', '')} (${ticker})`,
+            exchange: 'CCC',
+            type: 'CRYPTOCURRENCY',
+            price: null
+          });
         }
         return res.status(404).json({ message: "Ticker not found" });
       }
