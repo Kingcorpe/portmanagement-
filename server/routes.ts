@@ -1918,9 +1918,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/webhooks/tradingview', async (req, res) => {
     try {
       // Validate webhook secret if configured
+      // TradingView sends the secret in the webhook URL as a query parameter
+      // Format: https://your-domain.com/api/webhooks/tradingview?secret=YOUR_SECRET
       const webhookSecret = process.env.TRADINGVIEW_WEBHOOK_SECRET;
       if (webhookSecret) {
-        // Check URL query param, header, or body for secret
+        // Check URL query param first (TradingView webhook URL format)
+        // Also check header and body as fallbacks
         const providedSecret = req.query.secret || req.headers['x-webhook-secret'] || req.body?.secret;
         
         // Debug logging for secret validation
@@ -1930,12 +1933,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           querySecret: req.query.secret ? 'provided' : 'not provided',
           headerSecret: req.headers['x-webhook-secret'] ? 'provided' : 'not provided',
           bodySecret: req.body?.secret ? 'provided' : 'not provided',
-          bodyKeys: req.body ? Object.keys(req.body) : 'no body'
+          bodyKeys: req.body ? Object.keys(req.body) : 'no body',
+          fullQuery: req.query
         });
         
         if (!providedSecret) {
-          console.error(`[TradingView Webhook] No secret provided in query, header, or body`);
-          return res.status(401).json({ message: "Unauthorized: Webhook secret required" });
+          console.error(`[TradingView Webhook] No secret provided. Add ?secret=YOUR_SECRET to webhook URL`);
+          return res.status(401).json({ message: "Unauthorized: Webhook secret required. Add ?secret=YOUR_SECRET to webhook URL" });
         }
         
         if (providedSecret !== webhookSecret) {
