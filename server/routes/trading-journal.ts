@@ -240,3 +240,4 @@ export function registerTradingJournalRoutes(app: Express) {
   });
 }
 
+

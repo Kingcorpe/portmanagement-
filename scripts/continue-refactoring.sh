@@ -48,3 +48,4 @@ echo "7. Commit: git commit -m 'Refactor: Extract $MODULE_NAME routes'"
 echo ""
 echo "See REFACTORING_CONTINUATION_GUIDE.md for detailed instructions."
 
+

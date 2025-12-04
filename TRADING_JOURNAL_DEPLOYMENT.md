@@ -202,3 +202,4 @@ The trading journal feature is fully implemented - you just need to get it deplo
 
 
 
+
