@@ -6610,16 +6610,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Check protection threshold (only for non-cash positions without existing protection)
           const entryPrice = parseFloat(position.entryPrice || '0');
-          if (entryPrice > 0 && !position.protectionPercent) {
-            const gainPercent = ((newPrice - entryPrice) / entryPrice) * 100;
-            
-            if (gainPercent >= PROTECTION_THRESHOLD_PERCENT) {
-              positionsNeedingProtection.push({
-                position,
-                gainPercent,
-                newPrice
-              });
-            }
+          const gainPercent = entryPrice > 0 ? ((newPrice - entryPrice) / entryPrice) * 100 : 0;
+          
+          // Log positions with significant gains for debugging
+          if (gainPercent >= 10) {
+            log.debug(`[Background Job] Position ${position.symbol}: gain=${gainPercent.toFixed(1)}%, entry=$${entryPrice.toFixed(2)}, current=$${newPrice.toFixed(2)}, hasProtection=${!!position.protectionPercent}`);
+          }
+          
+          if (entryPrice > 0 && !position.protectionPercent && gainPercent >= PROTECTION_THRESHOLD_PERCENT) {
+            positionsNeedingProtection.push({
+              position,
+              gainPercent,
+              newPrice
+            });
           }
         }
       }
@@ -6700,6 +6703,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }, POSITION_REFRESH_INTERVAL);
   
   log.debug("[Background Job] Position price refresh scheduler started (every 15 minutes, protection threshold: 15%)");
+
+  // Manual trigger for position price refresh (for testing/debugging)
+  app.post('/api/admin/refresh-positions', isAuthenticated, async (req: any, res) => {
+    try {
+      log.debug("[Manual Trigger] Starting position price refresh...");
+      await refreshAccountPositionPrices();
+      res.json({ success: true, message: "Position price refresh completed. Check tasks for any new protection alerts." });
+    } catch (error: any) {
+      log.error("[Manual Trigger] Error refreshing positions", error);
+      res.status(500).json({ message: "Failed to refresh positions", error: error.message });
+    }
+  });
 
   // Search holdings by ticker across all accounts with optional filters
   app.get('/api/holdings/search', isAuthenticated, async (req: any, res) => {
