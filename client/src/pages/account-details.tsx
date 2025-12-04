@@ -270,34 +270,34 @@ function TaskForm({ task, accountType, accountId, onSubmit, isPending }: TaskFor
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* TradingView Alert Order Details - Prominent Display */}
       {isTradingViewAlert && tradingViewData && (
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-4">
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-3 space-y-3">
           <div className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            <h3 className="font-semibold text-lg text-blue-900 dark:text-blue-100">Trading Order</h3>
+            <TrendingUp className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <h3 className="font-semibold text-base text-blue-900 dark:text-blue-100">Trading Order</h3>
           </div>
           
           {/* Order Action - Most Prominent */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border-2 border-blue-300 dark:border-blue-700">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-3 border-2 border-blue-300 dark:border-blue-700">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-muted-foreground">Action</span>
-              <Badge variant={tradingViewData.action === 'Buy' ? 'default' : 'destructive'} className="text-base px-3 py-1">
+              <span className="text-xs font-medium text-muted-foreground">Action</span>
+              <Badge variant={tradingViewData.action === 'Buy' ? 'default' : 'destructive'} className="text-sm px-2 py-0.5">
                 {tradingViewData.action?.toUpperCase()}
               </Badge>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-blue-900 dark:text-blue-100">
+                <span className="text-2xl font-bold text-blue-900 dark:text-blue-100">
                   {tradingViewData.shares || 'N/A'}
                 </span>
-                <span className="text-lg text-muted-foreground">
+                <span className="text-sm text-muted-foreground">
                   {tradingViewData.symbol === 'CASH' ? 'units' : 'shares'}
                 </span>
-                <span className="text-lg font-medium text-muted-foreground">
+                <span className="text-sm font-medium text-muted-foreground">
                   of {tradingViewData.symbol || 'N/A'}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-lg">
-                <span className="text-muted-foreground">Total Cost:</span>
+              <div className="flex items-center gap-2 text-base">
+                <span className="text-sm text-muted-foreground">Total Cost:</span>
                 <span className="font-bold text-green-600 dark:text-green-400">
                   {tradingViewData.dollarAmount || 'N/A'}
                 </span>
@@ -305,55 +305,55 @@ function TaskForm({ task, accountType, accountId, onSubmit, isPending }: TaskFor
             </div>
           </div>
 
-          {/* Price Information */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-800">
-              <div className="text-xs text-muted-foreground mb-1">Alert Price</div>
-              <div className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+          {/* Price Information & Allocation - Compact Grid */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-white dark:bg-gray-900 rounded-lg p-2 border border-gray-200 dark:border-gray-800">
+              <div className="text-xs text-muted-foreground mb-0.5">Alert Price</div>
+              <div className="text-base font-semibold text-blue-900 dark:text-blue-100">
                 {tradingViewData.alertPrice || 'N/A'}
               </div>
             </div>
             {tradingViewData.storedPrice && (
-              <div className="bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-800">
-                <div className="text-xs text-muted-foreground mb-1">Stored Price</div>
-                <div className="text-lg font-semibold text-muted-foreground">
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-2 border border-gray-200 dark:border-gray-800">
+                <div className="text-xs text-muted-foreground mb-0.5">Stored Price</div>
+                <div className="text-base font-semibold text-muted-foreground">
                   {tradingViewData.storedPrice}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Allocation Status */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-800">
-            <div className="text-xs font-medium text-muted-foreground mb-2">Allocation Status</div>
-            <div className="grid grid-cols-3 gap-2 text-sm">
+          {/* Allocation Status - Compact */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-2 border border-gray-200 dark:border-gray-800">
+            <div className="text-xs font-medium text-muted-foreground mb-1.5">Allocation Status</div>
+            <div className="grid grid-cols-3 gap-2 text-xs">
               <div>
-                <div className="text-muted-foreground">Current</div>
-                <div className="font-semibold">{tradingViewData.currentAllocation || 'N/A'}</div>
+                <div className="text-muted-foreground text-[10px]">Current</div>
+                <div className="font-semibold text-sm">{tradingViewData.currentAllocation || 'N/A'}</div>
               </div>
               <div>
-                <div className="text-muted-foreground">Target</div>
-                <div className="font-semibold">{tradingViewData.targetAllocation || 'N/A'}</div>
+                <div className="text-muted-foreground text-[10px]">Target</div>
+                <div className="font-semibold text-sm">{tradingViewData.targetAllocation || 'N/A'}</div>
               </div>
               <div>
-                <div className="text-muted-foreground">Variance</div>
-                <div className={`font-semibold ${tradingViewData.variance?.startsWith('-') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                <div className="text-muted-foreground text-[10px]">Variance</div>
+                <div className={`font-semibold text-sm ${tradingViewData.variance?.startsWith('-') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                   {tradingViewData.variance || 'N/A'}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Location */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-800">
-            <div className="text-xs font-medium text-muted-foreground mb-2">Location</div>
-            <div className="space-y-1 text-sm">
-              <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-muted-foreground" />
+          {/* Location - Compact */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-2 border border-gray-200 dark:border-gray-800">
+            <div className="text-xs font-medium text-muted-foreground mb-1.5">Location</div>
+            <div className="space-y-1 text-xs">
+              <div className="flex items-center gap-1.5">
+                <Building2 className="h-3 w-3 text-muted-foreground" />
                 <span className="font-medium">{tradingViewData.household || 'N/A'}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-center gap-1.5">
+                <User className="h-3 w-3 text-muted-foreground" />
                 <span>{tradingViewData.account || 'N/A'}</span>
               </div>
             </div>
@@ -377,7 +377,7 @@ function TaskForm({ task, accountType, accountId, onSubmit, isPending }: TaskFor
           value={description} 
           onChange={(e) => setDescription(e.target.value)} 
           placeholder="Task description" 
-          rows={6}
+          rows={isTradingViewAlert ? 4 : 6}
           className="font-mono text-sm"
           data-testid="input-task-description" 
         />
