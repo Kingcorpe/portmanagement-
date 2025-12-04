@@ -3,6 +3,10 @@
 **Date:** January 2025  
 **Status:** 🟢 **IN PROGRESS** - Incremental refactoring
 
+**📚 See Also:**
+- `REFACTORING_CONTINUATION_GUIDE.md` - Step-by-step guide to continue refactoring
+- `REFACTORING_CHECKLIST.md` - Quick checklist for each module
+
 ---
 
 ## 📊 Current State
@@ -33,11 +37,35 @@
 - **Contains:** `/api/alerts` endpoints (GET, PATCH, dismiss-all)
 - **Lines Extracted:** ~120 lines
 
+### 4. Tasks Routes ✅
+- **File:** `server/routes/tasks.ts`
+- **Status:** Extracted and working
+- **Contains:** All task-related endpoints (account tasks, PDF, email, etc.)
+- **Lines Extracted:** ~700 lines
+
+### 5. Library Routes ✅
+- **File:** `server/routes/library.ts`
+- **Status:** Extracted and working
+- **Contains:** All library document endpoints (GET, POST, PATCH, DELETE)
+- **Lines Extracted:** ~131 lines
+
+### 6. Milestones Routes ✅
+- **File:** `server/routes/milestones.ts`
+- **Status:** Extracted and working
+- **Contains:** All milestone endpoints (GET, POST, PATCH, DELETE, PDF export, email)
+- **Lines Extracted:** ~118 lines
+
+### 7. Reference Links Routes ✅
+- **File:** `server/routes/reference-links.ts`
+- **Status:** Extracted and working
+- **Contains:** All reference link endpoints (GET, POST, PATCH, DELETE)
+- **Lines Extracted:** ~60 lines
+
 ---
 
 ## 🔄 In Progress
 
-### 4. Webhook Routes (Next - Large)
+### 5. Webhook Routes (Next - Large)
 - **File:** `server/routes/webhooks.ts` (to be created)
 - **Contains:** TradingView webhook endpoint
 - **Estimated Size:** ~740 lines
@@ -68,9 +96,9 @@
 
 ### Phase 4: Supporting Routes
 14. ⏳ User Settings Routes - ~200 lines
-15. ⏳ Library Routes - ~200 lines
-16. ⏳ Milestone Routes - ~200 lines
-17. ⏳ Reference Links Routes - ~200 lines
+15. ✅ Library Routes - DONE
+16. ✅ Milestone Routes - DONE
+17. ✅ Reference Links Routes - DONE
 
 ---
 
@@ -94,9 +122,9 @@ server/
     revenue.ts            # ⏳ Revenue tracking
     kpi.ts                # ⏳ KPI dashboard
     settings.ts           # ⏳ User settings
-    library.ts            # ⏳ Library documents
-    milestones.ts         # ⏳ Milestones
-    reference-links.ts    # ⏳ Reference links
+    library.ts            # ✅ Library documents
+    milestones.ts         # ✅ Milestones
+    reference-links.ts    # ✅ Reference links
   routes.ts               # ⏳ Will become thin wrapper (or removed)
 ```
 
@@ -153,9 +181,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 ## 🎯 Progress Tracking
 
-**Lines Extracted:** ~323 / 7,906 (4.1%)  
-**Modules Extracted:** 3 / 17 (18%)  
-**Estimated Remaining:** ~7,583 lines
+**Lines Extracted:** ~1,332 / 7,906 (16.8%)  
+**Modules Extracted:** 7 / 17 (41%)  
+**Estimated Remaining:** ~6,574 lines
 
 **Note:** Webhook routes are large (~740 lines) and complex. Consider extracting after smaller modules are done.
 

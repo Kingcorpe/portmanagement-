@@ -134,8 +134,6 @@ import {
   updateFreelancePortfolioAllocationSchema,
   updateAccountTargetAllocationSchema,
   tradingViewWebhookSchema,
-  insertLibraryDocumentSchema,
-  updateLibraryDocumentSchema,
   insertAccountTaskSchema,
   updateAccountTaskSchema,
   insertInsuranceRevenueSchema,
@@ -144,10 +142,6 @@ import {
   updateInvestmentRevenueSchema,
   insertKpiObjectiveSchema,
   updateKpiObjectiveSchema,
-  insertReferenceLinkSchema,
-  updateReferenceLinkSchema,
-  insertMilestoneSchema,
-  updateMilestoneSchema,
   insertTradingJournalEntrySchema,
   updateTradingJournalEntrySchema,
   insertTradingJournalImageSchema,
@@ -5627,142 +5621,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ==================== Library Document Routes ====================
-
-  // Get all library documents
-  app.get('/api/library-documents', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const documents = await storage.getAllLibraryDocuments(userId);
-      res.json(documents);
-    } catch (error) {
-      log.error("Error fetching library documents", error);
-      res.status(500).json({ message: "Failed to fetch library documents" });
-    }
-  });
-
-  // Get library documents by category
-  app.get('/api/library-documents/category/:category', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const category = req.params.category as 'reports' | 'strategies';
-      if (!['reports', 'strategies'].includes(category)) {
-        return res.status(400).json({ message: "Invalid category" });
-      }
-      const documents = await storage.getLibraryDocumentsByCategory(category, userId);
-      res.json(documents);
-    } catch (error) {
-      log.error("Error fetching library documents by category", error);
-      res.status(500).json({ message: "Failed to fetch library documents" });
-    }
-  });
-
-  // Get single library document
-  app.get('/api/library-documents/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const document = await storage.getLibraryDocument(req.params.id);
-      if (!document) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-      // Check ownership
-      if (document.uploadedBy && document.uploadedBy !== userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      res.json(document);
-    } catch (error) {
-      log.error("Error fetching library document", error);
-      res.status(500).json({ message: "Failed to fetch library document" });
-    }
-  });
-
-  // Create library document (after file upload)
-  app.post('/api/library-documents', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user?.claims?.sub;
-      const objectStorageService = new ObjectStorageService();
-      
-      if (!req.body.objectPath) {
-        return res.status(400).json({ message: "objectPath is required" });
-      }
-      
-      // Set ACL policy and get normalized path
-      // visibility: "public" allows all authenticated users to read (owner can write)
-      // The /objects/ route still requires isAuthenticated, so only logged-in users can access
-      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(req.body.objectPath, {
-        owner: userId,
-        visibility: "public",
-      });
-      
-      // Validate that the object path is properly normalized
-      if (!objectPath.startsWith("/objects/")) {
-        return res.status(400).json({ message: "Invalid object path" });
-      }
-      
-      const parsed = insertLibraryDocumentSchema.parse({
-        ...req.body,
-        objectPath,
-        uploadedBy: userId,
-      });
-      
-      const document = await storage.createLibraryDocument(parsed);
-      res.json(document);
-    } catch (error: any) {
-      log.error("Error creating library document", error);
-      if (error.name === 'ZodError') {
-        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to create library document" });
-    }
-  });
-
-  // Update library document
-  app.patch('/api/library-documents/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const existing = await storage.getLibraryDocument(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-      if (existing.uploadedBy && existing.uploadedBy !== userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const parsed = updateLibraryDocumentSchema.parse(req.body);
-      const document = await storage.updateLibraryDocument(req.params.id, parsed);
-      res.json(document);
-    } catch (error: any) {
-      log.error("Error updating library document", error);
-      if (error.name === 'ZodError') {
-        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to update library document" });
-    }
-  });
-
-  // Delete library document
-  app.delete('/api/library-documents/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const existing = await storage.getLibraryDocument(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "Document not found" });
-      }
-      if (existing.uploadedBy && existing.uploadedBy !== userId) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      await storage.deleteLibraryDocument(req.params.id);
-      res.status(204).send();
-    } catch (error) {
-      log.error("Error deleting library document", error);
-      res.status(500).json({ message: "Failed to delete library document" });
-    }
-  });
+  // REFACTORING: Library routes extracted to routes/library.ts
 
   // REFACTORING: Task routes extracted to routes/tasks.ts
   const { registerTasksRoutes } = await import("./routes/tasks");
   registerTasksRoutes(app);
+
+  // REFACTORING: Library routes extracted to routes/library.ts
+  const { registerLibraryRoutes } = await import("./routes/library");
+  registerLibraryRoutes(app);
+
+  // REFACTORING: Milestones routes extracted to routes/milestones.ts
+  const { registerMilestonesRoutes } = await import("./routes/milestones");
+  registerMilestonesRoutes(app);
+
+  // REFACTORING: Reference Links routes extracted to routes/reference-links.ts
+  const { registerReferenceLinksRoutes } = await import("./routes/reference-links");
+  registerReferenceLinksRoutes(app);
 
   // Account audit log routes
   app.get('/api/accounts/:accountType/:accountId/audit-log', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
@@ -7356,186 +7231,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Reference Links API routes
-  app.get('/api/reference-links', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const links = await storage.getReferenceLinksByUser(userId);
-      res.json(links);
-    } catch (error: any) {
-      log.error("Error fetching reference links", error);
-      res.status(500).json({ message: error.message || "Failed to fetch reference links" });
-    }
-  });
+  // REFACTORING: Reference Links routes extracted to routes/reference-links.ts
 
-  app.post('/api/reference-links', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const data = insertReferenceLinkSchema.parse({ ...req.body, userId });
-      const link = await storage.createReferenceLink(data);
-      res.status(201).json(link);
-    } catch (error: any) {
-      log.error("Error creating reference link", error);
-      res.status(500).json({ message: error.message || "Failed to create reference link" });
-    }
-  });
-
-  app.patch('/api/reference-links/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      
-      const existing = await storage.getReferenceLinkById(id);
-      if (!existing || existing.userId !== userId) {
-        return res.status(404).json({ message: "Link not found" });
-      }
-      
-      const data = updateReferenceLinkSchema.parse(req.body);
-      const link = await storage.updateReferenceLink(id, data);
-      res.json(link);
-    } catch (error: any) {
-      log.error("Error updating reference link", error);
-      res.status(500).json({ message: error.message || "Failed to update reference link" });
-    }
-  });
-
-  app.delete('/api/reference-links/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      
-      const existing = await storage.getReferenceLinkById(id);
-      if (!existing || existing.userId !== userId) {
-        return res.status(404).json({ message: "Link not found" });
-      }
-      
-      await storage.deleteReferenceLink(id);
-      res.json({ success: true });
-    } catch (error: any) {
-      log.error("Error deleting reference link", error);
-      res.status(500).json({ message: error.message || "Failed to delete reference link" });
-    }
-  });
-
-  // Milestones API routes
-  app.get('/api/milestones', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { type } = req.query;
-      const milestoneType = type === 'personal' ? 'personal' : type === 'business' ? 'business' : undefined;
-      const milestones = await storage.getMilestonesByUser(userId, milestoneType);
-      res.json(milestones);
-    } catch (error: any) {
-      log.error("Error fetching milestones", error);
-      res.status(500).json({ message: error.message || "Failed to fetch milestones" });
-    }
-  });
-
-  app.post('/api/milestones', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const data = insertMilestoneSchema.parse({ ...req.body, userId });
-      const milestone = await storage.createMilestone(data);
-      res.status(201).json(milestone);
-    } catch (error: any) {
-      log.error("Error creating milestone", error);
-      res.status(500).json({ message: error.message || "Failed to create milestone" });
-    }
-  });
-
-  app.patch('/api/milestones/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      
-      const existing = await storage.getMilestoneById(id);
-      if (!existing || existing.userId !== userId) {
-        return res.status(404).json({ message: "Milestone not found" });
-      }
-      
-      const data = updateMilestoneSchema.parse(req.body);
-      const milestone = await storage.updateMilestone(id, data);
-      res.json(milestone);
-    } catch (error: any) {
-      log.error("Error updating milestone", error);
-      res.status(500).json({ message: error.message || "Failed to update milestone" });
-    }
-  });
-
-  app.delete('/api/milestones/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      const userId = req.user.claims.sub;
-      
-      const existing = await storage.getMilestoneById(id);
-      if (!existing || existing.userId !== userId) {
-        return res.status(404).json({ message: "Milestone not found" });
-      }
-      
-      await storage.deleteMilestone(id);
-      res.json({ success: true });
-    } catch (error: any) {
-      log.error("Error deleting milestone", error);
-      res.status(500).json({ message: error.message || "Failed to delete milestone" });
-    }
-  });
-
-  // Milestones PDF Export
-  app.get('/api/milestones/export/pdf', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { type } = req.query;
-      const milestoneType = type === 'personal' ? 'personal' : type === 'business' ? 'business' : undefined;
-      const milestones = await storage.getMilestonesByUser(userId, milestoneType);
-      
-      const reportTitle = type === 'personal' ? 'Personal Milestones' : type === 'business' ? 'Business Milestones' : 'Milestones & Wins';
-      const pdfBuffer = await generateMilestonesReport(milestones, reportTitle);
-      
-      const filePrefix = type === 'personal' ? 'Personal_Milestones' : type === 'business' ? 'Business_Milestones' : 'Milestones';
-      const fileName = `${filePrefix}_${new Date().toISOString().split('T')[0]}.pdf`;
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-      res.send(pdfBuffer);
-    } catch (error: any) {
-      log.error("Error exporting milestones PDF", error);
-      res.status(500).json({ message: error.message || "Failed to export PDF" });
-    }
-  });
-
-  // Milestones Email PDF
-  app.post('/api/milestones/export/email', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { to, subject, message, type } = req.body;
-      
-      if (!to || !to.includes('@')) {
-        return res.status(400).json({ message: "Valid email address required" });
-      }
-      
-      const milestoneType = type === 'personal' ? 'personal' : type === 'business' ? 'business' : undefined;
-      const milestones = await storage.getMilestonesByUser(userId, milestoneType);
-      const reportTitle = type === 'personal' ? 'Personal Milestones' : type === 'business' ? 'Business Milestones' : 'Milestones & Wins';
-      const pdfBuffer = await generateMilestonesReport(milestones, reportTitle);
-      
-      const fileName = `Milestones_${new Date().toISOString().split('T')[0]}.pdf`;
-      const emailSubject = subject || 'Milestones & Wins Report';
-      const emailBody = message || `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #1f2937;">Milestones & Wins Report</h2>
-          <p style="color: #4b5563;">Please find attached your Milestones & Wins report.</p>
-          <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">
-            Generated from PracticeOS on ${new Date().toLocaleString('en-CA', { dateStyle: 'long', timeStyle: 'short' })}
-          </p>
-        </div>
-      `;
-      
-      await sendEmailWithAttachment(to, emailSubject, emailBody, pdfBuffer, fileName);
-      res.json({ success: true, message: "Email sent successfully" });
-    } catch (error: any) {
-      log.error("Error emailing milestones PDF", error);
-      res.status(500).json({ message: error.message || "Failed to send email" });
-    }
-  });
+  // REFACTORING: Milestones routes extracted to routes/milestones.ts
 
   // Trading Journal API routes
   app.get('/api/trading-journal/entries', isAuthenticated, async (req: any, res) => {
