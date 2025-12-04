@@ -6552,8 +6552,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let updatedCount = 0;
       let errorCount = 0;
       
-      // Helper function to fetch price using direct Yahoo Finance API (same as marketData.ts)
-      async function fetchPriceDirectly(symbol: string): Promise<number | null> {
+      // Check if Twelve Data API key is configured
+      const twelveDataApiKey = process.env.TWELVE_DATA_API_KEY;
+      
+      // Helper function to fetch price from Twelve Data (reliable, works on Railway)
+      async function fetchFromTwelveData(symbol: string): Promise<number | null> {
+        if (!twelveDataApiKey) return null;
+        try {
+          // For Canadian stocks, Twelve Data uses format like "BANK:TSX"
+          let apiSymbol = symbol;
+          if (symbol.endsWith('.TO')) {
+            apiSymbol = symbol.replace('.TO', '') + ':TSX';
+          } else if (symbol.endsWith('.V')) {
+            apiSymbol = symbol.replace('.V', '') + ':TSXV';
+          }
+          
+          const response = await fetch(
+            `https://api.twelvedata.com/price?symbol=${encodeURIComponent(apiSymbol)}&apikey=${twelveDataApiKey}`
+          );
+          
+          if (!response.ok) return null;
+          
+          const data = await response.json();
+          if (data.price) {
+            return parseFloat(data.price);
+          }
+          return null;
+        } catch (error) {
+          return null;
+        }
+      }
+      
+      // Helper function to fetch price using direct Yahoo Finance API (fallback)
+      async function fetchFromYahoo(symbol: string): Promise<number | null> {
         try {
           const response = await fetch(
             `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`,
@@ -6578,6 +6609,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return null;
         }
       }
+      
+      // Combined price fetcher - tries Twelve Data first, then Yahoo
+      async function fetchPriceDirectly(symbol: string): Promise<number | null> {
+        // Try Twelve Data first (if API key is set)
+        if (twelveDataApiKey) {
+          const price = await fetchFromTwelveData(symbol);
+          if (price !== null) return price;
+        }
+        // Fall back to Yahoo Finance
+        return fetchFromYahoo(symbol);
+      }
+      
+      console.log(`[PROTECTION] Using price source: ${twelveDataApiKey ? 'Twelve Data (primary) + Yahoo (fallback)' : 'Yahoo Finance only'}`);
       
       // Batch fetch prices for all unique symbols
       for (const rawSymbol of symbols) {
