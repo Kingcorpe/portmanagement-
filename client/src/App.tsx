@@ -64,6 +64,8 @@ import MarketDashboard from "@/pages/market-dashboard";
 import TradingJournal from "@/pages/trading-journal";
 import ProtectionDashboard from "@/pages/protection-dashboard";
 import Admin from "@/pages/admin";
+import Prospects from "@/pages/prospects";
+import ProspectIntake from "@/pages/prospect-intake";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
@@ -99,6 +101,7 @@ function AuthenticatedRoutes() {
           <Route path="/trading-journal" component={TradingJournal} />
           <Route path="/protection" component={ProtectionDashboard} />
           <Route path="/admin" component={Admin} />
+          <Route path="/prospects" component={Prospects} />
           <Route component={NotFound} />
         </Switch>
       </AnimatedPage>
@@ -108,6 +111,12 @@ function AuthenticatedRoutes() {
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [location] = useLocation();
+
+  // Public intake form - accessible without authentication
+  if (location === "/intake") {
+    return <ProspectIntake />;
+  }
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;

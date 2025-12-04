@@ -6559,64 +6559,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if Twelve Data API key is configured
       const twelveDataApiKey = process.env.TWELVE_DATA_API_KEY;
       
-      // Helper function to fetch price from Twelve Data (reliable, works on Railway)
-      async function fetchFromTwelveData(symbol: string): Promise<number | null> {
-        if (!twelveDataApiKey) return null;
-        try {
-          // For Canadian stocks, Twelve Data uses format like "BANK:TSX"
-          let apiSymbol = symbol;
-          if (symbol.endsWith('.TO')) {
-            apiSymbol = symbol.replace('.TO', '') + ':TSX';
-          } else if (symbol.endsWith('.V')) {
-            apiSymbol = symbol.replace('.V', '') + ':TSXV';
-          } else if (!symbol.includes(':') && !symbol.includes('.')) {
-            // Try as TSX first for bare symbols
-            apiSymbol = symbol + ':TSX';
+      console.log(`[PROTECTION] Using price source: ${twelveDataApiKey ? 'Twelve Data (batch) + Yahoo (fallback)' : 'Yahoo Finance only'}`);
+      
+      // Batch fetch from Twelve Data (up to 8 symbols per request to stay under rate limit)
+      async function batchFetchFromTwelveData(rawSymbols: string[]): Promise<Record<string, number>> {
+        if (!twelveDataApiKey || rawSymbols.length === 0) return {};
+        
+        const results: Record<string, number> = {};
+        
+        // Convert symbols to Twelve Data format (most Canadian ETFs are on TSX)
+        const symbolMap: Record<string, string> = {}; // apiSymbol -> rawSymbol
+        const apiSymbols: string[] = [];
+        
+        for (const raw of rawSymbols) {
+          let apiSymbol = raw;
+          if (raw.endsWith('.TO')) {
+            apiSymbol = raw.replace('.TO', '') + ':TSX';
+          } else if (raw.endsWith('.V')) {
+            apiSymbol = raw.replace('.V', '') + ':TSXV';
+          } else if (!raw.includes('.') && !raw.includes(':')) {
+            // Assume TSX for bare Canadian symbols
+            apiSymbol = raw + ':TSX';
           }
-          
-          const url = `https://api.twelvedata.com/price?symbol=${encodeURIComponent(apiSymbol)}&apikey=${twelveDataApiKey}`;
-          const response = await fetch(url);
-          
-          if (!response.ok) {
-            console.log(`[PROTECTION] Twelve Data HTTP error for ${apiSymbol}: ${response.status}`);
-            return null;
-          }
-          
-          const data = await response.json();
-          if (data.price) {
-            console.log(`[PROTECTION] Twelve Data found ${apiSymbol}: $${data.price}`);
-            return parseFloat(data.price);
-          }
-          if (data.code || data.message) {
-            console.log(`[PROTECTION] Twelve Data error for ${apiSymbol}: ${data.code} - ${data.message}`);
-          }
-          return null;
-        } catch (error: any) {
-          console.log(`[PROTECTION] Twelve Data exception for ${symbol}: ${error.message}`);
-          return null;
+          symbolMap[apiSymbol] = raw;
+          apiSymbols.push(apiSymbol);
         }
+        
+        // Batch into groups of 8 (Twelve Data free tier limit per minute)
+        const batchSize = 8;
+        for (let i = 0; i < apiSymbols.length; i += batchSize) {
+          const batch = apiSymbols.slice(i, i + batchSize);
+          const symbolsParam = batch.join(',');
+          
+          try {
+            const url = `https://api.twelvedata.com/price?symbol=${encodeURIComponent(symbolsParam)}&apikey=${twelveDataApiKey}`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+              console.log(`[PROTECTION] Twelve Data batch HTTP error: ${response.status}`);
+              continue;
+            }
+            
+            const data = await response.json();
+            
+            // Handle single symbol response (returns {price: "X"}) vs multi ({SYM: {price: "X"}})
+            if (batch.length === 1 && data.price) {
+              const rawSymbol = symbolMap[batch[0]];
+              results[rawSymbol] = parseFloat(data.price);
+              console.log(`[PROTECTION] Twelve Data: ${batch[0]} = $${data.price}`);
+            } else {
+              // Multi-symbol response
+              for (const [apiSym, priceData] of Object.entries(data)) {
+                const pd = priceData as any;
+                if (pd.price) {
+                  const rawSymbol = symbolMap[apiSym];
+                  if (rawSymbol) {
+                    results[rawSymbol] = parseFloat(pd.price);
+                    console.log(`[PROTECTION] Twelve Data: ${apiSym} = $${pd.price}`);
+                  }
+                } else if (pd.code) {
+                  console.log(`[PROTECTION] Twelve Data ${apiSym}: ${pd.code} - ${pd.message?.substring(0, 50) || 'error'}`);
+                }
+              }
+            }
+          } catch (error: any) {
+            console.log(`[PROTECTION] Twelve Data batch error: ${error.message}`);
+          }
+          
+          // Wait 60+ seconds between batches to respect rate limit (8/min)
+          if (i + batchSize < apiSymbols.length) {
+            console.log(`[PROTECTION] Waiting 65s for rate limit (batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(apiSymbols.length/batchSize)})...`);
+            await new Promise(resolve => setTimeout(resolve, 65000));
+          }
+        }
+        
+        return results;
       }
       
       // Helper function to fetch price using direct Yahoo Finance API (fallback)
       async function fetchFromYahoo(symbol: string): Promise<number | null> {
         try {
-          const response = await fetch(
-            `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`,
-            {
-              headers: {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-              },
+          const symbolsToTry = [symbol];
+          if (!symbol.includes('.')) {
+            symbolsToTry.push(`${symbol}.TO`);
+          }
+          
+          for (const trySymbol of symbolsToTry) {
+            const response = await fetch(
+              `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(trySymbol)}?interval=1d&range=1d`,
+              {
+                headers: {
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                },
+              }
+            );
+            
+            if (!response.ok) continue;
+            
+            const data = await response.json();
+            const result = data.chart?.result?.[0];
+            const meta = result?.meta;
+            
+            if (meta?.regularMarketPrice) {
+              return meta.regularMarketPrice;
             }
-          );
-          
-          if (!response.ok) return null;
-          
-          const data = await response.json();
-          const result = data.chart?.result?.[0];
-          const meta = result?.meta;
-          
-          if (meta?.regularMarketPrice) {
-            return meta.regularMarketPrice;
           }
           return null;
         } catch (error) {
@@ -6624,66 +6670,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Combined price fetcher - tries Twelve Data first, then Yahoo
-      async function fetchPriceDirectly(symbol: string): Promise<number | null> {
-        // Try Twelve Data first (if API key is set)
-        if (twelveDataApiKey) {
-          const price = await fetchFromTwelveData(symbol);
-          if (price !== null) return price;
+      // Separate cash vs. real symbols
+      const cashSymbols: string[] = [];
+      const realSymbols: string[] = [];
+      
+      for (const rawSymbol of symbols) {
+        const upperSymbol = rawSymbol.toUpperCase().trim();
+        if (upperSymbol === 'CASH' || upperSymbol === 'CAD' || upperSymbol === 'USD' || 
+            upperSymbol.includes('CASH') || upperSymbol.includes('MONEY MARKET') || !rawSymbol.trim()) {
+          cashSymbols.push(rawSymbol);
+          priceCache[rawSymbol] = 1;
+        } else {
+          realSymbols.push(rawSymbol);
         }
-        // Fall back to Yahoo Finance
-        return fetchFromYahoo(symbol);
       }
       
-      console.log(`[PROTECTION] Using price source: ${twelveDataApiKey ? 'Twelve Data (primary) + Yahoo (fallback)' : 'Yahoo Finance only'}`);
+      console.log(`[PROTECTION] Processing ${realSymbols.length} real symbols, ${cashSymbols.length} cash positions`);
       
-      // Batch fetch prices for all unique symbols
-      for (const rawSymbol of symbols) {
-        try {
-          const upperSymbol = rawSymbol.toUpperCase().trim();
-          
-          // Skip cash positions
-          if (upperSymbol === 'CASH' || upperSymbol === 'CAD' || upperSymbol === 'USD' || 
-              upperSymbol.includes('CASH') || upperSymbol.includes('MONEY MARKET')) {
-            priceCache[rawSymbol] = 1;
-            continue;
-          }
-          
-          // Try the symbol as-is first, then with Canadian/US exchange suffixes
-          const symbolsToTry = [rawSymbol];
-          
-          if (!rawSymbol.includes('.')) {
-            symbolsToTry.push(`${rawSymbol}.TO`);
-            symbolsToTry.push(`${rawSymbol}.V`);
-            symbolsToTry.push(`${rawSymbol}.CN`);
-            symbolsToTry.push(`${rawSymbol}.NE`);
-          }
-          
-          let price: number | null = null;
-          let successSymbol = '';
-          
-          for (const symbol of symbolsToTry) {
-            price = await fetchPriceDirectly(symbol);
-            if (price !== null) {
-              successSymbol = symbol;
-              console.log(`[PROTECTION] Found price for ${rawSymbol} via ${symbol}: $${price}`);
-              break;
-            }
-          }
-          
+      // Try Twelve Data batch first (if API key is set)
+      if (twelveDataApiKey && realSymbols.length > 0) {
+        const twelveDataPrices = await batchFetchFromTwelveData(realSymbols);
+        for (const [symbol, price] of Object.entries(twelveDataPrices)) {
+          priceCache[symbol] = price;
+        }
+        console.log(`[PROTECTION] Twelve Data found ${Object.keys(twelveDataPrices).length}/${realSymbols.length} prices`);
+      }
+      
+      // Fall back to Yahoo for symbols not found in Twelve Data
+      const missingSymbols = realSymbols.filter(s => priceCache[s] === undefined);
+      if (missingSymbols.length > 0) {
+        console.log(`[PROTECTION] Trying Yahoo Finance for ${missingSymbols.length} missing symbols...`);
+        for (const rawSymbol of missingSymbols) {
+          const price = await fetchFromYahoo(rawSymbol);
           if (price !== null) {
             priceCache[rawSymbol] = price;
+            console.log(`[PROTECTION] Yahoo found ${rawSymbol}: $${price}`);
           } else {
-            console.log(`[PROTECTION] No price found for ${rawSymbol} (tried: ${symbolsToTry.join(', ')})`);
             priceCache[rawSymbol] = null;
             errorCount++;
+            console.log(`[PROTECTION] No price found for ${rawSymbol}`);
           }
-          
-          // Small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 50));
-        } catch (error) {
-          priceCache[rawSymbol] = null;
-          errorCount++;
+          // Small delay for Yahoo
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
       

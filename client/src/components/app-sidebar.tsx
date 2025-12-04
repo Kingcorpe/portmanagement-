@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Eye, Settings, Trophy, User, Globe, Activity, BookMarked } from "lucide-react";
+import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Eye, Settings, Trophy, User, Globe, Activity, BookMarked, UserPlus } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -21,7 +21,13 @@ import { Link, useLocation } from "wouter";
 import { useState } from "react";
 import { useDemoMode } from "@/contexts/demo-mode-context";
 
-const menuItems: Array<{ title: string; url: string; icon: React.ComponentType<{ className?: string }> }> = [];
+const menuItems: Array<{ title: string; url: string; icon: React.ComponentType<{ className?: string }> }> = [
+  {
+    title: "Prospects",
+    url: "/prospects",
+    icon: UserPlus,
+  },
+];
 
 const keyMetricsItems = [
   {
