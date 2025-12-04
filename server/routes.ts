@@ -6625,12 +6625,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const entryPrice = parseFloat(position.entryPrice || '0');
           const gainPercent = entryPrice > 0 ? ((newPrice - entryPrice) / entryPrice) * 100 : 0;
           
+          // Check if position has meaningful protection (not null, not 0, not "0.00")
+          const protectionValue = parseFloat(position.protectionPercent || '0');
+          const hasProtection = protectionValue > 0;
+          
           // Log positions with significant gains for debugging
           if (gainPercent >= 10) {
-            log.debug(`[Background Job] Position ${position.symbol}: gain=${gainPercent.toFixed(1)}%, entry=$${entryPrice.toFixed(2)}, current=$${newPrice.toFixed(2)}, hasProtection=${!!position.protectionPercent}`);
+            log.debug(`[Background Job] Position ${position.symbol}: gain=${gainPercent.toFixed(1)}%, entry=$${entryPrice.toFixed(2)}, current=$${newPrice.toFixed(2)}, hasProtection=${hasProtection} (value: ${position.protectionPercent})`);
           }
           
-          if (entryPrice > 0 && !position.protectionPercent && gainPercent >= PROTECTION_THRESHOLD_PERCENT) {
+          if (entryPrice > 0 && !hasProtection && gainPercent >= PROTECTION_THRESHOLD_PERCENT) {
             positionsNeedingProtection.push({
               position,
               gainPercent,
@@ -6743,6 +6747,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const entryPrice = parseFloat(p.entryPrice || '0');
         const currentPrice = parseFloat(p.currentPrice || '0');
         const gainPercent = entryPrice > 0 ? ((currentPrice - entryPrice) / entryPrice) * 100 : 0;
+        const protectionValue = parseFloat(p.protectionPercent || '0');
+        const hasProtection = protectionValue > 0;
         
         return {
           symbol: p.symbol,
@@ -6752,8 +6758,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           currentPrice,
           gainPercent: gainPercent.toFixed(2) + '%',
           protectionPercent: p.protectionPercent,
-          hasProtection: !!p.protectionPercent,
-          wouldTriggerTask: entryPrice > 0 && !p.protectionPercent && gainPercent >= PROTECTION_THRESHOLD_PERCENT,
+          protectionValue,
+          hasProtection,
+          wouldTriggerTask: entryPrice > 0 && !hasProtection && gainPercent >= PROTECTION_THRESHOLD_PERCENT,
           threshold: PROTECTION_THRESHOLD_PERCENT + '%'
         };
       });
