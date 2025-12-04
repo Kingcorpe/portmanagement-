@@ -6729,6 +6729,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to check position protection status
+  app.get('/api/admin/position-debug/:ticker', isAuthenticated, async (req: any, res) => {
+    try {
+      const ticker = req.params.ticker.toUpperCase();
+      const allPositions = await storage.getAllPositionsWithAccountInfo();
+      const matchingPositions = allPositions.filter(p => 
+        p.symbol.toUpperCase().includes(ticker) || 
+        p.symbol.toUpperCase().replace(/\.(TO|V|CN|NE)$/i, '') === ticker
+      );
+      
+      const debugInfo = matchingPositions.map(p => {
+        const entryPrice = parseFloat(p.entryPrice || '0');
+        const currentPrice = parseFloat(p.currentPrice || '0');
+        const gainPercent = entryPrice > 0 ? ((currentPrice - entryPrice) / entryPrice) * 100 : 0;
+        
+        return {
+          symbol: p.symbol,
+          accountType: p.accountType,
+          accountId: p.accountId,
+          entryPrice,
+          currentPrice,
+          gainPercent: gainPercent.toFixed(2) + '%',
+          protectionPercent: p.protectionPercent,
+          hasProtection: !!p.protectionPercent,
+          wouldTriggerTask: entryPrice > 0 && !p.protectionPercent && gainPercent >= PROTECTION_THRESHOLD_PERCENT,
+          threshold: PROTECTION_THRESHOLD_PERCENT + '%'
+        };
+      });
+      
+      res.json({ 
+        ticker, 
+        positionsFound: matchingPositions.length,
+        positions: debugInfo,
+        thresholdPercent: PROTECTION_THRESHOLD_PERCENT
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching position debug info", error: error.message });
+    }
+  });
+
   // Search holdings by ticker across all accounts with optional filters
   app.get('/api/holdings/search', isAuthenticated, async (req: any, res) => {
     try {
