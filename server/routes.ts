@@ -2116,18 +2116,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const accountDisplayName = account.nickname || '';
               const fullAccountName = `${displayAccountType}${accountDisplayName ? ` - ${accountDisplayName}` : ''}`;
               
+              const taskTitle = `TradingView ${parsed.signal} Alert: ${parsed.symbol}`;
               const variance = actualPercent - targetPercent;
+              const sharesNeeded = Math.abs(sharesToTrade);
+              const dollarAmount = Math.abs(sharesToTrade * sharePrice);
+              const alertPrice = parsed.price; // Price from TradingView alert
+              
               const taskDescription = 
-                `Signal: ${parsed.signal}\n` +
+                `📊 TradingView ${parsed.signal} Alert\n\n` +
                 `Symbol: ${parsed.symbol}\n` +
-                `Current Price: $${sharePrice.toFixed(2)}\n` +
+                `Alert Price: $${alertPrice.toFixed(2)}\n` +
+                `Current Price: $${sharePrice.toFixed(2)}\n\n` +
+                `📍 Location\n` +
                 `Household: ${householdName}\n` +
                 `Account: ${fullAccountName}\n\n` +
-                `Current Allocation: ${actualPercent.toFixed(2)}%\n` +
-                `Target Allocation: ${targetPercent.toFixed(2)}%\n` +
+                `📈 Allocation Status\n` +
+                `Current: ${actualPercent.toFixed(2)}%\n` +
+                `Target: ${targetPercent.toFixed(2)}%\n` +
                 `Variance: ${variance.toFixed(2)}%\n\n` +
-                `Shares to Trade: ${Math.round(sharesToTrade * 100) / 100}\n` +
-                `Dollar Amount: $${Math.round(Math.abs(sharesToTrade * sharePrice) * 100) / 100}`;
+                `💰 Action Required\n` +
+                `${parsed.signal === 'BUY' ? 'Buy' : 'Sell'}: ${sharesNeeded.toFixed(2)} ${parsed.symbol === 'CASH' ? 'units' : 'shares'}\n` +
+                `At Alert Price ($${alertPrice.toFixed(2)}): $${(sharesNeeded * alertPrice).toFixed(2)}\n` +
+                `At Current Price ($${sharePrice.toFixed(2)}): $${dollarAmount.toFixed(2)}`;
               
               // Create task based on account type
               let task;
@@ -2158,7 +2168,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
               
               if (task) {
-                console.log(`[TradingView Webhook] ✓ Task created: ${task.id}`);
                 tasksCreated.push(`${fullAccountName} (${householdName}) - ${parsed.signal} ${parsed.symbol}`);
               }
               
@@ -2382,17 +2391,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               const taskTitle = `TradingView BUY Alert: ${parsed.symbol}`;
               const variance = actualPercent - targetPercent; // Will be negative
+              const alertPrice = parsed.price; // Price from TradingView alert
+              
               const taskDescription = 
-                `Signal: BUY\n` +
+                `📊 TradingView BUY Alert\n\n` +
                 `Symbol: ${parsed.symbol}\n` +
-                `Current Price: $${sharePrice.toFixed(2)}\n` +
+                `Alert Price: $${alertPrice.toFixed(2)}\n` +
+                `Current Price: $${sharePrice.toFixed(2)}\n\n` +
+                `📍 Location\n` +
                 `Household: ${householdName}\n` +
                 `Account: ${fullAccountName}\n\n` +
-                `Current Allocation: 0.00% (Not Held)\n` +
-                `Target Allocation: ${targetPercent.toFixed(2)}%\n` +
+                `📈 Allocation Status\n` +
+                `Current: 0.00% (Not Currently Held)\n` +
+                `Target: ${targetPercent.toFixed(2)}%\n` +
                 `Variance: ${variance.toFixed(2)}%\n\n` +
-                `Shares to Buy: ${Math.round(sharesToBuy * 100) / 100}\n` +
-                `Dollar Amount: $${Math.round(targetValue * 100) / 100}`;
+                `💰 Action Required\n` +
+                `Buy: ${sharesToBuy.toFixed(2)} ${parsed.symbol === 'CASH' ? 'units' : 'shares'}\n` +
+                `At Alert Price ($${alertPrice.toFixed(2)}): $${(sharesToBuy * alertPrice).toFixed(2)}\n` +
+                `At Current Price ($${sharePrice.toFixed(2)}): $${targetValue.toFixed(2)}`;
               
               // Create task based on account type
               let task;
