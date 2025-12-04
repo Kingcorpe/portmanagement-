@@ -6595,12 +6595,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const symbolsParam = batch.join(',');
           
           try {
-            // Use eod/latest for end-of-day prices (works on basic plan)
-            const url = `http://api.marketstack.com/v1/eod/latest?access_key=${marketstackApiKey}&symbols=${encodeURIComponent(symbolsParam)}`;
+            // Use eod/latest for end-of-day prices (HTTPS required for paid plans)
+            const url = `https://api.marketstack.com/v1/eod/latest?access_key=${marketstackApiKey}&symbols=${encodeURIComponent(symbolsParam)}`;
+            console.log(`[PROTECTION] Marketstack request: ${symbolsParam.substring(0, 50)}...`);
             const response = await fetch(url);
             
             if (!response.ok) {
-              console.log(`[PROTECTION] Marketstack HTTP error: ${response.status}`);
+              const errorText = await response.text();
+              console.log(`[PROTECTION] Marketstack HTTP error: ${response.status} - ${errorText.substring(0, 200)}`);
               continue;
             }
             
