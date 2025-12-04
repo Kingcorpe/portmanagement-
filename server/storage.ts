@@ -1613,13 +1613,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAccountTargetAllocationsBySymbol(symbol: string): Promise<Array<AccountTargetAllocationWithHolding & { accountType: string; accountId: string }>> {
-    // Normalize symbol for comparison (remove exchange suffixes)
-    const normalizedSymbol = symbol.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+    // Normalize symbol for comparison (remove exchange suffixes and dashes for crypto)
+    // This matches the normalization used in the webhook handler
+    const normalizedSymbol = symbol.toUpperCase()
+      .replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '') // Remove exchange suffixes
+      .replace(/-/g, ''); // Remove dashes (for crypto like BTC-USD -> BTCUSD)
     
     // Get all universal holdings to find matching tickers
     const allHoldings = await this.getAllUniversalHoldings();
     const matchingHoldings = allHoldings.filter(h => {
-      const normalizedTicker = (h.ticker || '').toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+      const normalizedTicker = (h.ticker || '').toUpperCase()
+        .replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '') // Remove exchange suffixes
+        .replace(/-/g, ''); // Remove dashes (for crypto like BTC-USD -> BTCUSD)
       return normalizedTicker === normalizedSymbol;
     });
     
