@@ -3062,64 +3062,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      let deletedCount = 0;
-      
-      // Clear existing positions if requested
-      if (clearExisting) {
-        let existingPositions: Position[] = [];
-        if (accountType === 'individual') {
-          existingPositions = await storage.getPositionsByIndividualAccount(accountId);
-        } else if (accountType === 'corporate') {
-          existingPositions = await storage.getPositionsByCorporateAccount(accountId);
-        } else if (accountType === 'joint') {
-          existingPositions = await storage.getPositionsByJointAccount(accountId);
-        }
-        
-        for (const pos of existingPositions) {
-          await storage.deletePosition(pos.id);
-          deletedCount++;
-        }
-        
-        // Log the clear action
-        await storage.createAuditLogEntry({
-          individualAccountId: accountType === 'individual' ? accountId : undefined,
-          corporateAccountId: accountType === 'corporate' ? accountId : undefined,
-          jointAccountId: accountType === 'joint' ? accountId : undefined,
-          userId,
-          action: "position_bulk_delete",
-          changes: { 
-            count: deletedCount,
-            reason: "Cleared before bulk import"
-          },
-        });
-      }
-      
       // Helper function to normalize symbols for matching (removes exchange suffixes)
       const normalizeSymbolForMatching = (sym: string) => {
         return sym.toUpperCase().trim().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
       };
       
-      // Get existing positions if not clearing (to preserve protection details)
+      // Always get existing positions first (to preserve protection details and prevent duplicates)
+      let existingPositions: Position[] = [];
+      if (accountType === 'individual') {
+        existingPositions = await storage.getPositionsByIndividualAccount(accountId);
+      } else if (accountType === 'corporate') {
+        existingPositions = await storage.getPositionsByCorporateAccount(accountId);
+      } else if (accountType === 'joint') {
+        existingPositions = await storage.getPositionsByJointAccount(accountId);
+      }
+      
+      // Create maps for both normalized and original symbols for flexible matching
       let existingPositionsMap = new Map<string, Position>(); // Key: normalized symbol, Value: position
       let existingPositionsByOriginalSymbol = new Map<string, Position>(); // Key: original symbol, Value: position
-      if (!clearExisting) {
-        let existingPositions: Position[] = [];
-        if (accountType === 'individual') {
-          existingPositions = await storage.getPositionsByIndividualAccount(accountId);
-        } else if (accountType === 'corporate') {
-          existingPositions = await storage.getPositionsByCorporateAccount(accountId);
-        } else if (accountType === 'joint') {
-          existingPositions = await storage.getPositionsByJointAccount(accountId);
-        }
-        
-        // Create maps for both normalized and original symbols for flexible matching
-        for (const existingPos of existingPositions) {
-          const originalSymbol = existingPos.symbol.toUpperCase().trim();
-          const normalizedSymbol = normalizeSymbolForMatching(existingPos.symbol);
-          existingPositionsByOriginalSymbol.set(originalSymbol, existingPos);
-          existingPositionsMap.set(normalizedSymbol, existingPos);
-        }
+      let processedPositionIds = new Set<string>(); // Track which positions we've updated
+      
+      for (const existingPos of existingPositions) {
+        const originalSymbol = existingPos.symbol.toUpperCase().trim();
+        const normalizedSymbol = normalizeSymbolForMatching(existingPos.symbol);
+        existingPositionsByOriginalSymbol.set(originalSymbol, existingPos);
+        existingPositionsMap.set(normalizedSymbol, existingPos);
       }
+      
+      let deletedCount = 0;
+      
+      // If clearExisting is true, we'll delete positions that aren't in the upload after processing
+      // This way we can still match and preserve protection details for positions that are being updated
       
       const createdPositions = [];
       const updatedPositions = [];
@@ -3191,30 +3164,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
           
-          // Check if position already exists (when not clearing existing)
+          // Always check if position already exists (to preserve protection details and prevent duplicates)
           // Try multiple matching strategies:
           // 1. Exact match with original symbol (before normalization)
           // 2. Exact match with normalized symbol (after potential .TO suffix addition)
           // 3. Normalized match (comparing base symbols without suffixes)
           let existingPosition: Position | undefined = undefined;
           
-          if (!clearExisting) {
-            // Try exact match with current symbol (after potential normalization)
-            existingPosition = existingPositionsByOriginalSymbol.get(positionData.symbol);
-            
-            // If no exact match, try normalized symbol matching
-            if (!existingPosition) {
-              const normalizedSymbol = normalizeSymbolForMatching(positionData.symbol);
-              existingPosition = existingPositionsMap.get(normalizedSymbol);
-              if (existingPosition) {
-                console.log(`[Bulk Upload] Matched position by normalized symbol: ${positionData.symbol} (normalized: ${normalizedSymbol}) matches existing ${existingPosition.symbol}`);
-              }
-            } else {
-              console.log(`[Bulk Upload] Matched position by exact symbol: ${positionData.symbol}`);
+          // Try exact match with current symbol (after potential normalization)
+          existingPosition = existingPositionsByOriginalSymbol.get(positionData.symbol);
+          
+          // If no exact match, try normalized symbol matching
+          if (!existingPosition) {
+            const normalizedSymbol = normalizeSymbolForMatching(positionData.symbol);
+            existingPosition = existingPositionsMap.get(normalizedSymbol);
+            if (existingPosition) {
+              console.log(`[Bulk Upload] Matched position by normalized symbol: ${positionData.symbol} (normalized: ${normalizedSymbol}) matches existing ${existingPosition.symbol}`);
             }
+          } else {
+            console.log(`[Bulk Upload] Matched position by exact symbol: ${positionData.symbol}`);
           }
           
-          if (existingPosition && !clearExisting) {
+          if (existingPosition) {
             // Update existing position, preserving protection details
             const updateData: any = {
               symbol: positionData.symbol, // Update symbol in case it was normalized (e.g., B -> B.TO)
@@ -3232,6 +3203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const parsed = insertPositionSchema.parse(updateData);
             const updatedPosition = await storage.updatePosition(existingPosition.id, parsed);
             updatedPositions.push(updatedPosition);
+            processedPositionIds.add(existingPosition.id); // Mark as processed
           } else {
             // Create new position
             const parsed = insertPositionSchema.parse(positionData);
@@ -3243,10 +3215,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // If clearExisting is true, delete positions that weren't in the upload
+      let deletedCount = 0;
+      if (clearExisting) {
+        for (const existingPos of existingPositions) {
+          if (!processedPositionIds.has(existingPos.id)) {
+            await storage.deletePosition(existingPos.id);
+            deletedCount++;
+          }
+        }
+        
+        // Log the clear action if any positions were deleted
+        if (deletedCount > 0) {
+          await storage.createAuditLogEntry({
+            individualAccountId: accountType === 'individual' ? accountId : undefined,
+            corporateAccountId: accountType === 'corporate' ? accountId : undefined,
+            jointAccountId: accountType === 'joint' ? accountId : undefined,
+            userId,
+            action: "position_bulk_delete",
+            changes: { 
+              count: deletedCount,
+              reason: "Removed positions not in upload file"
+            },
+          });
+        }
+      }
+      
       // Create target allocations if requested
       let allocationsCreated = 0;
       let allocationsDeleted = 0;
-      if (setAsTargetAllocation && createdPositions.length > 0) {
+      const allProcessedPositions = [...createdPositions, ...updatedPositions];
+      if (setAsTargetAllocation && allProcessedPositions.length > 0) {
         try {
           // Clear existing target allocations first to prevent duplicates
           await storage.deleteAllAccountTargetAllocations(accountType as 'individual' | 'corporate' | 'joint', accountId);
@@ -3254,14 +3253,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Calculate total portfolio value (excluding CASH)
           let totalValue = 0;
-          for (const pos of createdPositions) {
+          for (const pos of allProcessedPositions) {
             if (pos.symbol.toUpperCase() !== 'CASH') {
               totalValue += Number(pos.quantity) * Number(pos.currentPrice);
             }
           }
           
           // Create target allocation for each non-cash position based on percentage
-          for (const pos of createdPositions) {
+          for (const pos of allProcessedPositions) {
             if (pos.symbol.toUpperCase() !== 'CASH' && totalValue > 0) {
               const posValue = Number(pos.quantity) * Number(pos.currentPrice);
               const targetPercentage = (posValue / totalValue) * 100;
