@@ -6583,6 +6583,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const result = await yahooFinance.quote(symbol);
               if (result && (result as any).regularMarketPrice) {
                 quote = result as any;
+                console.log(`[PROTECTION] Found price for ${rawSymbol} via ${symbol}: $${quote.regularMarketPrice}`);
                 break;
               }
             } catch (e) {
@@ -6593,6 +6594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (quote && quote.regularMarketPrice) {
             priceCache[rawSymbol] = quote.regularMarketPrice;
           } else {
+            console.log(`[PROTECTION] No price found for ${rawSymbol} (tried: ${symbolsToTry.join(', ')})`);
             priceCache[rawSymbol] = null;
             errorCount++;
           }
@@ -6612,8 +6614,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newPrice: number;
       }> = [];
       
+      console.log(`[PROTECTION] Total positions to check: ${allPositions.length}`);
       for (const position of allPositions) {
         const newPrice = priceCache[position.symbol];
+        console.log(`[PROTECTION] Position ${position.symbol}: cachedPrice=${newPrice}, entryPrice=${position.entryPrice}, protectionPercent=${position.protectionPercent}`);
         if (newPrice !== null && newPrice !== undefined) {
           await storage.updatePosition(position.id, { 
             currentPrice: newPrice.toString(),
