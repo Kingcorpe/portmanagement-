@@ -40,18 +40,22 @@ Railway is perfect for your Express + React app and has GitHub integration.
    - Your webhook URL: `https://your-app.up.railway.app/api/webhooks/tradingview`
    - Update this in TradingView alerts
 
-6. **Custom Domain (Optional)**:
+6. **Custom Domain (Optional - Requires Paid Plan)**:
+   - ⚠️ **Requires Hobby plan ($5/month) or higher** after trial period
    - Add your own domain in Railway settings
    - Point DNS to Railway's servers
    - Now your webhook URL is permanent: `https://yourdomain.com/api/webhooks/tradingview`
+   - **Note**: Railway's provided domain (`.up.railway.app`) works perfectly fine and is permanent too
 
 ### Benefits:
 - ✅ **Automatic deployments** from GitHub (push to main = deploy)
 - ✅ **Free tier** ($5 credit/month, usually enough for small apps)
+  - ⚠️ Note: Custom domains require Hobby plan ($5/month) after trial
+  - Railway-provided domain works on free tier
 - ✅ **Environment variables** managed in dashboard
 - ✅ **Logs** visible in dashboard
 - ✅ **No manual steps** - just push to GitHub
-- ✅ **Permanent URLs** - won't change unless you want them to
+- ✅ **Permanent URLs** - Railway domain won't change unless you want it to
 
 ---
 

@@ -98,3 +98,5 @@ AAPL,"Apple, Inc.",100,150.00,175.50
 
 The CSV/Excel upload functionality is **working as intended** for standard use cases. The core parsing, column detection, and data validation all function correctly. The only limitation is handling quoted CSV fields with commas, which can be avoided by using Excel format or ensuring no commas in field values.
 
+
+

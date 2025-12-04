@@ -859,6 +859,7 @@ export function registerMarketDataRoutes(app: Express) {
       const nyse = getMarketStatus("NYSE");
       res.json({ tsx, nyse });
     } catch (error) {
+      // TODO: Replace with proper logger
       console.error("Error getting market status:", error);
       res.status(500).json({ message: "Failed to get market status" });
     }

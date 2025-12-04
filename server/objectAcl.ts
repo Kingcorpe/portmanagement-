@@ -78,7 +78,13 @@ export async function getObjectAclPolicy(
   if (!aclPolicy) {
     return null;
   }
-  return JSON.parse(aclPolicy as string);
+  // SECURITY: Wrap JSON.parse in try-catch to prevent crashes from malformed JSON
+  try {
+    return JSON.parse(aclPolicy as string);
+  } catch (error) {
+    console.error("Failed to parse ACL policy:", error);
+    return null; // Return null if parsing fails rather than crashing
+  }
 }
 
 export async function canAccessObject({

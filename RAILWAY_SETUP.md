@@ -83,10 +83,14 @@ Once deployed:
 
 If you want a custom domain:
 
+⚠️ **Note**: Custom domains require at least the **Hobby plan ($5/month)** after the trial period.
+
 1. In Railway **Settings** → **Domains**
-2. Click **"Generate Domain"** or **"Add Custom Domain"**
+2. Click **"Add Custom Domain"** (not "Generate Domain" - that's for Railway domains)
 3. Follow the DNS instructions
 4. Update your TradingView webhook URL to the new domain
+
+**Alternative**: The Railway-provided domain (`.up.railway.app`) works perfectly fine and is permanent - you don't need a custom domain unless you specifically want your own domain name.
 
 ## 🔄 Automatic Deployments
 
@@ -139,10 +143,17 @@ git push origin main
 ## 💰 Pricing
 
 - **Free Tier**: $5 credit/month (usually enough for small apps)
+  - ⚠️ **Custom domains**: 1 during trial, then 0 (requires paid plan)
+  - Railway-provided domain (`.up.railway.app`) works on free tier
 - **Hobby Plan**: $5/month (if you exceed free tier)
+  - Includes 2 custom domains
 - **Pro Plan**: $20/month (for production apps)
+  - Includes 20 custom domains
 
-Your app should fit comfortably in the free tier initially.
+**Important Notes:**
+- Your app can run on the free tier using Railway's provided domain
+- **Custom domains require at least the Hobby plan** ($5/month) after trial
+- The Railway domain (`.up.railway.app`) works perfectly fine for webhooks and production use
 
 ## ✅ Next Steps After Deployment
 

@@ -46,7 +46,15 @@ if (isReplit) {
     // Otherwise, you can pass credentials via GOOGLE_SERVICE_ACCOUNT_KEY (JSON string)
     ...(process.env.GOOGLE_SERVICE_ACCOUNT_KEY
       ? {
-          credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
+          // SECURITY: Wrap JSON.parse in try-catch to prevent crashes from malformed JSON
+          credentials: (() => {
+            try {
+              return JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY!);
+            } catch (error) {
+              console.error("Failed to parse GOOGLE_SERVICE_ACCOUNT_KEY:", error);
+              throw new Error("Invalid GOOGLE_SERVICE_ACCOUNT_KEY format. Must be valid JSON.");
+            }
+          })(),
         }
       : {}),
   });

@@ -7,17 +7,81 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// CRITICAL FIX #2: CSRF token cache
+let csrfTokenCache: string | null = null;
+let csrfTokenPromise: Promise<string> | null = null;
+
+async function getCsrfToken(): Promise<string> {
+  // Return cached token if available
+  if (csrfTokenCache) {
+    return csrfTokenCache;
+  }
+  
+  // If already fetching, return the existing promise
+  if (csrfTokenPromise) {
+    return csrfTokenPromise;
+  }
+  
+  // Fetch new token
+  csrfTokenPromise = fetch('/api/csrf-token', {
+    credentials: 'include',
+  })
+    .then(res => res.json())
+    .then(data => {
+      csrfTokenCache = data.csrfToken;
+      csrfTokenPromise = null;
+      return data.csrfToken;
+    })
+    .catch(error => {
+      csrfTokenPromise = null;
+      console.error('Failed to fetch CSRF token:', error);
+      // Return empty string to allow request to proceed (will fail server-side if CSRF is required)
+      return '';
+    });
+  
+  return csrfTokenPromise;
+}
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  // CRITICAL FIX #2: Include CSRF token for state-changing requests
+  const isStateChanging = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase());
+  const csrfToken = isStateChanging ? await getCsrfToken() : null;
+  
+  const headers: Record<string, string> = {};
+  if (data) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (csrfToken) {
+    headers['X-CSRF-Token'] = csrfToken;
+  }
+  
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
+
+  // If CSRF token expired, clear cache and retry once
+  if (res.status === 403 && isStateChanging && csrfToken) {
+    csrfTokenCache = null;
+    const newCsrfToken = await getCsrfToken();
+    if (newCsrfToken && newCsrfToken !== csrfToken) {
+      headers['X-CSRF-Token'] = newCsrfToken;
+      const retryRes = await fetch(url, {
+        method,
+        headers,
+        body: data ? JSON.stringify(data) : undefined,
+        credentials: "include",
+      });
+      await throwIfResNotOk(retryRes);
+      return retryRes;
+    }
+  }
 
   await throwIfResNotOk(res);
   return res;

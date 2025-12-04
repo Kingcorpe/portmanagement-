@@ -41,7 +41,12 @@ async function loadReplitPlugins() {
 export default defineConfig(async () => {
   const replitPlugins = await loadReplitPlugins();
   
+  // Support base path from environment variable (e.g., BASE_PATH=/app)
+  // Defaults to '/' if not set (backward compatible)
+  const basePath = process.env.BASE_PATH || '/';
+  
   return {
+    base: basePath,
     plugins: [
       react(),
       ...replitPlugins,
@@ -63,6 +68,10 @@ export default defineConfig(async () => {
         strict: true,
         deny: ["**/.*"],
       },
+    },
+    define: {
+      // Make base path available to client code
+      'import.meta.env.VITE_BASE_PATH': JSON.stringify(basePath),
     },
   };
 });

@@ -200,3 +200,5 @@ If you encounter issues:
 
 The trading journal feature is fully implemented - you just need to get it deployed and run the database migrations!
 
+
+

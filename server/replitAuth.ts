@@ -10,7 +10,14 @@ import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
 // Check if running in local development mode
-export const isLocalDev = process.env.LOCAL_DEV === "true" || !process.env.REPL_ID;
+// CRITICAL FIX #3: More explicit local dev check with production safety
+// Require explicit LOCAL_DEV flag AND ensure not in production
+export const isLocalDev = process.env.LOCAL_DEV === "true" && process.env.NODE_ENV !== 'production';
+
+// Safety check: Prevent accidental dev mode in production
+if (process.env.LOCAL_DEV === "true" && process.env.NODE_ENV === 'production') {
+  throw new Error("CRITICAL SECURITY ERROR: Cannot run in LOCAL_DEV mode in production! This would bypass authentication.");
+}
 
 const getOidcConfig = memoize(
   async () => {
@@ -27,6 +34,15 @@ export function getSession() {
   
   // Use database store if DATABASE_URL is available (Railway/production)
   // Use memory store only for true local dev (when DATABASE_URL is not set)
+  // SECURITY: Require SESSION_SECRET in production
+  const sessionSecret = process.env.SESSION_SECRET;
+  if (!sessionSecret && process.env.NODE_ENV === 'production') {
+    throw new Error("SESSION_SECRET environment variable is required in production");
+  }
+  if (!sessionSecret && !isLocalDev) {
+    throw new Error("SESSION_SECRET environment variable is required");
+  }
+  
   if (process.env.DATABASE_URL) {
     const pgStore = connectPg(session);
     const sessionStore = new pgStore({
@@ -36,7 +52,7 @@ export function getSession() {
       tableName: "sessions",
     });
     return session({
-      secret: process.env.SESSION_SECRET || "local-dev-secret-change-in-production",
+      secret: sessionSecret || "local-dev-secret-change-in-production",
       store: sessionStore,
       resave: false,
       saveUninitialized: false,
@@ -51,7 +67,7 @@ export function getSession() {
   
   // Memory store only for true local dev (no database)
   return session({
-    secret: process.env.SESSION_SECRET || "local-dev-secret-change-in-production",
+    secret: sessionSecret || "local-dev-secret-change-in-production",
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -92,7 +108,9 @@ export async function setupAuth(app: Express) {
 
   // Local development mode - skip OIDC setup (works on Railway/local)
   if (isLocalDev) {
-    console.log("🔓 Running in LOCAL DEV mode - authentication bypassed");
+    console.warn("⚠️⚠️⚠️ LOCAL DEV MODE ENABLED - AUTHENTICATION BYPASSED ⚠️⚠️⚠️");
+    console.warn("⚠️ DO NOT USE IN PRODUCTION ⚠️");
+    console.warn("⚠️ This mode should only be used for local development ⚠️");
     
     // Use existing user ID to access existing data
     // Change this to your user ID if you have existing data

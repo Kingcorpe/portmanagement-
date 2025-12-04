@@ -56,10 +56,17 @@ export function ObjectUploader({
       shouldUseMultipart: false,
       async getUploadParameters(file) {
         const fileExtension = file.name?.split(".").pop() || "pdf";
+        // CRITICAL FIX #2: Get CSRF token for POST request
+        const csrfResponse = await fetch("/api/csrf-token", {
+          credentials: "include",
+        });
+        const { csrfToken } = await csrfResponse.json();
+        
         const response = await fetch("/api/objects/upload", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "X-CSRF-Token": csrfToken,
           },
           credentials: "include",
           body: JSON.stringify({ fileExtension }),

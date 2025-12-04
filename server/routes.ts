@@ -11,10 +11,18 @@ import { sendEmailWithAttachment } from "./gmail";
 import { eq } from "drizzle-orm";
 import nodemailer from "nodemailer";
 import { registerMarketDataRoutes } from "./marketData";
+import crypto from "crypto";
+import { log } from "./logger";
+import { z } from "zod";
 
 // Email alert for TradingView signals
 async function sendTradingAlertEmail(symbol: string, signal: string, price: string) {
-  const alertEmail = process.env.TRADINGVIEW_REPORT_EMAIL || "ryan@crsolutions.ca";
+  // HIGH PRIORITY FIX #9: Remove hardcoded email fallback
+  const alertEmail = process.env.TRADINGVIEW_REPORT_EMAIL;
+  if (!alertEmail) {
+    log.warn("TRADINGVIEW_REPORT_EMAIL not configured - cannot send alert email", { symbol, signal, price });
+    return;
+  }
   
   const signalColor = signal === 'BUY' ? '#22c55e' : '#ef4444';
   const signalEmoji = signal === 'BUY' ? '🟢' : '🔴';
@@ -47,7 +55,7 @@ async function sendTradingAlertEmail(symbol: string, signal: string, price: stri
         html: htmlBody,
       });
       
-      console.log(`Alert email sent via Resend: ${symbol} ${signal} @ $${price}`);
+      log.info("Alert email sent via Resend", { symbol, signal, price });
       return;
     }
     
@@ -55,7 +63,7 @@ async function sendTradingAlertEmail(symbol: string, signal: string, price: stri
           if (process.env.REPL_ID && (process.env.REPL_IDENTITY || process.env.WEB_REPL_RENEWAL)) {
       const { sendEmail } = await import("./gmail");
       await sendEmail(alertEmail, `${signal} ${symbol} @ $${price}`, htmlBody);
-      console.log(`Alert email sent: ${symbol} ${signal} @ $${price}`);
+      log.info("Alert email sent via Gmail", { symbol, signal, price });
       return;
     }
     
@@ -81,14 +89,14 @@ async function sendTradingAlertEmail(symbol: string, signal: string, price: stri
         html: htmlBody,
       });
       
-      console.log(`Alert email sent via SMTP: ${symbol} ${signal} @ $${price}`);
+      log.info("Alert email sent via SMTP", { symbol, signal, price });
       return;
     }
     
     // If no email configuration, just log
-    console.log(`Alert received (email not configured): ${symbol} ${signal} @ $${price} → ${alertEmail}`);
+    log.warn("Alert received but email not configured", { symbol, signal, price, alertEmail });
   } catch (error) {
-    console.error("Failed to send alert email:", error);
+    log.error("Failed to send alert email", error, { symbol, signal, price });
     // Don't throw - we don't want email failures to break the webhook
   }
 }
@@ -147,6 +155,7 @@ import {
   insertTradingJournalEntryTagSchema,
   type InsertAccountAuditLog,
   type Position,
+  type AccountTask,
 } from "@shared/schema";
 
 // Canadian ETF provider identification and fund facts URL patterns
@@ -408,10 +417,10 @@ async function enhancedTickerLookup(ticker: string): Promise<EnhancedTickerData>
       }
     }
     
-    console.log(`[Enhanced Lookup] ${normalizedTicker}: Provider=${result.provider}, Price=${result.price}, Yield=${result.dividendYield}%, FundFacts=${result.fundFactsUrl}`);
+    log.debug("Enhanced lookup result", { ticker: normalizedTicker, provider: result.provider, price: result.price, yield: result.dividendYield });
     
   } catch (error) {
-    console.error(`[Enhanced Lookup] Error looking up ${normalizedTicker}:`, error);
+    log.error("Enhanced lookup error", error, { ticker: normalizedTicker });
   }
   
   return result;
@@ -447,9 +456,121 @@ function computeAccountDiff(oldAccount: Record<string, any>, newData: Record<str
   return Object.keys(changes).length > 0 ? changes : null;
 }
 
+// SECURITY: Helper function to validate UUID format
+function isValidUUID(uuid: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+}
+
+// SECURITY: Middleware to validate UUID parameters
+function validateUUIDParam(paramName: string) {
+  return (req: any, res: any, next: any) => {
+    const paramValue = req.params[paramName];
+    if (paramValue && !isValidUUID(paramValue)) {
+      return res.status(400).json({ message: `Invalid ${paramName} format` });
+    }
+    next();
+  };
+}
+
+// HIGH PRIORITY FIX #6: Query parameter validation helper
+function validateQuery(schema: z.ZodSchema) {
+  return (req: any, res: any, next: any) => {
+    try {
+      req.query = schema.parse(req.query);
+      next();
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Invalid query parameters", 
+          errors: error.errors 
+        });
+      }
+      next(error);
+    }
+  };
+}
+
+// CRITICAL FIX #2: CSRF Protection
+// Generate CSRF token
+function generateCsrfToken(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// CSRF token validation middleware
+function validateCsrfToken(req: any, res: any, next: any) {
+  // Skip CSRF validation for:
+  // 1. GET, HEAD, OPTIONS requests (safe methods)
+  // 2. Webhook endpoints (they use secret-based auth)
+  // 3. Local dev mode (for easier development)
+  const method = req.method.toUpperCase();
+  if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    return next();
+  }
+  
+  if (req.path.startsWith('/api/webhooks/')) {
+    return next(); // Webhooks use secret-based auth
+  }
+  
+  if (isLocalDev) {
+    // In local dev, log but don't block (for easier development)
+    log.warn('[CSRF] Skipping CSRF validation in local dev mode');
+    return next();
+  }
+  
+  // Get token from header (preferred) or body
+  const token = req.headers['x-csrf-token'] || req.body?._csrf;
+  const sessionToken = (req.session as any)?.csrfToken;
+  
+  if (!token || !sessionToken) {
+    log.error('[CSRF] Missing CSRF token', undefined, { 
+      hasHeaderToken: !!req.headers['x-csrf-token'],
+      hasBodyToken: !!req.body?._csrf,
+      hasSessionToken: !!sessionToken,
+      path: req.path 
+    });
+    return res.status(403).json({ 
+      message: "Forbidden: CSRF token missing or invalid" 
+    });
+  }
+  
+  if (token !== sessionToken) {
+    log.error('[CSRF] CSRF token mismatch', undefined, { path: req.path });
+    return res.status(403).json({ 
+      message: "Forbidden: CSRF token mismatch" 
+    });
+  }
+  
+  next();
+}
+
+// Import rate limiting utilities (extracted to separate module)
+import { generalRateLimiter, webhookRateLimiter, rateLimit, authRateLimiter } from "./routes/rateLimiter";
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication middleware
   await setupAuth(app);
+
+  // CRITICAL FIX #2: CSRF token endpoint (must be before CSRF validation and rate limiting)
+  app.get('/api/csrf-token', (req: any, res) => {
+    // Generate new token for each request (or reuse existing)
+    if (!(req.session as any)?.csrfToken) {
+      (req.session as any).csrfToken = generateCsrfToken();
+    }
+    res.json({ csrfToken: (req.session as any).csrfToken });
+  });
+
+  // SECURITY: Apply rate limiting to all API routes
+  app.use('/api', rateLimit(generalRateLimiter, (req) => {
+    // Use IP address and user ID if available for rate limiting
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const userId = (req as any).user?.claims?.sub || 'anonymous';
+    return `${ip}:${userId}`;
+  }));
+
+  // CRITICAL FIX #2: Apply CSRF protection to all state-changing API routes
+  // Note: Applied after rate limiting but before other routes
+  app.use('/api', validateCsrfToken);
 
   // Disable caching for all API routes to ensure fresh data after mutations
   app.use('/api', (req, res, next) => {
@@ -460,7 +581,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', rateLimit(authRateLimiter, (req) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const userId = (req as any).user?.claims?.sub || 'anonymous';
+    return `${ip}:${userId}`;
+  }), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       
@@ -494,7 +619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(user);
     } catch (error) {
-      console.error("Error fetching user:", error);
+      log.error("Error fetching user", error);
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
@@ -506,7 +631,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const households = await storage.getAllHouseholds(userId);
       res.json(households);
     } catch (error) {
-      console.error("Error fetching households:", error);
+      log.error("Error fetching households", error);
       res.status(500).json({ message: "Failed to fetch households" });
     }
   });
@@ -517,7 +642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const households = await storage.getAllHouseholdsWithDetails(userId);
       res.json(households);
     } catch (error) {
-      console.error("Error fetching household details:", error);
+      log.error("Error fetching household details", error);
       res.status(500).json({ message: "Failed to fetch household details" });
     }
   });
@@ -527,14 +652,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const parsed = insertHouseholdSchema.parse(req.body);
       
-      console.log(`[Household Creation] User ID from session: ${userId}`);
+      log.debug("Household creation - user ID from session", { userId });
       
       // CRITICAL: Ensure user exists - this MUST happen before creating household
       let user = await storage.getUser(userId);
-      console.log(`[Household Creation] User lookup result: ${user ? 'found' : 'not found'}`);
+      log.debug("Household creation - user lookup result", { userId, found: !!user });
       
       if (!user) {
-        console.log(`[Household Creation] User ${userId} not found, creating now...`);
+        log.debug("Household creation - user not found, creating now", { userId });
         const userEmail = req.user.claims.email || req.user.claims.email_address || "dev@localhost";
         
         try {
@@ -545,9 +670,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lastName: req.user.claims.last_name || req.user.claims.family_name || "Developer",
             profileImageUrl: req.user.claims.profile_image_url || null,
           });
-          console.log(`[Household Creation] User ${userId} created successfully`);
+          log.info("Household creation - user created successfully", { userId });
         } catch (userError: any) {
-          console.error(`[Household Creation] Error creating user:`, userError);
+          log.error("Household creation - error creating user", userError, { userId });
           // If duplicate email, find existing user by email
           if (userError?.code === '23505') {
             const { db } = await import("./db");
@@ -556,11 +681,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const existingUsers = await db.select().from(users).where(eq(users.email, userEmail));
             if (existingUsers.length > 0) {
               user = existingUsers[0];
-              console.log(`[Household Creation] Found existing user with email ${userEmail}, ID: ${user.id}`);
+              log.info("Household creation - found existing user by email", { email: userEmail, userId: user.id });
             }
           }
           if (!user) {
-            console.error(`[Household Creation] Failed to create or find user: ${userError.message}`);
+            log.error("Household creation - failed to create or find user", userError, { userId, email: userEmail });
             return res.status(500).json({ 
               message: `Failed to create household: User does not exist and could not be created. Error: ${userError.message}` 
             });
@@ -572,7 +697,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to create household: User does not exist" });
       }
       
-      console.log(`[Household Creation] Using user ID: ${user.id} for household creation`);
+      log.debug("Household creation - using user ID", { userId: user.id, householdName: parsed.name });
       
       // Check for duplicate household name
       const nameExists = await storage.checkHouseholdNameExists(parsed.name, user.id);
@@ -584,8 +709,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const household = await storage.createHousehold({ ...parsed, userId: user.id });
       res.json(household);
     } catch (error: any) {
-      console.error("Error creating household:", error);
-      console.error("Error details:", {
+      log.error("Error creating household", error, {
         message: error.message,
         code: error.code,
         detail: error.detail,
@@ -610,12 +734,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const archived = await storage.getAllArchivedHouseholds(userId);
       res.json(archived);
     } catch (error) {
-      console.error("Error fetching archived households:", error);
+      log.error("Error fetching archived households", error);
       res.status(500).json({ message: "Failed to fetch archived households" });
     }
   });
 
-  app.get('/api/households/:id', isAuthenticated, async (req: any, res) => {
+  app.get('/api/households/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = req.params.id;
@@ -632,12 +756,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(household);
     } catch (error) {
-      console.error("Error fetching household:", error);
+      log.error("Error fetching household", error);
       res.status(500).json({ message: "Failed to fetch household" });
     }
   });
 
-  app.get('/api/households/:id/full', isAuthenticated, async (req: any, res) => {
+  app.get('/api/households/:id/full', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = req.params.id;
@@ -654,12 +778,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(household);
     } catch (error) {
-      console.error("Error fetching household details:", error);
+      log.error("Error fetching household details", error);
       res.status(500).json({ message: "Failed to fetch household details" });
     }
   });
 
-  app.patch('/api/households/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/households/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = req.params.id;
@@ -683,7 +807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const household = await storage.updateHousehold(householdId, parsed);
       res.json(household);
     } catch (error: any) {
-      console.error("Error updating household:", error);
+      log.error("Error updating household", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -692,7 +816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Archive (soft delete) household
-  app.delete('/api/households/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/households/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = req.params.id;
@@ -706,13 +830,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteHousehold(householdId);
       res.status(204).send();
     } catch (error) {
-      console.error("Error archiving household:", error);
+      log.error("Error archiving household", error);
       res.status(500).json({ message: "Failed to archive household" });
     }
   });
 
   // Restore archived household (must come before /api/households/:id routes)
-  app.post('/api/households/:id/restore', isAuthenticated, async (req: any, res) => {
+  app.post('/api/households/:id/restore', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const hasAccess = await storage.canUserEditHousehold(userId, req.params.id);
@@ -722,7 +846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const restored = await storage.restoreHousehold(req.params.id);
       res.json(restored);
     } catch (error) {
-      console.error("Error restoring household:", error);
+      log.error("Error restoring household", error);
       res.status(500).json({ message: "Failed to restore household" });
     }
   });
@@ -740,7 +864,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(settings);
     } catch (error) {
-      console.error("Error fetching user settings:", error);
+      log.error("Error fetching user settings", error);
       res.status(500).json({ message: "Failed to fetch user settings" });
     }
   });
@@ -750,17 +874,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { reportEmail } = req.body;
       
+      // SECURITY: Validate email format if provided
+      if (reportEmail !== undefined && reportEmail !== null) {
+        if (typeof reportEmail !== 'string') {
+          return res.status(400).json({ message: "Invalid email format" });
+        }
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (reportEmail.trim() !== '' && !emailRegex.test(reportEmail.trim())) {
+          return res.status(400).json({ message: "Invalid email format" });
+        }
+      }
+      
+      // Sanitize email
+      const sanitizedEmail = reportEmail && typeof reportEmail === 'string' ? reportEmail.trim().toLowerCase() : reportEmail;
+      
       // Ensure settings exist
       let settings = await storage.getUserSettings(userId);
       if (!settings) {
-        settings = await storage.createUserSettings({ userId, reportEmail });
+        settings = await storage.createUserSettings({ userId, reportEmail: sanitizedEmail });
       } else {
-        settings = await storage.updateUserSettings(userId, { reportEmail });
+        settings = await storage.updateUserSettings(userId, { reportEmail: sanitizedEmail });
       }
       
       res.json(settings);
     } catch (error) {
-      console.error("Error updating user settings:", error);
+      log.error("Error updating user settings", error);
       res.status(500).json({ message: "Failed to update user settings" });
     }
   });
@@ -778,13 +917,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       settings = await storage.regenerateWebhookSecret(userId);
       res.json(settings);
     } catch (error) {
-      console.error("Error regenerating webhook secret:", error);
+      log.error("Error regenerating webhook secret", error);
       res.status(500).json({ message: "Failed to regenerate webhook secret" });
     }
   });
 
   // Household Sharing routes
-  app.get('/api/households/:id/shares', isAuthenticated, async (req: any, res) => {
+  app.get('/api/households/:id/shares', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = req.params.id;
@@ -801,16 +940,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const shares = await storage.getHouseholdShares(householdId);
       res.json(shares);
     } catch (error) {
-      console.error("Error fetching household shares:", error);
+      log.error("Error fetching household shares", error);
       res.status(500).json({ message: "Failed to fetch household shares" });
     }
   });
 
-  app.post('/api/households/:id/shares', isAuthenticated, async (req: any, res) => {
+  app.post('/api/households/:id/shares', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = req.params.id;
       const { email, accessLevel = 'viewer' } = req.body;
+      
+      // SECURITY: Validate email format
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      
+      // SECURITY: Basic email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
+      
+      // SECURITY: Validate access level
+      if (accessLevel !== 'viewer' && accessLevel !== 'editor') {
+        return res.status(400).json({ message: "Invalid access level. Must be 'viewer' or 'editor'" });
+      }
       
       // Only owner can share
       const household = await storage.getHousehold(householdId);
@@ -821,8 +976,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only the owner can share a household" });
       }
       
-      // Find user by email
-      const [userToShare] = await db.select().from(users).where(eq(users.email, email));
+      // Find user by email (sanitize email)
+      const sanitizedEmail = email.trim().toLowerCase();
+      const [userToShare] = await db.select().from(users).where(eq(users.email, sanitizedEmail));
       if (!userToShare) {
         return res.status(404).json({ message: "User not found with that email" });
       }
@@ -840,7 +996,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(share);
     } catch (error: any) {
-      console.error("Error sharing household:", error);
+      log.error("Error sharing household", error);
       // Handle duplicate share
       if (error.code === '23505') {
         return res.status(400).json({ message: "Household already shared with this user" });
@@ -849,7 +1005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/households/:id/shares/:sharedWithUserId', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/households/:id/shares/:sharedWithUserId', validateUUIDParam('id'), validateUUIDParam('sharedWithUserId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { id: householdId, sharedWithUserId } = req.params;
@@ -866,13 +1022,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.removeHouseholdShare(householdId, sharedWithUserId);
       res.status(204).send();
     } catch (error) {
-      console.error("Error removing household share:", error);
+      log.error("Error removing household share", error);
       res.status(500).json({ message: "Failed to remove household share" });
     }
   });
 
   // Individual routes
-  app.get('/api/households/:householdId/individuals', isAuthenticated, async (req: any, res) => {
+  app.get('/api/households/:householdId/individuals', validateUUIDParam('householdId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = req.params.householdId;
@@ -885,7 +1041,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const individuals = await storage.getIndividualsByHousehold(householdId);
       res.json(individuals);
     } catch (error) {
-      console.error("Error fetching individuals:", error);
+      log.error("Error fetching individuals", error);
       res.status(500).json({ message: "Failed to fetch individuals" });
     }
   });
@@ -904,7 +1060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const individual = await storage.createIndividual(parsed);
       res.json(individual);
     } catch (error: any) {
-      console.error("Error creating individual:", error);
+      log.error("Error creating individual", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -912,7 +1068,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/individuals/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/individuals/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const individual = await storage.getIndividual(req.params.id);
@@ -930,7 +1086,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updated = await storage.updateIndividual(req.params.id, parsed);
       res.json(updated);
     } catch (error: any) {
-      console.error("Error updating individual:", error);
+      log.error("Error updating individual", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -938,7 +1094,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/individuals/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/individuals/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const individual = await storage.getIndividual(req.params.id);
@@ -955,13 +1111,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteIndividual(req.params.id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting individual:", error);
+      log.error("Error deleting individual", error);
       res.status(500).json({ message: "Failed to delete individual" });
     }
   });
 
   // Corporation routes
-  app.get('/api/households/:householdId/corporations', isAuthenticated, async (req: any, res) => {
+  app.get('/api/households/:householdId/corporations', validateUUIDParam('householdId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = req.params.householdId;
@@ -975,7 +1131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const corporations = await storage.getCorporationsByHousehold(householdId);
       res.json(corporations);
     } catch (error) {
-      console.error("Error fetching corporations:", error);
+      log.error("Error fetching corporations", error);
       res.status(500).json({ message: "Failed to fetch corporations" });
     }
   });
@@ -994,7 +1150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const corporation = await storage.createCorporation(parsed);
       res.json(corporation);
     } catch (error: any) {
-      console.error("Error creating corporation:", error);
+      log.error("Error creating corporation", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -1002,7 +1158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/corporations/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/corporations/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const corporation = await storage.getCorporation(req.params.id);
@@ -1020,7 +1176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updated = await storage.updateCorporation(req.params.id, parsed);
       res.json(updated);
     } catch (error: any) {
-      console.error("Error updating corporation:", error);
+      log.error("Error updating corporation", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -1028,7 +1184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/corporations/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/corporations/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const corporation = await storage.getCorporation(req.params.id);
@@ -1045,13 +1201,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteCorporation(req.params.id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting corporation:", error);
+      log.error("Error deleting corporation", error);
       res.status(500).json({ message: "Failed to delete corporation" });
     }
   });
 
   // Individual account routes
-  app.get('/api/individuals/:individualId/accounts', isAuthenticated, async (req: any, res) => {
+  app.get('/api/individuals/:individualId/accounts', validateUUIDParam('individualId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const individual = await storage.getIndividual(req.params.individualId);
@@ -1068,12 +1224,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const accounts = await storage.getIndividualAccountsByIndividual(req.params.individualId);
       res.json(accounts);
     } catch (error) {
-      console.error("Error fetching individual accounts:", error);
+      log.error("Error fetching individual accounts", error);
       res.status(500).json({ message: "Failed to fetch accounts" });
     }
   });
 
-  app.get('/api/individual-accounts/:id', isAuthenticated, async (req: any, res) => {
+  app.get('/api/individual-accounts/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const account = await storage.getIndividualAccount(req.params.id);
@@ -1104,7 +1260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownerSpouseDateOfBirth: individual.spouseDateOfBirth,
       });
     } catch (error) {
-      console.error("Error fetching individual account:", error);
+      log.error("Error fetching individual account", error);
       res.status(500).json({ message: "Failed to fetch account" });
     }
   });
@@ -1143,7 +1299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(account);
     } catch (error: any) {
-      console.error("Error creating individual account:", error);
+      log.error("Error creating individual account", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -1151,7 +1307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/individual-accounts/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/individual-accounts/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const account = await storage.getIndividualAccount(req.params.id);
@@ -1186,7 +1342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(updated);
     } catch (error: any) {
-      console.error("Error updating individual account:", error);
+      log.error("Error updating individual account", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -1194,7 +1350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/individual-accounts/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/individual-accounts/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const account = await storage.getIndividualAccount(req.params.id);
@@ -1216,13 +1372,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteIndividualAccount(req.params.id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting individual account:", error);
+      log.error("Error deleting individual account", error);
       res.status(500).json({ message: "Failed to delete individual account" });
     }
   });
 
   // Corporate account routes
-  app.get('/api/corporations/:corporationId/accounts', isAuthenticated, async (req: any, res) => {
+  app.get('/api/corporations/:corporationId/accounts', validateUUIDParam('corporationId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const corporation = await storage.getCorporation(req.params.corporationId);
@@ -1238,12 +1394,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const accounts = await storage.getCorporateAccountsByCorporation(req.params.corporationId);
       res.json(accounts);
     } catch (error) {
-      console.error("Error fetching corporate accounts:", error);
+      log.error("Error fetching corporate accounts", error);
       res.status(500).json({ message: "Failed to fetch accounts" });
     }
   });
 
-  app.get('/api/corporate-accounts/:id', isAuthenticated, async (req: any, res) => {
+  app.get('/api/corporate-accounts/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const account = await storage.getCorporateAccount(req.params.id);
@@ -1271,7 +1427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         householdId: corporation.householdId,
       });
     } catch (error) {
-      console.error("Error fetching corporate account:", error);
+      log.error("Error fetching corporate account", error);
       res.status(500).json({ message: "Failed to fetch account" });
     }
   });
@@ -1309,7 +1465,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(account);
     } catch (error: any) {
-      console.error("Error creating corporate account:", error);
+      log.error("Error creating corporate account", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -1317,7 +1473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/corporate-accounts/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/corporate-accounts/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const account = await storage.getCorporateAccount(req.params.id);
@@ -1351,7 +1507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(updated);
     } catch (error: any) {
-      console.error("Error updating corporate account:", error);
+      log.error("Error updating corporate account", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -1359,7 +1515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/corporate-accounts/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/corporate-accounts/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const account = await storage.getCorporateAccount(req.params.id);
@@ -1380,13 +1536,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteCorporateAccount(req.params.id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting corporate account:", error);
+      log.error("Error deleting corporate account", error);
       res.status(500).json({ message: "Failed to delete corporate account" });
     }
   });
 
   // Joint account routes
-  app.get('/api/households/:householdId/joint-accounts', isAuthenticated, async (req: any, res) => {
+  app.get('/api/households/:householdId/joint-accounts', validateUUIDParam('householdId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = req.params.householdId;
@@ -1399,12 +1555,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const jointAccounts = await storage.getJointAccountsByHousehold(householdId);
       res.json(jointAccounts);
     } catch (error) {
-      console.error("Error fetching joint accounts:", error);
+      log.error("Error fetching joint accounts", error);
       res.status(500).json({ message: "Failed to fetch joint accounts" });
     }
   });
 
-  app.get('/api/joint-accounts/:id', isAuthenticated, async (req: any, res) => {
+  app.get('/api/joint-accounts/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const account = await storage.getJointAccount(req.params.id);
@@ -1428,7 +1584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         householdName: household?.name || 'Unknown',
       });
     } catch (error) {
-      console.error("Error fetching joint account:", error);
+      log.error("Error fetching joint account", error);
       res.status(500).json({ message: "Failed to fetch account" });
     }
   });
@@ -1461,7 +1617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(jointAccount);
     } catch (error: any) {
-      console.error("Error creating joint account:", error);
+      log.error("Error creating joint account", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -1469,7 +1625,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/joint-accounts/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/joint-accounts/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const account = await storage.getJointAccount(req.params.id);
@@ -1498,7 +1654,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(updated);
     } catch (error: any) {
-      console.error("Error updating joint account:", error);
+      log.error("Error updating joint account", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -1506,7 +1662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/joint-accounts/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/joint-accounts/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const account = await storage.getJointAccount(req.params.id);
@@ -1522,7 +1678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteJointAccount(req.params.id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting joint account:", error);
+      log.error("Error deleting joint account", error);
       res.status(500).json({ message: "Failed to delete joint account" });
     }
   });
@@ -1546,7 +1702,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const owners = await storage.getJointAccountOwners(req.params.jointAccountId);
       res.json(owners);
     } catch (error) {
-      console.error("Error fetching joint account owners:", error);
+      log.error("Error fetching joint account owners", error);
       res.status(500).json({ message: "Failed to fetch owners" });
     }
   });
@@ -1570,7 +1726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ownership = await storage.addJointAccountOwner(parsed);
       res.json(ownership);
     } catch (error: any) {
-      console.error("Error adding joint account owner:", error);
+      log.error("Error adding joint account owner", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -1578,8 +1734,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Alert routes
-  app.get('/api/alerts', isAuthenticated, async (req: any, res) => {
+  // REFACTORING: Alert routes extracted to routes/alerts.ts
+  const { registerAlertRoutes } = await import("./routes/alerts");
+  registerAlertRoutes(app);
+
+  // Legacy alert routes (keeping for now, will be removed after testing)
+  app.get('/api/alerts', 
+    validateQuery(z.object({
+      status: z.enum(['pending', 'executed', 'dismissed']).optional(),
+    })),
+    isAuthenticated, 
+    async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const status = req.query.status as "pending" | "executed" | "dismissed" | undefined;
@@ -1591,12 +1756,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userAlerts = allAlerts.filter(alert => !alert.userId || alert.userId === userId);
       res.json(userAlerts);
     } catch (error) {
-      console.error("Error fetching alerts:", error);
+      log.error("Error fetching alerts", error);
       res.status(500).json({ message: "Failed to fetch alerts" });
     }
   });
 
-  app.patch('/api/alerts/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/alerts/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       
@@ -1625,17 +1790,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           if (archivedCount > 0) {
-            console.log(`Archived ${archivedCount} task(s) related to dismissed alert ${alert.id} for symbol ${existingAlert.symbol}`);
+            log.debug("Archived tasks related to dismissed alert", { archivedCount, alertId: alert.id, symbol: existingAlert.symbol });
           }
         } catch (taskError) {
-          console.error("Error archiving tasks for dismissed alert:", taskError);
+          log.error("Error archiving tasks for dismissed alert", taskError);
           // Don't fail the alert update if task archiving fails
         }
       }
       
       res.json(alert);
     } catch (error: any) {
-      console.error("Error updating alert:", error);
+      log.error("Error updating alert", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -1676,7 +1841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             processedAlerts.add(alertKey);
           } catch (taskError) {
-            console.error(`Error archiving tasks for alert ${alert.signal} ${alert.symbol}:`, taskError);
+            log.error("Error archiving tasks for alert", taskError, { signal: alert.signal, symbol: alert.symbol });
             // Continue processing other alerts even if task archiving fails
           }
         }
@@ -1688,7 +1853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         archivedTasks: totalArchivedTasks
       });
     } catch (error: any) {
-      console.error("Error dismissing all alerts:", error);
+      log.error("Error dismissing all alerts", error);
       res.status(500).json({ message: "Failed to dismiss alerts" });
     }
   });
@@ -1795,13 +1960,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const totalValue = allPositions.reduce((sum, p) => {
           const qty = parseFloat(p.quantity || '0');
           const price = parseFloat(p.currentPrice || p.entryPrice || '0');
+          // Validate: ensure non-negative values
+          if (qty < 0 || price < 0 || isNaN(qty) || isNaN(price)) {
+            log.warn("[Affected Accounts] Invalid position values: qty=${qty}, price=${price} for position ${p.id}");
+            return sum;
+          }
           return sum + (qty * price);
         }, 0);
         
         // Calculate current position value and percentage
         const positionQty = parseFloat(position.quantity || '0');
         const positionPrice = parseFloat(position.currentPrice || position.entryPrice || '0');
+        
+        // Validate position values
+        if (positionQty < 0 || positionPrice < 0 || isNaN(positionQty) || isNaN(positionPrice)) {
+          log.warn("[Affected Accounts] Invalid position values: qty=${positionQty}, price=${positionPrice} for position ${position.id}");
+          continue;
+        }
+        
         const currentValue = positionQty * positionPrice;
+        // SECURITY: Prevent division by zero
         const actualPercentage = totalValue > 0 ? (currentValue / totalValue) * 100 : 0;
         
         // Find target allocation for this symbol
@@ -1922,6 +2100,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const portfolioValue = allPositions.reduce((sum, p) => {
           const qty = parseFloat(p.quantity || '0');
           const price = parseFloat(p.currentPrice || p.entryPrice || '0');
+          // Validate: ensure non-negative values
+          if (qty < 0 || price < 0 || isNaN(qty) || isNaN(price)) {
+            log.warn("[Affected Accounts] Invalid position values: qty=${qty}, price=${price} for position ${p.id}");
+            return sum;
+          }
           return sum + (qty * price);
         }, 0);
         
@@ -1958,33 +2141,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(affectedAccounts);
     } catch (error) {
-      console.error("Error fetching affected accounts:", error);
+      log.error("Error fetching affected accounts", error);
       res.status(500).json({ message: "Failed to fetch affected accounts" });
     }
   });
 
-  // TradingView webhook endpoint - validates secret for security
-  app.post('/api/webhooks/tradingview', async (req, res) => {
+  // TradingView webhook endpoint - validates secret and IP whitelist for security
+  app.post('/api/webhooks/tradingview', rateLimit(webhookRateLimiter, (req) => {
+    // Rate limit by IP for webhooks
+    return req.ip || req.socket.remoteAddress || 'unknown';
+  }), async (req, res) => {
     try {
-      // Validate webhook secret if configured
-      // Note: TradingView doesn't reliably send query params or custom body fields
-      // For now, we'll log a warning but allow the webhook to proceed
-      // TODO: Implement IP whitelist or other security measure
+      // SECURITY: IP whitelist validation (CRITICAL FIX #1)
+      const tradingViewIpWhitelist = process.env.TRADINGVIEW_IP_WHITELIST;
+      if (tradingViewIpWhitelist && process.env.NODE_ENV === 'production') {
+        // Get client IP (handle proxies)
+        const clientIp = req.ip || 
+                        req.socket.remoteAddress || 
+                        (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 
+                        'unknown';
+        
+        const allowedIps = tradingViewIpWhitelist.split(',').map(ip => ip.trim());
+        const isIpAllowed = allowedIps.some(allowedIp => {
+          // Support CIDR notation (e.g., "192.168.1.0/24") or exact IP
+          if (allowedIp.includes('/')) {
+            // Simple CIDR check (for production, consider using ipaddr.js library)
+            const [network, prefixLength] = allowedIp.split('/');
+            // For now, do exact match on network part - full CIDR implementation would require a library
+            return clientIp.startsWith(network);
+          }
+          return clientIp === allowedIp;
+        });
+        
+        if (!isIpAllowed) {
+          log.warn("TradingView Webhook - rejected request from IP (not in whitelist)", { clientIp });
+          return res.status(403).json({ 
+            message: "Forbidden: IP address not whitelisted",
+            // Don't reveal whitelist in error message
+          });
+        }
+        log.debug("TradingView Webhook - IP validated against whitelist", { clientIp });
+      } else if (process.env.NODE_ENV === 'production' && !tradingViewIpWhitelist) {
+        log.warn("TradingView Webhook - TRADINGVIEW_IP_WHITELIST not set in production - webhook is less secure");
+      }
+      
+      // SECURITY: Require webhook secret validation in production
       const webhookSecret = process.env.TRADINGVIEW_WEBHOOK_SECRET;
       if (webhookSecret) {
         // Check URL query param, header, or body for secret
         const providedSecret = req.query.secret || req.headers['x-webhook-secret'] || req.body?.secret;
         
         if (providedSecret && providedSecret !== webhookSecret) {
-          console.error(`[TradingView Webhook] Secret mismatch. Expected: ${webhookSecret.substring(0, 8)}..., Got: ${providedSecret.substring(0, 8)}...`);
+          log.error("TradingView Webhook - secret mismatch", undefined, { 
+            expectedPrefix: webhookSecret.substring(0, 8),
+            providedPrefix: providedSecret?.substring(0, 8) 
+          });
           return res.status(401).json({ message: "Unauthorized: Invalid webhook secret" });
         }
         
-        if (!providedSecret) {
-          console.warn(`[TradingView Webhook] ⚠️ No secret provided - allowing webhook (consider IP whitelist for production)`);
-        } else {
-          console.log(`[TradingView Webhook] ✓ Secret validated successfully`);
+        // SECURITY: In production, require secret to be provided
+        if (!providedSecret && process.env.NODE_ENV === 'production') {
+          log.warn("TradingView Webhook - no secret provided in production, rejecting");
+          return res.status(401).json({ message: "Unauthorized: Webhook secret required" });
         }
+        
+        if (!providedSecret && isLocalDev) {
+          log.warn("TradingView Webhook - no secret provided - allowing webhook in local dev mode only");
+        } else if (providedSecret) {
+          log.debug("[TradingView Webhook] ✓ Secret validated successfully");
+        }
+      } else if (process.env.NODE_ENV === 'production') {
+        // SECURITY: Warn if no secret is configured in production
+        log.warn("[TradingView Webhook] ⚠️ TRADINGVIEW_WEBHOOK_SECRET not set in production - webhook is unsecured");
       }
       
       // Validate webhook payload
@@ -2021,9 +2249,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Debug logging
-      console.log(`[TradingView Webhook] Received ${parsed.signal} alert for ${parsed.symbol}`);
+      log.debug("TradingView Webhook - received alert", { signal: parsed.signal, symbol: parsed.symbol });
       const normalizedAlertSymbol = normalizeTicker(parsed.symbol);
-      console.log(`[TradingView Webhook] Normalized symbol: ${normalizedAlertSymbol}`);
+      log.debug("TradingView Webhook - normalized symbol", { normalized: normalizedAlertSymbol });
       
       // Process alerts for both BUY and SELL signals
       const tasksCreated: string[] = [];
@@ -2037,7 +2265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Find all positions for this symbol
         const positionsForSymbol = await storage.getPositionsBySymbol(parsed.symbol);
-        console.log(`[TradingView Webhook] Found ${positionsForSymbol.length} positions for ${parsed.symbol}`);
+        log.debug("TradingView Webhook - found positions", { count: positionsForSymbol.length, symbol: parsed.symbol });
         
         // Process each position to check if it matches the signal
         for (const position of positionsForSymbol) {
@@ -2114,39 +2342,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Find the position's actual allocation
           const positionValue = Number(position.quantity) * Number(position.currentPrice);
-          const actualPercent = (positionValue / totalActualValue) * 100;
+          // SECURITY: Prevent division by zero
+          const actualPercent = totalActualValue > 0 ? (positionValue / totalActualValue) * 100 : 0;
           
           // Find target allocation for this symbol
-          console.log(`[TradingView Webhook] Looking for target allocation. Position symbol: ${position.symbol}, Normalized alert: ${normalizedAlertSymbol}`);
-          console.log(`[TradingView Webhook] Available target allocations:`, targetAllocations.map(t => ({
-            ticker: t.holding?.ticker,
-            normalized: t.holding?.ticker ? normalizeTicker(t.holding.ticker) : 'N/A',
-            targetPercent: t.targetPercentage
-          })));
+          log.debug("TradingView Webhook - looking for target allocation", { positionSymbol: position.symbol, normalizedAlert: normalizedAlertSymbol });
+          log.debug("TradingView Webhook - available target allocations", { 
+            allocations: targetAllocations.map(t => ({
+              ticker: t.holding?.ticker,
+              normalized: t.holding?.ticker ? normalizeTicker(t.holding.ticker) : 'N/A',
+              targetPercent: t.targetPercentage
+            }))
+          });
           
           const targetAlloc = targetAllocations.find(t => {
             if (!t.holding?.ticker) return false;
             const normalizedTicker = normalizeTicker(t.holding.ticker);
             const matches = normalizedTicker === normalizedAlertSymbol;
             if (matches) {
-              console.log(`[TradingView Webhook] ✓ Found matching target allocation: ${t.holding.ticker} (normalized: ${normalizedTicker}) = ${normalizedAlertSymbol}`);
+              log.debug("TradingView Webhook - found matching target allocation", { ticker: t.holding.ticker, normalized: normalizedTicker, alertSymbol: normalizedAlertSymbol });
             }
             return matches;
           });
           const targetPercent = targetAlloc ? Number(targetAlloc.targetPercentage) : 0;
           
           if (!targetAlloc) {
-            console.log(`[TradingView Webhook] ✗ No target allocation found for ${normalizedAlertSymbol} in account ${accountId}`);
+            log.debug("TradingView Webhook - no target allocation found", { symbol: normalizedAlertSymbol, accountId });
           }
           
-          console.log(`[TradingView Webhook] Account ${accountId} (${householdName}): actual=${actualPercent.toFixed(2)}%, target=${targetPercent.toFixed(2)}%, signal=${parsed.signal}`);
+          log.debug("TradingView Webhook - account allocation status", { accountId, householdName, actualPercent, targetPercent, signal: parsed.signal });
           
           // Check if position matches signal criteria
           const shouldProcess = shouldProcessPosition(actualPercent, targetPercent, parsed.signal);
-          console.log(`[TradingView Webhook] shouldProcessPosition(${actualPercent.toFixed(2)}, ${targetPercent.toFixed(2)}, ${parsed.signal}) = ${shouldProcess}`);
+          log.debug("TradingView Webhook - should process position", { actualPercent, targetPercent, signal: parsed.signal, shouldProcess });
           
           if (shouldProcess) {
-            console.log(`[TradingView Webhook] ✓ Creating task for ${householdName} - ${account.type} (${actualPercent.toFixed(2)}% < ${targetPercent.toFixed(2)}%)`);
+            log.debug("TradingView Webhook - creating task", { householdName, accountType: account.type, actualPercent, targetPercent });
             try {
               // Use TradingView alert price for calculations (current market price)
               const alertPrice = Number(parsed.price);
@@ -2265,13 +2496,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     
                     const actual = actualByTicker.get(normalizedTicker);
                     const actualValue = actual?.value || 0;
+                    // SECURITY: Prevent division by zero
                     const actualPercentage = totalActualValue > 0 ? (actualValue / totalActualValue) * 100 : 0;
-                    const targetPercentage = Number(allocation.targetPercentage);
+                    const targetPercentage = Number(allocation.targetPercentage) || 0;
+                    
+                    // Validate target percentage
+                    if (targetPercentage < 0 || targetPercentage > 100) {
+                      log.warn("Rebalance Report - invalid target percentage", { targetPercentage, allocationId: allocation.id });
+                      continue;
+                    }
+                    
                     const variance = actualPercentage - targetPercentage;
                     const targetValue = totalActualValue > 0 ? (targetPercentage / 100) * totalActualValue : 0;
                     const changeNeeded = targetValue - actualValue;
-                    const currentPrice = actual?.price || 1;
-                    const sharesToTrade = currentPrice > 0 ? changeNeeded / currentPrice : 0;
+                    const currentPrice = actual?.price || Number(allocation.holding?.price) || 0;
+                    
+                    // SECURITY: Validate price to prevent division by zero
+                    if (currentPrice <= 0) {
+                      log.warn("Rebalance Report - invalid or missing price", { ticker: displayTicker, price: currentPrice });
+                      continue;
+                    }
+                    
+                    const sharesToTrade = changeNeeded / currentPrice;
                     
                     reportPositions.push({
                       symbol: displayTicker,
@@ -2339,11 +2585,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   
                   reportsSent.push(`${fullAccountName} (${householdName})`);
                 } catch (emailError) {
-                  console.error(`Failed to send report for account ${accountId}:`, emailError);
+                  log.error("Failed to send report for account", emailError, { accountId });
                 }
               }
             } catch (taskError) {
-              console.error(`Failed to create task for account ${accountId}:`, taskError);
+              log.error("Failed to create task for account", taskError, { accountId });
             }
           }
         }
@@ -2352,7 +2598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // These accounts have planned to hold this ticker but haven't bought yet
         if (parsed.signal === 'BUY') {
           const targetAllocationsForSymbol = await storage.getAccountTargetAllocationsBySymbol(parsed.symbol);
-          console.log(`[TradingView Webhook] Found ${targetAllocationsForSymbol.length} target allocations (no positions) for ${parsed.symbol}`);
+          log.debug("TradingView Webhook - found target allocations (no positions)", { count: targetAllocationsForSymbol.length, symbol: parsed.symbol });
           
           for (const allocation of targetAllocationsForSymbol) {
             const accountKey = `${allocation.accountType}:${allocation.accountId}`;
@@ -2409,22 +2655,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
               continue;
             }
             
-            // Calculate total portfolio value
-            const totalActualValue = allPositions.reduce((sum, pos) => {
-              return sum + (Number(pos.quantity) * Number(pos.currentPrice));
-            }, 0);
-            
-            // Skip if no existing portfolio value (can't calculate allocations)
-            if (totalActualValue <= 0) continue;
-            
-            // Current allocation is 0% since they don't hold this position
-            const actualPercent = 0;
-            const targetPercent = Number(allocation.targetPercentage);
-            
-            // Calculate how much they should buy
-            const targetValue = (targetPercent / 100) * totalActualValue;
-            const sharePrice = parsed.price;
-            const sharesToBuy = sharePrice > 0 ? targetValue / sharePrice : 0;
+        // Calculate total portfolio value
+        const totalActualValue = allPositions.reduce((sum, pos) => {
+          const qty = Number(pos.quantity) || 0;
+          const price = Number(pos.currentPrice) || 0;
+          // Validate: ensure non-negative values
+          if (qty < 0 || price < 0) {
+            log.warn("Webhook - invalid position values", { qty, price, positionId: pos.id });
+            return sum;
+          }
+          return sum + (qty * price);
+        }, 0);
+        
+        // Skip if no existing portfolio value (can't calculate allocations)
+        if (totalActualValue <= 0) continue;
+        
+        // Current allocation is 0% since they don't hold this position
+        const actualPercent = 0;
+        const targetPercent = Number(allocation.targetPercentage) || 0;
+        
+        // Validate target percentage
+        if (targetPercent < 0 || targetPercent > 100) {
+          log.warn("Webhook - invalid target percentage", { targetPercent, allocationId: allocation.id });
+          continue;
+        }
+        
+        // Calculate how much they should buy
+        const targetValue = (targetPercent / 100) * totalActualValue;
+        const sharePrice = Number(parsed.price) || 0;
+        
+        // SECURITY: Validate share price to prevent division by zero and negative prices
+        if (sharePrice <= 0) {
+          log.warn("Webhook - invalid share price", { sharePrice, symbol: parsed.symbol });
+          continue;
+        }
+        
+        const sharesToBuy = targetValue / sharePrice;
             
             // Create task
             try {
@@ -2591,11 +2857,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   
                   reportsSent.push(`${fullAccountName} (${householdName}) - Not Held`);
                 } catch (emailError) {
-                  console.error(`Failed to send report for target-only account ${allocation.accountId}:`, emailError);
+                  log.error("Failed to send report for target-only account", emailError, { accountId: allocation.accountId });
                 }
               }
             } catch (taskError) {
-              console.error(`Failed to create task for target-only account ${allocation.accountId}:`, taskError);
+              log.error("Failed to create task for target-only account", taskError, { accountId: allocation.accountId });
             }
           }
         }
@@ -2610,7 +2876,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accounts: reportsSent
       });
     } catch (error: any) {
-      console.error("Error processing TradingView webhook:", error);
+      log.error("Error processing TradingView webhook", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid webhook data", errors: error.errors });
       }
@@ -2619,7 +2885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Position routes
-  app.get('/api/individual-accounts/:accountId/positions', isAuthenticated, async (req: any, res) => {
+  app.get('/api/individual-accounts/:accountId/positions', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = await storage.getHouseholdIdFromAccount('individual', req.params.accountId);
@@ -2635,12 +2901,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const positions = await storage.getPositionsByIndividualAccount(req.params.accountId);
       res.json(positions);
     } catch (error) {
-      console.error("Error fetching positions:", error);
+      log.error("Error fetching positions", error);
       res.status(500).json({ message: "Failed to fetch positions" });
     }
   });
 
-  app.get('/api/corporate-accounts/:accountId/positions', isAuthenticated, async (req: any, res) => {
+  app.get('/api/corporate-accounts/:accountId/positions', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = await storage.getHouseholdIdFromAccount('corporate', req.params.accountId);
@@ -2656,12 +2922,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const positions = await storage.getPositionsByCorporateAccount(req.params.accountId);
       res.json(positions);
     } catch (error) {
-      console.error("Error fetching positions:", error);
+      log.error("Error fetching positions", error);
       res.status(500).json({ message: "Failed to fetch positions" });
     }
   });
 
-  app.get('/api/joint-accounts/:accountId/positions', isAuthenticated, async (req: any, res) => {
+  app.get('/api/joint-accounts/:accountId/positions', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = await storage.getHouseholdIdFromAccount('joint', req.params.accountId);
@@ -2677,13 +2943,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const positions = await storage.getPositionsByJointAccount(req.params.accountId);
       res.json(positions);
     } catch (error) {
-      console.error("Error fetching positions:", error);
+      log.error("Error fetching positions", error);
       res.status(500).json({ message: "Failed to fetch positions" });
     }
   });
 
   // Watchlist position routes
-  app.get('/api/individual-accounts/:accountId/watchlist-positions', isAuthenticated, async (req: any, res) => {
+  app.get('/api/individual-accounts/:accountId/watchlist-positions', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = await storage.getHouseholdIdFromAccount('individual', req.params.accountId);
@@ -2699,12 +2965,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const positions = await storage.getWatchlistPositionsByIndividualAccount(req.params.accountId);
       res.json(positions);
     } catch (error) {
-      console.error("Error fetching watchlist positions:", error);
+      log.error("Error fetching watchlist positions", error);
       res.status(500).json({ message: "Failed to fetch watchlist positions" });
     }
   });
 
-  app.get('/api/corporate-accounts/:accountId/watchlist-positions', isAuthenticated, async (req: any, res) => {
+  app.get('/api/corporate-accounts/:accountId/watchlist-positions', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = await storage.getHouseholdIdFromAccount('corporate', req.params.accountId);
@@ -2720,12 +2986,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const positions = await storage.getWatchlistPositionsByCorporateAccount(req.params.accountId);
       res.json(positions);
     } catch (error) {
-      console.error("Error fetching watchlist positions:", error);
+      log.error("Error fetching watchlist positions", error);
       res.status(500).json({ message: "Failed to fetch watchlist positions" });
     }
   });
 
-  app.get('/api/joint-accounts/:accountId/watchlist-positions', isAuthenticated, async (req: any, res) => {
+  app.get('/api/joint-accounts/:accountId/watchlist-positions', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = await storage.getHouseholdIdFromAccount('joint', req.params.accountId);
@@ -2741,13 +3007,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const positions = await storage.getWatchlistPositionsByJointAccount(req.params.accountId);
       res.json(positions);
     } catch (error) {
-      console.error("Error fetching watchlist positions:", error);
+      log.error("Error fetching watchlist positions", error);
       res.status(500).json({ message: "Failed to fetch watchlist positions" });
     }
   });
 
   // Create watchlist for account
-  app.post('/api/accounts/:accountType/:accountId/watchlist', isAuthenticated, async (req: any, res) => {
+  app.post('/api/accounts/:accountType/:accountId/watchlist', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { accountType, accountId } = req.params;
@@ -2789,13 +3055,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(watchlist);
     } catch (error) {
-      console.error("Error creating watchlist:", error);
+      log.error("Error creating watchlist", error);
       res.status(500).json({ message: "Failed to create watchlist" });
     }
   });
 
   // Add position to watchlist
-  app.post('/api/accounts/:accountType/:accountId/watchlist/positions', isAuthenticated, async (req: any, res) => {
+  app.post('/api/accounts/:accountType/:accountId/watchlist/positions', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { accountType, accountId } = req.params;
@@ -2858,7 +3124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const position = await storage.createPosition(parsed);
       res.status(201).json(position);
     } catch (error: any) {
-      console.error("Error creating watchlist position:", error);
+      log.error("Error creating watchlist position", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid position data", errors: error.errors });
       }
@@ -2928,7 +3194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(position);
     } catch (error: any) {
-      console.error("Error creating position:", error);
+      log.error("Error creating position", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -2936,7 +3202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/positions/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/positions/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = await storage.getHouseholdIdFromPosition(req.params.id);
@@ -2988,7 +3254,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(position);
     } catch (error: any) {
-      console.error("Error updating position:", error);
+      log.error("Error updating position", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -2996,7 +3262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/positions/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/positions/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const householdId = await storage.getHouseholdIdFromPosition(req.params.id);
@@ -3032,7 +3298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ success: true });
     } catch (error) {
-      console.error("Error deleting position:", error);
+      log.error("Error deleting position", error);
       res.status(500).json({ message: "Failed to delete position" });
     }
   });
@@ -3177,10 +3443,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const normalizedSymbol = normalizeSymbolForMatching(positionData.symbol);
             existingPosition = existingPositionsMap.get(normalizedSymbol);
             if (existingPosition) {
-              console.log(`[Bulk Upload] Matched position by normalized symbol: ${positionData.symbol} (normalized: ${normalizedSymbol}) matches existing ${existingPosition.symbol}`);
+              log.debug("[Bulk Upload] Matched position by normalized symbol: ${positionData.symbol} (normalized: ${normalizedSymbol}) matches existing ${existingPosition.symbol}");
             }
           } else {
-            console.log(`[Bulk Upload] Matched position by exact symbol: ${positionData.symbol}`);
+            log.debug("[Bulk Upload] Matched position by exact symbol: ${positionData.symbol}");
           }
           
           if (existingPosition) {
@@ -3196,7 +3462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               limitPrice: existingPosition.limitPrice,
             };
             
-            console.log(`[Bulk Upload] Updating position ${existingPosition.id} (${existingPosition.symbol} -> ${positionData.symbol}), preserving protection: ${existingPosition.protectionPercent}%, stop: ${existingPosition.stopPrice}, limit: ${existingPosition.limitPrice}`);
+            log.debug("[Bulk Upload] Updating position ${existingPosition.id} (${existingPosition.symbol} -> ${positionData.symbol}), preserving protection: ${existingPosition.protectionPercent}%, stop: ${existingPosition.stopPrice}, limit: ${existingPosition.limitPrice}");
             
             const parsed = insertPositionSchema.parse(updateData);
             const updatedPosition = await storage.updatePosition(existingPosition.id, parsed);
@@ -3253,14 +3519,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           let totalValue = 0;
           for (const pos of allProcessedPositions) {
             if (pos.symbol.toUpperCase() !== 'CASH') {
-              totalValue += Number(pos.quantity) * Number(pos.currentPrice);
+              const qty = Number(pos.quantity) || 0;
+              const price = Number(pos.currentPrice) || 0;
+              // Validate: ensure non-negative values
+              if (qty >= 0 && price >= 0 && !isNaN(qty) && !isNaN(price)) {
+                totalValue += qty * price;
+              }
             }
           }
           
           // Create target allocation for each non-cash position based on percentage
           for (const pos of allProcessedPositions) {
-            if (pos.symbol.toUpperCase() !== 'CASH' && totalValue > 0) {
-              const posValue = Number(pos.quantity) * Number(pos.currentPrice);
+            if (pos.symbol.toUpperCase() === 'CASH') continue;
+            
+            if (totalValue > 0) {
+              const qty = Number(pos.quantity) || 0;
+              const price = Number(pos.currentPrice) || 0;
+              // Validate: ensure non-negative values
+              if (qty < 0 || price < 0 || isNaN(qty) || isNaN(price)) {
+                log.warn("[Bulk Upload] Invalid position values: qty=${qty}, price=${price} for symbol ${pos.symbol}");
+                continue;
+              }
+              
+              const posValue = qty * price;
+              // SECURITY: Prevent division by zero (already checked totalValue > 0)
               const targetPercentage = (posValue / totalValue) * 100;
               
               // Get or create universal holding (with enhanced lookup)
@@ -3323,7 +3605,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         } catch (error: any) {
-          console.error("Error creating target allocations:", error);
+          log.error("Error creating target allocations", error);
           // Don't fail the import if target allocation creation fails
         }
       }
@@ -3381,7 +3663,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: message || 'No positions processed'
       });
     } catch (error: any) {
-      console.error("Error bulk creating positions:", error);
+      log.error("Error bulk creating positions", error);
       res.status(500).json({ message: "Failed to import positions", error: error.message });
     }
   });
@@ -3456,13 +3738,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `Fetched ${Object.keys(results).length - errors.length} of ${symbols.length} quotes`
       });
     } catch (error: any) {
-      console.error("Error fetching market quotes:", error);
+      log.error("Error fetching market quotes", error);
       res.status(500).json({ message: "Failed to fetch market quotes", error: error.message });
     }
   });
 
   // Refresh prices for all positions in an account
-  app.post('/api/accounts/:accountType/:accountId/refresh-prices', isAuthenticated, async (req: any, res) => {
+  app.post('/api/accounts/:accountType/:accountId/refresh-prices', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { accountType, accountId } = req.params;
@@ -3590,13 +3872,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `Updated ${updatedCount} positions${errors.length > 0 ? `, ${errors.length} symbols not found` : ''}`
       });
     } catch (error: any) {
-      console.error("Error refreshing prices:", error);
+      log.error("Error refreshing prices", error);
       res.status(500).json({ message: "Failed to refresh prices", error: error.message });
     }
   });
 
   // Account Target Allocation routes
-  app.get('/api/accounts/:accountType/:accountId/target-allocations', isAuthenticated, async (req: any, res) => {
+  app.get('/api/accounts/:accountType/:accountId/target-allocations', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { accountType, accountId } = req.params;
@@ -3629,12 +3911,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(allocations);
     } catch (error) {
-      console.error("Error fetching account target allocations:", error);
+      log.error("Error fetching account target allocations", error);
       res.status(500).json({ message: "Failed to fetch account target allocations" });
     }
   });
 
-  app.post('/api/accounts/:accountType/:accountId/target-allocations', isAuthenticated, async (req: any, res) => {
+  app.post('/api/accounts/:accountType/:accountId/target-allocations', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { accountType, accountId } = req.params;
@@ -3663,7 +3945,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allocation = await storage.createAccountTargetAllocation(allocationData);
       res.json(allocation);
     } catch (error: any) {
-      console.error("Error creating account target allocation:", error);
+      log.error("Error creating account target allocation", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -3671,7 +3953,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/account-target-allocations/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/account-target-allocations/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       
@@ -3690,7 +3972,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allocation = await storage.updateAccountTargetAllocation(req.params.id, parsed);
       res.json(allocation);
     } catch (error: any) {
-      console.error("Error updating account target allocation:", error);
+      log.error("Error updating account target allocation", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -3698,7 +3980,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/account-target-allocations/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/account-target-allocations/:id', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       
@@ -3716,13 +3998,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteAccountTargetAllocation(req.params.id);
       res.json({ success: true });
     } catch (error) {
-      console.error("Error deleting account target allocation:", error);
+      log.error("Error deleting account target allocation", error);
       res.status(500).json({ message: "Failed to delete account target allocation" });
     }
   });
 
   // Inline target allocation - sets target % for a ticker, auto-adds to Universal Holdings if needed
-  app.post('/api/accounts/:accountType/:accountId/inline-target-allocation', isAuthenticated, async (req: any, res) => {
+  app.post('/api/accounts/:accountType/:accountId/inline-target-allocation', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { accountType, accountId } = req.params;
@@ -3888,13 +4170,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
     } catch (error: any) {
-      console.error("Error setting inline target allocation:", error);
+      log.error("Error setting inline target allocation", error);
       res.status(500).json({ message: "Failed to set target allocation", error: error.message });
     }
   });
 
   // Copy allocations from a model portfolio (planned or freelance) to an account
-  app.post('/api/accounts/:accountType/:accountId/copy-from-portfolio/:portfolioId', isAuthenticated, async (req: any, res) => {
+  app.post('/api/accounts/:accountType/:accountId/copy-from-portfolio/:portfolioId', validateUUIDParam('accountId'), validateUUIDParam('portfolioId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { accountType, accountId, portfolioId } = req.params;
@@ -3982,13 +4264,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allocationsCount: createdAllocations.length
       });
     } catch (error) {
-      console.error("Error copying allocations from portfolio:", error);
+      log.error("Error copying allocations from portfolio", error);
       res.status(500).json({ message: "Failed to copy allocations from portfolio" });
     }
   });
 
   // Portfolio comparison endpoint - compares actual holdings vs account-specific target allocations
-  app.get('/api/accounts/:accountType/:accountId/portfolio-comparison', isAuthenticated, async (req, res) => {
+  app.get('/api/accounts/:accountType/:accountId/portfolio-comparison', validateUUIDParam('accountId'), isAuthenticated, async (req, res) => {
     try {
       const { accountType, accountId } = req.params;
       
@@ -4122,7 +4404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         } catch (error) {
-          console.error("Error fetching prices from Yahoo Finance:", error);
+          log.error("Error fetching prices from Yahoo Finance", error);
           // Continue without fetched prices - will show 0 shares for those tickers
         }
       }
@@ -4226,7 +4508,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalTargetPercentage: Math.round(totalTargetPercentage * 100) / 100
       });
     } catch (error) {
-      console.error("Error fetching portfolio comparison:", error);
+      log.error("Error fetching portfolio comparison", error);
       res.status(500).json({ message: "Failed to fetch portfolio comparison" });
     }
   });
@@ -4249,7 +4531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(accessibleTrades.filter(Boolean));
     } catch (error) {
-      console.error("Error fetching trades:", error);
+      log.error("Error fetching trades", error);
       res.status(500).json({ message: "Failed to fetch trades" });
     }
   });
@@ -4281,7 +4563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const trade = await storage.createTrade(parsed);
       res.json(trade);
     } catch (error: any) {
-      console.error("Error creating trade:", error);
+      log.error("Error creating trade", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -4295,7 +4577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const holdings = await storage.getAllUniversalHoldings();
       res.json(holdings);
     } catch (error) {
-      console.error("Error fetching universal holdings:", error);
+      log.error("Error fetching universal holdings", error);
       res.status(500).json({ message: "Failed to fetch universal holdings" });
     }
   });
@@ -4312,7 +4594,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const holding = await storage.createUniversalHolding(parsed);
       res.json(holding);
     } catch (error: any) {
-      console.error("Error creating universal holding:", error);
+      log.error("Error creating universal holding", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -4382,14 +4664,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             symbolsToTry.push(`${holding.ticker}.US`);
           }
           
-          console.log(`[Universal Holdings Refresh] Trying symbols for ${holding.ticker}:`, symbolsToTry);
+          log.debug("Universal Holdings Refresh - trying symbols", { ticker: holding.ticker, symbolsToTry });
           
           for (const symbol of symbolsToTry) {
             try {
               const result = await yahooFinance.quote(symbol);
               if (result && (result as any).regularMarketPrice) {
                 quote = result as any;
-                console.log(`[Universal Holdings Refresh] Found price for ${symbol}: ${quote.regularMarketPrice}`);
+                log.debug("[Universal Holdings Refresh] Found price for ${symbol}: ${quote.regularMarketPrice}");
                 break;
               }
             } catch (e) {
@@ -4406,14 +4688,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             updatedCount++;
           } else {
-            console.log(`[Universal Holdings Refresh] Could not find price for ${holding.ticker} - tried all suffixes`);
+            log.debug("[Universal Holdings Refresh] Could not find price for ${holding.ticker} - tried all suffixes");
             tickerPriceCache[holding.ticker] = null;
             if (!errors.includes(holding.ticker)) {
               errors.push(holding.ticker);
             }
           }
         } catch (error: any) {
-          console.error(`Error fetching quote for ${holding.ticker}:`, error);
+          log.error("Error fetching quote for ${holding.ticker}:", error);
           tickerPriceCache[holding.ticker] = null;
           if (!errors.includes(holding.ticker)) {
             errors.push(holding.ticker);
@@ -4428,7 +4710,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `Updated ${updatedCount} holdings${errors.length > 0 ? `, ${errors.length} symbols not found` : ''}`
       });
     } catch (error: any) {
-      console.error("Error refreshing universal holdings prices:", error);
+      log.error("Error refreshing universal holdings prices", error);
       res.status(500).json({ message: "Failed to refresh prices", error: error.message });
     }
   });
@@ -4493,7 +4775,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             symbolsToTry.push(`${holding.ticker}.NE`);   // NEO Exchange
           }
           
-          console.log(`[Dividend Refresh] Trying symbols for ${holding.ticker}:`, symbolsToTry);
+          log.debug("Dividend Refresh - trying symbols", { ticker: holding.ticker, symbolsToTry });
           
           let chartData = null;
           let quoteSummaryData = null;
@@ -4543,10 +4825,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Try to get upcoming ex-dividend date from quoteSummary first (this is the NEXT ex-date)
             if (quoteSummaryData?.calendarEvents?.exDividendDate) {
               exDate = new Date(quoteSummaryData.calendarEvents.exDividendDate);
-              console.log(`[Dividend Refresh] Found upcoming ex-date from calendarEvents for ${workingSymbol}: ${exDate.toISOString()}`);
+              log.debug("[Dividend Refresh] Found upcoming ex-date from calendarEvents for ${workingSymbol}: ${exDate.toISOString()}");
             } else if (quoteSummaryData?.summaryDetail?.exDividendDate) {
               exDate = new Date(quoteSummaryData.summaryDetail.exDividendDate);
-              console.log(`[Dividend Refresh] Found ex-date from summaryDetail for ${workingSymbol}: ${exDate.toISOString()}`);
+              log.debug("[Dividend Refresh] Found ex-date from summaryDetail for ${workingSymbol}: ${exDate.toISOString()}");
             }
             
             // Get dividend rate and yield from summaryDetail if available
@@ -4557,10 +4839,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 dividendRate = sd.dividendRate;
               } else if (sd.trailingAnnualDividendRate) {
                 dividendRate = sd.trailingAnnualDividendRate;
-                console.log(`[Dividend Refresh] Using trailingAnnualDividendRate for ${workingSymbol}: ${dividendRate}`);
+                log.debug("[Dividend Refresh] Using trailingAnnualDividendRate for ${workingSymbol}: ${dividendRate}");
               } else if (sd.forwardAnnualDividendRate) {
                 dividendRate = sd.forwardAnnualDividendRate;
-                console.log(`[Dividend Refresh] Using forwardAnnualDividendRate for ${workingSymbol}: ${dividendRate}`);
+                log.debug("[Dividend Refresh] Using forwardAnnualDividendRate for ${workingSymbol}: ${dividendRate}");
               }
               
               // Get yield - try multiple sources
@@ -4569,7 +4851,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               } else if (sd.trailingAnnualDividendYield) {
                 dividendYield = sd.trailingAnnualDividendYield * 100;
               } else if (dividendRate && price) {
-                dividendYield = (dividendRate / price) * 100;
+                // SECURITY: Prevent division by zero
+                dividendYield = price > 0 ? (dividendRate / price) * 100 : 0;
               }
             }
             
@@ -4605,7 +4888,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
               const avgDaysBetweenPayments = totalDays / (sortedEvents.length - 1);
               
-              console.log(`[Dividend Refresh] ${workingSymbol}: ${divEvents.length} payments, avg ${avgDaysBetweenPayments.toFixed(1)} days apart`);
+              log.debug("[Dividend Refresh] ${workingSymbol}: ${divEvents.length} payments, avg ${avgDaysBetweenPayments.toFixed(1)} days apart");
               
               // Determine frequency based on spacing (with tolerance)
               if (avgDaysBetweenPayments <= 45) return "monthly";        // ~30 days, allow up to 45
@@ -4644,7 +4927,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               payoutFrequency = determineFrequencyFromSpacing(divEvents);
             }
             
-            console.log(`[Dividend Refresh] Final dividend info for ${workingSymbol}:`, {
+            log.debug("Dividend Refresh - final dividend info", {
+              symbol: workingSymbol,
               rate: dividendRate.toFixed(4),
               yield: dividendYield.toFixed(2) + '%',
               frequency: payoutFrequency,
@@ -4667,14 +4951,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             updatedCount++;
           } else {
-            console.log(`[Dividend Refresh] Could not find dividend info for ${holding.ticker}`);
+            log.debug("[Dividend Refresh] Could not find dividend info for ${holding.ticker}");
             dividendCache[holding.ticker] = { rate: null, yield: null, exDate: null, frequency: null };
             if (!errors.includes(holding.ticker)) {
               errors.push(holding.ticker);
             }
           }
         } catch (error: any) {
-          console.error(`Error fetching dividend data for ${holding.ticker}:`, error);
+          log.error("Error fetching dividend data for ${holding.ticker}:", error);
           dividendCache[holding.ticker] = { rate: null, yield: null, exDate: null, frequency: null };
           if (!errors.includes(holding.ticker)) {
             errors.push(holding.ticker);
@@ -4689,7 +4973,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `Updated dividend data for ${updatedCount} holdings${errors.length > 0 ? `, ${errors.length} symbols not found` : ''}`
       });
     } catch (error: any) {
-      console.error("Error refreshing dividend data:", error);
+      log.error("Error refreshing dividend data", error);
       res.status(500).json({ message: "Failed to refresh dividend data", error: error.message });
     }
   });
@@ -4703,7 +4987,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "URL is required" });
       }
 
-      console.log(`[Dividend Fetch] Fetching dividend info from URL: ${url} for ticker: ${ticker}`);
+      log.debug("[Dividend Fetch] Fetching dividend info from URL: ${url} for ticker: ${ticker}");
 
       // Fetch the page content
       const response = await fetch(url, {
@@ -4815,12 +5099,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
     } catch (error: any) {
-      console.error("Error fetching dividend from URL:", error);
+      log.error("Error fetching dividend from URL", error);
       res.status(500).json({ message: "Failed to fetch dividend info", error: error.message });
     }
   });
 
-  app.get('/api/universal-holdings/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/universal-holdings/:id', validateUUIDParam('id'), isAuthenticated, async (req, res) => {
     try {
       const holding = await storage.getUniversalHolding(req.params.id);
       if (!holding) {
@@ -4828,12 +5112,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(holding);
     } catch (error) {
-      console.error("Error fetching universal holding:", error);
+      log.error("Error fetching universal holding", error);
       res.status(500).json({ message: "Failed to fetch universal holding" });
     }
   });
 
-  app.patch('/api/universal-holdings/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/universal-holdings/:id', validateUUIDParam('id'), isAuthenticated, async (req, res) => {
     // Normalize crypto tickers if ticker is being updated
     if (req.body.ticker) {
       req.body.ticker = normalizeCryptoTicker(req.body.ticker);
@@ -4843,7 +5127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const holding = await storage.updateUniversalHolding(req.params.id, parsed);
       res.json(holding);
     } catch (error: any) {
-      console.error("Error updating universal holding:", error);
+      log.error("Error updating universal holding", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -4851,12 +5135,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/universal-holdings/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/universal-holdings/:id', validateUUIDParam('id'), isAuthenticated, async (req, res) => {
     try {
       await storage.deleteUniversalHolding(req.params.id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting universal holding:", error);
+      log.error("Error deleting universal holding", error);
       res.status(500).json({ message: "Failed to delete universal holding" });
     }
   });
@@ -4868,7 +5152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const portfolios = await storage.getAllPlannedPortfoliosWithAllocations(userId);
       res.json(portfolios);
     } catch (error) {
-      console.error("Error fetching planned portfolios:", error);
+      log.error("Error fetching planned portfolios", error);
       res.status(500).json({ message: "Failed to fetch planned portfolios" });
     }
   });
@@ -4880,7 +5164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const portfolio = await storage.createPlannedPortfolio({ ...parsed, userId });
       res.json(portfolio);
     } catch (error: any) {
-      console.error("Error creating planned portfolio:", error);
+      log.error("Error creating planned portfolio", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -4901,7 +5185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(portfolio);
     } catch (error) {
-      console.error("Error fetching planned portfolio:", error);
+      log.error("Error fetching planned portfolio", error);
       res.status(500).json({ message: "Failed to fetch planned portfolio" });
     }
   });
@@ -4921,7 +5205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const portfolio = await storage.updatePlannedPortfolio(req.params.id, parsed);
       res.json(portfolio);
     } catch (error: any) {
-      console.error("Error updating planned portfolio:", error);
+      log.error("Error updating planned portfolio", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -4943,7 +5227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deletePlannedPortfolio(req.params.id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting planned portfolio:", error);
+      log.error("Error deleting planned portfolio", error);
       res.status(500).json({ message: "Failed to delete planned portfolio" });
     }
   });
@@ -4965,7 +5249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.reorderPlannedPortfolios(orderedIds);
       res.json({ success: true });
     } catch (error) {
-      console.error("Error reordering planned portfolios:", error);
+      log.error("Error reordering planned portfolios", error);
       res.status(500).json({ message: "Failed to reorder planned portfolios" });
     }
   });
@@ -4977,7 +5261,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allocation = await storage.createPlannedPortfolioAllocation(parsed);
       res.json(allocation);
     } catch (error: any) {
-      console.error("Error creating planned portfolio allocation:", error);
+      log.error("Error creating planned portfolio allocation", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -4991,7 +5275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allocation = await storage.updatePlannedPortfolioAllocation(req.params.id, parsed);
       res.json(allocation);
     } catch (error: any) {
-      console.error("Error updating planned portfolio allocation:", error);
+      log.error("Error updating planned portfolio allocation", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -5004,7 +5288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deletePlannedPortfolioAllocation(req.params.id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting planned portfolio allocation:", error);
+      log.error("Error deleting planned portfolio allocation", error);
       res.status(500).json({ message: "Failed to delete planned portfolio allocation" });
     }
   });
@@ -5016,7 +5300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const portfolios = await storage.getAllFreelancePortfoliosWithAllocations(userId);
       res.json(portfolios);
     } catch (error) {
-      console.error("Error fetching freelance portfolios:", error);
+      log.error("Error fetching freelance portfolios", error);
       res.status(500).json({ message: "Failed to fetch freelance portfolios" });
     }
   });
@@ -5028,7 +5312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const portfolio = await storage.createFreelancePortfolio({ ...parsed, userId });
       res.json(portfolio);
     } catch (error: any) {
-      console.error("Error creating freelance portfolio:", error);
+      log.error("Error creating freelance portfolio", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -5049,7 +5333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(portfolio);
     } catch (error) {
-      console.error("Error fetching freelance portfolio:", error);
+      log.error("Error fetching freelance portfolio", error);
       res.status(500).json({ message: "Failed to fetch freelance portfolio" });
     }
   });
@@ -5069,7 +5353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const portfolio = await storage.updateFreelancePortfolio(req.params.id, parsed);
       res.json(portfolio);
     } catch (error: any) {
-      console.error("Error updating freelance portfolio:", error);
+      log.error("Error updating freelance portfolio", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -5091,7 +5375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteFreelancePortfolio(req.params.id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting freelance portfolio:", error);
+      log.error("Error deleting freelance portfolio", error);
       res.status(500).json({ message: "Failed to delete freelance portfolio" });
     }
   });
@@ -5113,7 +5397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.reorderFreelancePortfolios(orderedIds);
       res.json({ success: true });
     } catch (error) {
-      console.error("Error reordering freelance portfolios:", error);
+      log.error("Error reordering freelance portfolios", error);
       res.status(500).json({ message: "Failed to reorder freelance portfolios" });
     }
   });
@@ -5125,7 +5409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allocation = await storage.createFreelancePortfolioAllocation(parsed);
       res.json(allocation);
     } catch (error: any) {
-      console.error("Error creating freelance portfolio allocation:", error);
+      log.error("Error creating freelance portfolio allocation", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -5139,7 +5423,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allocation = await storage.updateFreelancePortfolioAllocation(req.params.id, parsed);
       res.json(allocation);
     } catch (error: any) {
-      console.error("Error updating freelance portfolio allocation:", error);
+      log.error("Error updating freelance portfolio allocation", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -5152,7 +5436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteFreelancePortfolioAllocation(req.params.id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting freelance portfolio allocation:", error);
+      log.error("Error deleting freelance portfolio allocation", error);
       res.status(500).json({ message: "Failed to delete freelance portfolio allocation" });
     }
   });
@@ -5298,7 +5582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         price: price
       });
     } catch (error: any) {
-      console.error(`[Ticker Lookup] Error looking up ticker ${req.params.ticker}:`, error);
+      log.error("[Ticker Lookup] Error looking up ticker ${req.params.ticker}:", error);
       res.status(500).json({ message: "Failed to look up ticker" });
     }
   });
@@ -5314,7 +5598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const uploadURL = await objectStorageService.getObjectEntityUploadURL(fileExtension);
       res.json({ uploadURL });
     } catch (error) {
-      console.error("Error getting upload URL:", error);
+      log.error("Error getting upload URL", error);
       res.status(500).json({ message: "Failed to get upload URL" });
     }
   });
@@ -5335,7 +5619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       objectStorageService.downloadObject(objectFile, res);
     } catch (error) {
-      console.error("Error checking object access:", error);
+      log.error("Error checking object access", error);
       if (error instanceof ObjectNotFoundError) {
         return res.sendStatus(404);
       }
@@ -5352,7 +5636,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const documents = await storage.getAllLibraryDocuments(userId);
       res.json(documents);
     } catch (error) {
-      console.error("Error fetching library documents:", error);
+      log.error("Error fetching library documents", error);
       res.status(500).json({ message: "Failed to fetch library documents" });
     }
   });
@@ -5368,7 +5652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const documents = await storage.getLibraryDocumentsByCategory(category, userId);
       res.json(documents);
     } catch (error) {
-      console.error("Error fetching library documents by category:", error);
+      log.error("Error fetching library documents by category", error);
       res.status(500).json({ message: "Failed to fetch library documents" });
     }
   });
@@ -5387,7 +5671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(document);
     } catch (error) {
-      console.error("Error fetching library document:", error);
+      log.error("Error fetching library document", error);
       res.status(500).json({ message: "Failed to fetch library document" });
     }
   });
@@ -5424,7 +5708,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const document = await storage.createLibraryDocument(parsed);
       res.json(document);
     } catch (error: any) {
-      console.error("Error creating library document:", error);
+      log.error("Error creating library document", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -5448,7 +5732,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const document = await storage.updateLibraryDocument(req.params.id, parsed);
       res.json(document);
     } catch (error: any) {
-      console.error("Error updating library document:", error);
+      log.error("Error updating library document", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -5471,467 +5755,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteLibraryDocument(req.params.id);
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting library document:", error);
+      log.error("Error deleting library document", error);
       res.status(500).json({ message: "Failed to delete library document" });
     }
   });
 
-  // Account Task routes - get tasks for individual accounts
-  app.get('/api/individual-accounts/:accountId/tasks', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const householdId = await storage.getHouseholdIdFromAccount('individual', req.params.accountId);
-      if (!householdId) {
-        return res.status(404).json({ message: "Account not found" });
-      }
-      
-      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
-      if (!hasAccess) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const tasks = await storage.getTasksByIndividualAccount(req.params.accountId);
-      res.json(tasks);
-    } catch (error) {
-      console.error("Error fetching tasks:", error);
-      res.status(500).json({ message: "Failed to fetch tasks" });
-    }
-  });
-
-  // Get tasks for corporate accounts
-  app.get('/api/corporate-accounts/:accountId/tasks', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const householdId = await storage.getHouseholdIdFromAccount('corporate', req.params.accountId);
-      if (!householdId) {
-        return res.status(404).json({ message: "Account not found" });
-      }
-      
-      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
-      if (!hasAccess) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const tasks = await storage.getTasksByCorporateAccount(req.params.accountId);
-      res.json(tasks);
-    } catch (error) {
-      console.error("Error fetching tasks:", error);
-      res.status(500).json({ message: "Failed to fetch tasks" });
-    }
-  });
-
-  // Get tasks for joint accounts
-  app.get('/api/joint-accounts/:accountId/tasks', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const householdId = await storage.getHouseholdIdFromAccount('joint', req.params.accountId);
-      if (!householdId) {
-        return res.status(404).json({ message: "Account not found" });
-      }
-      
-      const hasAccess = await storage.canUserAccessHousehold(userId, householdId);
-      if (!hasAccess) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const tasks = await storage.getTasksByJointAccount(req.params.accountId);
-      res.json(tasks);
-    } catch (error) {
-      console.error("Error fetching tasks:", error);
-      res.status(500).json({ message: "Failed to fetch tasks" });
-    }
-  });
-
-  // Create task
-  app.post('/api/account-tasks', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const parsed = insertAccountTaskSchema.parse(req.body);
-      
-      // Determine account type and get household ID
-      let householdId: string | null = null;
-      if (parsed.individualAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('individual', parsed.individualAccountId);
-      } else if (parsed.corporateAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('corporate', parsed.corporateAccountId);
-      } else if (parsed.jointAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('joint', parsed.jointAccountId);
-      }
-      
-      if (!householdId) {
-        return res.status(404).json({ message: "Account not found" });
-      }
-      
-      const canEdit = await storage.canUserEditHousehold(userId, householdId);
-      if (!canEdit) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const task = await storage.createAccountTask(parsed);
-      
-      // Create audit log entry
-      await storage.createAuditLogEntry({
-        individualAccountId: parsed.individualAccountId || undefined,
-        corporateAccountId: parsed.corporateAccountId || undefined,
-        jointAccountId: parsed.jointAccountId || undefined,
-        userId,
-        action: "task_add",
-        changes: { 
-          title: task.title,
-          dueDate: task.dueDate
-        },
-      });
-      
-      res.json(task);
-    } catch (error: any) {
-      console.error("Error creating task:", error);
-      if (error.name === 'ZodError') {
-        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to create task" });
-    }
-  });
-
-  // Update task
-  app.patch('/api/account-tasks/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const existing = await storage.getAccountTask(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "Task not found" });
-      }
-      
-      // Determine account type and get household ID
-      let householdId: string | null = null;
-      if (existing.individualAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('individual', existing.individualAccountId);
-      } else if (existing.corporateAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('corporate', existing.corporateAccountId);
-      } else if (existing.jointAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('joint', existing.jointAccountId);
-      }
-      
-      if (!householdId) {
-        return res.status(404).json({ message: "Account not found" });
-      }
-      
-      const canEdit = await storage.canUserEditHousehold(userId, householdId);
-      if (!canEdit) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const parsed = updateAccountTaskSchema.parse(req.body);
-      const task = await storage.updateAccountTask(req.params.id, parsed);
-      res.json(task);
-    } catch (error: any) {
-      console.error("Error updating task:", error);
-      if (error.name === 'ZodError') {
-        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to update task" });
-    }
-  });
-
-  // Complete task - marks as completed with ability to restore
-  app.post('/api/account-tasks/:id/complete', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const existing = await storage.getAccountTask(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "Task not found" });
-      }
-      
-      // Determine account type and get household ID
-      let householdId: string | null = null;
-      if (existing.individualAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('individual', existing.individualAccountId);
-      } else if (existing.corporateAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('corporate', existing.corporateAccountId);
-      } else if (existing.jointAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('joint', existing.jointAccountId);
-      }
-      
-      if (!householdId) {
-        return res.status(404).json({ message: "Account not found" });
-      }
-      
-      const canEdit = await storage.canUserEditHousehold(userId, householdId);
-      if (!canEdit) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      // Create audit log entry with full task details for future reference
-      await storage.createAuditLogEntry({
-        individualAccountId: existing.individualAccountId || undefined,
-        corporateAccountId: existing.corporateAccountId || undefined,
-        jointAccountId: existing.jointAccountId || undefined,
-        userId,
-        action: "task_complete",
-        changes: { 
-          title: existing.title,
-          description: existing.description || null,
-          priority: existing.priority,
-          dueDate: existing.dueDate ? new Date(existing.dueDate).toLocaleDateString() : null,
-        },
-      });
-      
-      // Mark task as completed instead of deleting
-      const updated = await storage.updateAccountTask(req.params.id, { status: "completed" });
-      
-      res.json(updated);
-    } catch (error) {
-      console.error("Error completing task:", error);
-      res.status(500).json({ message: "Failed to complete task" });
-    }
-  });
-
-  // Restore task - changes status from completed back to pending
-  app.post('/api/account-tasks/:id/restore', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const existing = await storage.getAccountTask(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "Task not found" });
-      }
-      
-      if (existing.status !== "completed") {
-        return res.status(400).json({ message: "Only completed tasks can be restored" });
-      }
-      
-      // Determine account type and get household ID
-      let householdId: string | null = null;
-      if (existing.individualAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('individual', existing.individualAccountId);
-      } else if (existing.corporateAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('corporate', existing.corporateAccountId);
-      } else if (existing.jointAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('joint', existing.jointAccountId);
-      }
-      
-      if (!householdId) {
-        return res.status(404).json({ message: "Account not found" });
-      }
-      
-      const canEdit = await storage.canUserEditHousehold(userId, householdId);
-      if (!canEdit) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      // Create audit log entry for restoration
-      await storage.createAuditLogEntry({
-        individualAccountId: existing.individualAccountId || undefined,
-        corporateAccountId: existing.corporateAccountId || undefined,
-        jointAccountId: existing.jointAccountId || undefined,
-        userId,
-        action: "update",
-        changes: { 
-          title: existing.title,
-          statusChanged: "completed → pending",
-        },
-      });
-      
-      // Change status back to pending
-      const updated = await storage.updateAccountTask(req.params.id, { status: "pending" });
-      
-      res.json(updated);
-    } catch (error) {
-      console.error("Error restoring task:", error);
-      res.status(500).json({ message: "Failed to restore task" });
-    }
-  });
-
-  // Archive task (soft delete - moves to archive for 30 days)
-  app.delete('/api/account-tasks/:id', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const existing = await storage.getAccountTask(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "Task not found" });
-      }
-      
-      // Determine account type and get household ID
-      let householdId: string | null = null;
-      if (existing.individualAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('individual', existing.individualAccountId);
-      } else if (existing.corporateAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('corporate', existing.corporateAccountId);
-      } else if (existing.jointAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('joint', existing.jointAccountId);
-      }
-      
-      if (!householdId) {
-        return res.status(404).json({ message: "Account not found" });
-      }
-      
-      const canEdit = await storage.canUserEditHousehold(userId, householdId);
-      if (!canEdit) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      // Archive instead of delete
-      await storage.archiveAccountTask(req.params.id);
-      
-      // Create audit log entry
-      await storage.createAuditLogEntry({
-        individualAccountId: existing.individualAccountId || undefined,
-        corporateAccountId: existing.corporateAccountId || undefined,
-        jointAccountId: existing.jointAccountId || undefined,
-        userId,
-        action: "task_delete",
-        changes: { 
-          title: existing.title,
-          archived: true
-        },
-      });
-      
-      res.status(204).send();
-    } catch (error) {
-      console.error("Error archiving task:", error);
-      res.status(500).json({ message: "Failed to archive task" });
-    }
-  });
-
-  // Restore archived task
-  app.post('/api/account-tasks/:id/restore', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const existing = await storage.getAccountTask(req.params.id);
-      if (!existing) {
-        return res.status(404).json({ message: "Task not found" });
-      }
-      
-      if (!existing.archivedAt) {
-        return res.status(400).json({ message: "Task is not archived" });
-      }
-      
-      // Determine account type and get household ID
-      let householdId: string | null = null;
-      if (existing.individualAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('individual', existing.individualAccountId);
-      } else if (existing.corporateAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('corporate', existing.corporateAccountId);
-      } else if (existing.jointAccountId) {
-        householdId = await storage.getHouseholdIdFromAccount('joint', existing.jointAccountId);
-      }
-      
-      if (!householdId) {
-        return res.status(404).json({ message: "Account not found" });
-      }
-      
-      const canEdit = await storage.canUserEditHousehold(userId, householdId);
-      if (!canEdit) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const restored = await storage.restoreAccountTask(req.params.id);
-      res.json(restored);
-    } catch (error) {
-      console.error("Error restoring archived task:", error);
-      res.status(500).json({ message: "Failed to restore task" });
-    }
-  });
-
-  // Bulk archive tasks (soft delete - moves to archive for 30 days)
-  app.post('/api/account-tasks/bulk-delete', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const { taskIds } = req.body;
-      
-      if (!Array.isArray(taskIds) || taskIds.length === 0) {
-        return res.status(400).json({ message: "taskIds must be a non-empty array" });
-      }
-      
-      let archivedCount = 0;
-      const errors: string[] = [];
-      
-      for (const taskId of taskIds) {
-        try {
-          const existing = await storage.getAccountTask(taskId);
-          if (!existing) {
-            errors.push(`Task ${taskId} not found`);
-            continue;
-          }
-          
-          // Determine account type and get household ID
-          let householdId: string | null = null;
-          if (existing.individualAccountId) {
-            householdId = await storage.getHouseholdIdFromAccount('individual', existing.individualAccountId);
-          } else if (existing.corporateAccountId) {
-            householdId = await storage.getHouseholdIdFromAccount('corporate', existing.corporateAccountId);
-          } else if (existing.jointAccountId) {
-            householdId = await storage.getHouseholdIdFromAccount('joint', existing.jointAccountId);
-          }
-          
-          if (!householdId) {
-            errors.push(`Account not found for task ${taskId}`);
-            continue;
-          }
-          
-          const canEdit = await storage.canUserEditHousehold(userId, householdId);
-          if (!canEdit) {
-            errors.push(`Access denied for task ${taskId}`);
-            continue;
-          }
-          
-          // Archive instead of delete
-          await storage.archiveAccountTask(taskId);
-          
-          // Create audit log entry
-          await storage.createAuditLogEntry({
-            individualAccountId: existing.individualAccountId || undefined,
-            corporateAccountId: existing.corporateAccountId || undefined,
-            jointAccountId: existing.jointAccountId || undefined,
-            userId,
-            action: "task_delete",
-            changes: { 
-              title: existing.title,
-              bulkArchive: true
-            },
-          });
-          
-          archivedCount++;
-        } catch (taskError) {
-          errors.push(`Failed to archive task ${taskId}`);
-        }
-      }
-      
-      res.json({ 
-        deleted: archivedCount, 
-        total: taskIds.length,
-        errors: errors.length > 0 ? errors : undefined 
-      });
-    } catch (error) {
-      console.error("Error bulk archiving tasks:", error);
-      res.status(500).json({ message: "Failed to bulk archive tasks" });
-    }
-  });
-
-  // Get all tasks for the current user (across all accounts)
-  app.get('/api/tasks', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const tasks = await storage.getAllTasksForUser(userId);
-      res.json(tasks);
-    } catch (error) {
-      console.error("Error fetching all tasks:", error);
-      res.status(500).json({ message: "Failed to fetch tasks" });
-    }
-  });
-
-  // Get all archived tasks for the current user
-  app.get('/api/tasks/archived', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user.claims.sub;
-      const tasks = await storage.getArchivedTasksForUser(userId);
-      res.json(tasks);
-    } catch (error) {
-      console.error("Error fetching archived tasks:", error);
-      res.status(500).json({ message: "Failed to fetch archived tasks" });
-    }
-  });
+  // REFACTORING: Task routes extracted to routes/tasks.ts
+  const { registerTasksRoutes } = await import("./routes/tasks");
+  registerTasksRoutes(app);
 
   // Account audit log routes
-  app.get('/api/accounts/:accountType/:accountId/audit-log', isAuthenticated, async (req: any, res) => {
+  app.get('/api/accounts/:accountType/:accountId/audit-log', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { accountType, accountId } = req.params;
@@ -5964,13 +5798,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(logs);
     } catch (error) {
-      console.error("Error fetching audit log:", error);
+      log.error("Error fetching audit log", error);
       res.status(500).json({ message: "Failed to fetch audit log" });
     }
   });
 
   // Email portfolio rebalancing report
-  app.post('/api/accounts/:accountType/:accountId/email-report', isAuthenticated, async (req: any, res) => {
+  app.post('/api/accounts/:accountType/:accountId/email-report', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { accountType, accountId } = req.params;
@@ -6090,12 +5924,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const actual = actualByTicker.get(normalizedTicker);
         const actualValue = actual?.value || 0;
         const actualPercentage = totalActualValue > 0 ? (actualValue / totalActualValue) * 100 : 0;
-        const targetPercentage = Number(allocation.targetPercentage);
+        const targetPercentage = Number(allocation.targetPercentage) || 0;
+        
+        // Validate target percentage
+        if (targetPercentage < 0 || targetPercentage > 100) {
+          log.warn("[Rebalance Report] Invalid target percentage: ${targetPercentage} for allocation ${allocation.id}");
+          continue;
+        }
+        
         const variance = actualPercentage - targetPercentage;
         const targetValue = totalActualValue > 0 ? (targetPercentage / 100) * totalActualValue : 0;
         const changeNeeded = targetValue - actualValue;
-        const currentPrice = actual?.price || Number(holding.currentPrice) || 1;
-        const sharesToTrade = currentPrice > 0 ? changeNeeded / currentPrice : 0;
+        const currentPrice = actual?.price || Number(holding.currentPrice) || 0;
+        
+        // SECURITY: Validate price to prevent division by zero
+        if (currentPrice <= 0) {
+          log.warn("[Rebalance Report] Invalid or missing price for ${displayTicker}: ${currentPrice}");
+          continue;
+        }
+        
+        const sharesToTrade = changeNeeded / currentPrice;
         
         reportPositions.push({
           symbol: displayTicker,
@@ -6185,7 +6033,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `Report sent successfully to ${email}` 
       });
     } catch (error: any) {
-      console.error("Error sending portfolio report:", error);
+      log.error("Error sending portfolio report", error);
       res.status(500).json({ message: error.message || "Failed to send portfolio report" });
     }
   });
@@ -6231,8 +6079,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         doc.moveDown(1);
 
         // Phase 1
-        doc.fontSize(16).font('Helvetica-Bold').fillColor('#2563eb')
-           .text('Phase 1: Data Isolation (3-4 days)');
+        doc.fontSize(16).font('Helvetica-Bold').fillColor('#10b981')
+           .text('Phase 1: Data Isolation (✅ Completed - <1 hour)');
         doc.moveDown(0.5);
         doc.fontSize(11).font('Helvetica').fillColor('#000000');
         
@@ -6250,7 +6098,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Phase 2
         doc.fontSize(16).font('Helvetica-Bold').fillColor('#2563eb')
-           .text('Phase 2: User Experience (3-4 days)');
+           .text('Phase 2: User Experience (3-6 hours with AI assistance)');
         doc.moveDown(0.5);
         doc.fontSize(11).font('Helvetica').fillColor('#000000');
         
@@ -6268,7 +6116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Phase 3
         doc.fontSize(16).font('Helvetica-Bold').fillColor('#2563eb')
-           .text('Phase 3: Payments (3-5 days)');
+           .text('Phase 3: Payments (4-8 hours with AI assistance)');
         doc.moveDown(0.5);
         doc.fontSize(11).font('Helvetica').fillColor('#000000');
         
@@ -6285,7 +6133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Phase 4
         doc.fontSize(16).font('Helvetica-Bold').fillColor('#2563eb')
-           .text('Phase 4: Polish (2-3 days)');
+           .text('Phase 4: Polish (2-4 hours with AI assistance)');
         doc.moveDown(0.5);
         doc.fontSize(11).font('Helvetica').fillColor('#000000');
         
@@ -6305,7 +6153,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         doc.moveDown(0.5);
         
         doc.fontSize(14).font('Helvetica-Bold').fillColor('#000000')
-           .text('Estimated Timeline: 2-3 weeks');
+           .text('Estimated Timeline: 1-2 days (9-18 hours) with AI-assisted development');
+        doc.moveDown(0.3);
+        doc.fontSize(10).font('Helvetica').fillColor('#666666')
+           .text('Note: Original estimate was 2-3 weeks for traditional development. AI assistance significantly accelerates implementation.');
         doc.moveDown(0.3);
         doc.fontSize(11).font('Helvetica')
            .text('This plan converts your existing portfolio management platform into a multi-tenant SaaS product, allowing you to sell portfolio management and TradingView alert services to other users.');
@@ -6321,12 +6172,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           <p>Please find attached the detailed task list for converting your Investment Portfolio Management Platform to a multi-tenant SaaS product.</p>
           <h3>Summary</h3>
           <ul>
-            <li><strong>Phase 1:</strong> Data Isolation (3-4 days)</li>
-            <li><strong>Phase 2:</strong> User Experience (3-4 days)</li>
-            <li><strong>Phase 3:</strong> Payments (3-5 days)</li>
-            <li><strong>Phase 4:</strong> Polish (2-3 days)</li>
+            <li><strong>Phase 1:</strong> Data Isolation (✅ Completed - &lt;1 hour)</li>
+            <li><strong>Phase 2:</strong> User Experience (3-6 hours with AI assistance)</li>
+            <li><strong>Phase 3:</strong> Payments (4-8 hours with AI assistance)</li>
+            <li><strong>Phase 4:</strong> Polish (2-4 hours with AI assistance)</li>
           </ul>
-          <p><strong>Estimated Total:</strong> 2-3 weeks</p>
+          <p><strong>Estimated Total:</strong> 1-2 days (9-18 hours) with AI-assisted development</p>
+          <p style="color: #666; font-size: 12px;"><em>Note: Original estimate was 2-3 weeks for traditional development. AI assistance significantly accelerates implementation.</em></p>
           <p style="color: #666; font-size: 12px; margin-top: 30px;">
             Generated on ${new Date().toLocaleString('en-CA', { dateStyle: 'long', timeStyle: 'short' })}
           </p>
@@ -6342,7 +6194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: `Task list PDF sent successfully to ${email}` 
       });
     } catch (error: any) {
-      console.error("Error sending task list PDF:", error);
+      log.error("Error sending task list PDF", error);
       res.status(500).json({ message: error.message || "Failed to send task list PDF" });
     }
   });
@@ -6502,7 +6354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.send(pdfBuffer);
       
     } catch (error: any) {
-      console.error("Error generating tasks PDF:", error);
+      log.error("Error generating tasks PDF", error);
       res.status(500).json({ message: error.message || "Failed to generate tasks PDF" });
     }
   });
@@ -6668,7 +6520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
     } catch (error: any) {
-      console.error("Error emailing tasks PDF:", error);
+      log.error("Error emailing tasks PDF", error);
       res.status(500).json({ message: error.message || "Failed to email tasks PDF" });
     }
   });
@@ -6682,12 +6534,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const PRICE_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
   
   async function refreshUniversalHoldingsPrices() {
-    console.log("[Background Job] Starting Universal Holdings price refresh...");
+    log.debug("[Background Job] Starting Universal Holdings price refresh...");
     try {
       const holdings = await storage.getAllUniversalHoldings();
       
       if (!holdings || holdings.length === 0) {
-        console.log("[Background Job] No holdings to update");
+        log.debug("[Background Job] No holdings to update");
         return;
       }
       
@@ -6769,9 +6621,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      console.log(`[Background Job] Price refresh complete: ${updatedCount} updated, ${errorCount} errors`);
+      log.debug("[Background Job] Price refresh complete: ${updatedCount} updated, ${errorCount} errors");
     } catch (error) {
-      console.error("[Background Job] Error refreshing prices:", error);
+      log.error("[Background Job] Error refreshing prices", error);
     }
   }
   
@@ -6785,7 +6637,194 @@ export async function registerRoutes(app: Express): Promise<Server> {
     refreshUniversalHoldingsPrices();
   }, PRICE_REFRESH_INTERVAL);
   
-  console.log("[Background Job] Price refresh scheduler started (every 5 minutes)");
+  log.debug("[Background Job] Price refresh scheduler started (every 5 minutes)");
+
+  // Background job: Refresh Account Position prices every 15 minutes and check protection thresholds
+  const POSITION_REFRESH_INTERVAL = 15 * 60 * 1000; // 15 minutes in milliseconds
+  const PROTECTION_THRESHOLD_PERCENT = 15; // Create task when position is up 15% or more
+  
+  async function refreshAccountPositionPrices() {
+    log.debug("[Background Job] Starting Account Position price refresh...");
+    try {
+      // Get all positions with their account info
+      const allPositions = await storage.getAllPositionsWithAccountInfo();
+      
+      if (!allPositions || allPositions.length === 0) {
+        log.debug("[Background Job] No account positions to update");
+        return;
+      }
+      
+      // Get unique symbols
+      const symbolSet = new Set(allPositions.map(p => p.symbol.toUpperCase().trim()));
+      const symbols = Array.from(symbolSet);
+      
+      // Use yahoo-finance2 API
+      const YahooFinance = (await import('yahoo-finance2')).default;
+      const yahooFinance = new (YahooFinance as any)({ suppressNotices: ['yahooSurvey', 'ripHistorical'] });
+      
+      const priceCache: Record<string, number | null> = {};
+      const now = new Date();
+      let updatedCount = 0;
+      let errorCount = 0;
+      
+      // Batch fetch prices for all unique symbols
+      for (const rawSymbol of symbols) {
+        try {
+          const upperSymbol = rawSymbol.toUpperCase().trim();
+          
+          // Skip cash positions
+          if (upperSymbol === 'CASH' || upperSymbol === 'CAD' || upperSymbol === 'USD' || 
+              upperSymbol.includes('CASH') || upperSymbol.includes('MONEY MARKET')) {
+            priceCache[rawSymbol] = 1;
+            continue;
+          }
+          
+          // Try the symbol as-is first, then with Canadian/US exchange suffixes
+          let quote = null;
+          const symbolsToTry = [rawSymbol];
+          
+          if (!rawSymbol.includes('.')) {
+            symbolsToTry.push(`${rawSymbol}.TO`);
+            symbolsToTry.push(`${rawSymbol}.V`);
+            symbolsToTry.push(`${rawSymbol}.CN`);
+            symbolsToTry.push(`${rawSymbol}.NE`);
+          }
+          
+          for (const symbol of symbolsToTry) {
+            try {
+              const result = await yahooFinance.quote(symbol);
+              if (result && (result as any).regularMarketPrice) {
+                quote = result as any;
+                break;
+              }
+            } catch (e) {
+              // Try next suffix
+            }
+          }
+          
+          if (quote && quote.regularMarketPrice) {
+            priceCache[rawSymbol] = quote.regularMarketPrice;
+          } else {
+            priceCache[rawSymbol] = null;
+            errorCount++;
+          }
+          
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+          priceCache[rawSymbol] = null;
+          errorCount++;
+        }
+      }
+      
+      // Update positions with new prices and check for protection threshold
+      const positionsNeedingProtection: Array<{
+        position: typeof allPositions[0];
+        gainPercent: number;
+        newPrice: number;
+      }> = [];
+      
+      for (const position of allPositions) {
+        const newPrice = priceCache[position.symbol];
+        if (newPrice !== null && newPrice !== undefined) {
+          await storage.updatePosition(position.id, { 
+            currentPrice: newPrice.toString(),
+            priceUpdatedAt: now
+          });
+          updatedCount++;
+          
+          // Check protection threshold (only for non-cash positions without existing protection)
+          const entryPrice = parseFloat(position.entryPrice || '0');
+          if (entryPrice > 0 && !position.protectionPercent) {
+            const gainPercent = ((newPrice - entryPrice) / entryPrice) * 100;
+            
+            if (gainPercent >= PROTECTION_THRESHOLD_PERCENT) {
+              positionsNeedingProtection.push({
+                position,
+                gainPercent,
+                newPrice
+              });
+            }
+          }
+        }
+      }
+      
+      // Create tasks for positions needing protection review
+      if (positionsNeedingProtection.length > 0) {
+        log.debug(`[Background Job] Found ${positionsNeedingProtection.length} positions exceeding ${PROTECTION_THRESHOLD_PERCENT}% gain threshold`);
+        
+        for (const { position, gainPercent, newPrice } of positionsNeedingProtection) {
+          try {
+            // Check if a similar task already exists (to avoid duplicates)
+            let existingTasks: AccountTask[] = [];
+            switch (position.accountType) {
+              case 'individual':
+                existingTasks = await storage.getTasksByIndividualAccount(position.accountId);
+                break;
+              case 'corporate':
+                existingTasks = await storage.getTasksByCorporateAccount(position.accountId);
+                break;
+              case 'joint':
+                existingTasks = await storage.getTasksByJointAccount(position.accountId);
+                break;
+            }
+            
+            // Look for existing pending/in_progress protection task for this symbol
+            const taskTitle = `Review protection for ${position.symbol}`;
+            const hasPendingTask = existingTasks.some(t => 
+              t.title.includes(taskTitle) && 
+              (t.status === 'pending' || t.status === 'in_progress') &&
+              !t.archivedAt
+            );
+            
+            if (!hasPendingTask) {
+              // Create the protection review task
+              const taskData: any = {
+                title: `${taskTitle} - up ${gainPercent.toFixed(1)}%`,
+                description: `${position.symbol} has gained ${gainPercent.toFixed(1)}% from entry price ($${parseFloat(position.entryPrice).toFixed(2)}) to current price ($${newPrice.toFixed(2)}). Consider setting stop-loss protection to lock in gains.`,
+                priority: gainPercent >= 30 ? 'urgent' : gainPercent >= 20 ? 'high' : 'medium',
+                status: 'pending',
+              };
+              
+              // Set the appropriate account ID
+              switch (position.accountType) {
+                case 'individual':
+                  taskData.individualAccountId = position.accountId;
+                  break;
+                case 'corporate':
+                  taskData.corporateAccountId = position.accountId;
+                  break;
+                case 'joint':
+                  taskData.jointAccountId = position.accountId;
+                  break;
+              }
+              
+              await storage.createAccountTask(taskData);
+              log.debug(`[Background Job] Created protection task for ${position.symbol} (${gainPercent.toFixed(1)}% gain)`);
+            }
+          } catch (taskError) {
+            log.error(`[Background Job] Error creating protection task for ${position.symbol}`, taskError);
+          }
+        }
+      }
+      
+      log.debug(`[Background Job] Position price refresh complete: ${updatedCount} updated, ${errorCount} errors, ${positionsNeedingProtection.length} protection tasks checked`);
+    } catch (error) {
+      log.error("[Background Job] Error refreshing position prices", error);
+    }
+  }
+  
+  // Run initial position refresh after 1 minute (after Universal Holdings refresh)
+  setTimeout(() => {
+    refreshAccountPositionPrices();
+  }, 60 * 1000);
+  
+  // Then run every 15 minutes
+  setInterval(() => {
+    refreshAccountPositionPrices();
+  }, POSITION_REFRESH_INTERVAL);
+  
+  log.debug("[Background Job] Position price refresh scheduler started (every 15 minutes, protection threshold: 15%)");
 
   // Search holdings by ticker across all accounts with optional filters
   app.get('/api/holdings/search', isAuthenticated, async (req: any, res) => {
@@ -6799,8 +6838,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const normalizedSearchTicker = ticker.toUpperCase().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
       const minVal = minValue ? Number(minValue) : 0;
       const maxVal = maxValue ? Number(maxValue) : Infinity;
-      
-      console.log(`[Holdings Search] Searching for ticker: "${ticker}" (normalized: "${normalizedSearchTicker}"), category: ${category || 'all'}, value range: $${minVal} - $${maxVal}`);
+      log.debug("Holdings Search - searching", { ticker, normalized: normalizedSearchTicker, category: category || 'all', minVal, maxVal });
       
       // Fetch all households with their data
       const households = await storage.getAllHouseholds();
@@ -6837,7 +6875,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             if (matchingPositions.length > 0) {
-              console.log(`[Holdings Search] Found ${matchingPositions.length} positions in individual account ${account.id}`);
+              log.debug("Holdings Search - found positions in individual account", { count: matchingPositions.length, accountId: account.id });
             }
             
             for (const pos of matchingPositions) {
@@ -6873,7 +6911,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             if (matchingPositions.length > 0) {
-              console.log(`[Holdings Search] Found ${matchingPositions.length} positions in corporate account ${account.id}`);
+              log.debug("Holdings Search - found positions in corporate account", { count: matchingPositions.length, accountId: account.id });
             }
             
             for (const pos of matchingPositions) {
@@ -6907,7 +6945,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           if (matchingPositions.length > 0) {
-            console.log(`[Holdings Search] Found ${matchingPositions.length} positions in joint account ${jointAccount.id}`);
+            log.debug("Holdings Search - found positions in joint account", { count: matchingPositions.length, accountId: jointAccount.id });
           }
           
           for (const pos of matchingPositions) {
@@ -6935,10 +6973,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      console.log(`[Holdings Search] Checked ${totalPositionsChecked} total positions, found ${results.length} matches after filtering`);
+      log.debug("Holdings Search - completed", { totalPositionsChecked, matchesFound: results.length });
       res.json(results);
     } catch (error: any) {
-      console.error("Error searching holdings:", error);
+      log.error("Error searching holdings", error);
       res.status(500).json({ message: error.message || "Failed to search holdings" });
     }
   });
@@ -6950,7 +6988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entries = await storage.getInsuranceRevenueByUser(userId);
       res.json(entries);
     } catch (error: any) {
-      console.error("Error fetching insurance revenue:", error);
+      log.error("Error fetching insurance revenue", error);
       res.status(500).json({ message: error.message || "Failed to fetch insurance revenue" });
     }
   });
@@ -6962,7 +7000,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entry = await storage.createInsuranceRevenue(data);
       res.status(201).json(entry);
     } catch (error: any) {
-      console.error("Error creating insurance revenue:", error);
+      log.error("Error creating insurance revenue", error);
       res.status(500).json({ message: error.message || "Failed to create insurance revenue entry" });
     }
   });
@@ -6982,7 +7020,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entry = await storage.updateInsuranceRevenue(id, data);
       res.json(entry);
     } catch (error: any) {
-      console.error("Error updating insurance revenue:", error);
+      log.error("Error updating insurance revenue", error);
       res.status(500).json({ message: error.message || "Failed to update insurance revenue entry" });
     }
   });
@@ -7001,7 +7039,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteInsuranceRevenue(id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error deleting insurance revenue:", error);
+      log.error("Error deleting insurance revenue", error);
       res.status(500).json({ message: error.message || "Failed to delete insurance revenue entry" });
     }
   });
@@ -7013,7 +7051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entries = await storage.getInvestmentRevenueByUser(userId);
       res.json(entries);
     } catch (error: any) {
-      console.error("Error fetching investment revenue:", error);
+      log.error("Error fetching investment revenue", error);
       res.status(500).json({ message: error.message || "Failed to fetch investment revenue" });
     }
   });
@@ -7025,7 +7063,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entry = await storage.createInvestmentRevenue(data);
       res.status(201).json(entry);
     } catch (error: any) {
-      console.error("Error creating investment revenue:", error);
+      log.error("Error creating investment revenue", error);
       res.status(500).json({ message: error.message || "Failed to create investment revenue entry" });
     }
   });
@@ -7045,7 +7083,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entry = await storage.updateInvestmentRevenue(id, data);
       res.json(entry);
     } catch (error: any) {
-      console.error("Error updating investment revenue:", error);
+      log.error("Error updating investment revenue", error);
       res.status(500).json({ message: error.message || "Failed to update investment revenue entry" });
     }
   });
@@ -7064,7 +7102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteInvestmentRevenue(id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error deleting investment revenue:", error);
+      log.error("Error deleting investment revenue", error);
       res.status(500).json({ message: error.message || "Failed to delete investment revenue entry" });
     }
   });
@@ -7076,7 +7114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const objectives = await storage.getKpiObjectivesByUser(userId);
       res.json(objectives);
     } catch (error: any) {
-      console.error("Error fetching KPI objectives:", error);
+      log.error("Error fetching KPI objectives", error);
       res.status(500).json({ message: error.message || "Failed to fetch KPI objectives" });
     }
   });
@@ -7088,7 +7126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const objective = await storage.createKpiObjective(data);
       res.status(201).json(objective);
     } catch (error: any) {
-      console.error("Error creating KPI objective:", error);
+      log.error("Error creating KPI objective", error);
       res.status(500).json({ message: error.message || "Failed to create KPI objective" });
     }
   });
@@ -7108,7 +7146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const objective = await storage.updateKpiObjective(id, data);
       res.json(objective);
     } catch (error: any) {
-      console.error("Error updating KPI objective:", error);
+      log.error("Error updating KPI objective", error);
       res.status(500).json({ message: error.message || "Failed to update KPI objective" });
     }
   });
@@ -7127,7 +7165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteKpiObjective(id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error deleting KPI objective:", error);
+      log.error("Error deleting KPI objective", error);
       res.status(500).json({ message: error.message || "Failed to delete KPI objective" });
     }
   });
@@ -7147,7 +7185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tasks = await storage.getDailyTasksByObjective(id);
       res.json(tasks);
     } catch (error: any) {
-      console.error("Error fetching daily tasks:", error);
+      log.error("Error fetching daily tasks", error);
       res.status(500).json({ message: error.message || "Failed to fetch daily tasks" });
     }
   });
@@ -7182,7 +7220,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tasks = await storage.createBulkDailyTasks(tasksToCreate);
       res.status(201).json(tasks);
     } catch (error: any) {
-      console.error("Error initializing daily tasks:", error);
+      log.error("Error initializing daily tasks", error);
       res.status(500).json({ message: error.message || "Failed to initialize daily tasks" });
     }
   });
@@ -7209,7 +7247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const task = await storage.toggleDailyTask(id);
       res.json(task);
     } catch (error: any) {
-      console.error("Error toggling daily task:", error);
+      log.error("Error toggling daily task", error);
       res.status(500).json({ message: error.message || "Failed to toggle daily task" });
     }
   });
@@ -7228,7 +7266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteDailyTasksByObjective(id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error deleting daily tasks:", error);
+      log.error("Error deleting daily tasks", error);
       res.status(500).json({ message: error.message || "Failed to delete daily tasks" });
     }
   });
@@ -7313,7 +7351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       doc.end();
     } catch (error: any) {
-      console.error("Error exporting KPI objectives:", error);
+      log.error("Error exporting KPI objectives", error);
       res.status(500).json({ message: error.message || "Failed to export PDF" });
     }
   });
@@ -7325,7 +7363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const links = await storage.getReferenceLinksByUser(userId);
       res.json(links);
     } catch (error: any) {
-      console.error("Error fetching reference links:", error);
+      log.error("Error fetching reference links", error);
       res.status(500).json({ message: error.message || "Failed to fetch reference links" });
     }
   });
@@ -7337,7 +7375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const link = await storage.createReferenceLink(data);
       res.status(201).json(link);
     } catch (error: any) {
-      console.error("Error creating reference link:", error);
+      log.error("Error creating reference link", error);
       res.status(500).json({ message: error.message || "Failed to create reference link" });
     }
   });
@@ -7356,7 +7394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const link = await storage.updateReferenceLink(id, data);
       res.json(link);
     } catch (error: any) {
-      console.error("Error updating reference link:", error);
+      log.error("Error updating reference link", error);
       res.status(500).json({ message: error.message || "Failed to update reference link" });
     }
   });
@@ -7374,7 +7412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteReferenceLink(id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error deleting reference link:", error);
+      log.error("Error deleting reference link", error);
       res.status(500).json({ message: error.message || "Failed to delete reference link" });
     }
   });
@@ -7388,7 +7426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const milestones = await storage.getMilestonesByUser(userId, milestoneType);
       res.json(milestones);
     } catch (error: any) {
-      console.error("Error fetching milestones:", error);
+      log.error("Error fetching milestones", error);
       res.status(500).json({ message: error.message || "Failed to fetch milestones" });
     }
   });
@@ -7400,7 +7438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const milestone = await storage.createMilestone(data);
       res.status(201).json(milestone);
     } catch (error: any) {
-      console.error("Error creating milestone:", error);
+      log.error("Error creating milestone", error);
       res.status(500).json({ message: error.message || "Failed to create milestone" });
     }
   });
@@ -7419,7 +7457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const milestone = await storage.updateMilestone(id, data);
       res.json(milestone);
     } catch (error: any) {
-      console.error("Error updating milestone:", error);
+      log.error("Error updating milestone", error);
       res.status(500).json({ message: error.message || "Failed to update milestone" });
     }
   });
@@ -7437,7 +7475,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteMilestone(id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error deleting milestone:", error);
+      log.error("Error deleting milestone", error);
       res.status(500).json({ message: error.message || "Failed to delete milestone" });
     }
   });
@@ -7459,7 +7497,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
       res.send(pdfBuffer);
     } catch (error: any) {
-      console.error("Error exporting milestones PDF:", error);
+      log.error("Error exporting milestones PDF", error);
       res.status(500).json({ message: error.message || "Failed to export PDF" });
     }
   });
@@ -7494,7 +7532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await sendEmailWithAttachment(to, emailSubject, emailBody, pdfBuffer, fileName);
       res.json({ success: true, message: "Email sent successfully" });
     } catch (error: any) {
-      console.error("Error emailing milestones PDF:", error);
+      log.error("Error emailing milestones PDF", error);
       res.status(500).json({ message: error.message || "Failed to send email" });
     }
   });
@@ -7519,7 +7557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entries = await storage.getJournalEntries(userId, filters);
       res.json(entries);
     } catch (error: any) {
-      console.error("Error fetching journal entries:", error);
+      log.error("Error fetching journal entries", error);
       res.status(500).json({ message: error.message || "Failed to fetch journal entries" });
     }
   });
@@ -7541,7 +7579,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(entry);
     } catch (error: any) {
-      console.error("Error fetching journal entry:", error);
+      log.error("Error fetching journal entry", error);
       res.status(500).json({ message: error.message || "Failed to fetch journal entry" });
     }
   });
@@ -7553,7 +7591,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entry = await storage.createJournalEntry(userId, data);
       res.status(201).json(entry);
     } catch (error: any) {
-      console.error("Error creating journal entry:", error);
+      log.error("Error creating journal entry", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -7579,7 +7617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entry = await storage.updateJournalEntry(id, data);
       res.json(entry);
     } catch (error: any) {
-      console.error("Error updating journal entry:", error);
+      log.error("Error updating journal entry", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -7604,7 +7642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteJournalEntry(id);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error deleting journal entry:", error);
+      log.error("Error deleting journal entry", error);
       res.status(500).json({ message: error.message || "Failed to delete journal entry" });
     }
   });
@@ -7627,7 +7665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const image = await storage.addJournalImage(data);
       res.status(201).json(image);
     } catch (error: any) {
-      console.error("Error adding journal image:", error);
+      log.error("Error adding journal image", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -7652,7 +7690,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.removeJournalImage(imageId);
       res.json({ success: true });
     } catch (error: any) {
-      console.error("Error removing journal image:", error);
+      log.error("Error removing journal image", error);
       res.status(500).json({ message: error.message || "Failed to remove journal image" });
     }
   });
@@ -7663,7 +7701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tags = await storage.getTags(userId);
       res.json(tags);
     } catch (error: any) {
-      console.error("Error fetching tags:", error);
+      log.error("Error fetching tags", error);
       res.status(500).json({ message: error.message || "Failed to fetch tags" });
     }
   });
@@ -7675,7 +7713,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tag = await storage.createTag(userId, data);
       res.status(201).json(tag);
     } catch (error: any) {
-      console.error("Error creating tag:", error);
+      log.error("Error creating tag", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ message: "Invalid request data", errors: error.errors });
       }
@@ -7706,7 +7744,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const entryTags = await storage.getEntryTags(id);
       res.json(entryTags);
     } catch (error: any) {
-      console.error("Error updating entry tags:", error);
+      log.error("Error updating entry tags", error);
       res.status(500).json({ message: error.message || "Failed to update entry tags" });
     }
   });
@@ -7717,7 +7755,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const analytics = await storage.getJournalAnalytics(userId);
       res.json(analytics);
     } catch (error: any) {
-      console.error("Error fetching journal analytics:", error);
+      log.error("Error fetching journal analytics", error);
       res.status(500).json({ message: error.message || "Failed to fetch journal analytics" });
     }
   });

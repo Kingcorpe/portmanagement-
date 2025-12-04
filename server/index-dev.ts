@@ -11,10 +11,16 @@ import runApp from "./app";
 
 export async function setupVite(app: Express, server: Server) {
   const viteLogger = createLogger();
+  
+  // Support base path from environment variable (e.g., BASE_PATH=/app)
+  const basePath = process.env.BASE_PATH || '/';
+  const normalizedBasePath = basePath === '/' ? '/' : basePath.replace(/\/$/, '') + '/';
+  
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
     allowedHosts: true as const,
+    base: basePath, // Pass base path to Vite dev server
   };
 
   const vite = await createViteServer({
@@ -31,8 +37,11 @@ export async function setupVite(app: Express, server: Server) {
     appType: "custom",
   });
 
-  app.use(vite.middlewares);
-  app.use("*", async (req, res, next) => {
+  // Use base path for Vite middleware
+  app.use(normalizedBasePath, vite.middlewares);
+  
+  // Handle SPA routing for all routes under base path
+  app.use(`${normalizedBasePath}*`, async (req, res, next) => {
     const url = req.originalUrl;
 
     try {

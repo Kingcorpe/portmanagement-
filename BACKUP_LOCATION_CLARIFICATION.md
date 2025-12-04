@@ -133,3 +133,5 @@ aws s3 cp "$BACKUP_FILE" s3://your-bucket/backups/
 
 Your current setup is correct - just consider adding cloud backup for redundancy! 🚀
 
+
+

@@ -105,3 +105,5 @@ The migration creates these new tables:
 
 The trading journal feature is **fully implemented** - you just need to get it deployed! 🚀
 
+
+

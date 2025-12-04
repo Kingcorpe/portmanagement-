@@ -182,10 +182,18 @@ function calculateRifMinimumWithdrawal(
   } else if (calculationAge >= 71 && RIF_MINIMUM_RATES[calculationAge]) {
     rate = RIF_MINIMUM_RATES[calculationAge];
   } else {
-    rate = (1 / (90 - calculationAge)) * 100;
+    // SECURITY: Prevent division by zero - if age is 90 or greater, use max rate
+    const denominator = 90 - calculationAge;
+    if (denominator <= 0) {
+      rate = 20; // Maximum rate for age 90+
+    } else {
+      rate = (1 / denominator) * 100;
+    }
   }
   
-  const amount = portfolioValue * (rate / 100);
+  // Validate portfolio value is non-negative
+  const safePortfolioValue = Math.max(0, portfolioValue || 0);
+  const amount = safePortfolioValue * (rate / 100);
   return { rate, amount, age: calculationAge };
 }
 
@@ -2004,10 +2012,17 @@ export default function AccountDetails() {
           // If using market value column OR if the "price" seems too high (likely total value)
           // Calculate per-share price by dividing by quantity
           if (useMarketValue || (quantity > 0 && rawMarketPrice > entryPrice * 10 && rawMarketPrice > 1000)) {
+            // SECURITY: Prevent division by zero
             // This is likely a market value (total), calculate per-share price
             currentPrice = quantity > 0 ? rawMarketPrice / quantity : rawMarketPrice;
           } else {
             currentPrice = rawMarketPrice;
+          }
+          
+          // SECURITY: Validate prices are non-negative
+          if (entryPrice < 0 || currentPrice < 0 || isNaN(entryPrice) || isNaN(currentPrice)) {
+            console.warn(`[CSV Import] Invalid prices for ${symbol}: entry=${entryPrice}, current=${currentPrice}`);
+            continue;
           }
         }
 

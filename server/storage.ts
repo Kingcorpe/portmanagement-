@@ -195,6 +195,7 @@ export interface IStorage {
   getPositionsByCorporateAccount(accountId: string): Promise<Position[]>;
   getPositionsByJointAccount(accountId: string): Promise<Position[]>;
   getPositionsBySymbol(symbol: string): Promise<Position[]>;
+  getAllPositionsWithAccountInfo(): Promise<Array<Position & { accountType: 'individual' | 'corporate' | 'joint'; accountId: string }>>;
   updatePosition(id: string, position: Partial<InsertPosition>): Promise<Position>;
   deletePosition(id: string): Promise<void>;
   calculateIndividualAccountBalance(accountId: string): Promise<number>;
@@ -1138,6 +1139,31 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  async getAllPositionsWithAccountInfo(): Promise<Array<Position & { accountType: 'individual' | 'corporate' | 'joint'; accountId: string }>> {
+    // Get all positions that belong to actual accounts (not watchlist/freelance portfolios)
+    const allPositions = await db.select().from(positions)
+      .where(
+        or(
+          isNotNull(positions.individualAccountId),
+          isNotNull(positions.corporateAccountId),
+          isNotNull(positions.jointAccountId)
+        )
+      );
+    
+    // Map positions with their account type and ID
+    return allPositions.map(pos => {
+      if (pos.individualAccountId) {
+        return { ...pos, accountType: 'individual' as const, accountId: pos.individualAccountId };
+      } else if (pos.corporateAccountId) {
+        return { ...pos, accountType: 'corporate' as const, accountId: pos.corporateAccountId };
+      } else if (pos.jointAccountId) {
+        return { ...pos, accountType: 'joint' as const, accountId: pos.jointAccountId };
+      }
+      // This shouldn't happen given our where clause, but TypeScript needs it
+      return { ...pos, accountType: 'individual' as const, accountId: '' };
+    }).filter(pos => pos.accountId !== '');
+  }
+
   async updatePosition(id: string, positionData: Partial<InsertPosition>): Promise<Position> {
     const [position] = await db
       .update(positions)
@@ -1154,8 +1180,13 @@ export class DatabaseStorage implements IStorage {
   async calculateIndividualAccountBalance(accountId: string): Promise<number> {
     const accountPositions = await this.getPositionsByIndividualAccount(accountId);
     return accountPositions.reduce((total, position) => {
-      const quantity = parseFloat(position.quantity);
-      const currentPrice = parseFloat(position.currentPrice);
+      const quantity = parseFloat(position.quantity || '0');
+      const currentPrice = parseFloat(position.currentPrice || '0');
+      // Validate: ensure non-negative values and handle NaN
+      if (isNaN(quantity) || isNaN(currentPrice) || quantity < 0 || currentPrice < 0) {
+        console.warn(`[Balance Calculation] Invalid position values: qty=${quantity}, price=${currentPrice} for position ${position.id}`);
+        return total;
+      }
       return total + (quantity * currentPrice);
     }, 0);
   }
@@ -1163,8 +1194,13 @@ export class DatabaseStorage implements IStorage {
   async calculateCorporateAccountBalance(accountId: string): Promise<number> {
     const accountPositions = await this.getPositionsByCorporateAccount(accountId);
     return accountPositions.reduce((total, position) => {
-      const quantity = parseFloat(position.quantity);
-      const currentPrice = parseFloat(position.currentPrice);
+      const quantity = parseFloat(position.quantity || '0');
+      const currentPrice = parseFloat(position.currentPrice || '0');
+      // Validate: ensure non-negative values and handle NaN
+      if (isNaN(quantity) || isNaN(currentPrice) || quantity < 0 || currentPrice < 0) {
+        console.warn(`[Balance Calculation] Invalid position values: qty=${quantity}, price=${currentPrice} for position ${position.id}`);
+        return total;
+      }
       return total + (quantity * currentPrice);
     }, 0);
   }
@@ -1172,8 +1208,13 @@ export class DatabaseStorage implements IStorage {
   async calculateJointAccountBalance(accountId: string): Promise<number> {
     const accountPositions = await this.getPositionsByJointAccount(accountId);
     return accountPositions.reduce((total, position) => {
-      const quantity = parseFloat(position.quantity);
-      const currentPrice = parseFloat(position.currentPrice);
+      const quantity = parseFloat(position.quantity || '0');
+      const currentPrice = parseFloat(position.currentPrice || '0');
+      // Validate: ensure non-negative values and handle NaN
+      if (isNaN(quantity) || isNaN(currentPrice) || quantity < 0 || currentPrice < 0) {
+        console.warn(`[Balance Calculation] Invalid position values: qty=${quantity}, price=${currentPrice} for position ${position.id}`);
+        return total;
+      }
       return total + (quantity * currentPrice);
     }, 0);
   }
