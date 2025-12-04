@@ -78,6 +78,11 @@ const investmentDivisionItems = [
     icon: ListTodo,
   },
   {
+    title: "Protection Dashboard",
+    url: "/protection",
+    icon: ShieldCheck,
+  },
+  {
     title: "Households",
     url: "/households",
     icon: Users,
