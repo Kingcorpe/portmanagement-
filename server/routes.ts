@@ -6547,13 +6547,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const symbols = Array.from(symbolSet);
       
       // Use yahoo-finance2 API
-      const YahooFinance = (await import('yahoo-finance2')).default;
-      const yahooFinance = new (YahooFinance as any)({ suppressNotices: ['yahooSurvey', 'ripHistorical'] });
-      
       const priceCache: Record<string, number | null> = {};
       const now = new Date();
       let updatedCount = 0;
       let errorCount = 0;
+      
+      // Helper function to fetch price using direct Yahoo Finance API (same as marketData.ts)
+      async function fetchPriceDirectly(symbol: string): Promise<number | null> {
+        try {
+          const response = await fetch(
+            `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`,
+            {
+              headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              },
+            }
+          );
+          
+          if (!response.ok) return null;
+          
+          const data = await response.json();
+          const result = data.chart?.result?.[0];
+          const meta = result?.meta;
+          
+          if (meta?.regularMarketPrice) {
+            return meta.regularMarketPrice;
+          }
+          return null;
+        } catch (error) {
+          return null;
+        }
+      }
       
       // Batch fetch prices for all unique symbols
       for (const rawSymbol of symbols) {
@@ -6568,7 +6592,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Try the symbol as-is first, then with Canadian/US exchange suffixes
-          let quote = null;
           const symbolsToTry = [rawSymbol];
           
           if (!rawSymbol.includes('.')) {
@@ -6578,30 +6601,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             symbolsToTry.push(`${rawSymbol}.NE`);
           }
           
-          const errors: string[] = [];
+          let price: number | null = null;
+          let successSymbol = '';
+          
           for (const symbol of symbolsToTry) {
-            try {
-              const result = await yahooFinance.quote(symbol);
-              if (result && (result as any).regularMarketPrice) {
-                quote = result as any;
-                console.log(`[PROTECTION] Found price for ${rawSymbol} via ${symbol}: $${quote.regularMarketPrice}`);
-                break;
-              }
-            } catch (e: any) {
-              errors.push(`${symbol}: ${e.message || e}`);
+            price = await fetchPriceDirectly(symbol);
+            if (price !== null) {
+              successSymbol = symbol;
+              console.log(`[PROTECTION] Found price for ${rawSymbol} via ${symbol}: $${price}`);
+              break;
             }
           }
           
-          if (quote && quote.regularMarketPrice) {
-            priceCache[rawSymbol] = quote.regularMarketPrice;
+          if (price !== null) {
+            priceCache[rawSymbol] = price;
           } else {
-            console.log(`[PROTECTION] No price found for ${rawSymbol} - Errors: ${errors.join(' | ')}`);
+            console.log(`[PROTECTION] No price found for ${rawSymbol} (tried: ${symbolsToTry.join(', ')})`);
             priceCache[rawSymbol] = null;
             errorCount++;
           }
           
           // Small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 50));
         } catch (error) {
           priceCache[rawSymbol] = null;
           errorCount++;
