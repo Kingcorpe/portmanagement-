@@ -3089,8 +3089,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         existingPositionsMap.set(normalizedSymbol, existingPos);
       }
       
-      let deletedCount = 0;
-      
       // If clearExisting is true, we'll delete positions that aren't in the upload after processing
       // This way we can still match and preserve protection details for positions that are being updated
       
