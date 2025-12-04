@@ -2116,7 +2116,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const accountDisplayName = account.nickname || '';
               const fullAccountName = `${displayAccountType}${accountDisplayName ? ` - ${accountDisplayName}` : ''}`;
               
-              const taskTitle = `TradingView ${parsed.signal} Alert: ${parsed.symbol}`;
               const variance = actualPercent - targetPercent;
               const taskDescription = 
                 `Signal: ${parsed.signal}\n` +
@@ -2159,6 +2158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
               
               if (task) {
+                console.log(`[TradingView Webhook] ✓ Task created: ${task.id}`);
                 tasksCreated.push(`${fullAccountName} (${householdName}) - ${parsed.signal} ${parsed.symbol}`);
               }
               
