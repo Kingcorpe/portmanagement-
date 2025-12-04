@@ -3294,7 +3294,7 @@ export default function AccountDetails() {
                       Add Task
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>{editingTask ? "Edit Task" : "Add New Task"}</DialogTitle>
                       <DialogDescription>
