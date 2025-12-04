@@ -3094,7 +3094,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Get existing positions if not clearing (to preserve protection details)
+      let existingPositionsMap = new Map<string, Position>();
+      if (!clearExisting) {
+        let existingPositions: Position[] = [];
+        if (accountType === 'individual') {
+          existingPositions = await storage.getPositionsByIndividualAccount(accountId);
+        } else if (accountType === 'corporate') {
+          existingPositions = await storage.getPositionsByCorporateAccount(accountId);
+        } else if (accountType === 'joint') {
+          existingPositions = await storage.getPositionsByJointAccount(accountId);
+        }
+        
+        // Create a map of symbol -> position for quick lookup
+        for (const existingPos of existingPositions) {
+          const normalizedSymbol = existingPos.symbol.toUpperCase().trim();
+          existingPositionsMap.set(normalizedSymbol, existingPos);
+        }
+      }
+      
       const createdPositions = [];
+      const updatedPositions = [];
       const errors = [];
       
       for (let i = 0; i < positions.length; i++) {
@@ -3163,9 +3183,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
           
-          const parsed = insertPositionSchema.parse(positionData);
-          const position = await storage.createPosition(parsed);
-          createdPositions.push(position);
+          // Check if position already exists (when not clearing existing)
+          // Try exact match first, then try normalized match (without exchange suffixes)
+          let existingPosition = existingPositionsMap.get(positionData.symbol);
+          
+          // If no exact match, try matching by normalized symbol (without exchange suffixes)
+          if (!existingPosition && !clearExisting) {
+            const normalizeSymbol = (sym: string) => sym.toUpperCase().trim().replace(/\.(TO|V|CN|NE|TSX|NYSE|NASDAQ)$/i, '');
+            const normalizedNewSymbol = normalizeSymbol(positionData.symbol);
+            
+            for (const [existingSymbol, existingPos] of existingPositionsMap.entries()) {
+              const normalizedExistingSymbol = normalizeSymbol(existingSymbol);
+              if (normalizedExistingSymbol === normalizedNewSymbol) {
+                existingPosition = existingPos;
+                break;
+              }
+            }
+          }
+          
+          if (existingPosition && !clearExisting) {
+            // Update existing position, preserving protection details
+            const updateData: any = {
+              quantity: positionData.quantity,
+              entryPrice: positionData.entryPrice,
+              currentPrice: positionData.currentPrice,
+              // Preserve protection details from existing position
+              protectionPercent: existingPosition.protectionPercent,
+              stopPrice: existingPosition.stopPrice,
+              limitPrice: existingPosition.limitPrice,
+            };
+            
+            const parsed = insertPositionSchema.parse(updateData);
+            const updatedPosition = await storage.updatePosition(existingPosition.id, parsed);
+            updatedPositions.push(updatedPosition);
+          } else {
+            // Create new position
+            const parsed = insertPositionSchema.parse(positionData);
+            const position = await storage.createPosition(parsed);
+            createdPositions.push(position);
+          }
         } catch (error: any) {
           errors.push({ row: i + 1, symbol: pos.symbol, error: error.message });
         }
@@ -3260,13 +3316,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Create audit log entry for bulk upload
-      if (createdPositions.length > 0) {
+      if (createdPositions.length > 0 || updatedPositions.length > 0) {
         const auditLogData: any = {
           userId,
           action: "position_bulk_upload",
           changes: { 
-            count: createdPositions.length,
-            symbols: createdPositions.map(p => p.symbol).join(', '),
+            created: createdPositions.length,
+            updated: updatedPositions.length,
+            symbols: [...createdPositions, ...updatedPositions].map(p => p.symbol).join(', '),
             allocationsCreated: allocationsCreated > 0 ? allocationsCreated : undefined
           },
         };
@@ -3286,12 +3343,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.createAuditLogEntry(auditLogData);
       }
       
+      const totalProcessed = createdPositions.length + updatedPositions.length;
+      let message = '';
+      if (deletedCount > 0) {
+        message += `Cleared ${deletedCount} existing positions. `;
+      }
+      if (createdPositions.length > 0 && updatedPositions.length > 0) {
+        message += `Successfully imported ${createdPositions.length} new positions and updated ${updatedPositions.length} existing positions`;
+      } else if (createdPositions.length > 0) {
+        message += `Successfully imported ${createdPositions.length} positions`;
+      } else if (updatedPositions.length > 0) {
+        message += `Successfully updated ${updatedPositions.length} positions`;
+      }
+      if (errors.length > 0) {
+        message += `, ${errors.length} failed`;
+      }
+      
       res.json({
         success: true,
         created: createdPositions.length,
+        updated: updatedPositions.length,
         deleted: deletedCount,
         errors: errors.length > 0 ? errors : undefined,
-        message: `${deletedCount > 0 ? `Cleared ${deletedCount} existing positions. ` : ''}Successfully imported ${createdPositions.length} positions${errors.length > 0 ? `, ${errors.length} failed` : ''}`
+        message: message || 'No positions processed'
       });
     } catch (error: any) {
       console.error("Error bulk creating positions:", error);
