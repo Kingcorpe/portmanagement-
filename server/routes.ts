@@ -1611,6 +1611,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const parsed = updateAlertSchema.parse(req.body);
       const alert = await storage.updateAlert(req.params.id, parsed);
+      
+      // If alert is being dismissed, archive related tasks
+      if (parsed.status === "dismissed") {
+        try {
+          const relatedTasks = await storage.getTasksBySymbol(userId, existingAlert.symbol);
+          let archivedCount = 0;
+          for (const task of relatedTasks) {
+            // Only archive tasks that match this specific alert (by checking the title pattern)
+            if (task.title.includes(`TradingView ${existingAlert.signal} Alert: ${existingAlert.symbol}`)) {
+              await storage.archiveAccountTask(task.id);
+              archivedCount++;
+            }
+          }
+          if (archivedCount > 0) {
+            console.log(`Archived ${archivedCount} task(s) related to dismissed alert ${alert.id} for symbol ${existingAlert.symbol}`);
+          }
+        } catch (taskError) {
+          console.error("Error archiving tasks for dismissed alert:", taskError);
+          // Don't fail the alert update if task archiving fails
+        }
+      }
+      
       res.json(alert);
     } catch (error: any) {
       console.error("Error updating alert:", error);
@@ -1630,14 +1652,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allAlerts = await storage.getAlertsByStatus("pending");
       const userPendingAlerts = allAlerts.filter(alert => !alert.userId || alert.userId === userId);
       
-      // Dismiss each one
+      // Track processed alert-signal-symbol combinations to avoid duplicate task archiving
+      const processedAlerts = new Set<string>();
       let dismissedCount = 0;
+      let totalArchivedTasks = 0;
+      
+      // Dismiss each alert and archive related tasks
       for (const alert of userPendingAlerts) {
         await storage.updateAlert(alert.id, { status: "dismissed" });
         dismissedCount++;
+        
+        // Archive related tasks for this specific alert (signal + symbol combination)
+        const alertKey = `${alert.signal}:${alert.symbol}`;
+        if (!processedAlerts.has(alertKey)) {
+          try {
+            const relatedTasks = await storage.getTasksBySymbol(userId, alert.symbol);
+            for (const task of relatedTasks) {
+              // Only archive tasks that match this specific alert (signal and symbol)
+              if (task.title.includes(`TradingView ${alert.signal} Alert: ${alert.symbol}`)) {
+                await storage.archiveAccountTask(task.id);
+                totalArchivedTasks++;
+              }
+            }
+            processedAlerts.add(alertKey);
+          } catch (taskError) {
+            console.error(`Error archiving tasks for alert ${alert.signal} ${alert.symbol}:`, taskError);
+            // Continue processing other alerts even if task archiving fails
+          }
+        }
       }
       
-      res.json({ message: `Dismissed ${dismissedCount} alerts`, count: dismissedCount });
+      res.json({ 
+        message: `Dismissed ${dismissedCount} alerts${totalArchivedTasks > 0 ? ` and archived ${totalArchivedTasks} related task(s)` : ''}`, 
+        count: dismissedCount,
+        archivedTasks: totalArchivedTasks
+      });
     } catch (error: any) {
       console.error("Error dismissing all alerts:", error);
       res.status(500).json({ message: "Failed to dismiss alerts" });

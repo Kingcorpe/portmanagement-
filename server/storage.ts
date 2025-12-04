@@ -281,6 +281,7 @@ export interface IStorage {
   getTasksByCorporateAccount(accountId: string): Promise<AccountTask[]>;
   getTasksByJointAccount(accountId: string): Promise<AccountTask[]>;
   getAllTasksForUser(userId: string): Promise<any[]>;
+  getTasksBySymbol(userId: string, symbol: string): Promise<AccountTask[]>;
   updateAccountTask(id: string, task: Partial<InsertAccountTask>): Promise<AccountTask>;
   deleteAccountTask(id: string): Promise<void>;
   archiveAccountTask(id: string): Promise<AccountTask>;
@@ -1860,6 +1861,76 @@ export class DatabaseStorage implements IStorage {
       // Finally by created date
       return new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime();
     });
+  }
+
+  async getTasksBySymbol(userId: string, symbol: string): Promise<AccountTask[]> {
+    // Get all households the user can access
+    const userHouseholds = await db.select({ id: households.id })
+      .from(households)
+      .leftJoin(householdShares, eq(households.id, householdShares.householdId))
+      .where(
+        or(
+          eq(households.userId, userId),
+          eq(householdShares.sharedWithUserId, userId)
+        )
+      );
+    
+    const householdIds = userHouseholds.map(h => h.id);
+    if (householdIds.length === 0) return [];
+
+    // Get all individual accounts with their tasks
+    const individualTasks = await db.select({ task: accountTasks })
+      .from(accountTasks)
+      .innerJoin(individualAccounts, eq(accountTasks.individualAccountId, individualAccounts.id))
+      .innerJoin(individuals, eq(individualAccounts.individualId, individuals.id))
+      .where(
+        and(
+          inArray(individuals.householdId, householdIds),
+          or(
+            ilike(accountTasks.title, `TradingView BUY Alert: ${symbol}`),
+            ilike(accountTasks.title, `TradingView SELL Alert: ${symbol}`)
+          ),
+          isNull(accountTasks.archivedAt)
+        )
+      );
+
+    // Get all corporate accounts with their tasks
+    const corporateTasks = await db.select({ task: accountTasks })
+      .from(accountTasks)
+      .innerJoin(corporateAccounts, eq(accountTasks.corporateAccountId, corporateAccounts.id))
+      .innerJoin(corporations, eq(corporateAccounts.corporationId, corporations.id))
+      .where(
+        and(
+          inArray(corporations.householdId, householdIds),
+          or(
+            ilike(accountTasks.title, `TradingView BUY Alert: ${symbol}`),
+            ilike(accountTasks.title, `TradingView SELL Alert: ${symbol}`)
+          ),
+          isNull(accountTasks.archivedAt)
+        )
+      );
+
+    // Get all joint accounts with their tasks
+    const jointTasks = await db.select({ task: accountTasks })
+      .from(accountTasks)
+      .innerJoin(jointAccounts, eq(accountTasks.jointAccountId, jointAccounts.id))
+      .where(
+        and(
+          inArray(jointAccounts.householdId, householdIds),
+          or(
+            ilike(accountTasks.title, `TradingView BUY Alert: ${symbol}`),
+            ilike(accountTasks.title, `TradingView SELL Alert: ${symbol}`)
+          ),
+          isNull(accountTasks.archivedAt)
+        )
+      );
+
+    // Combine all tasks
+    return [
+      ...individualTasks.map(row => row.task),
+      ...corporateTasks.map(row => row.task),
+      ...jointTasks.map(row => row.task)
+    ];
   }
 
   async updateAccountTask(id: string, taskData: Partial<InsertAccountTask>): Promise<AccountTask> {

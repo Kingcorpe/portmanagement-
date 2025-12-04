@@ -521,6 +521,21 @@ export default function AccountDetails() {
     }
   }, [isAuthenticated, authLoading, toast]);
 
+  // Handle hash navigation to tasks section
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#tasks') {
+      // Expand tasks section if collapsed
+      setIsTasksExpanded(true);
+      // Scroll to tasks section after a short delay to ensure it's rendered
+      setTimeout(() => {
+        const tasksElement = document.getElementById('tasks');
+        if (tasksElement) {
+          tasksElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  }, [accountId, accountType]);
+
   // Determine the correct API endpoint based on account type
   const getPositionsEndpoint = () => {
     if (!accountType || !accountId) return null;
@@ -3248,7 +3263,7 @@ export default function AccountDetails() {
 
         {/* Account Tasks Section */}
         <Collapsible open={isTasksExpanded} onOpenChange={setIsTasksExpanded}>
-          <Card className="h-full glow-border holo-card">
+          <Card id="tasks" className="h-full glow-border holo-card">
             <CardHeader className="pb-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <CollapsibleTrigger asChild>

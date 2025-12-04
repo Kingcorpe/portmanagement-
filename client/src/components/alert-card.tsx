@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Clock, ChevronDown, ChevronUp, ExternalLink, AlertCircle } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, ChevronDown, ChevronUp, ExternalLink, AlertCircle, Circle, Briefcase, Users } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -59,9 +59,9 @@ export function AlertCard({ alert, onExecute, onDismiss, categoryFilter }: Alert
   const getStatusBadge = (status: AffectedAccount['status']) => {
     switch (status) {
       case 'under':
-        return <Badge variant="destructive" className="text-xs">Underweight</Badge>;
+        return <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">Underweight</Badge>;
       case 'over':
-        return <Badge className="text-xs bg-green-600">Overweight</Badge>;
+        return <Badge variant="outline" className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Overweight</Badge>;
       case 'on-target':
         return <Badge variant="secondary" className="text-xs">On Target</Badge>;
       case 'no-target':
@@ -190,51 +190,91 @@ export function AlertCard({ alert, onExecute, onDismiss, categoryFilter }: Alert
               ) : sortedAccounts.length === 0 && zeroBalanceAccounts.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No accounts hold this position</p>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-2">
                   {sortedAccounts.length > 0 && (
-                    <div className="space-y-2">
+                    <>
                       {sortedAccounts.map((account) => (
                         <Link
                           key={`${account.accountType}-${account.accountId}`}
-                          href={`/account/${account.accountType}/${account.accountId}`}
+                          href={`/account/${account.accountType}/${account.accountId}#tasks`}
+                          className="block"
                         >
                           <div 
-                            className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover-elevate cursor-pointer"
+                            className="flex items-start gap-3 p-3 rounded-md border bg-card hover:bg-muted/50 hover:border-primary/30 transition-colors cursor-pointer"
                             data-testid={`link-account-${account.accountId}`}
                           >
+                            <div className="mt-0.5">
+                              <Circle className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium text-sm truncate">
-                                  {account.accountName}
-                                </span>
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <span className="font-medium">{account.accountName}</span>
+                                  <p className="text-sm text-muted-foreground mt-0.5">
+                                    {(() => {
+                                      if (isBuy) {
+                                        if (account.status === 'under' && account.targetPercentage !== null) {
+                                          const diff = (account.targetPercentage - account.actualPercentage).toFixed(1);
+                                          return `Needs ${diff}% more to reach target`;
+                                        } else if (account.status === 'over') {
+                                          return 'Already overweight - consider reducing position';
+                                        } else if (account.status === 'on-target') {
+                                          return 'On target allocation';
+                                        }
+                                        return 'Review allocation';
+                                      } else {
+                                        if (account.status === 'over' && account.targetPercentage !== null) {
+                                          const diff = (account.actualPercentage - account.targetPercentage).toFixed(1);
+                                          return `Needs to reduce by ${diff}% to reach target`;
+                                        } else if (account.status === 'under') {
+                                          return 'Already underweight - no action needed';
+                                        } else if (account.status === 'on-target') {
+                                          return 'On target allocation';
+                                        }
+                                        return 'Review allocation';
+                                      }
+                                    })()}
+                                  </p>
+                                </div>
                                 {getStatusBadge(account.status)}
                               </div>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {account.ownerName} • {account.householdName}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-4 text-right">
-                              <div>
-                                <div className="text-sm font-medium">
-                                  {account.actualPercentage.toFixed(1)}%
-                                </div>
-                                {account.targetPercentage !== null && (
-                                  <div className="text-xs text-muted-foreground">
-                                    Target: {account.targetPercentage.toFixed(1)}%
-                                  </div>
-                                )}
+                              
+                              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+                                <span className="flex items-center gap-1">
+                                  <Briefcase className="h-3 w-3" />
+                                  <span>
+                                    {account.ownerName} - {account.accountName}
+                                  </span>
+                                  <ExternalLink className="h-3 w-3" />
+                                </span>
+                                
+                                <span className="flex items-center gap-1">
+                                  <Users className="h-3 w-3" />
+                                  {account.householdName}
+                                </span>
+                                
+                                <span className="flex items-center gap-1">
+                                  <span className="font-medium">
+                                    {account.actualPercentage.toFixed(1)}%
+                                  </span>
+                                  {account.targetPercentage !== null && (
+                                    <span className="text-muted-foreground">
+                                      / {account.targetPercentage.toFixed(1)}% target
+                                    </span>
+                                  )}
+                                </span>
                               </div>
-                              <ExternalLink className="h-4 w-4 text-muted-foreground" />
                             </div>
                           </div>
                         </Link>
                       ))}
-                    </div>
+                    </>
                   )}
                   
                   {zeroBalanceAccounts.length > 0 && (
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-500">
+                      <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-500 mb-2">
                         <AlertCircle className="h-3.5 w-3.5" />
                         <span className="font-medium">Accounts skipped (no portfolio value)</span>
                       </div>
@@ -244,35 +284,50 @@ export function AlertCard({ alert, onExecute, onDismiss, categoryFilter }: Alert
                       {zeroBalanceAccounts.map((account) => (
                         <Link
                           key={`${account.accountType}-${account.accountId}`}
-                          href={`/account/${account.accountType}/${account.accountId}`}
+                          href={`/account/${account.accountType}/${account.accountId}#tasks`}
+                          className="block"
                         >
                           <div 
-                            className="flex items-center justify-between p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 hover-elevate cursor-pointer"
+                            className="flex items-start gap-3 p-3 rounded-md border bg-amber-500/5 border-amber-500/20 hover:bg-amber-500/10 hover:border-amber-500/30 transition-colors cursor-pointer"
                             data-testid={`link-account-${account.accountId}`}
                           >
+                            <div className="mt-0.5">
+                              <Circle className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium text-sm truncate">
-                                  {account.accountName}
-                                </span>
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <span className="font-medium">{account.accountName}</span>
+                                  <p className="text-sm text-muted-foreground mt-0.5">
+                                    No portfolio value - add positions to enable trading
+                                  </p>
+                                </div>
                                 {getStatusBadge(account.status)}
                               </div>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {account.ownerName} • {account.householdName}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-4 text-right">
-                              <div>
-                                <div className="text-sm font-medium text-amber-600 dark:text-amber-500">
-                                  CA$0
-                                </div>
+                              
+                              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground flex-wrap">
+                                <span className="flex items-center gap-1">
+                                  <Briefcase className="h-3 w-3" />
+                                  <span>
+                                    {account.ownerName} - {account.accountName}
+                                  </span>
+                                  <ExternalLink className="h-3 w-3" />
+                                </span>
+                                
+                                <span className="flex items-center gap-1">
+                                  <Users className="h-3 w-3" />
+                                  {account.householdName}
+                                </span>
+                                
                                 {account.targetPercentage !== null && (
-                                  <div className="text-xs text-muted-foreground">
-                                    Target: {account.targetPercentage.toFixed(1)}%
-                                  </div>
+                                  <span className="flex items-center gap-1">
+                                    <span className="text-amber-600 dark:text-amber-500 font-medium">
+                                      Target: {account.targetPercentage.toFixed(1)}%
+                                    </span>
+                                  </span>
                                 )}
                               </div>
-                              <ExternalLink className="h-4 w-4 text-muted-foreground" />
                             </div>
                           </div>
                         </Link>
