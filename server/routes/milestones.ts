@@ -1,6 +1,6 @@
 // Milestones Routes
 import type { Express } from "express";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../clerkAuth";
 import { storage } from "../storage";
 import { insertMilestoneSchema, updateMilestoneSchema } from "@shared/schema";
 import { generateMilestonesReport } from "../pdf-report";

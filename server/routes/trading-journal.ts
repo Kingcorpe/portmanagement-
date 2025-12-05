@@ -1,6 +1,6 @@
 // Trading Journal Routes
 import type { Express } from "express";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../clerkAuth";
 import { storage } from "../storage";
 import { insertTradingJournalEntrySchema, updateTradingJournalEntrySchema, insertTradingJournalImageSchema, insertTradingJournalTagSchema } from "@shared/schema";
 import { log } from "../logger";

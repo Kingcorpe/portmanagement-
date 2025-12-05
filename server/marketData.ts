@@ -1,6 +1,6 @@
 // Market Data Service - Canadian Market Info, Exchange Rates, Economic Calendar
 import type { Request, Response, Express } from "express";
-import { isAuthenticated } from "./replitAuth";
+import { isAuthenticated } from "./clerkAuth";
 import { db } from "./db";
 import { universalHoldings } from "@shared/schema";
 import { eq, and, isNotNull, or } from "drizzle-orm";

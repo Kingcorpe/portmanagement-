@@ -1,15 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
-import type { User } from "@shared/schema";
+import { useUser, useAuth as useClerkAuth } from "@clerk/clerk-react";
 
 export function useAuth() {
-  const { data: user, isLoading } = useQuery<User>({
-    queryKey: ["/api/auth/user"],
-    retry: false,
-  });
+  const { user, isLoaded, isSignedIn } = useUser();
+  const { signOut } = useClerkAuth();
 
   return {
-    user,
-    isLoading,
-    isAuthenticated: !!user,
+    user: user ? {
+      id: user.id,
+      email: user.primaryEmailAddress?.emailAddress || null,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profileImageUrl: user.imageUrl,
+    } : undefined,
+    isLoading: !isLoaded,
+    isAuthenticated: !!isSignedIn,
+    signOut,
   };
 }

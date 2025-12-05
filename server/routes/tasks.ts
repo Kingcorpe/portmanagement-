@@ -1,6 +1,6 @@
 // Task Routes
 import type { Express } from "express";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../clerkAuth";
 import { storage } from "../storage";
 import { log } from "../logger";
 import { insertAccountTaskSchema, updateAccountTaskSchema } from "@shared/schema";

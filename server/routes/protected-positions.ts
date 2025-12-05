@@ -1,6 +1,6 @@
 // Protected Positions Routes (for Protection Dashboard)
 import type { Express } from "express";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../clerkAuth";
 import { storage } from "../storage";
 import { log } from "../logger";
 

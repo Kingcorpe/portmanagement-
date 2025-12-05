@@ -1,6 +1,6 @@
 // Auth Routes
 import type { Express } from "express";
-import { isAuthenticated, isLocalDev } from "../replitAuth";
+import { isAuthenticated, isLocalDev } from "../clerkAuth";
 import { storage } from "../storage";
 import { log } from "../logger";
 import { authRateLimiter } from "./rateLimiter";

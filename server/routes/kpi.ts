@@ -1,6 +1,6 @@
 // KPI Routes
 import type { Express } from "express";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../clerkAuth";
 import { storage } from "../storage";
 import { db } from "../db";
 import { eq } from "drizzle-orm";

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SignInButton } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,10 +35,6 @@ export default function Landing() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogin = () => {
-    window.location.href = "/api/login";
-  };
-
   return (
     <div className="min-h-screen flex flex-col">
       <header className="absolute top-0 left-0 right-0 z-10 border-b border-white/10">
@@ -46,9 +43,11 @@ export default function Landing() {
             <TrendingUp className="h-8 w-8 text-white" />
             <h1 className="text-2xl font-bold text-white">TradingOS</h1>
           </div>
-          <Button variant="outline" onClick={handleLogin} className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm flex-shrink-0" data-testid="button-login">
-            Sign In
-          </Button>
+          <SignInButton mode="modal">
+            <Button variant="outline" className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm flex-shrink-0" data-testid="button-login">
+              Sign In
+            </Button>
+          </SignInButton>
         </div>
       </header>
 
@@ -77,9 +76,11 @@ export default function Landing() {
                 Quit staring at charts. Let deals find you.
               </p>
               <div className="pt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <Button size="lg" onClick={handleLogin} data-testid="button-get-started">
-                  Get Started Free
-                </Button>
+                <SignInButton mode="modal">
+                  <Button size="lg" data-testid="button-get-started">
+                    Get Started Free
+                  </Button>
+                </SignInButton>
                 <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}>
                   See How It Works
                 </Button>
@@ -323,9 +324,11 @@ export default function Landing() {
                     </ul>
                   </CardContent>
                   <CardFooter>
-                    <Button variant="outline" className="w-full" onClick={handleLogin} data-testid="button-free-tier">
-                      Get Started
-                    </Button>
+                    <SignInButton mode="modal">
+                      <Button variant="outline" className="w-full" data-testid="button-free-tier">
+                        Get Started
+                      </Button>
+                    </SignInButton>
                   </CardFooter>
                 </Card>
 
@@ -363,9 +366,11 @@ export default function Landing() {
                     </ul>
                   </CardContent>
                   <CardFooter>
-                    <Button className="w-full" onClick={handleLogin} data-testid="button-pro-tier">
-                      Start Pro Trial
-                    </Button>
+                    <SignInButton mode="modal">
+                      <Button className="w-full" data-testid="button-pro-tier">
+                        Start Pro Trial
+                      </Button>
+                    </SignInButton>
                   </CardFooter>
                 </Card>
               </div>
@@ -381,9 +386,11 @@ export default function Landing() {
               <p className="text-xl text-muted-foreground italic">
                 Quit staring at charts. Let deals find you.
               </p>
-              <Button size="lg" onClick={handleLogin} data-testid="button-sign-in-footer">
-                Sign In Now
-              </Button>
+              <SignInButton mode="modal">
+                <Button size="lg" data-testid="button-sign-in-footer">
+                  Sign In Now
+                </Button>
+              </SignInButton>
             </div>
           </div>
         </section>

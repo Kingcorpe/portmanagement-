@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Port Management - Tech Stack</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            color: #e2e8f0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #60a5fa, #a78bfa, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #94a3b8;
+            margin-bottom: 50px;
+            font-size: 1.1rem;
+        }
+        
+        .stack-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+        
+        .stack-card {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stack-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .tech-list {
+            list-style: none;
+        }
+        
+        .tech-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
+        .tech-item:last-child {
+            border-bottom: none;
+        }
+        
+        .tech-name {
+            font-weight: 500;
+            color: #f1f5f9;
+        }
+        
+        .tech-desc {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        
+        .tech-badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-left: auto;
+        }
+        
+        /* Card Colors */
+        .frontend .card-icon { background: linear-gradient(135deg, #3b82f6, #60a5fa); }
+        .backend .card-icon { background: linear-gradient(135deg, #10b981, #34d399); }
+        .database .card-icon { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+        .hosting .card-icon { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+        .auth .card-icon { background: linear-gradient(135deg, #ec4899, #f472b6); }
+        .integrations .card-icon { background: linear-gradient(135deg, #06b6d4, #22d3ee); }
+        
+        .badge-primary { background: #3b82f6; color: white; }
+        .badge-success { background: #10b981; color: white; }
+        .badge-warning { background: #f59e0b; color: black; }
+        .badge-new { background: #ec4899; color: white; }
+        
+        /* Architecture Diagram */
+        .architecture {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 16px;
+            padding: 40px;
+            margin-top: 40px;
+        }
+        
+        .arch-title {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            color: #f1f5f9;
+        }
+        
+        .arch-flow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .arch-layer {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .arch-box {
+            background: rgba(59, 130, 246, 0.1);
+            border: 2px solid #3b82f6;
+            border-radius: 12px;
+            padding: 16px 24px;
+            text-align: center;
+            min-width: 140px;
+        }
+        
+        .arch-box.db {
+            background: rgba(139, 92, 246, 0.1);
+            border-color: #8b5cf6;
+        }
+        
+        .arch-box.hosting {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: #f59e0b;
+        }
+        
+        .arch-box.auth {
+            background: rgba(236, 72, 153, 0.1);
+            border-color: #ec4899;
+        }
+        
+        .arch-arrow {
+            font-size: 24px;
+            color: #64748b;
+        }
+        
+        .arch-label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(148, 163, 184, 0.1);
+            color: #64748b;
+        }
+        
+        .footer-stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 20px;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #60a5fa;
+        }
+        
+        .stat-label {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏦 Port Management</h1>
+        <p class="subtitle">Portfolio Management System - Technology Stack</p>
+        
+        <div class="stack-grid">
+            <!-- Frontend -->
+            <div class="stack-card frontend">
+                <div class="card-header">
+                    <div class="card-icon">⚛️</div>
+                    <div class="card-title">Frontend</div>
+                </div>
+                <ul class="tech-list">
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">React 18</div>
+                            <div class="tech-desc">UI Library</div>
+                        </div>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">TypeScript</div>
+                            <div class="tech-desc">Type Safety</div>
+                        </div>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">Vite</div>
+                            <div class="tech-desc">Build Tool</div>
+                        </div>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">TailwindCSS</div>
+                            <div class="tech-desc">Styling</div>
+                        </div>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">shadcn/ui</div>
+                            <div class="tech-desc">Component Library</div>
+                        </div>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">React Query</div>
+                            <div class="tech-desc">Data Fetching</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Backend -->
+            <div class="stack-card backend">
+                <div class="card-header">
+                    <div class="card-icon">🖥️</div>
+                    <div class="card-title">Backend</div>
+                </div>
+                <ul class="tech-list">
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">Node.js</div>
+                            <div class="tech-desc">Runtime</div>
+                        </div>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">Express</div>
+                            <div class="tech-desc">Web Framework</div>
+                        </div>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">TypeScript</div>
+                            <div class="tech-desc">Type Safety</div>
+                        </div>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">Drizzle ORM</div>
+                            <div class="tech-desc">Database ORM</div>
+                        </div>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">Zod</div>
+                            <div class="tech-desc">Validation</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Database -->
+            <div class="stack-card database">
+                <div class="card-header">
+                    <div class="card-icon">🗄️</div>
+                    <div class="card-title">Database</div>
+                </div>
+                <ul class="tech-list">
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">PostgreSQL</div>
+                            <div class="tech-desc">Relational Database</div>
+                        </div>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">Neon</div>
+                            <div class="tech-desc">Serverless Postgres</div>
+                        </div>
+                        <span class="tech-badge badge-primary">Hosted</span>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">Drizzle Kit</div>
+                            <div class="tech-desc">Migrations</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Hosting -->
+            <div class="stack-card hosting">
+                <div class="card-header">
+                    <div class="card-icon">☁️</div>
+                    <div class="card-title">Hosting</div>
+                </div>
+                <ul class="tech-list">
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">Railway</div>
+                            <div class="tech-desc">App Hosting</div>
+                        </div>
+                        <span class="tech-badge badge-success">Production</span>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">Auto Deploy</div>
+                            <div class="tech-desc">From GitHub main</div>
+                        </div>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">Custom Domain</div>
+                            <div class="tech-desc">SSL Included</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Auth -->
+            <div class="stack-card auth">
+                <div class="card-header">
+                    <div class="card-icon">🔐</div>
+                    <div class="card-title">Authentication</div>
+                </div>
+                <ul class="tech-list">
+                    <li class="tech-item" style="text-decoration: line-through; opacity: 0.5;">
+                        <div>
+                            <div class="tech-name">Replit Auth</div>
+                            <div class="tech-desc">Legacy - Removing</div>
+                        </div>
+                        <span class="tech-badge badge-warning">Old</span>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">Clerk</div>
+                            <div class="tech-desc">Modern Auth Platform</div>
+                        </div>
+                        <span class="tech-badge badge-new">New</span>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">MFA Support</div>
+                            <div class="tech-desc">Two-Factor Auth</div>
+                        </div>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">SOC 2 Compliant</div>
+                            <div class="tech-desc">Enterprise Security</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Market Data -->
+            <div class="stack-card integrations">
+                <div class="card-header">
+                    <div class="card-icon">📈</div>
+                    <div class="card-title">Market Data</div>
+                </div>
+                <ul class="tech-list">
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">MarketStack</div>
+                            <div class="tech-desc">Primary - Canadian ETFs</div>
+                        </div>
+                        <span class="tech-badge badge-success">Primary</span>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">Twelve Data</div>
+                            <div class="tech-desc">Fallback Provider</div>
+                        </div>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">Yahoo Finance</div>
+                            <div class="tech-desc">Final Fallback</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Integrations -->
+            <div class="stack-card integrations">
+                <div class="card-header">
+                    <div class="card-icon">🔗</div>
+                    <div class="card-title">Integrations</div>
+                </div>
+                <ul class="tech-list">
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">TradingView</div>
+                            <div class="tech-desc">Webhooks & Alerts</div>
+                        </div>
+                    </li>
+                    <li class="tech-item">
+                        <div>
+                            <div class="tech-name">Gmail API</div>
+                            <div class="tech-desc">Email Reports</div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Architecture Diagram -->
+        <div class="architecture">
+            <h2 class="arch-title">📐 System Architecture</h2>
+            <div class="arch-flow">
+                <div class="arch-layer">
+                    <div class="arch-box">
+                        <strong>👤 User</strong>
+                        <div class="arch-label">Browser</div>
+                    </div>
+                </div>
+                
+                <div class="arch-arrow">↓</div>
+                
+                <div class="arch-layer">
+                    <div class="arch-box auth">
+                        <strong>🔐 Clerk</strong>
+                        <div class="arch-label">Authentication</div>
+                    </div>
+                </div>
+                
+                <div class="arch-arrow">↓</div>
+                
+                <div class="arch-layer">
+                    <div class="arch-box hosting">
+                        <strong>🚂 Railway</strong>
+                        <div class="arch-label">App Hosting</div>
+                    </div>
+                </div>
+                
+                <div class="arch-arrow">↓</div>
+                
+                <div class="arch-layer">
+                    <div class="arch-box">
+                        <strong>⚛️ React</strong>
+                        <div class="arch-label">Frontend</div>
+                    </div>
+                    <div class="arch-box">
+                        <strong>🖥️ Express</strong>
+                        <div class="arch-label">API Server</div>
+                    </div>
+                </div>
+                
+                <div class="arch-arrow">↓</div>
+                
+                <div class="arch-layer">
+                    <div class="arch-box db">
+                        <strong>🐘 PostgreSQL</strong>
+                        <div class="arch-label">Neon (Serverless)</div>
+                    </div>
+                    <div class="arch-box">
+                        <strong>📈 MarketStack</strong>
+                        <div class="arch-label">Primary Market Data</div>
+                    </div>
+                    <div class="arch-box" style="opacity: 0.6;">
+                        <strong>📊 Twelve Data</strong>
+                        <div class="arch-label">Fallback</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>Built with modern, scalable technologies</p>
+            <div class="footer-stats">
+                <div class="stat">
+                    <div class="stat-value">15+</div>
+                    <div class="stat-label">Households</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">$1.2M+</div>
+                    <div class="stat-label">Protected Assets</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">78</div>
+                    <div class="stat-label">Positions Tracked</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

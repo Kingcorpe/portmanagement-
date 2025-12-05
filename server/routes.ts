@@ -3,7 +3,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
-import { setupAuth, isAuthenticated, isLocalDev } from "./replitAuth";
+// Use Clerk authentication
+import { setupAuth, isAuthenticated, isLocalDev } from "./clerkAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { generatePortfolioRebalanceReport, generateMilestonesReport } from "./pdf-report";

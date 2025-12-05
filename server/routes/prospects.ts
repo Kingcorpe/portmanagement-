@@ -1,6 +1,6 @@
 // Prospects Routes
 import type { Express } from "express";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../clerkAuth";
 import { storage } from "../storage";
 import { insertProspectSchema, updateProspectSchema } from "@shared/schema";
 import { log } from "../logger";

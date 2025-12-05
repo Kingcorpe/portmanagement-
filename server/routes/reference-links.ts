@@ -1,6 +1,6 @@
 // Reference Links Routes
 import type { Express } from "express";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../clerkAuth";
 import { storage } from "../storage";
 import { insertReferenceLinkSchema, updateReferenceLinkSchema } from "@shared/schema";
 import { log } from "../logger";
