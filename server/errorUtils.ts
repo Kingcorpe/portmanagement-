@@ -99,6 +99,11 @@ export function sanitizeError(error: any, isProduction: boolean): SanitizedError
  */
 export function createErrorHandler(isProduction: boolean) {
   return (err: any, req: any, res: any, next: any) => {
+    // Always log the raw error for debugging
+    console.error("[ERROR_HANDLER] Caught error on", req.method, req.path);
+    console.error("[ERROR_HANDLER] Error:", err?.message || err);
+    console.error("[ERROR_HANDLER] Stack:", err?.stack?.slice(0, 500));
+    
     const sanitized = sanitizeError(err, isProduction);
     res.status(sanitized.status || 500).json({
       message: sanitized.message,
