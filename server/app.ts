@@ -42,7 +42,7 @@ app.use((req, res, next) => {
   if (process.env.NODE_ENV === 'production') {
     res.setHeader(
       'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://query1.finance.yahoo.com https://query2.finance.yahoo.com;"
+      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.accounts.dev; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://query1.finance.yahoo.com https://query2.finance.yahoo.com https://*.clerk.accounts.dev https://clerk.accounts.dev https://api.clerk.dev; frame-src 'self' https://*.clerk.accounts.dev https://clerk.accounts.dev;"
     );
   }
   // Permissions policy
