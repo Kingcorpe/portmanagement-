@@ -7,9 +7,9 @@ import { logger } from "../logger";
 
 export function registerRoadmapRoutes(app: Express) {
   // Get all roadmap items for the current user
-  app.get("/api/roadmap", isAuthenticated, async (req, res) => {
+  app.get("/api/roadmap", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user!.id;
+      const userId = req.user.claims.sub;
       
       const items = await db
         .select()
@@ -25,9 +25,9 @@ export function registerRoadmapRoutes(app: Express) {
   });
 
   // Create a new roadmap item
-  app.post("/api/roadmap", isAuthenticated, async (req, res) => {
+  app.post("/api/roadmap", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user!.id;
+      const userId = req.user.claims.sub;
       const parsed = insertRoadmapItemSchema.safeParse(req.body);
       
       if (!parsed.success) {
@@ -50,9 +50,9 @@ export function registerRoadmapRoutes(app: Express) {
   });
 
   // Update a roadmap item
-  app.patch("/api/roadmap/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/roadmap/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user!.id;
+      const userId = req.user.claims.sub;
       const { id } = req.params;
       const parsed = updateRoadmapItemSchema.safeParse(req.body);
       
@@ -88,9 +88,9 @@ export function registerRoadmapRoutes(app: Express) {
   });
 
   // Delete a roadmap item
-  app.delete("/api/roadmap/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/roadmap/:id", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user!.id;
+      const userId = req.user.claims.sub;
       const { id } = req.params;
 
       const [item] = await db
@@ -110,9 +110,9 @@ export function registerRoadmapRoutes(app: Express) {
   });
 
   // Bulk update sort order
-  app.post("/api/roadmap/reorder", isAuthenticated, async (req, res) => {
+  app.post("/api/roadmap/reorder", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user!.id;
+      const userId = req.user.claims.sub;
       const { items } = req.body as { items: { id: string; sortOrder: number; status?: string }[] };
 
       if (!Array.isArray(items)) {
