@@ -2,8 +2,7 @@ import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
-import { useDemoAwareQuery } from "@/lib/demo-data-service";
-import { DemoModeBanner } from "@/components/demo-mode-banner";
+import { useQuery } from "@tanstack/react-query";
 import { MetricCard } from "@/components/metric-card";
 import { KeyMetricsSkeleton } from "@/components/ui/loading-skeletons";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -92,7 +91,7 @@ export default function KeyMetrics() {
     }
   }, [isAuthenticated, authLoading, toast]);
 
-  const { data: householdsData = [], isLoading: householdsLoading } = useDemoAwareQuery<HouseholdWithDetails[]>({
+  const { data: householdsData = [], isLoading: householdsLoading } = useQuery<HouseholdWithDetails[]>({
     queryKey: ["/api/households/full"],
     enabled: isAuthenticated,
     retry: (failureCount: number, error: Error) => {
@@ -103,12 +102,12 @@ export default function KeyMetrics() {
     },
   });
 
-  const { data: tasks = [], isLoading: tasksLoading } = useDemoAwareQuery<Task[]>({
+  const { data: tasks = [], isLoading: tasksLoading } = useQuery<Task[]>({
     queryKey: ["/api/tasks"],
     enabled: isAuthenticated,
   });
 
-  const { data: alerts = [], isLoading: alertsLoading } = useDemoAwareQuery<Alert[]>({
+  const { data: alerts = [], isLoading: alertsLoading } = useQuery<Alert[]>({
     queryKey: ["/api/alerts"],
     enabled: isAuthenticated,
   });

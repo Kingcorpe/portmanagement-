@@ -623,17 +623,6 @@ export default function Admin() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-base font-medium">Demo Mode</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Show sample data for prospect demonstrations
-                  </p>
-                  <div className="p-4 rounded-lg bg-muted/50">
-                    <p className="text-sm">
-                      Toggle Demo Mode from the sidebar to switch between real and sample data.
-                    </p>
-                  </div>
-                </div>
               </div>
             </CardContent>
           </Card>

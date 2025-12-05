@@ -4,9 +4,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useDemoMode } from "@/contexts/demo-mode-context";
-import { useDemoAwareQuery } from "@/lib/demo-data-service";
-import { DemoModeBanner } from "@/components/demo-mode-banner";
 import { AlertCard, Alert } from "@/components/alert-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -78,9 +75,7 @@ export default function Alerts() {
     }
   }, [isAuthenticated, authLoading, toast]);
 
-  const { isDemoMode } = useDemoMode();
-
-  const { data: alertsData = [], isLoading, dataUpdatedAt } = useDemoAwareQuery<AlertType[]>({
+  const { data: alertsData = [], isLoading, dataUpdatedAt } = useQuery<AlertType[]>({
     queryKey: ["/api/alerts"],
     enabled: isAuthenticated,
     refetchInterval: 15000, // Auto-refresh every 15 seconds

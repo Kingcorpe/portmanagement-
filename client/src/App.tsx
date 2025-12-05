@@ -10,7 +10,6 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeSelector } from "@/components/theme-selector";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
-import { DemoModeProvider } from "@/contexts/demo-mode-context";
 
 // Page transition variants
 const pageVariants = {
@@ -184,9 +183,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <DemoModeProvider>
-          <AppContent />
-        </DemoModeProvider>
+        <AppContent />
       </TooltipProvider>
     </QueryClientProvider>
   );
