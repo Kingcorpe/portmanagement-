@@ -91,8 +91,19 @@ export async function setupAuth(app: Express) {
   // Add session middleware (needed for CSRF tokens)
   app.use(getSession());
   
-  // Add Clerk middleware to all routes
-  app.use(clerkMiddleware());
+  // Log Clerk configuration status
+  console.log("[CLERK] CLERK_SECRET_KEY set:", !!process.env.CLERK_SECRET_KEY);
+  console.log("[CLERK] CLERK_SECRET_KEY length:", process.env.CLERK_SECRET_KEY?.length || 0);
+  
+  // Add Clerk middleware to all routes with error handling
+  app.use((req, res, next) => {
+    clerkMiddleware()(req, res, (err: any) => {
+      if (err) {
+        console.error("[CLERK] Middleware error:", err);
+      }
+      next(err);
+    });
+  });
   
   console.log("🔐 Clerk authentication enabled");
 
