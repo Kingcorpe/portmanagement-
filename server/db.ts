@@ -1,14 +1,11 @@
-// Based on blueprint:javascript_database
+// Database connection - supports both Neon and Railway Postgres
 console.log("[DB] Loading database module...");
 
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
 
 console.log("[DB] Imports completed");
-
-neonConfig.webSocketConstructor = ws;
 
 if (!process.env.DATABASE_URL) {
   console.error("[DB] DATABASE_URL is not set!");
@@ -19,8 +16,22 @@ if (!process.env.DATABASE_URL) {
 
 console.log("[DB] DATABASE_URL is set, creating pool...");
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Configure SSL based on environment
+const isRailway = process.env.DATABASE_URL?.includes('railway');
+const poolConfig: any = { 
+  connectionString: process.env.DATABASE_URL,
+};
+
+// For Railway Postgres, disable SSL verification
+if (isRailway) {
+  poolConfig.ssl = {
+    rejectUnauthorized: false
+  };
+  console.log("[DB] Railway Postgres detected, SSL verification disabled");
+}
+
+export const pool = new Pool(poolConfig);
 console.log("[DB] Pool created, initializing drizzle...");
 
-export const db = drizzle({ client: pool, schema });
+export const db = drizzle(pool, { schema });
 console.log("[DB] Database module loaded successfully");
