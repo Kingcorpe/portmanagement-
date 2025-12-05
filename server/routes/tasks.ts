@@ -222,6 +222,36 @@ export function registerTasksRoutes(app: Express) {
         },
       });
       
+      // If this is a protection review task, update protectionReviewedAt on the position
+      if (existing.title.includes("Review protection for")) {
+        try {
+          // Extract symbol from task title (format: "Review protection for SYMBOL - up X%")
+          const symbolMatch = existing.title.match(/Review protection for ([A-Z0-9.\-]+)/);
+          if (symbolMatch) {
+            const symbol = symbolMatch[1];
+            // Find matching position(s) by account and symbol
+            let positions: any[] = [];
+            if (existing.individualAccountId) {
+              positions = await storage.getPositionsByIndividualAccount(existing.individualAccountId);
+            } else if (existing.corporateAccountId) {
+              positions = await storage.getPositionsByCorporateAccount(existing.corporateAccountId);
+            } else if (existing.jointAccountId) {
+              positions = await storage.getPositionsByJointAccount(existing.jointAccountId);
+            }
+            
+            // Update protectionReviewedAt for matching positions
+            const matchingPositions = positions.filter(p => p.symbol === symbol);
+            for (const pos of matchingPositions) {
+              await storage.updatePosition(pos.id, { protectionReviewedAt: new Date() });
+              log.debug(`[PROTECTION] Marked ${symbol} as reviewed (protectionReviewedAt updated)`);
+            }
+          }
+        } catch (err) {
+          log.error("Error updating protectionReviewedAt", err);
+          // Don't fail the task completion if this fails
+        }
+      }
+      
       // Mark task as completed instead of deleting
       const updated = await storage.updateAccountTask(req.params.id, { status: "completed" });
       
