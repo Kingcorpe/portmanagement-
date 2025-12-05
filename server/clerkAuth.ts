@@ -94,16 +94,10 @@ export async function setupAuth(app: Express) {
   // Log Clerk configuration status
   console.log("[CLERK] CLERK_SECRET_KEY set:", !!process.env.CLERK_SECRET_KEY);
   console.log("[CLERK] CLERK_SECRET_KEY length:", process.env.CLERK_SECRET_KEY?.length || 0);
+  console.log("[CLERK] CLERK_PUBLISHABLE_KEY set:", !!process.env.CLERK_PUBLISHABLE_KEY);
   
-  // Add Clerk middleware to all routes with error handling
-  app.use((req, res, next) => {
-    clerkMiddleware()(req, res, (err: any) => {
-      if (err) {
-        console.error("[CLERK] Middleware error:", err);
-      }
-      next(err);
-    });
-  });
+  // Add Clerk middleware to all routes
+  app.use(clerkMiddleware());
   
   console.log("🔐 Clerk authentication enabled");
 
