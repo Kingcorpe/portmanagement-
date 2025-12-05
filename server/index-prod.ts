@@ -62,7 +62,10 @@ export async function serveStatic(app: Express, _server: Server) {
   // Handle SPA routing - serve index.html for all routes under base path
   // This allows client-side routing to work
   app.use(`${normalizedBasePath}*`, (_req, res) => {
-    res.sendFile(path.resolve(finalPath, "index.html"));
+    // Only send if headers haven't been sent (prevents "Can't set headers" error)
+    if (!res.headersSent) {
+      res.sendFile(path.resolve(finalPath, "index.html"));
+    }
   });
   console.log("[STATIC] SPA routing registered");
 }
