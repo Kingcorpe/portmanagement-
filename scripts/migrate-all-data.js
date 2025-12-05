@@ -96,6 +96,10 @@ try {
   }
   console.log(`  ✅ Holdings: ${stats.holdings.imported} imported, ${stats.holdings.updated} updated\n`);
 
+  // Initialize ID maps for tracking local -> Railway ID mappings
+  const householdIdMap = new Map();
+  const corporationIdMap = new Map();
+  
   // 2. Migrate Households
   console.log('🏠 Migrating Households...');
   const localHouseholds = await localDb
@@ -294,7 +298,7 @@ try {
 
   // Build maps for corporations (local ID -> Railway ID)
   // Note: individualIdMap was already populated during individual migration
-  const corporationIdMap = new Map();
+  // Note: corporationIdMap was already initialized at the start
   
   // Get all Railway corporations to build the map
   const railwayCorporations = await railwayDb.select().from(schema.corporations);

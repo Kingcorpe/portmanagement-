@@ -10,10 +10,8 @@ export function registerProtectedPositionsRoutes(app: Express) {
     try {
       const userId = req.user.claims.sub;
       
-      // Get all households the user can access
-      const ownedHouseholds = await storage.getHouseholdsByUser(userId);
-      const sharedHouseholds = await storage.getSharedHouseholdsForUser(userId);
-      const allHouseholds = [...ownedHouseholds, ...sharedHouseholds.map(s => s.household)].filter(h => !h.deletedAt);
+      // Get all households the user can access (using getAllHouseholds which already handles owned + shared)
+      const allHouseholds = await storage.getAllHouseholds(userId);
       
       const protectedPositions: Array<{
         positionId: string;
