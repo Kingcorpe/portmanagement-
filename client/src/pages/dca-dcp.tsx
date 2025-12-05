@@ -1059,7 +1059,7 @@ function CreatePlanDialog({
 
   // Parse account key into account IDs
   const getAccountIds = () => {
-    if (!formData.accountKey) return {};
+    if (!formData.accountKey || formData.accountKey === 'none') return {};
     const [accountType, accountId] = formData.accountKey.split(':');
     if (accountType === 'individual') return { individualAccountId: accountId };
     if (accountType === 'corporate') return { corporateAccountId: accountId };
@@ -1140,7 +1140,7 @@ function CreatePlanDialog({
               <SelectValue placeholder="Select an account (optional)" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">No specific account</SelectItem>
+              <SelectItem value="none">No specific account</SelectItem>
               {accountOptions.map((acc) => (
                 <SelectItem key={acc.key} value={acc.key}>
                   <div className="flex flex-col">

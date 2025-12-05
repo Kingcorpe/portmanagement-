@@ -115,7 +115,7 @@ export function registerDcaDcpRoutes(app: Express) {
       const userId = req.user.claims.sub;
       const parsed = insertDcaPlanSchema.parse(req.body);
       
-      // Determine account type and get household ID
+      // Determine account type and get household ID (optional - plan can exist without account)
       let householdId: string | null = null;
       if (parsed.individualAccountId) {
         householdId = await storage.getHouseholdIdFromAccount('individual', parsed.individualAccountId);
@@ -125,14 +125,17 @@ export function registerDcaDcpRoutes(app: Express) {
         householdId = await storage.getHouseholdIdFromAccount('joint', parsed.jointAccountId);
       }
       
-      if (!householdId) {
+      // If account is specified, verify access
+      if (householdId) {
+        const canEdit = await storage.canUserEditHousehold(userId, householdId);
+        if (!canEdit) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      } else if (parsed.individualAccountId || parsed.corporateAccountId || parsed.jointAccountId) {
+        // Account was specified but not found
         return res.status(404).json({ message: "Account not found" });
       }
-      
-      const canEdit = await storage.canUserEditHousehold(userId, householdId);
-      if (!canEdit) {
-        return res.status(403).json({ message: "Access denied" });
-      }
+      // If no account specified, allow creation (plan without account link)
       
       // Add userId to the plan
       const planWithUser = { ...parsed, userId };
@@ -387,7 +390,7 @@ export function registerDcaDcpRoutes(app: Express) {
       const userId = req.user.claims.sub;
       const parsed = insertDcpPlanSchema.parse(req.body);
       
-      // Determine account type and get household ID
+      // Determine account type and get household ID (optional - plan can exist without account)
       let householdId: string | null = null;
       if (parsed.individualAccountId) {
         householdId = await storage.getHouseholdIdFromAccount('individual', parsed.individualAccountId);
@@ -397,14 +400,17 @@ export function registerDcaDcpRoutes(app: Express) {
         householdId = await storage.getHouseholdIdFromAccount('joint', parsed.jointAccountId);
       }
       
-      if (!householdId) {
+      // If account is specified, verify access
+      if (householdId) {
+        const canEdit = await storage.canUserEditHousehold(userId, householdId);
+        if (!canEdit) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      } else if (parsed.individualAccountId || parsed.corporateAccountId || parsed.jointAccountId) {
+        // Account was specified but not found
         return res.status(404).json({ message: "Account not found" });
       }
-      
-      const canEdit = await storage.canUserEditHousehold(userId, householdId);
-      if (!canEdit) {
-        return res.status(403).json({ message: "Access denied" });
-      }
+      // If no account specified, allow creation (plan without account link)
       
       const planWithUser = { ...parsed, userId };
       const plan = await storage.createDcpPlan(planWithUser);
