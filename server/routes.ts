@@ -6739,13 +6739,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const protectionValue = parseFloat(position.protectionPercent || '0');
           const hasProtection = protectionValue > 0;
           
+          // Check last alert gain percent for threshold escalation
+          const lastAlertGain = parseFloat((position as any).lastAlertGainPercent || '0');
+          const ESCALATION_THRESHOLD = 10; // Only re-alert if gain increased by 10%+
+          
+          // Check if recently reviewed (within 30 days)
+          const reviewedAt = (position as any).protectionReviewedAt;
+          const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          const recentlyReviewed = reviewedAt && new Date(reviewedAt) > thirtyDaysAgo;
+          
           // Log positions with significant gains for debugging
           if (gainPercent >= 10) {
-            log.debug(`[Background Job] Position ${position.symbol}: gain=${gainPercent.toFixed(1)}%, entry=$${entryPrice.toFixed(2)}, current=$${newPrice.toFixed(2)}, hasProtection=${hasProtection} (value: ${position.protectionPercent})`);
+            log.debug(`[Background Job] Position ${position.symbol}: gain=${gainPercent.toFixed(1)}%, lastAlert=${lastAlertGain.toFixed(1)}%, entry=$${entryPrice.toFixed(2)}, current=$${newPrice.toFixed(2)}, hasProtection=${hasProtection}, recentlyReviewed=${recentlyReviewed}`);
           }
           
-          if (entryPrice > 0 && !hasProtection && gainPercent >= PROTECTION_THRESHOLD_PERCENT) {
-            console.log(`[PROTECTION] Adding ${position.symbol} to protection list: entry=$${entryPrice}, current=$${newPrice}, gain=${gainPercent.toFixed(1)}%, hasProtection=${hasProtection}`);
+          // Determine if we should create a task:
+          // 1. Position has no protection set
+          // 2. Current gain >= 15% (initial threshold)
+          // 3. Either: no previous alert OR gain has increased by 10%+ since last alert
+          // 4. Not recently reviewed (within 30 days) unless gain jumped significantly
+          const meetsInitialThreshold = gainPercent >= PROTECTION_THRESHOLD_PERCENT;
+          const meetsEscalationThreshold = lastAlertGain === 0 || gainPercent >= lastAlertGain + ESCALATION_THRESHOLD;
+          const shouldAlert = !recentlyReviewed || gainPercent >= lastAlertGain + ESCALATION_THRESHOLD;
+          
+          if (entryPrice > 0 && !hasProtection && meetsInitialThreshold && meetsEscalationThreshold && shouldAlert) {
+            console.log(`[PROTECTION] Adding ${position.symbol} to protection list: entry=$${entryPrice}, current=$${newPrice}, gain=${gainPercent.toFixed(1)}%, lastAlert=${lastAlertGain.toFixed(1)}%`);
             positionsNeedingProtection.push({
               position,
               gainPercent,
@@ -6812,6 +6830,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               console.log(`[PROTECTION] Creating task:`, JSON.stringify(taskData));
               const createdTask = await storage.createAccountTask(taskData);
               console.log(`[PROTECTION] Task created successfully:`, JSON.stringify(createdTask));
+              
+              // Update position with the gain % at which we alerted (prevents duplicate alerts)
+              await storage.updatePosition(position.id, { 
+                lastAlertGainPercent: gainPercent.toFixed(2)
+              });
+              console.log(`[PROTECTION] Updated ${position.symbol} lastAlertGainPercent to ${gainPercent.toFixed(2)}%`);
+              
               log.debug(`[Background Job] Created protection task for ${position.symbol} (${gainPercent.toFixed(1)}% gain)`);
             } else {
               console.log(`[PROTECTION] Skipping ${position.symbol} - pending task already exists`);

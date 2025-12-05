@@ -344,6 +344,9 @@ export const positions = pgTable("positions", {
   protectionPercent: decimal("protection_percent", { precision: 5, scale: 2 }), // e.g., 50.00 for 50%
   stopPrice: decimal("stop_price", { precision: 15, scale: 2 }), // Trigger price
   limitPrice: decimal("limit_price", { precision: 15, scale: 2 }), // Minimum sell price
+  // Protection alert tracking (prevents duplicate tasks)
+  lastAlertGainPercent: decimal("last_alert_gain_percent", { precision: 5, scale: 2 }), // Gain % when last alert was created
+  protectionReviewedAt: timestamp("protection_reviewed_at"), // When user reviewed without setting protection
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
