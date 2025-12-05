@@ -55,19 +55,39 @@ export async function serveStatic(app: Express, _server: Server) {
   // Normalize base path (ensure it starts with / and ends with /)
   const normalizedBasePath = basePath === '/' ? '/' : basePath.replace(/\/$/, '') + '/';
 
-  // Serve static files from base path
-  app.use(normalizedBasePath, express.static(finalPath));
+  // CACHE BUSTING: Serve hashed assets with long cache (1 year)
+  // Files in /assets/ have content hashes in their names, so they can be cached forever
+  app.use(
+    `${normalizedBasePath}assets`,
+    express.static(path.join(finalPath, "assets"), {
+      maxAge: "1y",
+      immutable: true,
+    })
+  );
+  console.log("[STATIC] Hashed assets middleware registered with 1 year cache");
+
+  // Serve other static files (favicon, etc.) with short cache
+  app.use(normalizedBasePath, express.static(finalPath, {
+    maxAge: "1h",
+    // Exclude index.html from this middleware (handled separately below)
+    index: false,
+  }));
   console.log("[STATIC] Static middleware registered for:", normalizedBasePath);
 
   // Handle SPA routing - serve index.html for all routes under base path
-  // This allows client-side routing to work
+  // IMPORTANT: Set no-cache for index.html so browsers always get the latest version
+  // This ensures new deployments are picked up without clearing browser cache
   app.use(`${normalizedBasePath}*`, (_req, res) => {
     // Only send if headers haven't been sent (prevents "Can't set headers" error)
     if (!res.headersSent) {
+      // Prevent caching of index.html
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
       res.sendFile(path.resolve(finalPath, "index.html"));
     }
   });
-  console.log("[STATIC] SPA routing registered");
+  console.log("[STATIC] SPA routing registered with no-cache for index.html");
 }
 
 (async () => {
