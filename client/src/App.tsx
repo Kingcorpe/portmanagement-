@@ -67,6 +67,7 @@ import Prospects from "@/pages/prospects";
 import ProspectIntake from "@/pages/prospect-intake";
 import DividendDashboard from "@/pages/dividend-dashboard";
 import DcaDcp from "@/pages/dca-dcp";
+import Roadmap from "@/pages/roadmap";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
@@ -105,6 +106,7 @@ function AuthenticatedRoutes() {
           <Route path="/prospects" component={Prospects} />
           <Route path="/dividends" component={DividendDashboard} />
           <Route path="/dca-dcp" component={DcaDcp} />
+          <Route path="/roadmap" component={Roadmap} />
           <Route component={NotFound} />
         </Switch>
       </AnimatedPage>

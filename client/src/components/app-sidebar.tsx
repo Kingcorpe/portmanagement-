@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Settings, Trophy, User, Globe, Activity, BookMarked, UserPlus, Coins, ArrowUpDown } from "lucide-react";
+import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Settings, Trophy, User, Globe, Activity, BookMarked, UserPlus, Coins, ArrowUpDown, Map } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -149,6 +149,11 @@ const insuranceDivisionItems = [
 ];
 
 const bottomMenuItems: Array<{ title: string; url: string; icon: React.ComponentType<{ className?: string }> }> = [
+  {
+    title: "Project Roadmap",
+    url: "/roadmap",
+    icon: Map,
+  },
   {
     title: "Reference Links",
     url: "/reference-links",

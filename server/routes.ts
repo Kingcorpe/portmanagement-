@@ -1726,6 +1726,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { registerAlertRoutes } = await import("./routes/alerts");
   registerAlertRoutes(app);
 
+  // Roadmap routes
+  const { registerRoadmapRoutes } = await import("./routes/roadmap");
+  registerRoadmapRoutes(app);
+
   // Legacy alert routes (keeping for now, will be removed after testing)
   app.get('/api/alerts', 
     validateQuery(z.object({

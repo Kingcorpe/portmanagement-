@@ -2071,6 +2071,71 @@ export type InsertTradingJournalEntry = z.infer<typeof insertTradingJournalEntry
 export type UpdateTradingJournalEntry = z.infer<typeof updateTradingJournalEntrySchema>;
 export type TradingJournalEntry = typeof tradingJournalEntries.$inferSelect;
 
+// ==========================================
+// Project Roadmap
+// ==========================================
+
+// Roadmap item status enum
+export const roadmapItemStatusEnum = pgEnum("roadmap_item_status", [
+  "current",      // Currently being worked on
+  "queued",       // Up next in priority order
+  "backlog",      // Ideas for later
+  "completed",    // Done
+]);
+
+// Roadmap item priority enum
+export const roadmapItemPriorityEnum = pgEnum("roadmap_item_priority", [
+  "must_do",      // Critical - must complete
+  "should_do",    // Important but not critical
+  "could_do",     // Nice to have
+  "idea",         // Just an idea for now
+]);
+
+// Roadmap items table
+export const roadmapItems = pgTable("roadmap_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: roadmapItemStatusEnum("status").notNull().default("backlog"),
+  priority: roadmapItemPriorityEnum("priority").notNull().default("could_do"),
+  category: varchar("category", { length: 50 }), // e.g., "feature", "bug", "refactor", "docs"
+  sortOrder: integer("sort_order").notNull().default(0),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const roadmapItemsRelations = relations(roadmapItems, ({ one }) => ({
+  user: one(users, {
+    fields: [roadmapItems.userId],
+    references: [users.id],
+  }),
+}));
+
+// Roadmap items insert schema
+export const insertRoadmapItemSchema = createInsertSchema(roadmapItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+}).extend({
+  title: z.string().min(1, "Title is required").max(200, "Title must be 200 characters or less"),
+  description: z.string().max(2000, "Description must be 2000 characters or less").optional().nullable(),
+  status: z.enum(["current", "queued", "backlog", "completed"]).optional().default("backlog"),
+  priority: z.enum(["must_do", "should_do", "could_do", "idea"]).optional().default("could_do"),
+  category: z.string().max(50).optional().nullable(),
+  sortOrder: z.coerce.number().int().optional().default(0),
+});
+
+// Roadmap items update schema
+export const updateRoadmapItemSchema = insertRoadmapItemSchema.partial();
+
+// Roadmap item types
+export type InsertRoadmapItem = z.infer<typeof insertRoadmapItemSchema>;
+export type UpdateRoadmapItem = z.infer<typeof updateRoadmapItemSchema>;
+export type RoadmapItem = typeof roadmapItems.$inferSelect;
+
 export type InsertTradingJournalImage = z.infer<typeof insertTradingJournalImageSchema>;
 export type TradingJournalImage = typeof tradingJournalImages.$inferSelect;
 
