@@ -33,6 +33,8 @@ import {
   tradingJournalTags,
   tradingJournalEntryTags,
   prospects,
+  dcaPlans,
+  dcpPlans,
   type User,
   type UpsertUser,
   type Household,
@@ -113,6 +115,12 @@ import {
   type Prospect,
   type InsertProspect,
   type UpdateProspect,
+  type DcaPlan,
+  type InsertDcaPlan,
+  type UpdateDcaPlan,
+  type DcpPlan,
+  type InsertDcpPlan,
+  type UpdateDcpPlan,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, inArray, ilike, or, and, sql, isNull, isNotNull, lt } from "drizzle-orm";
@@ -369,6 +377,31 @@ export interface IStorage {
   updateProspect(id: string, data: UpdateProspect): Promise<Prospect>;
   deleteProspect(id: string): Promise<void>;
   getProspectsByStatus(status: string): Promise<Prospect[]>;
+
+  // DCA Plan operations
+  createDcaPlan(data: InsertDcaPlan & { userId: string }): Promise<DcaPlan>;
+  getDcaPlan(id: string): Promise<DcaPlan | undefined>;
+  getDcaPlansForUser(userId: string): Promise<DcaPlan[]>;
+  getDcaPlansByIndividualAccount(accountId: string): Promise<DcaPlan[]>;
+  getDcaPlansByCorporateAccount(accountId: string): Promise<DcaPlan[]>;
+  getDcaPlansByJointAccount(accountId: string): Promise<DcaPlan[]>;
+  updateDcaPlan(id: string, data: Partial<DcaPlan>): Promise<DcaPlan>;
+  deleteDcaPlan(id: string): Promise<void>;
+
+  // DCP Plan operations
+  createDcpPlan(data: InsertDcpPlan & { userId: string }): Promise<DcpPlan>;
+  getDcpPlan(id: string): Promise<DcpPlan | undefined>;
+  getDcpPlansForUser(userId: string): Promise<DcpPlan[]>;
+  getDcpPlansByIndividualAccount(accountId: string): Promise<DcpPlan[]>;
+  getDcpPlansByCorporateAccount(accountId: string): Promise<DcpPlan[]>;
+  getDcpPlansByJointAccount(accountId: string): Promise<DcpPlan[]>;
+  updateDcpPlan(id: string, data: Partial<DcpPlan>): Promise<DcpPlan>;
+  deleteDcpPlan(id: string): Promise<void>;
+
+  // Dividend Dashboard operations
+  getDividendProjectionsForUser(userId: string): Promise<any[]>;
+  getDividendCalendarForUser(userId: string): Promise<any[]>;
+  getDividendSummaryByAccount(userId: string): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2772,6 +2805,287 @@ export class DatabaseStorage implements IStorage {
       .from(prospects)
       .where(eq(prospects.status, status as any))
       .orderBy(desc(prospects.createdAt));
+  }
+
+  // DCA Plan operations
+  async createDcaPlan(data: InsertDcaPlan & { userId: string }): Promise<DcaPlan> {
+    const [plan] = await db.insert(dcaPlans).values(data).returning();
+    return plan;
+  }
+
+  async getDcaPlan(id: string): Promise<DcaPlan | undefined> {
+    const [plan] = await db.select().from(dcaPlans).where(eq(dcaPlans.id, id));
+    return plan;
+  }
+
+  async getDcaPlansForUser(userId: string): Promise<DcaPlan[]> {
+    return await db
+      .select()
+      .from(dcaPlans)
+      .where(eq(dcaPlans.userId, userId))
+      .orderBy(desc(dcaPlans.createdAt));
+  }
+
+  async getDcaPlansByIndividualAccount(accountId: string): Promise<DcaPlan[]> {
+    return await db
+      .select()
+      .from(dcaPlans)
+      .where(eq(dcaPlans.individualAccountId, accountId))
+      .orderBy(desc(dcaPlans.createdAt));
+  }
+
+  async getDcaPlansByCorporateAccount(accountId: string): Promise<DcaPlan[]> {
+    return await db
+      .select()
+      .from(dcaPlans)
+      .where(eq(dcaPlans.corporateAccountId, accountId))
+      .orderBy(desc(dcaPlans.createdAt));
+  }
+
+  async getDcaPlansByJointAccount(accountId: string): Promise<DcaPlan[]> {
+    return await db
+      .select()
+      .from(dcaPlans)
+      .where(eq(dcaPlans.jointAccountId, accountId))
+      .orderBy(desc(dcaPlans.createdAt));
+  }
+
+  async updateDcaPlan(id: string, data: Partial<DcaPlan>): Promise<DcaPlan> {
+    const [plan] = await db
+      .update(dcaPlans)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(dcaPlans.id, id))
+      .returning();
+    return plan;
+  }
+
+  async deleteDcaPlan(id: string): Promise<void> {
+    await db.delete(dcaPlans).where(eq(dcaPlans.id, id));
+  }
+
+  // DCP Plan operations
+  async createDcpPlan(data: InsertDcpPlan & { userId: string }): Promise<DcpPlan> {
+    const [plan] = await db.insert(dcpPlans).values(data).returning();
+    return plan;
+  }
+
+  async getDcpPlan(id: string): Promise<DcpPlan | undefined> {
+    const [plan] = await db.select().from(dcpPlans).where(eq(dcpPlans.id, id));
+    return plan;
+  }
+
+  async getDcpPlansForUser(userId: string): Promise<DcpPlan[]> {
+    return await db
+      .select()
+      .from(dcpPlans)
+      .where(eq(dcpPlans.userId, userId))
+      .orderBy(desc(dcpPlans.createdAt));
+  }
+
+  async getDcpPlansByIndividualAccount(accountId: string): Promise<DcpPlan[]> {
+    return await db
+      .select()
+      .from(dcpPlans)
+      .where(eq(dcpPlans.individualAccountId, accountId))
+      .orderBy(desc(dcpPlans.createdAt));
+  }
+
+  async getDcpPlansByCorporateAccount(accountId: string): Promise<DcpPlan[]> {
+    return await db
+      .select()
+      .from(dcpPlans)
+      .where(eq(dcpPlans.corporateAccountId, accountId))
+      .orderBy(desc(dcpPlans.createdAt));
+  }
+
+  async getDcpPlansByJointAccount(accountId: string): Promise<DcpPlan[]> {
+    return await db
+      .select()
+      .from(dcpPlans)
+      .where(eq(dcpPlans.jointAccountId, accountId))
+      .orderBy(desc(dcpPlans.createdAt));
+  }
+
+  async updateDcpPlan(id: string, data: Partial<DcpPlan>): Promise<DcpPlan> {
+    const [plan] = await db
+      .update(dcpPlans)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(dcpPlans.id, id))
+      .returning();
+    return plan;
+  }
+
+  async deleteDcpPlan(id: string): Promise<void> {
+    await db.delete(dcpPlans).where(eq(dcpPlans.id, id));
+  }
+
+  // Dividend Dashboard operations
+  async getDividendProjectionsForUser(userId: string): Promise<any[]> {
+    // Get all households the user owns or has access to
+    const ownedHouseholds = await db
+      .select({ id: households.id })
+      .from(households)
+      .where(and(eq(households.userId, userId), isNull(households.deletedAt)));
+    
+    const sharedHouseholds = await db
+      .select({ id: householdShares.householdId })
+      .from(householdShares)
+      .where(eq(householdShares.sharedWithUserId, userId));
+    
+    const householdIds = [
+      ...ownedHouseholds.map(h => h.id),
+      ...sharedHouseholds.map(h => h.id)
+    ];
+
+    if (householdIds.length === 0) return [];
+
+    // Get all positions across all accounts in these households
+    const allPositions: any[] = [];
+
+    // Individual account positions
+    const indAccounts = await db
+      .select({ id: individualAccounts.id })
+      .from(individualAccounts)
+      .innerJoin(individuals, eq(individuals.id, individualAccounts.individualId))
+      .where(inArray(individuals.householdId, householdIds));
+
+    for (const acc of indAccounts) {
+      const pos = await db.select().from(positions).where(eq(positions.individualAccountId, acc.id));
+      allPositions.push(...pos.map(p => ({ ...p, accountType: 'individual', accountId: acc.id })));
+    }
+
+    // Corporate account positions
+    const corpAccounts = await db
+      .select({ id: corporateAccounts.id })
+      .from(corporateAccounts)
+      .innerJoin(corporations, eq(corporations.id, corporateAccounts.corporationId))
+      .where(inArray(corporations.householdId, householdIds));
+
+    for (const acc of corpAccounts) {
+      const pos = await db.select().from(positions).where(eq(positions.corporateAccountId, acc.id));
+      allPositions.push(...pos.map(p => ({ ...p, accountType: 'corporate', accountId: acc.id })));
+    }
+
+    // Joint account positions
+    const jntAccounts = await db
+      .select({ id: jointAccounts.id })
+      .from(jointAccounts)
+      .where(inArray(jointAccounts.householdId, householdIds));
+
+    for (const acc of jntAccounts) {
+      const pos = await db.select().from(positions).where(eq(positions.jointAccountId, acc.id));
+      allPositions.push(...pos.map(p => ({ ...p, accountType: 'joint', accountId: acc.id })));
+    }
+
+    // Get universal holdings for dividend data
+    const holdingsMap = new Map<string, any>();
+    const allHoldings = await db.select().from(universalHoldings);
+    for (const h of allHoldings) {
+      holdingsMap.set(h.ticker, h);
+    }
+
+    // Calculate projections
+    const projections = allPositions
+      .filter(p => !p.freelancePortfolioId) // Exclude watchlist positions
+      .map(p => {
+        const holding = holdingsMap.get(p.symbol);
+        if (!holding) return null;
+
+        const quantity = parseFloat(p.quantity || '0');
+        const dividendRate = parseFloat(holding.dividendRate || '0');
+        const dividendYield = parseFloat(holding.dividendYield || '0');
+        const currentPrice = parseFloat(p.currentPrice || '0');
+
+        // Annual dividend income = shares * dividend per share
+        const annualDividend = quantity * dividendRate;
+        const marketValue = quantity * currentPrice;
+
+        return {
+          symbol: p.symbol,
+          holdingName: holding.name,
+          shares: quantity,
+          marketValue,
+          dividendRate,
+          dividendYield,
+          dividendPayout: holding.dividendPayout,
+          exDividendDate: holding.exDividendDate,
+          annualDividend,
+          monthlyDividend: annualDividend / 12,
+          quarterlyDividend: annualDividend / 4,
+          accountType: p.accountType,
+          accountId: p.accountId,
+        };
+      })
+      .filter(Boolean);
+
+    return projections;
+  }
+
+  async getDividendCalendarForUser(userId: string): Promise<any[]> {
+    // Get holdings with ex-dividend dates
+    const holdings = await db
+      .select()
+      .from(universalHoldings)
+      .where(isNotNull(universalHoldings.exDividendDate))
+      .orderBy(universalHoldings.exDividendDate);
+
+    // Filter to upcoming dates (next 90 days)
+    const now = new Date();
+    const ninetyDaysFromNow = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+    return holdings
+      .filter(h => {
+        const exDate = new Date(h.exDividendDate!);
+        return exDate >= now && exDate <= ninetyDaysFromNow;
+      })
+      .map(h => ({
+        symbol: h.ticker,
+        name: h.name,
+        exDividendDate: h.exDividendDate,
+        dividendRate: h.dividendRate,
+        dividendYield: h.dividendYield,
+        dividendPayout: h.dividendPayout,
+      }));
+  }
+
+  async getDividendSummaryByAccount(userId: string): Promise<any[]> {
+    const projections = await this.getDividendProjectionsForUser(userId);
+
+    // Group by account
+    const accountSummary = new Map<string, {
+      accountType: string;
+      accountId: string;
+      totalAnnualDividend: number;
+      totalMarketValue: number;
+      positionCount: number;
+      positions: any[];
+    }>();
+
+    for (const p of projections) {
+      const key = `${p.accountType}-${p.accountId}`;
+      if (!accountSummary.has(key)) {
+        accountSummary.set(key, {
+          accountType: p.accountType,
+          accountId: p.accountId,
+          totalAnnualDividend: 0,
+          totalMarketValue: 0,
+          positionCount: 0,
+          positions: [],
+        });
+      }
+      const summary = accountSummary.get(key)!;
+      summary.totalAnnualDividend += p.annualDividend || 0;
+      summary.totalMarketValue += p.marketValue || 0;
+      summary.positionCount++;
+      summary.positions.push(p);
+    }
+
+    return Array.from(accountSummary.values()).map(s => ({
+      ...s,
+      effectiveYield: s.totalMarketValue > 0 
+        ? (s.totalAnnualDividend / s.totalMarketValue) * 100 
+        : 0,
+    }));
   }
 }
 

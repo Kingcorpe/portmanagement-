@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Settings, Trophy, User, Globe, Activity, BookMarked, UserPlus } from "lucide-react";
+import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Settings, Trophy, User, Globe, Activity, BookMarked, UserPlus, Coins, ArrowUpDown } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -79,6 +79,16 @@ const investmentDivisionItems = [
     title: "Investment Tasks",
     url: "/tasks",
     icon: ListTodo,
+  },
+  {
+    title: "DCA / DCP Plans",
+    url: "/dca-dcp",
+    icon: ArrowUpDown,
+  },
+  {
+    title: "Dividend Dashboard",
+    url: "/dividends",
+    icon: Coins,
   },
   {
     title: "Protection Dashboard",

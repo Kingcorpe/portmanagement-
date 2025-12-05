@@ -65,6 +65,8 @@ import ProtectionDashboard from "@/pages/protection-dashboard";
 import Admin from "@/pages/admin";
 import Prospects from "@/pages/prospects";
 import ProspectIntake from "@/pages/prospect-intake";
+import DividendDashboard from "@/pages/dividend-dashboard";
+import DcaDcp from "@/pages/dca-dcp";
 import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
@@ -101,6 +103,8 @@ function AuthenticatedRoutes() {
           <Route path="/protection" component={ProtectionDashboard} />
           <Route path="/admin" component={Admin} />
           <Route path="/prospects" component={Prospects} />
+          <Route path="/dividends" component={DividendDashboard} />
+          <Route path="/dca-dcp" component={DcaDcp} />
           <Route component={NotFound} />
         </Switch>
       </AnimatedPage>

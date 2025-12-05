@@ -169,6 +169,14 @@ export const riskToleranceEnum = pgEnum("risk_tolerance", [
   "very_aggressive",
 ]);
 
+// Investment style enum - determines trading/dividend strategy for the account
+export const investmentStyleEnum = pgEnum("investment_style", [
+  "dividend_focus",    // High yield ETFs, minimal trading, income-oriented (DCA heavy)
+  "active_trading",    // Momentum/technical, frequent trades, growth focus (DCP heavy)
+  "hybrid",            // Balanced - moderate dividends + active position management
+  "conservative",      // Capital preservation, very low activity, stable holdings
+]);
+
 // Account types enum (for individual accounts)
 export const individualAccountTypeEnum = pgEnum("individual_account_type", [
   "cash",
@@ -210,6 +218,7 @@ export const individualAccounts = pgTable("individual_accounts", {
   upcomingNotes: text("upcoming_notes"),
   deploymentMode: boolean("deployment_mode").notNull().default(false), // When true, allows target allocations > 100% for cash deployment
   withdrawalMode: boolean("withdrawal_mode").notNull().default(false), // When true, shows sell planning interface
+  investmentStyle: investmentStyleEnum("investment_style"), // Trading/dividend strategy
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -248,6 +257,7 @@ export const corporateAccounts = pgTable("corporate_accounts", {
   upcomingNotes: text("upcoming_notes"),
   deploymentMode: boolean("deployment_mode").notNull().default(false), // When true, allows target allocations > 100% for cash deployment
   withdrawalMode: boolean("withdrawal_mode").notNull().default(false), // When true, shows sell planning interface
+  investmentStyle: investmentStyleEnum("investment_style"), // Trading/dividend strategy
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -286,6 +296,7 @@ export const jointAccounts = pgTable("joint_accounts", {
   upcomingNotes: text("upcoming_notes"),
   deploymentMode: boolean("deployment_mode").notNull().default(false), // When true, allows target allocations > 100% for cash deployment
   withdrawalMode: boolean("withdrawal_mode").notNull().default(false), // When true, shows sell planning interface
+  investmentStyle: investmentStyleEnum("investment_style"), // Trading/dividend strategy
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -736,6 +747,7 @@ const baseIndividualAccountSchema = createInsertSchema(individualAccounts).omit(
   riskMediumHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
   riskHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
   watchlistPortfolioId: z.string().optional().nullable(),
+  investmentStyle: z.enum(["dividend_focus", "active_trading", "hybrid", "conservative"]).optional().nullable(),
 });
 
 export const insertIndividualAccountSchema = baseIndividualAccountSchema.refine(validateRiskAllocationSumEquals100, {
@@ -759,6 +771,7 @@ const baseCorporateAccountSchema = createInsertSchema(corporateAccounts).omit({
   riskMediumHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
   riskHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
   watchlistPortfolioId: z.string().optional().nullable(),
+  investmentStyle: z.enum(["dividend_focus", "active_trading", "hybrid", "conservative"]).optional().nullable(),
 });
 
 export const insertCorporateAccountSchema = baseCorporateAccountSchema.refine(validateRiskAllocationSumEquals100, {
@@ -782,6 +795,7 @@ const baseJointAccountSchema = createInsertSchema(jointAccounts).omit({
   riskMediumHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
   riskHighPct: z.coerce.number().min(0).max(100).default(0).transform(val => val.toString()),
   watchlistPortfolioId: z.string().optional().nullable(),
+  investmentStyle: z.enum(["dividend_focus", "active_trading", "hybrid", "conservative"]).optional().nullable(),
 });
 
 export const insertJointAccountSchema = baseJointAccountSchema.refine(validateRiskAllocationSumEquals100, {
@@ -1774,6 +1788,212 @@ export const updateProspectSchema = createInsertSchema(prospects).omit({
 export type InsertProspect = z.infer<typeof insertProspectSchema>;
 export type UpdateProspect = z.infer<typeof updateProspectSchema>;
 export type Prospect = typeof prospects.$inferSelect;
+
+// ==========================================
+// DCA (Dollar Cost Averaging) Plans
+// ==========================================
+
+// DCA Plan status enum
+export const dcaPlanStatusEnum = pgEnum("dca_plan_status", [
+  "active",      // Currently executing
+  "paused",      // Temporarily stopped
+  "completed",   // Target reached
+  "cancelled",   // User cancelled
+]);
+
+// DCA Plan frequency enum
+export const dcaFrequencyEnum = pgEnum("dca_frequency", [
+  "weekly",
+  "bi_weekly",
+  "monthly",
+  "quarterly",
+]);
+
+// DCA Plans table - tracks systematic buying plans
+export const dcaPlans = pgTable("dca_plans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }),
+  // One of these will be set depending on account type
+  individualAccountId: varchar("individual_account_id").references(() => individualAccounts.id, { onDelete: 'cascade' }),
+  corporateAccountId: varchar("corporate_account_id").references(() => corporateAccounts.id, { onDelete: 'cascade' }),
+  jointAccountId: varchar("joint_account_id").references(() => jointAccounts.id, { onDelete: 'cascade' }),
+  // Target holding
+  universalHoldingId: varchar("universal_holding_id").references(() => universalHoldings.id, { onDelete: 'cascade' }),
+  symbol: varchar("symbol", { length: 20 }).notNull(), // Store symbol for quick reference
+  // DCA Configuration
+  targetAllocationPct: decimal("target_allocation_pct", { precision: 5, scale: 2 }).notNull(), // Final target % (e.g., 20%)
+  currentAllocationPct: decimal("current_allocation_pct", { precision: 5, scale: 2 }).notNull().default('0'), // Starting point (e.g., 12%)
+  incrementPct: decimal("increment_pct", { precision: 5, scale: 2 }), // How much to add each period (e.g., 2%)
+  amountPerPeriod: decimal("amount_per_period", { precision: 15, scale: 2 }), // Or fixed $ amount per period
+  frequency: dcaFrequencyEnum("frequency").notNull().default("monthly"),
+  dayOfPeriod: integer("day_of_period").default(15), // Day of week (1-7) or month (1-31)
+  // Tracking
+  status: dcaPlanStatusEnum("status").notNull().default("active"),
+  startDate: timestamp("start_date").notNull().defaultNow(),
+  nextExecutionDate: timestamp("next_execution_date"),
+  lastExecutionDate: timestamp("last_execution_date"),
+  executionCount: integer("execution_count").notNull().default(0),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const dcaPlansRelations = relations(dcaPlans, ({ one }) => ({
+  user: one(users, {
+    fields: [dcaPlans.userId],
+    references: [users.id],
+  }),
+  individualAccount: one(individualAccounts, {
+    fields: [dcaPlans.individualAccountId],
+    references: [individualAccounts.id],
+  }),
+  corporateAccount: one(corporateAccounts, {
+    fields: [dcaPlans.corporateAccountId],
+    references: [corporateAccounts.id],
+  }),
+  jointAccount: one(jointAccounts, {
+    fields: [dcaPlans.jointAccountId],
+    references: [jointAccounts.id],
+  }),
+  holding: one(universalHoldings, {
+    fields: [dcaPlans.universalHoldingId],
+    references: [universalHoldings.id],
+  }),
+}));
+
+// DCA Plans insert schema
+export const insertDcaPlanSchema = createInsertSchema(dcaPlans).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  executionCount: true,
+  lastExecutionDate: true,
+}).extend({
+  symbol: z.string().min(1, "Symbol is required").max(20),
+  targetAllocationPct: z.coerce.number().min(0).max(100),
+  currentAllocationPct: z.coerce.number().min(0).max(100).default(0),
+  incrementPct: z.coerce.number().min(0).max(100).optional().nullable(),
+  amountPerPeriod: z.coerce.number().positive().optional().nullable(),
+  dayOfPeriod: z.coerce.number().min(1).max(31).optional().default(15),
+  startDate: z.coerce.date().optional(),
+  nextExecutionDate: z.coerce.date().optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
+});
+
+export const updateDcaPlanSchema = insertDcaPlanSchema.partial();
+
+// DCA Plan types
+export type InsertDcaPlan = z.infer<typeof insertDcaPlanSchema>;
+export type UpdateDcaPlan = z.infer<typeof updateDcaPlanSchema>;
+export type DcaPlan = typeof dcaPlans.$inferSelect;
+
+// ==========================================
+// DCP (Dollar Cost Profit) Plans
+// ==========================================
+
+// DCP Plan status enum
+export const dcpPlanStatusEnum = pgEnum("dcp_plan_status", [
+  "active",      // Currently monitoring/executing
+  "paused",      // Temporarily stopped
+  "completed",   // Position fully exited
+  "cancelled",   // User cancelled
+]);
+
+// DCP Trigger type enum
+export const dcpTriggerTypeEnum = pgEnum("dcp_trigger_type", [
+  "scheduled",       // Time-based (like DCA)
+  "price_target",    // Sell when price reaches X
+  "percentage_gain", // Sell when gain reaches X%
+  "trailing_stop",   // Dynamic trailing stop
+]);
+
+// DCP Plans table - tracks systematic selling/profit-taking plans
+export const dcpPlans = pgTable("dcp_plans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }),
+  // One of these will be set depending on account type
+  individualAccountId: varchar("individual_account_id").references(() => individualAccounts.id, { onDelete: 'cascade' }),
+  corporateAccountId: varchar("corporate_account_id").references(() => corporateAccounts.id, { onDelete: 'cascade' }),
+  jointAccountId: varchar("joint_account_id").references(() => jointAccounts.id, { onDelete: 'cascade' }),
+  // Target position
+  positionId: varchar("position_id").references(() => positions.id, { onDelete: 'cascade' }),
+  symbol: varchar("symbol", { length: 20 }).notNull(),
+  // DCP Configuration
+  triggerType: dcpTriggerTypeEnum("trigger_type").notNull().default("percentage_gain"),
+  // For scheduled sells
+  frequency: dcaFrequencyEnum("frequency"), // Reuse DCA frequency
+  dayOfPeriod: integer("day_of_period"),
+  sellPercentage: decimal("sell_percentage", { precision: 5, scale: 2 }), // % of position to sell each time
+  sellAmount: decimal("sell_amount", { precision: 15, scale: 2 }), // Or fixed $ amount
+  // For price-based triggers
+  targetPrice: decimal("target_price", { precision: 15, scale: 2 }),
+  targetGainPct: decimal("target_gain_pct", { precision: 8, scale: 2 }), // % gain to trigger
+  trailingStopPct: decimal("trailing_stop_pct", { precision: 5, scale: 2 }), // Trailing stop %
+  // Target allocation reduction
+  targetAllocationPct: decimal("target_allocation_pct", { precision: 5, scale: 2 }), // Target to reduce to (e.g., from 20% to 10%)
+  // Tracking
+  status: dcpPlanStatusEnum("status").notNull().default("active"),
+  startDate: timestamp("start_date").notNull().defaultNow(),
+  nextExecutionDate: timestamp("next_execution_date"),
+  lastExecutionDate: timestamp("last_execution_date"),
+  executionCount: integer("execution_count").notNull().default(0),
+  totalProfit: decimal("total_profit", { precision: 15, scale: 2 }).default('0'), // Running profit tally
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const dcpPlansRelations = relations(dcpPlans, ({ one }) => ({
+  user: one(users, {
+    fields: [dcpPlans.userId],
+    references: [users.id],
+  }),
+  individualAccount: one(individualAccounts, {
+    fields: [dcpPlans.individualAccountId],
+    references: [individualAccounts.id],
+  }),
+  corporateAccount: one(corporateAccounts, {
+    fields: [dcpPlans.corporateAccountId],
+    references: [corporateAccounts.id],
+  }),
+  jointAccount: one(jointAccounts, {
+    fields: [dcpPlans.jointAccountId],
+    references: [jointAccounts.id],
+  }),
+  position: one(positions, {
+    fields: [dcpPlans.positionId],
+    references: [positions.id],
+  }),
+}));
+
+// DCP Plans insert schema
+export const insertDcpPlanSchema = createInsertSchema(dcpPlans).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  executionCount: true,
+  lastExecutionDate: true,
+  totalProfit: true,
+}).extend({
+  symbol: z.string().min(1, "Symbol is required").max(20),
+  sellPercentage: z.coerce.number().min(0).max(100).optional().nullable(),
+  sellAmount: z.coerce.number().positive().optional().nullable(),
+  targetPrice: z.coerce.number().positive().optional().nullable(),
+  targetGainPct: z.coerce.number().optional().nullable(),
+  trailingStopPct: z.coerce.number().min(0).max(100).optional().nullable(),
+  targetAllocationPct: z.coerce.number().min(0).max(100).optional().nullable(),
+  dayOfPeriod: z.coerce.number().min(1).max(31).optional().nullable(),
+  startDate: z.coerce.date().optional(),
+  nextExecutionDate: z.coerce.date().optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
+});
+
+export const updateDcpPlanSchema = insertDcpPlanSchema.partial();
+
+// DCP Plan types
+export type InsertDcpPlan = z.infer<typeof insertDcpPlanSchema>;
+export type UpdateDcpPlan = z.infer<typeof updateDcpPlanSchema>;
+export type DcpPlan = typeof dcpPlans.$inferSelect;
 
 // Trading Journal types
 export type InsertTradingJournalEntry = z.infer<typeof insertTradingJournalEntrySchema>;
