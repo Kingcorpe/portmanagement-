@@ -17,6 +17,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Link, useLocation } from "wouter";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 const menuItems: Array<{ title: string; url: string; icon: React.ComponentType<{ className?: string }> }> = [
   {
@@ -168,6 +169,7 @@ const bottomMenuItems: Array<{ title: string; url: string; icon: React.Component
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
+  const { signOut } = useAuth();
   const [keyMetricsOpen, setKeyMetricsOpen] = useState(
     location.startsWith("/key-metrics") || 
     location.startsWith("/insurance-revenue") || 
@@ -227,8 +229,10 @@ export function AppSidebar() {
     }
   };
 
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
+  const handleLogout = async () => {
+    await signOut();
+    // After Clerk signs out, redirect to home page
+    window.location.href = "/";
   };
 
   return (
