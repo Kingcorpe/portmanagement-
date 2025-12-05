@@ -35,6 +35,7 @@ import {
   prospects,
   dcaPlans,
   dcpPlans,
+  executionHistory,
   type User,
   type UpsertUser,
   type Household,
@@ -121,6 +122,8 @@ import {
   type DcpPlan,
   type InsertDcpPlan,
   type UpdateDcpPlan,
+  type ExecutionHistory,
+  type InsertExecutionHistory,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, inArray, ilike, or, and, sql, isNull, isNotNull, lt } from "drizzle-orm";
@@ -402,6 +405,16 @@ export interface IStorage {
   getDividendProjectionsForUser(userId: string): Promise<any[]>;
   getDividendCalendarForUser(userId: string): Promise<any[]>;
   getDividendSummaryByAccount(userId: string): Promise<any[]>;
+
+  // Execution History operations
+  createExecutionHistory(data: InsertExecutionHistory & { userId: string }): Promise<ExecutionHistory>;
+  getExecutionHistoryForUser(userId: string): Promise<ExecutionHistory[]>;
+  getExecutionHistoryForDcaPlan(dcaPlanId: string): Promise<ExecutionHistory[]>;
+  getExecutionHistoryForDcpPlan(dcpPlanId: string): Promise<ExecutionHistory[]>;
+  
+  // Active DCA/DCP plans due for execution
+  getActiveDcaPlansNeedingExecution(): Promise<DcaPlan[]>;
+  getActiveDcpPlansNeedingExecution(): Promise<DcpPlan[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3086,6 +3099,71 @@ export class DatabaseStorage implements IStorage {
         ? (s.totalAnnualDividend / s.totalMarketValue) * 100 
         : 0,
     }));
+  }
+
+  // Execution History operations
+  async createExecutionHistory(data: InsertExecutionHistory & { userId: string }): Promise<ExecutionHistory> {
+    const [record] = await db.insert(executionHistory).values(data).returning();
+    return record;
+  }
+
+  async getExecutionHistoryForUser(userId: string): Promise<ExecutionHistory[]> {
+    return await db
+      .select()
+      .from(executionHistory)
+      .where(eq(executionHistory.userId, userId))
+      .orderBy(desc(executionHistory.executedAt));
+  }
+
+  async getExecutionHistoryForDcaPlan(dcaPlanId: string): Promise<ExecutionHistory[]> {
+    return await db
+      .select()
+      .from(executionHistory)
+      .where(eq(executionHistory.dcaPlanId, dcaPlanId))
+      .orderBy(desc(executionHistory.executedAt));
+  }
+
+  async getExecutionHistoryForDcpPlan(dcpPlanId: string): Promise<ExecutionHistory[]> {
+    return await db
+      .select()
+      .from(executionHistory)
+      .where(eq(executionHistory.dcpPlanId, dcpPlanId))
+      .orderBy(desc(executionHistory.executedAt));
+  }
+
+  // Get active DCA plans that need execution (next execution date is today or past)
+  async getActiveDcaPlansNeedingExecution(): Promise<DcaPlan[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(dcaPlans)
+      .where(
+        and(
+          eq(dcaPlans.status, 'active'),
+          or(
+            isNull(dcaPlans.nextExecutionDate),
+            lt(dcaPlans.nextExecutionDate, now)
+          )
+        )
+      );
+  }
+
+  // Get active DCP plans that need execution
+  async getActiveDcpPlansNeedingExecution(): Promise<DcpPlan[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(dcpPlans)
+      .where(
+        and(
+          eq(dcpPlans.status, 'active'),
+          eq(dcpPlans.triggerType, 'scheduled'),
+          or(
+            isNull(dcpPlans.nextExecutionDate),
+            lt(dcpPlans.nextExecutionDate, now)
+          )
+        )
+      );
   }
 }
 

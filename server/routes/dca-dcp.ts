@@ -3,11 +3,13 @@ import type { Express } from "express";
 import { isAuthenticated } from "../clerkAuth";
 import { storage } from "../storage";
 import { log } from "../logger";
+import { sendEmail } from "../gmail";
 import { 
   insertDcaPlanSchema, 
   updateDcaPlanSchema,
   insertDcpPlanSchema,
-  updateDcpPlanSchema 
+  updateDcpPlanSchema,
+  insertExecutionHistorySchema,
 } from "@shared/schema";
 
 // UUID parameter validation helper
@@ -187,7 +189,7 @@ export function registerDcaDcpRoutes(app: Express) {
     }
   });
 
-  // Mark DCA plan execution (increment counter, update dates)
+  // Mark DCA plan execution (increment counter, update dates, record history)
   app.post('/api/dca-plans/:id/execute', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -199,6 +201,9 @@ export function registerDcaDcpRoutes(app: Express) {
       if (existing.userId !== userId) {
         return res.status(403).json({ message: "Access denied" });
       }
+      
+      // Get optional execution details from request body
+      const { quantity, price, amount, notes } = req.body;
       
       // Update execution tracking
       const now = new Date();
@@ -222,6 +227,22 @@ export function registerDcaDcpRoutes(app: Express) {
         nextExecutionDate = calculateNextExecutionDate(existing.frequency, existing.dayOfPeriod);
       }
       
+      // Record execution history
+      await storage.createExecutionHistory({
+        userId,
+        executionType: 'dca',
+        dcaPlanId: req.params.id,
+        symbol: existing.symbol,
+        action: 'BUY',
+        quantity: quantity?.toString(),
+        price: price?.toString(),
+        amount: amount?.toString() || existing.amountPerPeriod || undefined,
+        previousAllocationPct: currentPct.toString(),
+        newAllocationPct: newAllocationPct.toString(),
+        notes,
+        executedAt: now,
+      });
+      
       const plan = await storage.updateDcaPlan(req.params.id, {
         executionCount: existing.executionCount + 1,
         lastExecutionDate: now,
@@ -235,6 +256,27 @@ export function registerDcaDcpRoutes(app: Express) {
     } catch (error) {
       log.error("Error executing DCA plan", error);
       res.status(500).json({ message: "Failed to execute DCA plan" });
+    }
+  });
+
+  // Get execution history for a DCA plan
+  app.get('/api/dca-plans/:id/history', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const existing = await storage.getDcaPlan(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "DCA plan not found" });
+      }
+      
+      if (existing.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const history = await storage.getExecutionHistoryForDcaPlan(req.params.id);
+      res.json(history);
+    } catch (error) {
+      log.error("Error fetching DCA execution history", error);
+      res.status(500).json({ message: "Failed to fetch execution history" });
     }
   });
 
@@ -439,7 +481,8 @@ export function registerDcaDcpRoutes(app: Express) {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      const { profit } = req.body; // Optional: profit realized from this execution
+      // Get execution details from request body
+      const { profit, quantity, price, amount, notes } = req.body;
       const now = new Date();
       
       const currentProfit = parseFloat(existing.totalProfit || '0');
@@ -450,6 +493,21 @@ export function registerDcaDcpRoutes(app: Express) {
       if (existing.triggerType === 'scheduled' && existing.frequency) {
         nextExecutionDate = calculateNextExecutionDate(existing.frequency, existing.dayOfPeriod);
       }
+      
+      // Record execution history
+      await storage.createExecutionHistory({
+        userId,
+        executionType: 'dcp',
+        dcpPlanId: req.params.id,
+        symbol: existing.symbol,
+        action: 'SELL',
+        quantity: quantity?.toString(),
+        price: price?.toString(),
+        amount: amount?.toString() || existing.sellAmount || undefined,
+        profit: executionProfit.toString(),
+        notes,
+        executedAt: now,
+      });
       
       const plan = await storage.updateDcpPlan(req.params.id, {
         executionCount: existing.executionCount + 1,
@@ -463,6 +521,27 @@ export function registerDcaDcpRoutes(app: Express) {
     } catch (error) {
       log.error("Error executing DCP plan", error);
       res.status(500).json({ message: "Failed to execute DCP plan" });
+    }
+  });
+
+  // Get execution history for a DCP plan
+  app.get('/api/dcp-plans/:id/history', validateUUIDParam('id'), isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const existing = await storage.getDcpPlan(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "DCP plan not found" });
+      }
+      
+      if (existing.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const history = await storage.getExecutionHistoryForDcpPlan(req.params.id);
+      res.json(history);
+    } catch (error) {
+      log.error("Error fetching DCP execution history", error);
+      res.status(500).json({ message: "Failed to fetch execution history" });
     }
   });
 
@@ -526,6 +605,298 @@ export function registerDcaDcpRoutes(app: Express) {
       res.status(500).json({ message: "Failed to fetch dividend summary" });
     }
   });
+
+  // ==========================================
+  // Execution History Routes
+  // ==========================================
+
+  // Get all execution history for current user
+  app.get('/api/execution-history', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const history = await storage.getExecutionHistoryForUser(userId);
+      res.json(history);
+    } catch (error) {
+      log.error("Error fetching execution history", error);
+      res.status(500).json({ message: "Failed to fetch execution history" });
+    }
+  });
+
+  // ==========================================
+  // Plans Due for Execution
+  // ==========================================
+
+  // Get plans that are due for execution (for dashboard/reminders)
+  app.get('/api/plans/due', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get all user's DCA and DCP plans that need execution
+      const dueDcaPlans = await storage.getActiveDcaPlansNeedingExecution();
+      const dueDcpPlans = await storage.getActiveDcpPlansNeedingExecution();
+      
+      // Filter to only user's plans
+      const userDcaPlans = dueDcaPlans.filter(p => p.userId === userId);
+      const userDcpPlans = dueDcpPlans.filter(p => p.userId === userId);
+      
+      res.json({
+        dcaPlans: userDcaPlans,
+        dcpPlans: userDcpPlans,
+        totalDue: userDcaPlans.length + userDcpPlans.length,
+      });
+    } catch (error) {
+      log.error("Error fetching due plans", error);
+      res.status(500).json({ message: "Failed to fetch due plans" });
+    }
+  });
+
+  // Generate tasks for plans due (creates account tasks for plans needing execution)
+  app.post('/api/plans/generate-tasks', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const dueDcaPlans = await storage.getActiveDcaPlansNeedingExecution();
+      const dueDcpPlans = await storage.getActiveDcpPlansNeedingExecution();
+      
+      // Filter to user's plans
+      const userDcaPlans = dueDcaPlans.filter(p => p.userId === userId);
+      const userDcpPlans = dueDcpPlans.filter(p => p.userId === userId);
+      
+      let tasksCreated = 0;
+      
+      // Create tasks for DCA plans
+      for (const plan of userDcaPlans) {
+        const accountId = plan.individualAccountId || plan.corporateAccountId || plan.jointAccountId;
+        if (accountId) {
+          try {
+            await storage.createAccountTask({
+              individualAccountId: plan.individualAccountId || undefined,
+              corporateAccountId: plan.corporateAccountId || undefined,
+              jointAccountId: plan.jointAccountId || undefined,
+              title: `DCA: Buy ${plan.symbol} (${plan.currentAllocationPct}% → ${plan.targetAllocationPct}%)`,
+              description: `Dollar Cost Averaging plan is due for execution. Increment: ${plan.incrementPct || 'N/A'}%`,
+              status: 'pending',
+              priority: 'high',
+            });
+            tasksCreated++;
+          } catch (taskError) {
+            log.warn(`Failed to create task for DCA plan ${plan.id}`, taskError);
+          }
+        }
+      }
+      
+      // Create tasks for DCP plans
+      for (const plan of userDcpPlans) {
+        const accountId = plan.individualAccountId || plan.corporateAccountId || plan.jointAccountId;
+        if (accountId) {
+          try {
+            await storage.createAccountTask({
+              individualAccountId: plan.individualAccountId || undefined,
+              corporateAccountId: plan.corporateAccountId || undefined,
+              jointAccountId: plan.jointAccountId || undefined,
+              title: `DCP: Sell ${plan.symbol} - Scheduled profit taking`,
+              description: `Dollar Cost Profit plan is due for execution. Sell: ${plan.sellPercentage || plan.sellAmount || 'N/A'}`,
+              status: 'pending',
+              priority: 'high',
+            });
+            tasksCreated++;
+          } catch (taskError) {
+            log.warn(`Failed to create task for DCP plan ${plan.id}`, taskError);
+          }
+        }
+      }
+      
+      log.info(`Generated ${tasksCreated} tasks for due DCA/DCP plans for user ${userId}`);
+      
+      res.json({
+        tasksCreated,
+        dcaPlansDue: userDcaPlans.length,
+        dcpPlansDue: userDcpPlans.length,
+      });
+    } catch (error) {
+      log.error("Error generating tasks for due plans", error);
+      res.status(500).json({ message: "Failed to generate tasks" });
+    }
+  });
+
+  // ==========================================
+  // Email Notifications
+  // ==========================================
+
+  // Send email summary of due plans
+  app.post('/api/plans/send-summary-email', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email address required" });
+      }
+      
+      // Get due plans
+      const dueDcaPlans = await storage.getActiveDcaPlansNeedingExecution();
+      const dueDcpPlans = await storage.getActiveDcpPlansNeedingExecution();
+      
+      const userDcaPlans = dueDcaPlans.filter(p => p.userId === userId);
+      const userDcpPlans = dueDcpPlans.filter(p => p.userId === userId);
+      
+      // Get recent executions
+      const recentHistory = await storage.getExecutionHistoryForUser(userId);
+      const last7Days = recentHistory.filter(h => {
+        const execDate = new Date(h.executedAt);
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return execDate >= weekAgo;
+      });
+      
+      // Build HTML email
+      const htmlBody = buildDcaDcpEmailSummary(userDcaPlans, userDcpPlans, last7Days);
+      
+      await sendEmail(
+        email,
+        `Portfolio Automation Summary - ${new Date().toLocaleDateString('en-CA')}`,
+        htmlBody
+      );
+      
+      log.info(`Sent DCA/DCP summary email to ${email} for user ${userId}`);
+      
+      res.json({ 
+        success: true,
+        dcaPlansDue: userDcaPlans.length,
+        dcpPlansDue: userDcpPlans.length,
+        recentExecutions: last7Days.length,
+      });
+    } catch (error: any) {
+      log.error("Error sending summary email", error);
+      res.status(500).json({ message: error.message || "Failed to send email" });
+    }
+  });
+}
+
+// Helper function to build email HTML
+function buildDcaDcpEmailSummary(dcaPlans: any[], dcpPlans: any[], recentHistory: any[]): string {
+  const formatCurrency = (value: string | number) => {
+    const num = typeof value === 'string' ? parseFloat(value) : value;
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(num || 0);
+  };
+  
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+  };
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a1a; max-width: 600px; margin: 0 auto; padding: 20px; }
+        h1 { color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
+        h2 { color: #374151; margin-top: 30px; }
+        .section { background: #f8fafc; border-radius: 8px; padding: 16px; margin: 16px 0; }
+        .alert { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 16px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background: #f1f5f9; font-weight: 600; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+        .badge-buy { background: #dcfce7; color: #166534; }
+        .badge-sell { background: #dbeafe; color: #1e40af; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <h1>📊 Portfolio Automation Summary</h1>
+      <p>Here's your weekly summary of DCA and DCP plan activity.</p>
+      
+      ${(dcaPlans.length > 0 || dcpPlans.length > 0) ? `
+        <div class="alert">
+          <strong>⚠️ Plans Due for Execution</strong><br>
+          You have ${dcaPlans.length + dcpPlans.length} plan(s) that are due: ${dcaPlans.length} DCA, ${dcpPlans.length} DCP.
+        </div>
+      ` : ''}
+      
+      ${dcaPlans.length > 0 ? `
+        <h2>📈 DCA Plans Due (Buy)</h2>
+        <div class="section">
+          <table>
+            <tr>
+              <th>Symbol</th>
+              <th>Current</th>
+              <th>Target</th>
+              <th>Increment</th>
+              <th>Frequency</th>
+            </tr>
+            ${dcaPlans.map(p => `
+              <tr>
+                <td><strong>${p.symbol}</strong></td>
+                <td>${p.currentAllocationPct || '0'}%</td>
+                <td>${p.targetAllocationPct}%</td>
+                <td>+${p.incrementPct || '?'}%</td>
+                <td>${p.frequency || 'monthly'}</td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+      ` : ''}
+      
+      ${dcpPlans.length > 0 ? `
+        <h2>📉 DCP Plans Due (Sell)</h2>
+        <div class="section">
+          <table>
+            <tr>
+              <th>Symbol</th>
+              <th>Trigger</th>
+              <th>Sell %</th>
+              <th>Total Profit</th>
+            </tr>
+            ${dcpPlans.map(p => `
+              <tr>
+                <td><strong>${p.symbol}</strong></td>
+                <td>${p.triggerType || 'scheduled'}</td>
+                <td>${p.sellPercentage || '?'}%</td>
+                <td>${formatCurrency(p.totalProfit || 0)}</td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+      ` : ''}
+      
+      ${recentHistory.length > 0 ? `
+        <h2>📋 Recent Executions (Last 7 Days)</h2>
+        <div class="section">
+          <table>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Symbol</th>
+              <th>Action</th>
+              <th>Amount</th>
+            </tr>
+            ${recentHistory.map(h => `
+              <tr>
+                <td>${formatDate(h.executedAt)}</td>
+                <td>${h.executionType.toUpperCase()}</td>
+                <td><strong>${h.symbol}</strong></td>
+                <td><span class="badge ${h.action === 'BUY' ? 'badge-buy' : 'badge-sell'}">${h.action}</span></td>
+                <td>${h.amount ? formatCurrency(h.amount) : '—'}</td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+      ` : `
+        <h2>📋 Recent Executions</h2>
+        <div class="section">
+          <p style="color: #6b7280;">No executions recorded in the last 7 days.</p>
+        </div>
+      `}
+      
+      <div class="footer">
+        <p>This email was sent from your Portfolio Management app.</p>
+        <p>Generated on ${new Date().toLocaleString('en-CA')}</p>
+      </div>
+    </body>
+    </html>
+  `;
 }
 
 // Helper function to calculate next execution date

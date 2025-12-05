@@ -1995,6 +1995,77 @@ export type InsertDcpPlan = z.infer<typeof insertDcpPlanSchema>;
 export type UpdateDcpPlan = z.infer<typeof updateDcpPlanSchema>;
 export type DcpPlan = typeof dcpPlans.$inferSelect;
 
+// ==========================================
+// DCA/DCP Execution History
+// ==========================================
+
+// Execution type enum
+export const executionTypeEnum = pgEnum("execution_type", [
+  "dca",  // Dollar Cost Averaging (buy)
+  "dcp",  // Dollar Cost Profit (sell)
+]);
+
+// Execution history table - tracks every execution of DCA/DCP plans
+export const executionHistory = pgTable("execution_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }),
+  executionType: executionTypeEnum("execution_type").notNull(),
+  // Reference to the plan
+  dcaPlanId: varchar("dca_plan_id").references(() => dcaPlans.id, { onDelete: 'cascade' }),
+  dcpPlanId: varchar("dcp_plan_id").references(() => dcpPlans.id, { onDelete: 'cascade' }),
+  // Execution details
+  symbol: varchar("symbol", { length: 20 }).notNull(),
+  action: varchar("action", { length: 10 }).notNull(), // BUY or SELL
+  quantity: decimal("quantity", { precision: 15, scale: 4 }), // Shares traded (if known)
+  price: decimal("price", { precision: 15, scale: 2 }), // Price at execution (if known)
+  amount: decimal("amount", { precision: 15, scale: 2 }), // Total $ amount
+  // For DCA: allocation tracking
+  previousAllocationPct: decimal("previous_allocation_pct", { precision: 5, scale: 2 }),
+  newAllocationPct: decimal("new_allocation_pct", { precision: 5, scale: 2 }),
+  // For DCP: profit tracking
+  profit: decimal("profit", { precision: 15, scale: 2 }),
+  // Metadata
+  notes: text("notes"),
+  executedAt: timestamp("executed_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const executionHistoryRelations = relations(executionHistory, ({ one }) => ({
+  user: one(users, {
+    fields: [executionHistory.userId],
+    references: [users.id],
+  }),
+  dcaPlan: one(dcaPlans, {
+    fields: [executionHistory.dcaPlanId],
+    references: [dcaPlans.id],
+  }),
+  dcpPlan: one(dcpPlans, {
+    fields: [executionHistory.dcpPlanId],
+    references: [dcpPlans.id],
+  }),
+}));
+
+// Execution history insert schema
+export const insertExecutionHistorySchema = createInsertSchema(executionHistory).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  symbol: z.string().min(1).max(20),
+  action: z.enum(["BUY", "SELL"]),
+  quantity: z.coerce.number().positive().optional().nullable(),
+  price: z.coerce.number().positive().optional().nullable(),
+  amount: z.coerce.number().positive().optional().nullable(),
+  previousAllocationPct: z.coerce.number().min(0).max(100).optional().nullable(),
+  newAllocationPct: z.coerce.number().min(0).max(100).optional().nullable(),
+  profit: z.coerce.number().optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
+  executedAt: z.coerce.date().optional(),
+});
+
+// Execution history types
+export type InsertExecutionHistory = z.infer<typeof insertExecutionHistorySchema>;
+export type ExecutionHistory = typeof executionHistory.$inferSelect;
+
 // Trading Journal types
 export type InsertTradingJournalEntry = z.infer<typeof insertTradingJournalEntrySchema>;
 export type UpdateTradingJournalEntry = z.infer<typeof updateTradingJournalEntrySchema>;

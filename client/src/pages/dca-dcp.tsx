@@ -63,9 +63,63 @@ import {
   RefreshCw,
   ArrowUpRight,
   ArrowDownRight,
+  AlertCircle,
+  History,
+  Wallet,
+  Mail,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+interface HouseholdWithDetails {
+  id: string;
+  name: string;
+  individuals: Array<{
+    id: string;
+    name: string;
+    accounts: Array<{
+      id: string;
+      type: string;
+      nickname?: string;
+    }>;
+  }>;
+  corporations: Array<{
+    id: string;
+    name: string;
+    accounts: Array<{
+      id: string;
+      type: string;
+      nickname?: string;
+    }>;
+  }>;
+  jointAccounts: Array<{
+    id: string;
+    type: string;
+    nickname?: string;
+  }>;
+}
+
+interface DuePlans {
+  dcaPlans: DcaPlan[];
+  dcpPlans: DcpPlan[];
+  totalDue: number;
+}
+
+interface ExecutionHistoryItem {
+  id: string;
+  executionType: string;
+  symbol: string;
+  action: string;
+  quantity?: string;
+  price?: string;
+  amount?: string;
+  previousAllocationPct?: string;
+  newAllocationPct?: string;
+  profit?: string;
+  notes?: string;
+  executedAt: string;
+}
 
 interface DcaPlan {
   id: string;
@@ -163,6 +217,9 @@ export default function DcaDcpPage() {
   const [activeTab, setActiveTab] = useState("dca");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createType, setCreateType] = useState<"dca" | "dcp">("dca");
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [emailAddress, setEmailAddress] = useState("");
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -177,6 +234,25 @@ export default function DcaDcpPage() {
       return;
     }
   }, [isAuthenticated, authLoading, toast]);
+
+  // Fetch households for account selection
+  const { data: householdsData = [] } = useQuery<HouseholdWithDetails[]>({
+    queryKey: ["/api/households/full"],
+    enabled: isAuthenticated,
+  });
+
+  // Fetch due plans
+  const { data: duePlans } = useQuery<DuePlans>({
+    queryKey: ["/api/plans/due"],
+    enabled: isAuthenticated,
+    refetchInterval: 60000, // Refresh every minute
+  });
+
+  // Fetch execution history
+  const { data: executionHistory = [] } = useQuery<ExecutionHistoryItem[]>({
+    queryKey: ["/api/execution-history"],
+    enabled: isAuthenticated,
+  });
 
   const {
     data: dcaPlans = [],
@@ -241,6 +317,42 @@ export default function DcaDcpPage() {
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Generate tasks for due plans
+  const generateTasksMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/plans/generate-tasks");
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/plans/due"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({ 
+        title: "Tasks Created", 
+        description: `Created ${data.tasksCreated} task(s) for due plans` 
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Send summary email
+  const sendEmailMutation = useMutation({
+    mutationFn: async (email: string) => {
+      return await apiRequest("POST", "/api/plans/send-summary-email", { email });
+    },
+    onSuccess: (data: any) => {
+      toast({ 
+        title: "Email Sent", 
+        description: `Summary sent with ${data.dcaPlansDue + data.dcpPlansDue} due plans and ${data.recentExecutions} recent executions` 
+      });
+      setEmailDialogOpen(false);
+      setEmailAddress("");
+    },
+    onError: (error: Error) => {
+      toast({ title: "Email Failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -317,6 +429,22 @@ export default function DcaDcpPage() {
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setHistoryDialogOpen(true)}
+          >
+            <History className="h-4 w-4 mr-2" />
+            History
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setEmailDialogOpen(true)}
+          >
+            <Mail className="h-4 w-4 mr-2" />
+            Email Summary
+          </Button>
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => setCreateType(activeTab === "dca" ? "dca" : "dcp")}>
@@ -328,10 +456,141 @@ export default function DcaDcpPage() {
               type={createType}
               onClose={() => setCreateDialogOpen(false)}
               onTypeChange={setCreateType}
+              households={householdsData}
             />
           </Dialog>
         </div>
       </div>
+
+      {/* Due Plans Alert */}
+      {duePlans && duePlans.totalDue > 0 && (
+        <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950/20">
+          <AlertCircle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800 dark:text-amber-200">
+            Plans Due for Execution
+          </AlertTitle>
+          <AlertDescription className="text-amber-700 dark:text-amber-300">
+            You have {duePlans.totalDue} plan(s) due: {duePlans.dcaPlans.length} DCA, {duePlans.dcpPlans.length} DCP.
+            <Button 
+              variant="link" 
+              size="sm" 
+              className="text-amber-800 dark:text-amber-200 p-0 ml-2 h-auto"
+              onClick={() => generateTasksMutation.mutate()}
+              disabled={generateTasksMutation.isPending}
+            >
+              {generateTasksMutation.isPending ? "Creating..." : "Create Tasks →"}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Execution History Dialog */}
+      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Execution History</DialogTitle>
+            <DialogDescription>
+              Complete history of all DCA and DCP executions
+            </DialogDescription>
+          </DialogHeader>
+          {executionHistory.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No executions recorded yet
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Symbol</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Allocation</TableHead>
+                  <TableHead className="text-right">Profit</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {executionHistory.map((exec) => (
+                  <TableRow key={exec.id}>
+                    <TableCell className="text-muted-foreground">
+                      {formatDate(exec.executedAt)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className={exec.executionType === 'dca' 
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' 
+                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                      }>
+                        {exec.executionType.toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-medium">{exec.symbol}</TableCell>
+                    <TableCell>
+                      <Badge variant={exec.action === 'BUY' ? 'default' : 'secondary'}>
+                        {exec.action}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {exec.amount ? formatCurrency(exec.amount) : '—'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {exec.previousAllocationPct && exec.newAllocationPct
+                        ? `${exec.previousAllocationPct}% → ${exec.newAllocationPct}%`
+                        : '—'}
+                    </TableCell>
+                    <TableCell className="text-right text-emerald-600 dark:text-emerald-400">
+                      {exec.profit ? formatCurrency(exec.profit) : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Summary Dialog */}
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Summary Email</DialogTitle>
+            <DialogDescription>
+              Send a summary of due plans and recent executions to your email.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="your@email.com"
+                value={emailAddress}
+                onChange={(e) => setEmailAddress(e.target.value)}
+              />
+            </div>
+            <div className="text-sm text-muted-foreground">
+              <p>The email will include:</p>
+              <ul className="list-disc ml-4 mt-2 space-y-1">
+                <li>DCA plans due for execution ({duePlans?.dcaPlans.length || 0})</li>
+                <li>DCP plans due for execution ({duePlans?.dcpPlans.length || 0})</li>
+                <li>Executions from the last 7 days</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => sendEmailMutation.mutate(emailAddress)}
+              disabled={!emailAddress || sendEmailMutation.isPending}
+            >
+              {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -704,10 +963,12 @@ function CreatePlanDialog({
   type,
   onClose,
   onTypeChange,
+  households,
 }: {
   type: "dca" | "dcp";
   onClose: () => void;
   onTypeChange: (type: "dca" | "dcp") => void;
+  households: HouseholdWithDetails[];
 }) {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
@@ -723,7 +984,50 @@ function CreatePlanDialog({
     targetGainPct: "",
     sellPercentage: "",
     notes: "",
+    accountKey: "", // Format: "individual:id" or "corporate:id" or "joint:id"
   });
+
+  // Build flattened account list for selector
+  const accountOptions: Array<{
+    key: string;
+    label: string;
+    householdName: string;
+    accountType: string;
+  }> = [];
+  
+  for (const household of households) {
+    // Individual accounts
+    for (const individual of household.individuals) {
+      for (const account of individual.accounts) {
+        accountOptions.push({
+          key: `individual:${account.id}`,
+          label: `${individual.name} - ${account.type.toUpperCase()}${account.nickname ? ` (${account.nickname})` : ''}`,
+          householdName: household.name,
+          accountType: 'individual',
+        });
+      }
+    }
+    // Corporate accounts
+    for (const corp of household.corporations) {
+      for (const account of corp.accounts) {
+        accountOptions.push({
+          key: `corporate:${account.id}`,
+          label: `${corp.name} - ${account.type.toUpperCase()}${account.nickname ? ` (${account.nickname})` : ''}`,
+          householdName: household.name,
+          accountType: 'corporate',
+        });
+      }
+    }
+    // Joint accounts
+    for (const account of household.jointAccounts) {
+      accountOptions.push({
+        key: `joint:${account.id}`,
+        label: `Joint - ${account.type}${account.nickname ? ` (${account.nickname})` : ''}`,
+        householdName: household.name,
+        accountType: 'joint',
+      });
+    }
+  }
 
   const createDcaMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -753,8 +1057,19 @@ function CreatePlanDialog({
     },
   });
 
+  // Parse account key into account IDs
+  const getAccountIds = () => {
+    if (!formData.accountKey) return {};
+    const [accountType, accountId] = formData.accountKey.split(':');
+    if (accountType === 'individual') return { individualAccountId: accountId };
+    if (accountType === 'corporate') return { corporateAccountId: accountId };
+    if (accountType === 'joint') return { jointAccountId: accountId };
+    return {};
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const accountIds = getAccountIds();
 
     if (type === "dca") {
       createDcaMutation.mutate({
@@ -766,6 +1081,7 @@ function CreatePlanDialog({
         frequency: formData.frequency,
         dayOfPeriod: parseInt(formData.dayOfPeriod),
         notes: formData.notes || undefined,
+        ...accountIds,
       });
     } else {
       createDcpMutation.mutate({
@@ -778,6 +1094,7 @@ function CreatePlanDialog({
         sellPercentage: formData.sellPercentage ? parseFloat(formData.sellPercentage) : undefined,
         targetAllocationPct: formData.targetAllocationPct ? parseFloat(formData.targetAllocationPct) : undefined,
         notes: formData.notes || undefined,
+        ...accountIds,
       });
     }
   };
@@ -810,6 +1127,33 @@ function CreatePlanDialog({
             onChange={(e) => setFormData({ ...formData, symbol: e.target.value })}
             required
           />
+        </div>
+
+        {/* Account Selection (Optional) */}
+        <div>
+          <Label htmlFor="account">Account (Optional)</Label>
+          <Select
+            value={formData.accountKey}
+            onValueChange={(v) => setFormData({ ...formData, accountKey: v })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select an account (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">No specific account</SelectItem>
+              {accountOptions.map((acc) => (
+                <SelectItem key={acc.key} value={acc.key}>
+                  <div className="flex flex-col">
+                    <span>{acc.label}</span>
+                    <span className="text-xs text-muted-foreground">{acc.householdName}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground mt-1">
+            Link to an account for task generation and tracking
+          </p>
         </div>
 
         {type === "dca" ? (
