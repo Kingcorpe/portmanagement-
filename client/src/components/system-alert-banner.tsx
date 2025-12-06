@@ -1,20 +1,20 @@
-// System Alert Banner - Shows when services are unhealthy
+// System Alert Banner - Shows warnings when services are unhealthy
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { AlertTriangle, XCircle, X, RefreshCw } from "lucide-react";
-import { useState, useEffect } from "react";
+import { AlertTriangle, X, RefreshCw, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
 import { queryClient } from "@/lib/queryClient";
 
 interface Alert {
   id: string;
   service: string;
-  severity: 'warning' | 'error';
+  severity: 'error' | 'warning';
   message: string;
   timestamp: string;
   acknowledged: boolean;
 }
 
-interface HealthAlerts {
+interface AlertsResponse {
   alerts: Alert[];
   count: number;
   hasErrors: boolean;
@@ -23,9 +23,9 @@ interface HealthAlerts {
 
 export function SystemAlertBanner() {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  const { data: alertData, refetch } = useQuery<HealthAlerts>({
+  const { data: alertsData, isLoading } = useQuery<AlertsResponse>({
     queryKey: ["/api/health/alerts"],
     queryFn: async () => {
       const res = await fetch("/api/health/alerts");
@@ -42,172 +42,161 @@ export function SystemAlertBanner() {
         method: 'POST',
         credentials: 'include',
       });
-      if (!res.ok) throw new Error("Failed to acknowledge alert");
+      if (!res.ok) throw new Error("Failed to acknowledge");
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/health/alerts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/health"] });
     },
   });
 
-  // Filter out dismissed alerts
-  const activeAlerts = alertData?.alerts.filter(
-    a => !dismissed.has(a.id) && !a.acknowledged
+  // Filter out acknowledged and dismissed alerts
+  const activeAlerts = alertsData?.alerts?.filter(
+    a => !a.acknowledged && !dismissed.has(a.id)
   ) || [];
 
   const errorAlerts = activeAlerts.filter(a => a.severity === 'error');
   const warningAlerts = activeAlerts.filter(a => a.severity === 'warning');
 
-  // Reset dismissed state when new alerts come in
+  // Play sound on new error alert
   useEffect(() => {
-    if (alertData?.alerts) {
-      const currentIds = new Set(alertData.alerts.map(a => a.id));
-      setDismissed(prev => {
-        const newDismissed = new Set<string>();
-        prev.forEach(id => {
-          if (currentIds.has(id)) {
-            newDismissed.add(id);
-          }
-        });
-        return newDismissed;
-      });
+    if (errorAlerts.length > 0) {
+      // Could add sound notification here
     }
-  }, [alertData?.alerts]);
+  }, [errorAlerts.length]);
 
-  // Don't render if no active alerts
-  if (activeAlerts.length === 0) {
+  // Don't show if no alerts
+  if (isLoading || activeAlerts.length === 0) {
     return null;
   }
 
   const handleDismiss = (alertId: string) => {
-    setDismissed(prev => new Set(prev).add(alertId));
+    setDismissed(prev => new Set([...prev, alertId]));
+  };
+
+  const handleAcknowledge = (alertId: string) => {
     acknowledgeMutation.mutate(alertId);
   };
 
-  const handleDismissAll = () => {
-    activeAlerts.forEach(alert => {
-      setDismissed(prev => new Set(prev).add(alert.id));
-      acknowledgeMutation.mutate(alert.id);
-    });
+  const isError = errorAlerts.length > 0;
+  const primaryAlert = errorAlerts[0] || warningAlerts[0];
+
+  const formatService = (service: string) => {
+    const names: Record<string, string> = {
+      database: 'Database',
+      email: 'Email Service',
+      auth: 'Authentication',
+      marketData: 'Market Data',
+    };
+    return names[service] || service;
   };
 
-  const isError = errorAlerts.length > 0;
-  const bgColor = isError 
-    ? "bg-red-600 dark:bg-red-900" 
-    : "bg-yellow-500 dark:bg-yellow-700";
-  const textColor = isError 
-    ? "text-white" 
-    : "text-yellow-950 dark:text-yellow-100";
-
-  if (isMinimized) {
-    return (
-      <div 
-        className={`${bgColor} ${textColor} px-4 py-1 flex items-center justify-between cursor-pointer`}
-        onClick={() => setIsMinimized(false)}
-      >
-        <div className="flex items-center gap-2">
-          {isError ? (
-            <XCircle className="h-4 w-4" />
-          ) : (
-            <AlertTriangle className="h-4 w-4" />
-          )}
-          <span className="text-sm font-medium">
-            {activeAlerts.length} system {activeAlerts.length === 1 ? 'alert' : 'alerts'} - Click to expand
-          </span>
-        </div>
-      </div>
-    );
-  }
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
-    <div className={`${bgColor} ${textColor} px-4 py-3`}>
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3 flex-1">
-            {isError ? (
-              <XCircle className="h-5 w-5 mt-0.5 shrink-0" />
-            ) : (
-              <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
+    <div
+      className={`fixed top-0 left-0 right-0 z-50 ${
+        isError
+          ? 'bg-red-600 dark:bg-red-700'
+          : 'bg-yellow-500 dark:bg-yellow-600'
+      } text-white shadow-lg`}
+    >
+      {/* Main banner row */}
+      <div className="flex items-center justify-between px-4 py-2">
+        <div className="flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 shrink-0 animate-pulse" />
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">
+              {isError ? 'System Error' : 'System Warning'}:
+            </span>
+            <span>
+              {formatService(primaryAlert.service)} - {primaryAlert.message}
+            </span>
+            {activeAlerts.length > 1 && (
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="ml-2 text-sm underline opacity-80 hover:opacity-100"
+              >
+                {isExpanded ? 'Show less' : `+${activeAlerts.length - 1} more`}
+              </button>
             )}
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold">
-                {isError ? 'System Error Detected' : 'System Warning'}
-              </p>
-              <div className="mt-1 space-y-1">
-                {errorAlerts.map(alert => (
-                  <div key={alert.id} className="flex items-center gap-2 text-sm">
-                    <span className="font-medium">{formatServiceName(alert.service)}:</span>
-                    <span>{alert.message}</span>
-                    <button
-                      onClick={() => handleDismiss(alert.id)}
-                      className="ml-2 opacity-70 hover:opacity-100"
-                      title="Dismiss this alert"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-                {warningAlerts.map(alert => (
-                  <div key={alert.id} className="flex items-center gap-2 text-sm">
-                    <span className="font-medium">{formatServiceName(alert.service)}:</span>
-                    <span>{alert.message}</span>
-                    <button
-                      onClick={() => handleDismiss(alert.id)}
-                      className="ml-2 opacity-70 hover:opacity-100"
-                      title="Dismiss this alert"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs mt-2 opacity-80">
-                Auto-recovery is being attempted. You'll be notified when resolved.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => refetch()}
-              className={`${textColor} hover:bg-white/20`}
-              title="Refresh status"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDismissAll}
-              className={`${textColor} hover:bg-white/20`}
-              title="Dismiss all alerts"
-            >
-              Dismiss All
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsMinimized(true)}
-              className={`${textColor} hover:bg-white/20`}
-              title="Minimize"
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-white hover:bg-white/20"
+            onClick={() => handleAcknowledge(primaryAlert.id)}
+            disabled={acknowledgeMutation.isPending}
+          >
+            <CheckCircle className="h-4 w-4 mr-1" />
+            Acknowledge
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-white hover:bg-white/20"
+            onClick={() => handleDismiss(primaryAlert.id)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Expanded view showing all alerts */}
+      {isExpanded && activeAlerts.length > 1 && (
+        <div className="border-t border-white/20 px-4 py-2 space-y-1">
+          {activeAlerts.slice(1).map((alert) => (
+            <div
+              key={alert.id}
+              className="flex items-center justify-between py-1 text-sm"
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    alert.severity === 'error' ? 'bg-white' : 'bg-white/70'
+                  }`}
+                />
+                <span className="font-medium">{formatService(alert.service)}</span>
+                <span className="opacity-80">- {alert.message}</span>
+                <span className="opacity-60 text-xs ml-2">
+                  {formatTime(alert.timestamp)}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-xs text-white hover:bg-white/20"
+                  onClick={() => handleAcknowledge(alert.id)}
+                  disabled={acknowledgeMutation.isPending}
+                >
+                  Acknowledge
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 px-1 text-white hover:bg-white/20"
+                  onClick={() => handleDismiss(alert.id)}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Auto-recovery indicator */}
+      <div className="flex items-center justify-center gap-2 py-1 text-xs bg-black/10">
+        <RefreshCw className="h-3 w-3 animate-spin" />
+        <span>Auto-recovery in progress • Monitoring every 30 seconds</span>
       </div>
     </div>
   );
 }
-
-function formatServiceName(service: string): string {
-  const names: Record<string, string> = {
-    database: 'Database',
-    email: 'Email Service',
-    auth: 'Authentication',
-    marketData: 'Market Data',
-  };
-  return names[service] || service;
-}
-

@@ -10,50 +10,97 @@ interface ServiceStatus {
   message?: string;
   latency?: number;
   lastCheck: Date;
-  lastError?: Date;
-  errorCount: number;
   consecutiveErrors: number;
 }
 
+interface Alert {
+  id: string;
+  service: string;
+  severity: 'error' | 'warning';
+  message: string;
+  timestamp: Date;
+  acknowledged: boolean;
+}
+
 interface HealthState {
-  database: ServiceStatus;
-  email: ServiceStatus;
-  auth: ServiceStatus;
-  marketData: ServiceStatus;
-  overall: 'ok' | 'warning' | 'error';
-  lastAlertSent?: Date;
+  services: {
+    database: ServiceStatus;
+    email: ServiceStatus;
+    auth: ServiceStatus;
+    marketData: ServiceStatus;
+  };
+  activeAlerts: Alert[];
+  lastAlertEmailSent?: Date;
 }
 
 // Configuration
 const CONFIG = {
   checkIntervalMs: 30000, // Check every 30 seconds
-  alertCooldownMs: 5 * 60 * 1000, // Don't send more than 1 alert per 5 minutes
+  alertCooldownMs: 5 * 60 * 1000, // Don't send more than 1 email per 5 minutes
   maxConsecutiveErrors: 3, // Send alert after 3 consecutive errors
   dbReconnectAttempts: 5,
   dbReconnectDelayMs: 2000,
 };
 
 // State
-let healthState: HealthState = {
-  database: { status: 'ok', lastCheck: new Date(), errorCount: 0, consecutiveErrors: 0 },
-  email: { status: 'ok', lastCheck: new Date(), errorCount: 0, consecutiveErrors: 0 },
-  auth: { status: 'ok', lastCheck: new Date(), errorCount: 0, consecutiveErrors: 0 },
-  marketData: { status: 'ok', lastCheck: new Date(), errorCount: 0, consecutiveErrors: 0 },
-  overall: 'ok',
+const healthState: HealthState = {
+  services: {
+    database: { status: 'ok', lastCheck: new Date(), consecutiveErrors: 0 },
+    email: { status: 'ok', lastCheck: new Date(), consecutiveErrors: 0 },
+    auth: { status: 'ok', lastCheck: new Date(), consecutiveErrors: 0 },
+    marketData: { status: 'ok', lastCheck: new Date(), consecutiveErrors: 0 },
+  },
+  activeAlerts: [],
 };
 
 let monitorInterval: NodeJS.Timeout | null = null;
 let isReconnecting = false;
 
-// Status history for debugging
-const statusHistory: Array<{ timestamp: Date; service: string; status: string; message?: string }> = [];
-const MAX_HISTORY = 100;
+// Generate unique alert ID
+function generateAlertId(): string {
+  return `alert_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
 
-function addToHistory(service: string, status: string, message?: string) {
-  statusHistory.unshift({ timestamp: new Date(), service, status, message });
-  if (statusHistory.length > MAX_HISTORY) {
-    statusHistory.pop();
+// Add or update alert
+function addAlert(service: string, severity: 'error' | 'warning', message: string) {
+  // Check if similar alert already exists
+  const existingIndex = healthState.activeAlerts.findIndex(
+    a => a.service === service && !a.acknowledged
+  );
+  
+  if (existingIndex >= 0) {
+    // Update existing alert
+    healthState.activeAlerts[existingIndex].message = message;
+    healthState.activeAlerts[existingIndex].timestamp = new Date();
+    healthState.activeAlerts[existingIndex].severity = severity;
+  } else {
+    // Add new alert
+    healthState.activeAlerts.push({
+      id: generateAlertId(),
+      service,
+      severity,
+      message,
+      timestamp: new Date(),
+      acknowledged: false,
+    });
   }
+}
+
+// Clear alert for a service
+function clearAlert(service: string) {
+  healthState.activeAlerts = healthState.activeAlerts.filter(
+    a => a.service !== service || a.acknowledged
+  );
+}
+
+// Acknowledge an alert
+export function acknowledgeAlert(alertId: string): boolean {
+  const alert = healthState.activeAlerts.find(a => a.id === alertId);
+  if (alert) {
+    alert.acknowledged = true;
+    return true;
+  }
+  return false;
 }
 
 // Database health check with auto-reconnect
@@ -63,10 +110,10 @@ async function checkDatabase(): Promise<ServiceStatus> {
     await db.execute(sql`SELECT 1`);
     const latency = Date.now() - start;
     
-    // Reset error counts on success
-    if (healthState.database.consecutiveErrors > 0) {
+    // Clear any database alerts on success
+    if (healthState.services.database.consecutiveErrors > 0) {
       log.info("[HealthMonitor] Database connection restored");
-      addToHistory('database', 'recovered', `Connection restored after ${healthState.database.consecutiveErrors} errors`);
+      clearAlert('database');
     }
     
     return {
@@ -74,15 +121,17 @@ async function checkDatabase(): Promise<ServiceStatus> {
       message: latency > 1000 ? `Slow: ${latency}ms` : 'Connected',
       latency,
       lastCheck: new Date(),
-      errorCount: healthState.database.errorCount,
       consecutiveErrors: 0,
     };
   } catch (error: any) {
-    const newErrorCount = healthState.database.errorCount + 1;
-    const newConsecutiveErrors = healthState.database.consecutiveErrors + 1;
+    const newConsecutiveErrors = healthState.services.database.consecutiveErrors + 1;
     
     log.error("[HealthMonitor] Database check failed", error);
-    addToHistory('database', 'error', error.message);
+    
+    // Add alert after threshold
+    if (newConsecutiveErrors >= CONFIG.maxConsecutiveErrors) {
+      addAlert('database', 'error', `Database connection failed: ${error.message}`);
+    }
     
     // Attempt auto-reconnect
     if (!isReconnecting && newConsecutiveErrors >= 2) {
@@ -93,8 +142,6 @@ async function checkDatabase(): Promise<ServiceStatus> {
       status: 'error',
       message: error.message || 'Connection failed',
       lastCheck: new Date(),
-      lastError: new Date(),
-      errorCount: newErrorCount,
       consecutiveErrors: newConsecutiveErrors,
     };
   }
@@ -106,21 +153,15 @@ async function attemptDatabaseReconnect() {
   isReconnecting = true;
   
   log.warn("[HealthMonitor] Attempting database reconnection...");
-  addToHistory('database', 'reconnecting', 'Auto-reconnect initiated');
   
   for (let attempt = 1; attempt <= CONFIG.dbReconnectAttempts; attempt++) {
     try {
-      // End all clients and reconnect
-      await pool.end();
+      // Test connection with a new query
       await new Promise(resolve => setTimeout(resolve, CONFIG.dbReconnectDelayMs));
-      
-      // Test connection
-      const client = await pool.connect();
-      await client.query('SELECT 1');
-      client.release();
+      await db.execute(sql`SELECT 1`);
       
       log.info(`[HealthMonitor] Database reconnected on attempt ${attempt}`);
-      addToHistory('database', 'reconnected', `Success on attempt ${attempt}`);
+      clearAlert('database');
       isReconnecting = false;
       return;
     } catch (error: any) {
@@ -132,23 +173,19 @@ async function attemptDatabaseReconnect() {
   }
   
   log.error("[HealthMonitor] All reconnection attempts failed");
-  addToHistory('database', 'reconnect_failed', `Failed after ${CONFIG.dbReconnectAttempts} attempts`);
   isReconnecting = false;
 }
 
 // Email service check
-async function checkEmail(): Promise<ServiceStatus> {
+function checkEmail(): ServiceStatus {
   const configured = !!(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
   
   if (configured) {
-    if (healthState.email.status !== 'ok') {
-      addToHistory('email', 'ok', 'Configuration verified');
-    }
+    clearAlert('email');
     return {
       status: 'ok',
       message: 'Configured',
       lastCheck: new Date(),
-      errorCount: 0,
       consecutiveErrors: 0,
     };
   } else {
@@ -156,22 +193,21 @@ async function checkEmail(): Promise<ServiceStatus> {
       status: 'warning',
       message: 'Not configured',
       lastCheck: new Date(),
-      errorCount: healthState.email.errorCount,
-      consecutiveErrors: healthState.email.consecutiveErrors,
+      consecutiveErrors: 0,
     };
   }
 }
 
 // Auth service check
-async function checkAuth(): Promise<ServiceStatus> {
+function checkAuth(): ServiceStatus {
   const configured = !!(process.env.CLERK_SECRET_KEY && process.env.VITE_CLERK_PUBLISHABLE_KEY);
   
   if (configured) {
+    clearAlert('auth');
     return {
       status: 'ok',
       message: 'Configured',
       lastCheck: new Date(),
-      errorCount: 0,
       consecutiveErrors: 0,
     };
   } else {
@@ -179,8 +215,7 @@ async function checkAuth(): Promise<ServiceStatus> {
       status: 'warning',
       message: 'Not configured',
       lastCheck: new Date(),
-      errorCount: healthState.auth.errorCount,
-      consecutiveErrors: healthState.auth.consecutiveErrors,
+      consecutiveErrors: 0,
     };
   }
 }
@@ -212,44 +247,44 @@ async function checkMarketData(): Promise<ServiceStatus> {
     const latency = Date.now() - start;
     
     if (response.ok) {
-      if (healthState.marketData.consecutiveErrors > 0) {
-        addToHistory('marketData', 'recovered', `${apiName} connection restored`);
+      // Clear any market data alerts on success
+      if (healthState.services.marketData.consecutiveErrors > 0) {
+        clearAlert('marketData');
       }
+      
       return {
         status: marketstackKey || twelveDataKey ? 'ok' : 'warning',
         message: apiName,
         latency,
         lastCheck: new Date(),
-        errorCount: healthState.marketData.errorCount,
         consecutiveErrors: 0,
       };
     } else {
       throw new Error(`HTTP ${response.status}`);
     }
   } catch (error: any) {
-    const newErrorCount = healthState.marketData.errorCount + 1;
-    const newConsecutiveErrors = healthState.marketData.consecutiveErrors + 1;
+    const newConsecutiveErrors = healthState.services.marketData.consecutiveErrors + 1;
     
-    addToHistory('marketData', 'error', error.message);
+    if (newConsecutiveErrors >= CONFIG.maxConsecutiveErrors) {
+      addAlert('marketData', 'error', `Market data API failed: ${error.message}`);
+    }
     
     return {
       status: 'error',
       message: error.name === 'AbortError' ? 'Timeout' : error.message,
       lastCheck: new Date(),
-      lastError: new Date(),
-      errorCount: newErrorCount,
       consecutiveErrors: newConsecutiveErrors,
     };
   }
 }
 
 // Send alert email
-async function sendAlertEmail(failedServices: string[], details: string) {
+async function sendAlertEmail() {
   // Check cooldown
-  if (healthState.lastAlertSent) {
-    const timeSinceLastAlert = Date.now() - healthState.lastAlertSent.getTime();
+  if (healthState.lastAlertEmailSent) {
+    const timeSinceLastAlert = Date.now() - healthState.lastAlertEmailSent.getTime();
     if (timeSinceLastAlert < CONFIG.alertCooldownMs) {
-      log.info(`[HealthMonitor] Alert cooldown active, skipping email (${Math.round((CONFIG.alertCooldownMs - timeSinceLastAlert) / 1000)}s remaining)`);
+      log.debug(`[HealthMonitor] Alert cooldown active, skipping email`);
       return;
     }
   }
@@ -259,40 +294,62 @@ async function sendAlertEmail(failedServices: string[], details: string) {
     return;
   }
   
+  const unacknowledgedErrors = healthState.activeAlerts.filter(
+    a => !a.acknowledged && a.severity === 'error'
+  );
+  
+  if (unacknowledgedErrors.length === 0) return;
+  
   const alertEmail = process.env.ALERT_EMAIL || process.env.GMAIL_USER;
   
   try {
     const { sendEmail } = await import("./gmail");
     
+    const failedServices = unacknowledgedErrors.map(a => a.service);
     const subject = `⚠️ PracticeOS Alert: ${failedServices.join(', ')} ${failedServices.length === 1 ? 'is' : 'are'} down`;
+    
+    const alertRows = unacknowledgedErrors.map(a => 
+      `<tr>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;"><strong>${a.service}</strong></td>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; color: #dc2626;">${a.message}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${a.timestamp.toLocaleString()}</td>
+      </tr>`
+    ).join('');
+    
     const htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #dc2626;">⚠️ System Health Alert</h2>
-        <p style="color: #374151;">The following services are experiencing issues:</p>
-        <ul style="color: #374151;">
-          ${failedServices.map(s => `<li><strong>${s}</strong></li>`).join('')}
-        </ul>
-        <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 15px; margin: 20px 0;">
-          <h3 style="color: #dc2626; margin-top: 0;">Details:</h3>
-          <pre style="color: #7f1d1d; white-space: pre-wrap; font-size: 12px;">${details}</pre>
+        <div style="background: #dc2626; color: white; padding: 15px; border-radius: 8px 8px 0 0;">
+          <h2 style="margin: 0;">⚠️ System Health Alert</h2>
         </div>
-        <p style="color: #6b7280; font-size: 12px;">
-          Auto-recovery is being attempted. You will receive another alert if the issue persists.
-        </p>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-        <p style="color: #9ca3af; font-size: 11px;">
+        <div style="background: #fef2f2; border: 1px solid #fecaca; border-top: none; border-radius: 0 0 8px 8px; padding: 20px;">
+          <p style="color: #374151; margin-top: 0;">The following services are experiencing issues:</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+            <thead>
+              <tr style="background: #fee2e2;">
+                <th style="padding: 8px; text-align: left;">Service</th>
+                <th style="padding: 8px; text-align: left;">Issue</th>
+                <th style="padding: 8px; text-align: left;">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${alertRows}
+            </tbody>
+          </table>
+          <p style="color: #6b7280; font-size: 13px; margin-bottom: 0;">
+            🔄 Auto-recovery is being attempted. You will receive another alert if issues persist after 5 minutes.
+          </p>
+        </div>
+        <p style="color: #9ca3af; font-size: 11px; margin-top: 15px; text-align: center;">
           PracticeOS Health Monitor • ${new Date().toLocaleString('en-CA', { dateStyle: 'full', timeStyle: 'long' })}
         </p>
       </div>
     `;
     
     await sendEmail(alertEmail, subject, htmlBody);
-    healthState.lastAlertSent = new Date();
+    healthState.lastAlertEmailSent = new Date();
     log.info(`[HealthMonitor] Alert email sent to ${alertEmail}`);
-    addToHistory('alert', 'sent', `Email sent for: ${failedServices.join(', ')}`);
   } catch (error: any) {
     log.error("[HealthMonitor] Failed to send alert email:", error);
-    addToHistory('alert', 'failed', error.message);
   }
 }
 
@@ -300,47 +357,29 @@ async function sendAlertEmail(failedServices: string[], details: string) {
 async function runHealthChecks() {
   log.debug("[HealthMonitor] Running health checks...");
   
-  const [dbStatus, emailStatus, authStatus, marketStatus] = await Promise.all([
+  const [dbStatus, marketStatus] = await Promise.all([
     checkDatabase(),
-    checkEmail(),
-    checkAuth(),
     checkMarketData(),
   ]);
   
-  healthState.database = dbStatus;
-  healthState.email = emailStatus;
-  healthState.auth = authStatus;
-  healthState.marketData = marketStatus;
+  const emailStatus = checkEmail();
+  const authStatus = checkAuth();
   
-  // Determine overall status
-  const hasError = [dbStatus, emailStatus, authStatus, marketStatus].some(s => s.status === 'error');
-  const hasWarning = [dbStatus, emailStatus, authStatus, marketStatus].some(s => s.status === 'warning');
-  healthState.overall = hasError ? 'error' : hasWarning ? 'warning' : 'ok';
+  healthState.services.database = dbStatus;
+  healthState.services.email = emailStatus;
+  healthState.services.auth = authStatus;
+  healthState.services.marketData = marketStatus;
   
-  // Check if we need to send alerts
-  const criticalFailures: string[] = [];
-  const details: string[] = [];
+  // Send email if there are unacknowledged error alerts
+  const hasUnacknowledgedErrors = healthState.activeAlerts.some(
+    a => !a.acknowledged && a.severity === 'error'
+  );
   
-  if (dbStatus.status === 'error' && dbStatus.consecutiveErrors >= CONFIG.maxConsecutiveErrors) {
-    criticalFailures.push('Database');
-    details.push(`Database: ${dbStatus.message} (${dbStatus.consecutiveErrors} consecutive errors)`);
+  if (hasUnacknowledgedErrors) {
+    await sendAlertEmail();
   }
   
-  if (authStatus.status === 'error' && authStatus.consecutiveErrors >= CONFIG.maxConsecutiveErrors) {
-    criticalFailures.push('Authentication');
-    details.push(`Auth: ${authStatus.message}`);
-  }
-  
-  if (marketStatus.status === 'error' && marketStatus.consecutiveErrors >= CONFIG.maxConsecutiveErrors) {
-    criticalFailures.push('Market Data');
-    details.push(`Market Data: ${marketStatus.message}`);
-  }
-  
-  if (criticalFailures.length > 0) {
-    await sendAlertEmail(criticalFailures, details.join('\n'));
-  }
-  
-  log.debug(`[HealthMonitor] Check complete - Overall: ${healthState.overall}`);
+  log.debug(`[HealthMonitor] Check complete - ${healthState.activeAlerts.length} active alerts`);
 }
 
 // Start monitoring
@@ -371,12 +410,6 @@ export function stopHealthMonitor() {
 }
 
 // Get current health state
-export function getHealthState(): HealthState & { history: typeof statusHistory } {
-  return { ...healthState, history: statusHistory.slice(0, 20) };
-}
-
-// Force a health check (for API endpoint)
-export async function forceHealthCheck(): Promise<HealthState> {
-  await runHealthChecks();
+export function getHealthState(): HealthState {
   return healthState;
 }
