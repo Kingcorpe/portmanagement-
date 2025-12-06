@@ -50,6 +50,9 @@ export function registerProtectedPositionsRoutes(app: Express) {
                 const stopPrice = pos.stopPrice ? parseFloat(pos.stopPrice) : null;
                 const gainPercent = entryPrice > 0 ? ((currentPrice - entryPrice) / entryPrice) * 100 : 0;
                 
+                // Only include positions with actual gains to protect
+                if (gainPercent <= 0) continue;
+                
                 // Determine status
                 let status: 'safe' | 'approaching' | 'triggered' = 'safe';
                 if (stopPrice) {
@@ -100,6 +103,9 @@ export function registerProtectedPositionsRoutes(app: Express) {
                 const stopPrice = pos.stopPrice ? parseFloat(pos.stopPrice) : null;
                 const gainPercent = entryPrice > 0 ? ((currentPrice - entryPrice) / entryPrice) * 100 : 0;
                 
+                // Only include positions with actual gains to protect
+                if (gainPercent <= 0) continue;
+                
                 let status: 'safe' | 'approaching' | 'triggered' = 'safe';
                 if (stopPrice) {
                   if (currentPrice <= stopPrice) {
@@ -149,6 +155,9 @@ export function registerProtectedPositionsRoutes(app: Express) {
               const quantity = parseFloat(pos.quantity || '0');
               const stopPrice = pos.stopPrice ? parseFloat(pos.stopPrice) : null;
               const gainPercent = entryPrice > 0 ? ((currentPrice - entryPrice) / entryPrice) * 100 : 0;
+              
+              // Only include positions with actual gains to protect
+              if (gainPercent <= 0) continue;
               
               let status: 'safe' | 'approaching' | 'triggered' = 'safe';
               if (stopPrice) {
