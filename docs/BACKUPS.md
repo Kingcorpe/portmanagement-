@@ -23,7 +23,7 @@
 
 | Aspect | Database (Live) | Backup (Copy) |
 |--------|----------------|---------------|
-| **Location** | Railway/Neon (cloud) | Your computer (local) |
+| **Location** | Railway PostgreSQL (cloud) | Your computer (local) |
 | **Type** | Running database server | Static file (`.sql.gz`) |
 | **Updates** | Real-time (as you use app) | Only when you run backup |
 | **Purpose** | App uses this to run | Safety copy for emergencies |

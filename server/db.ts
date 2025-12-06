@@ -1,4 +1,4 @@
-// Database connection - supports both Neon and Railway Postgres
+// Database connection - Railway PostgreSQL
 console.log("[DB] Loading database module...");
 
 import pg from 'pg';

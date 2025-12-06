@@ -38,7 +38,7 @@
 
 ### Infrastructure
 - ✅ Railway deployment setup
-- ✅ Neon PostgreSQL database
+- ✅ Railway PostgreSQL database
 - ✅ Automated backup system
 - ✅ Environment variable management
 - ✅ Migration scripts
@@ -183,15 +183,15 @@
 - `npm run migrate:holdings` - Migrate holdings data
 
 ### Key Environment Variables
-- Database connection (Neon PostgreSQL)
-- Replit Auth credentials
+- Database connection (Railway PostgreSQL)
+- Clerk Auth credentials
 - TradingView webhook secret
 - Google Cloud Storage credentials
 - Resend API key (for email backups)
 - Object storage configuration
 
 ### Database
-- **Production:** Neon PostgreSQL (Railway)
+- **Production:** Railway PostgreSQL
 - **Schema:** Managed via Drizzle ORM
 - **Backups:** Automated daily via script
 

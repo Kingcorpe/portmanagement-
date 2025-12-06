@@ -9,7 +9,7 @@ This guide explains how your application is structured and what you need to know
 Your application has **three main components**:
 
 1. **Code** (stored in GitHub)
-2. **Database** (stored in Railway/Neon)
+2. **Database** (stored in Railway PostgreSQL)
 3. **Environment Variables** (stored in Railway)
 
 These are **completely separate** and managed independently.
@@ -42,7 +42,7 @@ These are **completely separate** and managed independently.
 
 ---
 
-## 🗄️ 2. Database (Railway/Neon PostgreSQL)
+## 🗄️ 2. Database (Railway PostgreSQL)
 
 ### What it stores:
 **ALL your application data:**
@@ -66,11 +66,11 @@ These are **completely separate** and managed independently.
 
 ### Where it lives:
 - **Local Development:** Separate database (SQLite or local PostgreSQL)
-- **Railway Production:** Neon PostgreSQL (cloud database)
+- **Railway Production:** Railway PostgreSQL (cloud database)
 - **These are completely separate** - data in one doesn't exist in the other
 
 ### Critical Points:
-- ✅ **Data persists** on Railway as long as Railway/Neon is active
+- ✅ **Data persists** on Railway as long as Railway is active
 - ✅ **Data is separate** from your code
 - ⚠️ **Data is NOT in GitHub** - you must back it up separately
 - ⚠️ **Local and Railway databases are different** - data doesn't sync automatically
@@ -187,7 +187,7 @@ Files uploaded through your app (if you have file upload features):
 
 ### Production (Railway):
 - **Code:** Deployed from GitHub
-- **Database:** Railway/Neon PostgreSQL (cloud)
+- **Database:** Railway PostgreSQL (cloud)
 - **Environment:** Uses Railway Variables
 - **Purpose:** Real client data
 - **Data:** All your actual data
@@ -260,7 +260,7 @@ Files uploaded through your app (if you have file upload features):
 
 ### If Railway goes down:
 - Your code is safe (in GitHub)
-- Your data might be at risk (if Railway/Neon has issues)
+- Your data might be at risk (if Railway has issues)
 - **Solution:** Restore from backup to new platform
 
 ### If you want to switch platforms:
@@ -287,7 +287,7 @@ Files uploaded through your app (if you have file upload features):
 | Component | Where It Lives | In GitHub? | Backed Up? | Separate Local/Prod? |
 |-----------|---------------|------------|------------|---------------------|
 | **Code** | GitHub, Local, Railway | ✅ Yes | ✅ Yes (GitHub) | ❌ No (same code) |
-| **Database** | Railway/Neon, Local DB | ❌ No | ⚠️ You must backup | ✅ Yes (separate) |
+| **Database** | Railway PostgreSQL, Local DB | ❌ No | ⚠️ You must backup | ✅ Yes (separate) |
 | **Env Vars** | Railway, Local `.env` | ❌ No | ⚠️ You must document | ✅ Yes (separate) |
 | **File Uploads** | Object Storage | ❌ No | ⚠️ You must backup | ✅ Yes (separate) |
 

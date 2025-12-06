@@ -9,9 +9,9 @@
 
 | Item | Value |
 |------|-------|
-| **Platform** | Railway (recommended) |
+| **Platform** | Railway |
 | **Auto-Deploy** | Push to `origin main` |
-| **Database** | Neon PostgreSQL |
+| **Database** | Railway PostgreSQL |
 | **Build Command** | `npm run build` |
 | **Start Command** | `npm start` |
 
@@ -24,7 +24,7 @@
 ```bash
 # Core
 NODE_ENV=production
-DATABASE_URL=postgresql://...  # Your Neon connection string
+DATABASE_URL=postgresql://...  # From Railway PostgreSQL service
 SESSION_SECRET=your-random-secret-here
 
 # TradingView
@@ -42,6 +42,28 @@ LOCAL_DEV=false  # Must be false in production
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
+
+---
+
+## Local Environment Setup
+
+**For running scripts locally** (backups, migrations, etc.), create a `.env` file:
+
+```bash
+# .env (local development only - do NOT commit)
+
+# Database - get from Railway Dashboard → PostgreSQL → Variables
+DATABASE_URL=postgresql://postgres:PASSWORD@HOST.railway.app:PORT/railway
+
+# Clerk Auth - get from Clerk Dashboard → API Keys
+CLERK_SECRET_KEY=sk_test_...
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+
+# Session
+SESSION_SECRET=generate-a-random-32-char-string
+```
+
+> ⚠️ **Note:** We migrated from Neon to Railway PostgreSQL in Dec 2025. If your local `.env` still has a Neon URL (`neon.tech`), update it with the Railway DATABASE_URL.
 
 ---
 

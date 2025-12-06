@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Daily Database Backup Script
-# This script backs up your Railway/Neon PostgreSQL database
+# This script backs up your Railway PostgreSQL database
 # Run daily via cron or manually
 
 set -e  # Exit on error
