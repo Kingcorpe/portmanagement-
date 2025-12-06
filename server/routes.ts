@@ -5665,6 +5665,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { registerDcaDcpRoutes } = await import("./routes/dca-dcp");
   registerDcaDcpRoutes(app);
 
+  // Auth routes (includes /api/version endpoint)
+  const { registerAuthRoutes } = await import("./routes/auth");
+  registerAuthRoutes(app);
+
   // Account audit log routes
   app.get('/api/accounts/:accountType/:accountId/audit-log', validateUUIDParam('accountId'), isAuthenticated, async (req: any, res) => {
     try {
