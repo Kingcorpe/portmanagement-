@@ -254,10 +254,12 @@ export function HouseholdManagementDialogs({
       const response = await apiRequest("POST", "/api/corporations", data);
       const corporation = await response.json() as Corporation;
       
-      // Create the account with risk percentages
+      // Create the account with risk percentages (5 categories)
       await apiRequest("POST", "/api/corporate-accounts", {
         corporationId: corporation.id,
         type: corporateAccountType,
+        riskLowPct: corporateRiskLow,
+        riskLowMediumPct: corporateRiskLowMedium,
         riskMediumPct: corporateRiskMedium,
         riskMediumHighPct: corporateRiskMediumHigh,
         riskHighPct: corporateRiskHigh,
@@ -271,6 +273,8 @@ export function HouseholdManagementDialogs({
       onClose();
       corporationForm.reset();
       setCorporateAccountType("");
+      setCorporateRiskLow(0);
+      setCorporateRiskLowMedium(0);
       setCorporateRiskMedium(0);
       setCorporateRiskMediumHigh(0);
       setCorporateRiskHigh(0);
@@ -372,9 +376,13 @@ export function HouseholdManagementDialogs({
               </div>
               
               <RiskCategorySelector
+                low={individualRiskLow}
+                lowMedium={individualRiskLowMedium}
                 medium={individualRiskMedium}
                 mediumHigh={individualRiskMediumHigh}
                 high={individualRiskHigh}
+                onLowChange={setIndividualRiskLow}
+                onLowMediumChange={setIndividualRiskLowMedium}
                 onMediumChange={setIndividualRiskMedium}
                 onMediumHighChange={setIndividualRiskMediumHigh}
                 onHighChange={setIndividualRiskHigh}
@@ -433,7 +441,7 @@ export function HouseholdManagementDialogs({
                     createIndividualMutation.isPending || 
                     !individualAccountType || 
                     individualAccountType === "none" ||
-                    (individualRiskMedium + individualRiskMediumHigh + individualRiskHigh) !== 100 ||
+                    (individualRiskLow + individualRiskLowMedium + individualRiskMedium + individualRiskMediumHigh + individualRiskHigh) !== 100 ||
                     (individualAccountType === "rif" && !individualForm.watch("dateOfBirth"))
                   }
                 >
@@ -481,9 +489,13 @@ export function HouseholdManagementDialogs({
               </div>
               
               <RiskCategorySelector
+                low={corporateRiskLow}
+                lowMedium={corporateRiskLowMedium}
                 medium={corporateRiskMedium}
                 mediumHigh={corporateRiskMediumHigh}
                 high={corporateRiskHigh}
+                onLowChange={setCorporateRiskLow}
+                onLowMediumChange={setCorporateRiskLowMedium}
                 onMediumChange={setCorporateRiskMedium}
                 onMediumHighChange={setCorporateRiskMediumHigh}
                 onHighChange={setCorporateRiskHigh}
@@ -501,7 +513,7 @@ export function HouseholdManagementDialogs({
                     createCorporationMutation.isPending || 
                     !corporateAccountType || 
                     corporateAccountType === "none" ||
-                    (corporateRiskMedium + corporateRiskMediumHigh + corporateRiskHigh) !== 100
+                    (corporateRiskLow + corporateRiskLowMedium + corporateRiskMedium + corporateRiskMediumHigh + corporateRiskHigh) !== 100
                   }
                 >
                   {createCorporationMutation.isPending ? "Creating..." : "Create Corporation & Account"}
@@ -581,9 +593,13 @@ export function HouseholdManagementDialogs({
               )}
 
               <RiskCategorySelector
+                low={Number(individualAccountForm.watch("riskLowPct") || 0)}
+                lowMedium={Number(individualAccountForm.watch("riskLowMediumPct") || 0)}
                 medium={Number(individualAccountForm.watch("riskMediumPct") || 0)}
                 mediumHigh={Number(individualAccountForm.watch("riskMediumHighPct") || 0)}
                 high={Number(individualAccountForm.watch("riskHighPct") || 0)}
+                onLowChange={(v) => individualAccountForm.setValue("riskLowPct", String(v))}
+                onLowMediumChange={(v) => individualAccountForm.setValue("riskLowMediumPct", String(v))}
                 onMediumChange={(v) => individualAccountForm.setValue("riskMediumPct", String(v))}
                 onMediumHighChange={(v) => individualAccountForm.setValue("riskMediumHighPct", String(v))}
                 onHighChange={(v) => individualAccountForm.setValue("riskHighPct", String(v))}
@@ -599,7 +615,9 @@ export function HouseholdManagementDialogs({
                   data-testid="button-submit" 
                   disabled={
                     createIndividualAccountMutation.isPending ||
-                    (Number(individualAccountForm.watch("riskMediumPct") || 0) + 
+                    (Number(individualAccountForm.watch("riskLowPct") || 0) +
+                     Number(individualAccountForm.watch("riskLowMediumPct") || 0) +
+                     Number(individualAccountForm.watch("riskMediumPct") || 0) + 
                      Number(individualAccountForm.watch("riskMediumHighPct") || 0) + 
                      Number(individualAccountForm.watch("riskHighPct") || 0)) !== 100 ||
                     (individualAccountForm.watch("type") === "rif" && !individualDateOfBirth)
@@ -664,9 +682,13 @@ export function HouseholdManagementDialogs({
               />
               
               <RiskCategorySelector
+                low={Number(corporateAccountForm.watch("riskLowPct") || 0)}
+                lowMedium={Number(corporateAccountForm.watch("riskLowMediumPct") || 0)}
                 medium={Number(corporateAccountForm.watch("riskMediumPct") || 0)}
                 mediumHigh={Number(corporateAccountForm.watch("riskMediumHighPct") || 0)}
                 high={Number(corporateAccountForm.watch("riskHighPct") || 0)}
+                onLowChange={(v) => corporateAccountForm.setValue("riskLowPct", String(v))}
+                onLowMediumChange={(v) => corporateAccountForm.setValue("riskLowMediumPct", String(v))}
                 onMediumChange={(v) => corporateAccountForm.setValue("riskMediumPct", String(v))}
                 onMediumHighChange={(v) => corporateAccountForm.setValue("riskMediumHighPct", String(v))}
                 onHighChange={(v) => corporateAccountForm.setValue("riskHighPct", String(v))}
@@ -682,7 +704,9 @@ export function HouseholdManagementDialogs({
                   data-testid="button-submit" 
                   disabled={
                     createCorporateAccountMutation.isPending ||
-                    (Number(corporateAccountForm.watch("riskMediumPct") || 0) + 
+                    (Number(corporateAccountForm.watch("riskLowPct") || 0) +
+                     Number(corporateAccountForm.watch("riskLowMediumPct") || 0) +
+                     Number(corporateAccountForm.watch("riskMediumPct") || 0) + 
                      Number(corporateAccountForm.watch("riskMediumHighPct") || 0) + 
                      Number(corporateAccountForm.watch("riskHighPct") || 0)) !== 100
                   }
@@ -746,9 +770,13 @@ export function HouseholdManagementDialogs({
               />
               
               <RiskCategorySelector
+                low={Number(jointAccountForm.watch("riskLowPct") || 0)}
+                lowMedium={Number(jointAccountForm.watch("riskLowMediumPct") || 0)}
                 medium={Number(jointAccountForm.watch("riskMediumPct") || 0)}
                 mediumHigh={Number(jointAccountForm.watch("riskMediumHighPct") || 0)}
                 high={Number(jointAccountForm.watch("riskHighPct") || 0)}
+                onLowChange={(v) => jointAccountForm.setValue("riskLowPct", String(v))}
+                onLowMediumChange={(v) => jointAccountForm.setValue("riskLowMediumPct", String(v))}
                 onMediumChange={(v) => jointAccountForm.setValue("riskMediumPct", String(v))}
                 onMediumHighChange={(v) => jointAccountForm.setValue("riskMediumHighPct", String(v))}
                 onHighChange={(v) => jointAccountForm.setValue("riskHighPct", String(v))}
@@ -764,7 +792,9 @@ export function HouseholdManagementDialogs({
                   data-testid="button-submit" 
                   disabled={
                     createJointAccountMutation.isPending ||
-                    (Number(jointAccountForm.watch("riskMediumPct") || 0) + 
+                    (Number(jointAccountForm.watch("riskLowPct") || 0) +
+                     Number(jointAccountForm.watch("riskLowMediumPct") || 0) +
+                     Number(jointAccountForm.watch("riskMediumPct") || 0) + 
                      Number(jointAccountForm.watch("riskMediumHighPct") || 0) + 
                      Number(jointAccountForm.watch("riskHighPct") || 0)) !== 100
                   }

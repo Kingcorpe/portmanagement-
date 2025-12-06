@@ -1372,6 +1372,8 @@ export default function AccountDetails() {
       const endpoint = accountEndpoint;
       if (!endpoint) throw new Error("Account endpoint not available");
       return await apiRequest("PATCH", endpoint, { 
+        riskLowPct: allocation.low.toString(),
+        riskLowMediumPct: allocation.lowMedium.toString(),
         riskMediumPct: allocation.medium.toString(),
         riskMediumHighPct: allocation.mediumHigh.toString(),
         riskHighPct: allocation.high.toString(),
@@ -5168,9 +5170,13 @@ export default function AccountDetails() {
                             accountType: "Account Type",
                             balance: "Balance",
                             bookValue: "Book Value",
+                            riskLow: "Low Risk %",
+                            riskLowMedium: "Low-Med Risk %",
                             riskMedium: "Medium Risk %",
                             riskMediumHigh: "Med-High Risk %",
                             riskHigh: "High Risk %",
+                            riskLowPct: "Low Risk %",
+                            riskLowMediumPct: "Low-Med Risk %",
                             riskMediumPct: "Medium Risk %",
                             riskMediumHighPct: "Med-High Risk %",
                             riskHighPct: "High Risk %",
