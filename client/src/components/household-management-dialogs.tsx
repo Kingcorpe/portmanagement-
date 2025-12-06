@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { RiskCategorySelector } from "./risk-category-selector";
 
 interface HouseholdManagementDialogsProps {
   householdId: string | null;
@@ -352,54 +353,15 @@ export function HouseholdManagementDialogs({
                 </Select>
               </div>
               
-              {/* Risk Category Section */}
-              <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Risk Category (Required)</span>
-                  <span className="text-xs text-muted-foreground">
-                    Total: {individualRiskMedium + individualRiskMediumHigh + individualRiskHigh}%
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Medium %</label>
-                    <Input 
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="1"
-                      data-testid="input-ind-risk-medium"
-                      value={individualRiskMedium}
-                      onChange={(e) => setIndividualRiskMedium(Number(e.target.value) || 0)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Med-High %</label>
-                    <Input 
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="1"
-                      data-testid="input-ind-risk-medium-high"
-                      value={individualRiskMediumHigh}
-                      onChange={(e) => setIndividualRiskMediumHigh(Number(e.target.value) || 0)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">High %</label>
-                    <Input 
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="1"
-                      data-testid="input-ind-risk-high"
-                      value={individualRiskHigh}
-                      onChange={(e) => setIndividualRiskHigh(Number(e.target.value) || 0)}
-                    />
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">Risk percentages must sum to 100%</p>
-              </div>
+              <RiskCategorySelector
+                medium={individualRiskMedium}
+                mediumHigh={individualRiskMediumHigh}
+                high={individualRiskHigh}
+                onMediumChange={setIndividualRiskMedium}
+                onMediumHighChange={setIndividualRiskMediumHigh}
+                onHighChange={setIndividualRiskHigh}
+                testIdPrefix="input-ind-risk"
+              />
 
               {individualAccountType === "rif" && (
                 <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
@@ -500,54 +462,15 @@ export function HouseholdManagementDialogs({
                 </Select>
               </div>
               
-              {/* Risk Category Section */}
-              <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Risk Category (Required)</span>
-                  <span className="text-xs text-muted-foreground">
-                    Total: {corporateRiskMedium + corporateRiskMediumHigh + corporateRiskHigh}%
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Medium %</label>
-                    <Input 
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="1"
-                      data-testid="input-corp-risk-medium"
-                      value={corporateRiskMedium}
-                      onChange={(e) => setCorporateRiskMedium(Number(e.target.value) || 0)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Med-High %</label>
-                    <Input 
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="1"
-                      data-testid="input-corp-risk-medium-high"
-                      value={corporateRiskMediumHigh}
-                      onChange={(e) => setCorporateRiskMediumHigh(Number(e.target.value) || 0)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">High %</label>
-                    <Input 
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="1"
-                      data-testid="input-corp-risk-high"
-                      value={corporateRiskHigh}
-                      onChange={(e) => setCorporateRiskHigh(Number(e.target.value) || 0)}
-                    />
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">Risk percentages must sum to 100%</p>
-              </div>
+              <RiskCategorySelector
+                medium={corporateRiskMedium}
+                mediumHigh={corporateRiskMediumHigh}
+                high={corporateRiskHigh}
+                onMediumChange={setCorporateRiskMedium}
+                onMediumHighChange={setCorporateRiskMediumHigh}
+                onHighChange={setCorporateRiskHigh}
+                testIdPrefix="input-corp-risk"
+              />
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
@@ -639,86 +562,15 @@ export function HouseholdManagementDialogs({
                 </div>
               )}
 
-              {/* Risk Category Section */}
-              <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Risk Category (Required)</span>
-                  <span className="text-xs text-muted-foreground">
-                    Total: {(Number(individualAccountForm.watch("riskMediumPct") || 0) + 
-                            Number(individualAccountForm.watch("riskMediumHighPct") || 0) + 
-                            Number(individualAccountForm.watch("riskHighPct") || 0))}%
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <FormField
-                    control={individualAccountForm.control}
-                    name="riskMediumPct"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">Medium %</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="1"
-                            data-testid="input-risk-medium"
-                            {...field}
-                            value={field.value ?? 0}
-                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={individualAccountForm.control}
-                    name="riskMediumHighPct"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">Med-High %</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="1"
-                            data-testid="input-risk-medium-high"
-                            {...field}
-                            value={field.value ?? 0}
-                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={individualAccountForm.control}
-                    name="riskHighPct"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">High %</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="1"
-                            data-testid="input-risk-high"
-                            {...field}
-                            value={field.value ?? 0}
-                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">Risk percentages must sum to 100%</p>
-              </div>
+              <RiskCategorySelector
+                medium={Number(individualAccountForm.watch("riskMediumPct") || 0)}
+                mediumHigh={Number(individualAccountForm.watch("riskMediumHighPct") || 0)}
+                high={Number(individualAccountForm.watch("riskHighPct") || 0)}
+                onMediumChange={(v) => individualAccountForm.setValue("riskMediumPct", String(v))}
+                onMediumHighChange={(v) => individualAccountForm.setValue("riskMediumHighPct", String(v))}
+                onHighChange={(v) => individualAccountForm.setValue("riskHighPct", String(v))}
+                testIdPrefix="input-ind-acct-risk"
+              />
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
@@ -793,86 +645,15 @@ export function HouseholdManagementDialogs({
                 )}
               />
               
-              {/* Risk Category Section */}
-              <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Risk Category (Required)</span>
-                  <span className="text-xs text-muted-foreground">
-                    Total: {(Number(corporateAccountForm.watch("riskMediumPct") || 0) + 
-                            Number(corporateAccountForm.watch("riskMediumHighPct") || 0) + 
-                            Number(corporateAccountForm.watch("riskHighPct") || 0))}%
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <FormField
-                    control={corporateAccountForm.control}
-                    name="riskMediumPct"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">Medium %</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="1"
-                            data-testid="input-risk-medium"
-                            {...field}
-                            value={field.value ?? 0}
-                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={corporateAccountForm.control}
-                    name="riskMediumHighPct"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">Med-High %</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="1"
-                            data-testid="input-risk-medium-high"
-                            {...field}
-                            value={field.value ?? 0}
-                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={corporateAccountForm.control}
-                    name="riskHighPct"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">High %</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="1"
-                            data-testid="input-risk-high"
-                            {...field}
-                            value={field.value ?? 0}
-                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">Risk percentages must sum to 100%</p>
-              </div>
+              <RiskCategorySelector
+                medium={Number(corporateAccountForm.watch("riskMediumPct") || 0)}
+                mediumHigh={Number(corporateAccountForm.watch("riskMediumHighPct") || 0)}
+                high={Number(corporateAccountForm.watch("riskHighPct") || 0)}
+                onMediumChange={(v) => corporateAccountForm.setValue("riskMediumPct", String(v))}
+                onMediumHighChange={(v) => corporateAccountForm.setValue("riskMediumHighPct", String(v))}
+                onHighChange={(v) => corporateAccountForm.setValue("riskHighPct", String(v))}
+                testIdPrefix="input-corp-acct-risk"
+              />
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
@@ -946,86 +727,15 @@ export function HouseholdManagementDialogs({
                 )}
               />
               
-              {/* Risk Category Section */}
-              <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Risk Category (Required)</span>
-                  <span className="text-xs text-muted-foreground">
-                    Total: {(Number(jointAccountForm.watch("riskMediumPct") || 0) + 
-                            Number(jointAccountForm.watch("riskMediumHighPct") || 0) + 
-                            Number(jointAccountForm.watch("riskHighPct") || 0))}%
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <FormField
-                    control={jointAccountForm.control}
-                    name="riskMediumPct"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">Medium %</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="1"
-                            data-testid="input-risk-medium"
-                            {...field}
-                            value={field.value ?? 0}
-                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={jointAccountForm.control}
-                    name="riskMediumHighPct"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">Med-High %</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="1"
-                            data-testid="input-risk-medium-high"
-                            {...field}
-                            value={field.value ?? 0}
-                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={jointAccountForm.control}
-                    name="riskHighPct"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">High %</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="1"
-                            data-testid="input-risk-high"
-                            {...field}
-                            value={field.value ?? 0}
-                            onChange={(e) => field.onChange(Number(e.target.value) || 0)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">Risk percentages must sum to 100%</p>
-              </div>
+              <RiskCategorySelector
+                medium={Number(jointAccountForm.watch("riskMediumPct") || 0)}
+                mediumHigh={Number(jointAccountForm.watch("riskMediumHighPct") || 0)}
+                high={Number(jointAccountForm.watch("riskHighPct") || 0)}
+                onMediumChange={(v) => jointAccountForm.setValue("riskMediumPct", String(v))}
+                onMediumHighChange={(v) => jointAccountForm.setValue("riskMediumHighPct", String(v))}
+                onHighChange={(v) => jointAccountForm.setValue("riskHighPct", String(v))}
+                testIdPrefix="input-joint-acct-risk"
+              />
 
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel">
