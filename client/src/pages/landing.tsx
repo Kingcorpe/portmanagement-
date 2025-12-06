@@ -76,6 +76,10 @@ export default function Landing() {
                   Professionally Protected.
                 </span>
               </h2>
+
+              <p className="text-2xl font-semibold text-emerald-400 tracking-wide">
+                Cashflow is King™
+              </p>
               
               <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
                 Markets are unpredictable. Emotions are costly. We bring the discipline, tools, and rules that keep your portfolio on track—so you don't have to navigate it alone.
@@ -93,27 +97,30 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* The Risk of Going Alone */}
+        {/* The Risk of Broken Approaches */}
         <section className="py-16 border-t border-slate-800/50">
           <div className="container mx-auto px-4">
             <div className="max-w-5xl mx-auto">
               <div className="text-center mb-12">
                 <Badge variant="outline" className="border-red-500/30 text-red-400 mb-4">
                   <AlertTriangle className="h-3.5 w-3.5 mr-2" />
-                  The Reality of DIY Investing
+                  The Hidden Risks
                 </Badge>
-                <h3 className="text-3xl font-bold text-white">What Happens Without a System?</h3>
+                <h3 className="text-3xl font-bold text-white">What's Really Costing You Money?</h3>
+                <p className="text-slate-400 mt-4 max-w-2xl mx-auto">
+                  Whether you're managing it yourself, using a robo-advisor, or working with someone whose system is outdated—these problems are more common than you think.
+                </p>
               </div>
 
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <Card className="bg-red-950/20 border-red-500/20">
                   <CardHeader>
                     <TrendingDown className="h-8 w-8 text-red-400 mb-2" />
-                    <CardTitle className="text-white text-lg">Emotional Decisions</CardTitle>
+                    <CardTitle className="text-white text-lg">Stale Models</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-slate-400">
-                      Panic selling during dips. FOMO buying at peaks. Without rules, emotions drive your returns—usually into the ground.
+                      That portfolio model from 2019? Markets have changed. Rates have changed. Your life has changed. But nobody updated the plan.
                     </p>
                   </CardContent>
                 </Card>
@@ -121,11 +128,11 @@ export default function Landing() {
                 <Card className="bg-red-950/20 border-red-500/20">
                   <CardHeader>
                     <Clock className="h-8 w-8 text-red-400 mb-2" />
-                    <CardTitle className="text-white text-lg">Missed Opportunities</CardTitle>
+                    <CardTitle className="text-white text-lg">Dead Portfolios</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-slate-400">
-                      Market drops 5%? That's a buying opportunity. But if you're not watching—or don't know what to buy—it's gone before you act.
+                      Set it and forget it? More like set it and neglect it. No rebalancing. No adjustments. Just drifting further from your goals.
                     </p>
                   </CardContent>
                 </Card>
@@ -133,11 +140,11 @@ export default function Landing() {
                 <Card className="bg-red-950/20 border-red-500/20">
                   <CardHeader>
                     <PieChart className="h-8 w-8 text-red-400 mb-2" />
-                    <CardTitle className="text-white text-lg">Portfolio Drift</CardTitle>
+                    <CardTitle className="text-white text-lg">Undefined Strategy</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-slate-400">
-                      Your careful allocation slowly falls apart. Tech gets too heavy. Bonds get forgotten. One day you look and it's a mess.
+                      "Diversified" isn't a strategy. Without clear targets and rules, you're just hoping things work out. Hope isn't a plan.
                     </p>
                   </CardContent>
                 </Card>
@@ -145,11 +152,11 @@ export default function Landing() {
                 <Card className="bg-red-950/20 border-red-500/20">
                   <CardHeader>
                     <Wallet className="h-8 w-8 text-red-400 mb-2" />
-                    <CardTitle className="text-white text-lg">Tax Inefficiency</CardTitle>
+                    <CardTitle className="text-white text-lg">Broken Systems</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-slate-400">
-                      Wrong asset in wrong account. Growth stocks in taxable, bonds in TFSA. Small mistakes compound into big tax bills.
+                      Spreadsheets that don't update. Advisors who don't call. Models that worked once but can't adapt. The system is broken—you just don't know it yet.
                     </p>
                   </CardContent>
                 </Card>
@@ -157,11 +164,11 @@ export default function Landing() {
                 <Card className="bg-red-950/20 border-red-500/20">
                   <CardHeader>
                     <Users className="h-8 w-8 text-red-400 mb-2" />
-                    <CardTitle className="text-white text-lg">Family Blind Spots</CardTitle>
+                    <CardTitle className="text-white text-lg">Missed Opportunities</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-slate-400">
-                      Your TFSA, spouse's RRSP, kids' RESP—all managed separately. No household view. No coordinated strategy.
+                      Market drops 5%—that's a buying opportunity. But nobody's watching. By the time anyone notices, it's bounced back. Opportunity gone.
                     </p>
                   </CardContent>
                 </Card>
@@ -169,11 +176,11 @@ export default function Landing() {
                 <Card className="bg-red-950/20 border-red-500/20">
                   <CardHeader>
                     <AlertTriangle className="h-8 w-8 text-red-400 mb-2" />
-                    <CardTitle className="text-white text-lg">No Safety Net</CardTitle>
+                    <CardTitle className="text-white text-lg">No Accountability</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-slate-400">
-                      When life gets busy—job, family, health—your portfolio gets neglected. And neglect in markets can be expensive.
+                      Who's actually watching your money? If the answer is "nobody, really"—that's the biggest risk of all. Your wealth deserves active attention.
                     </p>
                   </CardContent>
                 </Card>
@@ -285,33 +292,33 @@ export default function Landing() {
                   <CardHeader className="border-b border-slate-800 pb-4">
                     <CardTitle className="text-red-400 flex items-center gap-2">
                       <XCircle className="h-5 w-5" />
-                      Going It Alone
+                      Outdated Approaches
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-4">
                     <div className="flex items-start gap-3">
                       <XCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-slate-400">Check markets manually when you remember</span>
+                      <span className="text-slate-400">Models created years ago, never updated</span>
                     </div>
                     <div className="flex items-start gap-3">
                       <XCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-slate-400">Miss buying opportunities during dips</span>
+                      <span className="text-slate-400">Nobody watching when opportunities hit</span>
                     </div>
                     <div className="flex items-start gap-3">
                       <XCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-slate-400">Emotional reactions to market volatility</span>
+                      <span className="text-slate-400">Vague strategy with no clear rules</span>
                     </div>
                     <div className="flex items-start gap-3">
                       <XCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-slate-400">Accounts managed in silos</span>
+                      <span className="text-slate-400">Accounts scattered, no coordination</span>
                     </div>
                     <div className="flex items-start gap-3">
                       <XCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-slate-400">No system = no consistency</span>
+                      <span className="text-slate-400">Rebalancing? Maybe once a year</span>
                     </div>
                     <div className="flex items-start gap-3">
                       <XCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-slate-400">Stress, doubt, second-guessing</span>
+                      <span className="text-slate-400">Hoping things work out</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -321,33 +328,33 @@ export default function Landing() {
                   <CardHeader className="border-b border-slate-800 pb-4">
                     <CardTitle className="text-emerald-400 flex items-center gap-2">
                       <CheckCircle2 className="h-5 w-5" />
-                      With TradingOS
+                      Our Living System
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-4">
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-slate-300">24/7 automated portfolio monitoring</span>
+                      <span className="text-slate-300">Models actively maintained and refined</span>
                     </div>
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-slate-300">Instant alerts when opportunities arise</span>
+                      <span className="text-slate-300">24/7 monitoring catches every opportunity</span>
                     </div>
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-slate-300">Rules-based decisions, not emotional ones</span>
+                      <span className="text-slate-300">Defined targets and rules-based execution</span>
                     </div>
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-slate-300">Complete household view across all accounts</span>
+                      <span className="text-slate-300">Whole household managed as one</span>
                     </div>
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-slate-300">Proven process = consistent results</span>
+                      <span className="text-slate-300">Instant rebalancing when drift occurs</span>
                     </div>
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="h-5 w-5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                      <span className="text-slate-300">Peace of mind knowing you're protected</span>
+                      <span className="text-slate-300">Knowing your wealth is actively protected</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -453,10 +460,10 @@ export default function Landing() {
                 <Shield className="h-7 w-7 text-white" />
               </div>
               <h3 className="text-3xl font-bold text-white">
-                Your Family Deserves Better Than DIY
+                Your Wealth Deserves a Living System
               </h3>
               <p className="text-slate-400 text-lg">
-                Stop worrying about what you might be missing. Let us bring the discipline, the tools, and the 24/7 monitoring that keeps your wealth on track.
+                Stale models and dead portfolios cost families real money. We bring active management, defined rules, and 24/7 monitoring—so your wealth keeps working as hard as you did to build it.
               </p>
               <SignInButton mode="modal">
                 <Button size="lg" className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white text-lg px-10 h-14 shadow-xl shadow-emerald-500/25" data-testid="button-sign-in-footer">
@@ -469,15 +476,18 @@ export default function Landing() {
         </section>
       </main>
 
-      <footer className="relative z-10 border-t border-slate-800/50 py-6 bg-slate-950/50 backdrop-blur-sm">
+      <footer className="relative z-10 border-t border-slate-800/50 py-8 bg-slate-950/50 backdrop-blur-sm">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col items-center gap-4">
             <div className="flex items-center gap-2">
               <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center">
                 <TrendingUp className="h-3 w-3 text-white" />
               </div>
               <span className="text-slate-400 text-sm">TradingOS</span>
             </div>
+            <p className="text-emerald-400 font-semibold tracking-wide">
+              Cashflow is King™
+            </p>
             <p className="text-slate-600 text-xs">
               Professional Wealth Management for Canadian Families
             </p>
