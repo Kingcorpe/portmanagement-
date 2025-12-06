@@ -407,20 +407,30 @@ export function AppSidebar() {
   );
 }
 
-// Deploy status indicator component
+// System status indicator component
 function DeployStatus() {
-  const { data: version, isLoading, error } = useQuery({
+  const { data: version } = useQuery({
     queryKey: ["/api/version"],
     queryFn: async () => {
       const res = await fetch("/api/version");
       if (!res.ok) throw new Error("Failed to fetch version");
       return res.json();
     },
-    refetchInterval: 30000, // Check every 30 seconds
+    refetchInterval: 30000,
     staleTime: 10000,
   });
 
-  const [lastSeenCommit, setLastSeenCommit] = useState<string | null>(null);
+  const { data: health } = useQuery({
+    queryKey: ["/api/health"],
+    queryFn: async () => {
+      const res = await fetch("/api/health");
+      if (!res.ok) throw new Error("Failed to fetch health");
+      return res.json();
+    },
+    refetchInterval: 60000, // Check every minute
+    staleTime: 30000,
+  });
+
   const [isNewDeploy, setIsNewDeploy] = useState(false);
 
   useEffect(() => {
@@ -428,7 +438,6 @@ function DeployStatus() {
       const stored = localStorage.getItem("lastSeenCommit");
       if (stored && stored !== version.commit) {
         setIsNewDeploy(true);
-        // Flash for 10 seconds then save
         setTimeout(() => {
           localStorage.setItem("lastSeenCommit", version.commit);
           setIsNewDeploy(false);
@@ -436,48 +445,114 @@ function DeployStatus() {
       } else if (!stored) {
         localStorage.setItem("lastSeenCommit", version.commit);
       }
-      setLastSeenCommit(version.commit);
     }
   }, [version?.commit]);
 
-  if (isLoading || error) {
-    return (
-      <div className="px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
-        <Circle className="h-2 w-2 fill-muted-foreground text-muted-foreground" />
-        <span>Checking...</span>
-      </div>
-    );
-  }
-
   const deployTime = version?.deployedAt ? new Date(version.deployedAt) : null;
-  const timeAgo = deployTime ? getTimeAgo(deployTime) : "unknown";
+  const timeAgo = deployTime ? getTimeAgo(deployTime) : "...";
+
+  const getStatusColor = (status?: string) => {
+    if (status === 'ok') return 'fill-green-500 text-green-500';
+    if (status === 'warning') return 'fill-yellow-500 text-yellow-500';
+    if (status === 'error') return 'fill-red-500 text-red-500';
+    return 'fill-muted-foreground text-muted-foreground animate-pulse';
+  };
+
+  const getStatusLabel = (status?: string) => {
+    if (status === 'ok') return 'OK';
+    if (status === 'warning') return 'Warn';
+    if (status === 'error') return 'Error';
+    return '...';
+  };
 
   return (
     <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="px-3 py-2 text-xs text-muted-foreground flex items-center gap-2 cursor-help hover:text-foreground transition-colors">
-            <Circle 
-              className={`h-2 w-2 ${
-                isNewDeploy 
-                  ? "fill-yellow-500 text-yellow-500 animate-pulse" 
-                  : "fill-green-500 text-green-500"
-              }`} 
-            />
-            <span className={isNewDeploy ? "text-yellow-600 dark:text-yellow-400 font-medium" : ""}>
-              {isNewDeploy ? "New Deploy!" : `v${version?.commit}`}
-            </span>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="right" className="max-w-xs">
-          <div className="space-y-1">
-            <p><strong>Deployed:</strong> {timeAgo}</p>
-            <p><strong>Commit:</strong> {version?.commit}</p>
-            <p className="text-xs text-muted-foreground truncate max-w-[200px]">{version?.message}</p>
-            <p><strong>Uptime:</strong> {version?.uptime}</p>
-          </div>
-        </TooltipContent>
-      </Tooltip>
+      <div className="px-3 py-2 space-y-1.5 border-t border-border/50">
+        {/* Deploy Status */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground cursor-help hover:text-foreground transition-colors">
+              <Circle 
+                className={`h-2 w-2 shrink-0 ${
+                  isNewDeploy 
+                    ? "fill-yellow-500 text-yellow-500 animate-pulse" 
+                    : "fill-green-500 text-green-500"
+                }`} 
+              />
+              <span className={`${isNewDeploy ? "text-yellow-600 dark:text-yellow-400 font-medium" : ""}`}>
+                {isNewDeploy ? "New Deploy!" : `Deploy: v${version?.commit || '...'}`}
+              </span>
+              <span className="ml-auto text-[10px] opacity-60">{timeAgo}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p className="text-xs max-w-[200px] truncate">{version?.message}</p>
+            <p className="text-xs text-muted-foreground">Uptime: {version?.uptime}</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Database Status */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground cursor-help hover:text-foreground transition-colors">
+              <Circle className={`h-2 w-2 shrink-0 ${getStatusColor(health?.services?.database?.status)}`} />
+              <span>Database</span>
+              <span className="ml-auto text-[10px] opacity-60">
+                {health?.services?.database?.latency ? `${health.services.database.latency}ms` : getStatusLabel(health?.services?.database?.status)}
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>PostgreSQL: {health?.services?.database?.status || 'Checking...'}</p>
+            {health?.services?.database?.message && <p className="text-xs text-muted-foreground">{health.services.database.message}</p>}
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Email Status */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground cursor-help hover:text-foreground transition-colors">
+              <Circle className={`h-2 w-2 shrink-0 ${getStatusColor(health?.services?.email?.status)}`} />
+              <span>Email</span>
+              <span className="ml-auto text-[10px] opacity-60">{getStatusLabel(health?.services?.email?.status)}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>Gmail: {health?.services?.email?.message || 'Checking...'}</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Auth Status */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground cursor-help hover:text-foreground transition-colors">
+              <Circle className={`h-2 w-2 shrink-0 ${getStatusColor(health?.services?.auth?.status)}`} />
+              <span>Auth</span>
+              <span className="ml-auto text-[10px] opacity-60">{getStatusLabel(health?.services?.auth?.status)}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>Clerk: {health?.services?.auth?.message || 'Checking...'}</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Market Data Status */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground cursor-help hover:text-foreground transition-colors">
+              <Circle className={`h-2 w-2 shrink-0 ${getStatusColor(health?.services?.marketData?.status)}`} />
+              <span>Market Data</span>
+              <span className="ml-auto text-[10px] opacity-60">
+                {health?.services?.marketData?.latency ? `${health.services.marketData.latency}ms` : getStatusLabel(health?.services?.marketData?.status)}
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>Alpha Vantage: {health?.services?.marketData?.status || 'Checking...'}</p>
+            {health?.services?.marketData?.message && <p className="text-xs text-muted-foreground">{health.services.marketData.message}</p>}
+          </TooltipContent>
+        </Tooltip>
+      </div>
     </TooltipProvider>
   );
 }

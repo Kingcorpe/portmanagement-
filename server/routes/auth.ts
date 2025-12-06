@@ -5,6 +5,8 @@ import { storage } from "../storage";
 import { log } from "../logger";
 import { authRateLimiter } from "./rateLimiter";
 import { rateLimit } from "./rateLimiter";
+import { db } from "../db";
+import { sql } from "drizzle-orm";
 
 // Capture deploy time at server startup
 const DEPLOY_TIME = new Date().toISOString();
@@ -20,6 +22,67 @@ export function registerAuthRoutes(app: Express) {
       message: GIT_MESSAGE,
       uptime: Math.floor(process.uptime()) + 's',
     });
+  });
+
+  // Health check endpoint - checks all critical services
+  app.get('/api/health', async (_req, res) => {
+    const health: Record<string, { status: 'ok' | 'error' | 'warning'; message?: string; latency?: number }> = {};
+
+    // Check Database
+    const dbStart = Date.now();
+    try {
+      await db.execute(sql`SELECT 1`);
+      health.database = { status: 'ok', latency: Date.now() - dbStart };
+    } catch (error: any) {
+      health.database = { status: 'error', message: error.message || 'Connection failed' };
+    }
+
+    // Check Email (Gmail) configuration
+    if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+      health.email = { status: 'ok', message: 'Configured' };
+    } else {
+      health.email = { status: 'warning', message: 'Not configured' };
+    }
+
+    // Check Auth (Clerk) configuration
+    if (process.env.CLERK_SECRET_KEY && process.env.VITE_CLERK_PUBLISHABLE_KEY) {
+      health.auth = { status: 'ok', message: 'Configured' };
+    } else {
+      health.auth = { status: 'warning', message: 'Not configured' };
+    }
+
+    // Check Market Data API (Alpha Vantage or similar)
+    const marketStart = Date.now();
+    try {
+      if (process.env.ALPHA_VANTAGE_API_KEY) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const response = await fetch(
+          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=${process.env.ALPHA_VANTAGE_API_KEY}`,
+          { signal: controller.signal }
+        );
+        clearTimeout(timeout);
+        if (response.ok) {
+          health.marketData = { status: 'ok', latency: Date.now() - marketStart };
+        } else {
+          health.marketData = { status: 'warning', message: 'API returned error' };
+        }
+      } else {
+        health.marketData = { status: 'warning', message: 'API key not configured' };
+      }
+    } catch (error: any) {
+      health.marketData = { 
+        status: 'error', 
+        message: error.name === 'AbortError' ? 'Timeout' : (error.message || 'Failed')
+      };
+    }
+
+    // Overall status
+    const hasError = Object.values(health).some(h => h.status === 'error');
+    const hasWarning = Object.values(health).some(h => h.status === 'warning');
+    const overall = hasError ? 'error' : hasWarning ? 'warning' : 'ok';
+
+    res.json({ overall, services: health, timestamp: new Date().toISOString() });
   });
   // Auth routes
   app.get('/api/auth/user', rateLimit(authRateLimiter, (req) => {
