@@ -15,6 +15,7 @@ import { registerMarketDataRoutes } from "./marketData";
 import crypto from "crypto";
 import { log } from "./logger";
 import { z } from "zod";
+import { checkPositionCompliance, checkAccountCompliance } from "./complianceService";
 
 // Email alert for TradingView signals
 async function sendTradingAlertEmail(symbol: string, signal: string, price: string) {
@@ -3131,15 +3132,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Determine account type and get household ID
       let householdId: string | null = null;
+      let accountType: 'individual' | 'corporate' | 'joint' | null = null;
+      let accountId: string | null = null;
+      
       if (parsed.individualAccountId) {
         householdId = await storage.getHouseholdIdFromAccount('individual', parsed.individualAccountId);
+        accountType = 'individual';
+        accountId = parsed.individualAccountId;
       } else if (parsed.corporateAccountId) {
         householdId = await storage.getHouseholdIdFromAccount('corporate', parsed.corporateAccountId);
+        accountType = 'corporate';
+        accountId = parsed.corporateAccountId;
       } else if (parsed.jointAccountId) {
         householdId = await storage.getHouseholdIdFromAccount('joint', parsed.jointAccountId);
+        accountType = 'joint';
+        accountId = parsed.jointAccountId;
       }
       
-      if (!householdId) {
+      if (!householdId || !accountType || !accountId) {
         return res.status(404).json({ message: "Account not found" });
       }
       
@@ -3148,23 +3158,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      // Auto-add ticker to Universal Holdings if it doesn't exist (with enhanced lookup)
+      // COMPLIANCE CHECK: Ticker must be in library and comply with risk allocation
       const ticker = parsed.symbol.toUpperCase();
-      const existingHolding = await storage.getUniversalHoldingByTicker(ticker);
-      if (!existingHolding) {
-        const lookupData = await enhancedTickerLookup(ticker);
-        await storage.createUniversalHolding({
-          ticker: ticker,
-          name: lookupData.name || `${ticker} (Auto-added)`,
-          category: "auto_added",
-          riskLevel: "medium",
-          dividendRate: lookupData.dividendRate?.toString() || "0",
-          dividendYield: lookupData.dividendYield?.toString() || "0",
-          dividendPayout: lookupData.dividendPayout || "monthly",
-          price: lookupData.price?.toString() || parsed.currentPrice?.toString() || "0",
-          fundFactsUrl: lookupData.fundFactsUrl || "",
-          description: lookupData.provider ? `${lookupData.provider} ETF. Auto-added from position.` : "Auto-added from position.",
+      const positionValue = Number(parsed.quantity) * Number(parsed.currentPrice || parsed.entryPrice);
+      
+      // Skip compliance for CASH/money market positions
+      const cashSymbols = ['CASH', 'CAD', 'USD', 'MONEY MARKET'];
+      const isCashPosition = cashSymbols.includes(ticker);
+      
+      if (!isCashPosition) {
+        const complianceResult = await checkPositionCompliance({
+          ticker,
+          accountId,
+          accountType,
+          positionValue,
         });
+        
+        if (!complianceResult.compliant) {
+          return res.status(400).json({ 
+            message: "Compliance check failed",
+            complianceErrors: complianceResult.errors,
+            complianceWarnings: complianceResult.warnings,
+            details: complianceResult.details,
+          });
+        }
+        
+        // Log warnings but allow the position
+        if (complianceResult.warnings.length > 0) {
+          log.info("Position created with compliance warnings", { 
+            ticker, 
+            accountId, 
+            warnings: complianceResult.warnings 
+          });
+        }
       }
       
       const position = await storage.createPosition(parsed);
@@ -3292,6 +3318,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       log.error("Error deleting position", error);
       res.status(500).json({ message: "Failed to delete position" });
+    }
+  });
+
+  // ==========================================
+  // Compliance Check Endpoints
+  // ==========================================
+
+  // Pre-check if a position can be added (for frontend validation)
+  app.post('/api/compliance/check-position', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { ticker, accountId, accountType, quantity, price } = req.body;
+      
+      if (!ticker || !accountId || !accountType) {
+        return res.status(400).json({ message: "ticker, accountId, and accountType are required" });
+      }
+      
+      // Verify user has access to this account
+      let householdId: string | null = null;
+      if (accountType === 'individual') {
+        householdId = await storage.getHouseholdIdFromAccount('individual', accountId);
+      } else if (accountType === 'corporate') {
+        householdId = await storage.getHouseholdIdFromAccount('corporate', accountId);
+      } else if (accountType === 'joint') {
+        householdId = await storage.getHouseholdIdFromAccount('joint', accountId);
+      }
+      
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const positionValue = (quantity || 0) * (price || 0);
+      
+      const result = await checkPositionCompliance({
+        ticker: ticker.toUpperCase(),
+        accountId,
+        accountType,
+        positionValue,
+      });
+      
+      res.json(result);
+    } catch (error: any) {
+      log.error("Error checking position compliance", error);
+      res.status(500).json({ message: error.message || "Failed to check compliance" });
+    }
+  });
+
+  // Check overall account compliance (all positions)
+  app.get('/api/compliance/account/:accountType/:accountId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { accountType, accountId } = req.params;
+      
+      if (!['individual', 'corporate', 'joint'].includes(accountType)) {
+        return res.status(400).json({ message: "Invalid account type" });
+      }
+      
+      // Verify user has access
+      let householdId: string | null = null;
+      if (accountType === 'individual') {
+        householdId = await storage.getHouseholdIdFromAccount('individual', accountId);
+      } else if (accountType === 'corporate') {
+        householdId = await storage.getHouseholdIdFromAccount('corporate', accountId);
+      } else if (accountType === 'joint') {
+        householdId = await storage.getHouseholdIdFromAccount('joint', accountId);
+      }
+      
+      if (!householdId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const canEdit = await storage.canUserEditHousehold(userId, householdId);
+      if (!canEdit) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const result = await checkAccountCompliance(accountId, accountType as 'individual' | 'corporate' | 'joint');
+      
+      res.json(result);
+    } catch (error: any) {
+      log.error("Error checking account compliance", error);
+      res.status(500).json({ message: error.message || "Failed to check account compliance" });
     }
   });
 

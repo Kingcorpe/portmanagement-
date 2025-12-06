@@ -1,9 +1,55 @@
 import { QueryClient, QueryFunction, MutationCache, QueryCache } from "@tanstack/react-query";
 
+// Custom error class to carry compliance details
+export class ApiError extends Error {
+  status: number;
+  complianceErrors?: string[];
+  complianceWarnings?: string[];
+  details?: Record<string, unknown>;
+  
+  constructor(
+    message: string, 
+    status: number, 
+    complianceErrors?: string[], 
+    complianceWarnings?: string[],
+    details?: Record<string, unknown>
+  ) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.complianceErrors = complianceErrors;
+    this.complianceWarnings = complianceWarnings;
+    this.details = details;
+  }
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const text = await res.text();
+    
+    // Try to parse as JSON for structured errors (like compliance)
+    try {
+      const json = JSON.parse(text);
+      
+      // Handle compliance errors specially
+      if (json.complianceErrors && Array.isArray(json.complianceErrors)) {
+        const message = json.complianceErrors.join('\n');
+        throw new ApiError(
+          message, 
+          res.status, 
+          json.complianceErrors, 
+          json.complianceWarnings,
+          json.details
+        );
+      }
+      
+      // Regular JSON error
+      throw new ApiError(json.message || text || res.statusText, res.status);
+    } catch (e) {
+      if (e instanceof ApiError) throw e;
+      // Not JSON, use text
+      throw new ApiError(text || res.statusText, res.status);
+    }
   }
 }
 

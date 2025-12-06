@@ -985,12 +985,21 @@ export default function AccountDetails() {
       });
       handleDialogChange(false);
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create position",
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      // Check if this is a compliance error
+      if (error.complianceErrors && error.complianceErrors.length > 0) {
+        toast({
+          title: "Compliance Check Failed",
+          description: error.complianceErrors[0],
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create position",
+          variant: "destructive",
+        });
+      }
     },
   });
 
