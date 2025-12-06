@@ -208,7 +208,9 @@ export const individualAccounts = pgTable("individual_accounts", {
   nickname: varchar("nickname", { length: 100 }),
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'), // percentage
-  // Risk tolerance as percentages (should sum to 100)
+  // Risk tolerance as percentages (should sum to 100) - maps to universalHoldings riskLevel
+  riskLowPct: decimal("risk_low_pct", { precision: 5, scale: 2 }).notNull().default('0'),
+  riskLowMediumPct: decimal("risk_low_medium_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskMediumPct: decimal("risk_medium_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
@@ -247,7 +249,9 @@ export const corporateAccounts = pgTable("corporate_accounts", {
   nickname: varchar("nickname", { length: 100 }),
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'), // percentage
-  // Risk tolerance as percentages (should sum to 100)
+  // Risk tolerance as percentages (should sum to 100) - maps to universalHoldings riskLevel
+  riskLowPct: decimal("risk_low_pct", { precision: 5, scale: 2 }).notNull().default('0'),
+  riskLowMediumPct: decimal("risk_low_medium_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskMediumPct: decimal("risk_medium_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
@@ -286,7 +290,9 @@ export const jointAccounts = pgTable("joint_accounts", {
   nickname: varchar("nickname", { length: 100 }),
   balance: decimal("balance", { precision: 15, scale: 2 }).notNull().default('0'),
   performance: decimal("performance", { precision: 8, scale: 4 }).default('0'),
-  // Risk tolerance as percentages (should sum to 100)
+  // Risk tolerance as percentages (should sum to 100) - maps to universalHoldings riskLevel
+  riskLowPct: decimal("risk_low_pct", { precision: 5, scale: 2 }).notNull().default('0'),
+  riskLowMediumPct: decimal("risk_low_medium_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskMediumPct: decimal("risk_medium_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskMediumHighPct: decimal("risk_medium_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),
   riskHighPct: decimal("risk_high_pct", { precision: 5, scale: 2 }).notNull().default('0'),

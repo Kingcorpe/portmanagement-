@@ -67,12 +67,16 @@ export function HouseholdManagementDialogs({
   const [individualAccountType, setIndividualAccountType] = useState<string>("");
   const [corporateAccountType, setCorporateAccountType] = useState<string>("");
   
-  // Risk percentage state for individual creation with account
+  // Risk percentage state for individual creation with account (5 categories)
+  const [individualRiskLow, setIndividualRiskLow] = useState<number>(0);
+  const [individualRiskLowMedium, setIndividualRiskLowMedium] = useState<number>(0);
   const [individualRiskMedium, setIndividualRiskMedium] = useState<number>(0);
   const [individualRiskMediumHigh, setIndividualRiskMediumHigh] = useState<number>(0);
   const [individualRiskHigh, setIndividualRiskHigh] = useState<number>(0);
   
-  // Risk percentage state for corporation creation with account
+  // Risk percentage state for corporation creation with account (5 categories)
+  const [corporateRiskLow, setCorporateRiskLow] = useState<number>(0);
+  const [corporateRiskLowMedium, setCorporateRiskLowMedium] = useState<number>(0);
   const [corporateRiskMedium, setCorporateRiskMedium] = useState<number>(0);
   const [corporateRiskMediumHigh, setCorporateRiskMediumHigh] = useState<number>(0);
   const [corporateRiskHigh, setCorporateRiskHigh] = useState<number>(0);
@@ -81,12 +85,16 @@ export function HouseholdManagementDialogs({
   useEffect(() => {
     if (dialogType !== "individual") {
       setIndividualAccountType("");
+      setIndividualRiskLow(0);
+      setIndividualRiskLowMedium(0);
       setIndividualRiskMedium(0);
       setIndividualRiskMediumHigh(0);
       setIndividualRiskHigh(0);
     }
     if (dialogType !== "corporation") {
       setCorporateAccountType("");
+      setCorporateRiskLow(0);
+      setCorporateRiskLowMedium(0);
       setCorporateRiskMedium(0);
       setCorporateRiskMediumHigh(0);
       setCorporateRiskHigh(0);
@@ -138,6 +146,8 @@ export function HouseholdManagementDialogs({
       type: "cash",
       nickname: undefined,
       balance: "0",
+      riskLowPct: "0",
+      riskLowMediumPct: "0",
       riskMediumPct: "0",
       riskMediumHighPct: "0",
       riskHighPct: "0",
@@ -161,6 +171,8 @@ export function HouseholdManagementDialogs({
       type: "cash",
       nickname: undefined,
       balance: "0",
+      riskLowPct: "0",
+      riskLowMediumPct: "0",
       riskMediumPct: "0",
       riskMediumHighPct: "0",
       riskHighPct: "0",
@@ -184,6 +196,8 @@ export function HouseholdManagementDialogs({
       type: "joint_cash",
       nickname: undefined,
       balance: "0",
+      riskLowPct: "0",
+      riskLowMediumPct: "0",
       riskMediumPct: "0",
       riskMediumHighPct: "0",
       riskHighPct: "0",
@@ -205,10 +219,12 @@ export function HouseholdManagementDialogs({
       const response = await apiRequest("POST", "/api/individuals", data);
       const individual = await response.json() as Individual;
       
-      // Create the account with risk percentages
+      // Create the account with risk percentages (5 categories)
       await apiRequest("POST", "/api/individual-accounts", {
         individualId: individual.id,
         type: individualAccountType,
+        riskLowPct: individualRiskLow,
+        riskLowMediumPct: individualRiskLowMedium,
         riskMediumPct: individualRiskMedium,
         riskMediumHighPct: individualRiskMediumHigh,
         riskHighPct: individualRiskHigh,
@@ -222,6 +238,8 @@ export function HouseholdManagementDialogs({
       onClose();
       individualForm.reset();
       setIndividualAccountType("");
+      setIndividualRiskLow(0);
+      setIndividualRiskLowMedium(0);
       setIndividualRiskMedium(0);
       setIndividualRiskMediumHigh(0);
       setIndividualRiskHigh(0);

@@ -71,8 +71,8 @@ export function registerAuthRoutes(app: Express) {
       res.status(404).json({ success: false, message: 'Alert not found' });
     }
   });
-  // Test email configuration endpoint
-  app.get('/api/test-email', isAuthenticated, async (_req, res) => {
+  // Test email configuration endpoint (public for diagnostics)
+  app.get('/api/test-email', async (_req, res) => {
     try {
       const result = await testEmailConnection();
       res.json(result);
