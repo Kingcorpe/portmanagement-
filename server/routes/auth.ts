@@ -6,6 +6,7 @@ import { log } from "../logger";
 import { authRateLimiter } from "./rateLimiter";
 import { rateLimit } from "./rateLimiter";
 import { getHealthState, acknowledgeAlert } from "../healthMonitor";
+import { testEmailConnection } from "../gmail";
 
 // Capture deploy time at server startup
 const DEPLOY_TIME = new Date().toISOString();
@@ -70,6 +71,19 @@ export function registerAuthRoutes(app: Express) {
       res.status(404).json({ success: false, message: 'Alert not found' });
     }
   });
+  // Test email configuration endpoint
+  app.get('/api/test-email', isAuthenticated, async (_req, res) => {
+    try {
+      const result = await testEmailConnection();
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Unknown error',
+      });
+    }
+  });
+
   // Auth routes
   app.get('/api/auth/user', rateLimit(authRateLimiter, (req) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
