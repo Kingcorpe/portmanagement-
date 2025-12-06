@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Settings, Trophy, User, Globe, Activity, BookMarked, UserPlus, Coins, ArrowUpDown, Map } from "lucide-react";
+import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Settings, Trophy, User, Globe, Activity, BookMarked, UserPlus, Coins, ArrowUpDown, Map, Circle } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,9 +15,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link, useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
 
 const menuItems: Array<{ title: string; url: string; icon: React.ComponentType<{ className?: string }> }> = [
   {
@@ -399,7 +401,94 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        <DeployStatus />
       </SidebarFooter>
     </Sidebar>
   );
+}
+
+// Deploy status indicator component
+function DeployStatus() {
+  const { data: version, isLoading, error } = useQuery({
+    queryKey: ["/api/version"],
+    queryFn: async () => {
+      const res = await fetch("/api/version");
+      if (!res.ok) throw new Error("Failed to fetch version");
+      return res.json();
+    },
+    refetchInterval: 30000, // Check every 30 seconds
+    staleTime: 10000,
+  });
+
+  const [lastSeenCommit, setLastSeenCommit] = useState<string | null>(null);
+  const [isNewDeploy, setIsNewDeploy] = useState(false);
+
+  useEffect(() => {
+    if (version?.commit) {
+      const stored = localStorage.getItem("lastSeenCommit");
+      if (stored && stored !== version.commit) {
+        setIsNewDeploy(true);
+        // Flash for 10 seconds then save
+        setTimeout(() => {
+          localStorage.setItem("lastSeenCommit", version.commit);
+          setIsNewDeploy(false);
+        }, 10000);
+      } else if (!stored) {
+        localStorage.setItem("lastSeenCommit", version.commit);
+      }
+      setLastSeenCommit(version.commit);
+    }
+  }, [version?.commit]);
+
+  if (isLoading || error) {
+    return (
+      <div className="px-3 py-2 text-xs text-muted-foreground flex items-center gap-2">
+        <Circle className="h-2 w-2 fill-muted-foreground text-muted-foreground" />
+        <span>Checking...</span>
+      </div>
+    );
+  }
+
+  const deployTime = version?.deployedAt ? new Date(version.deployedAt) : null;
+  const timeAgo = deployTime ? getTimeAgo(deployTime) : "unknown";
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="px-3 py-2 text-xs text-muted-foreground flex items-center gap-2 cursor-help hover:text-foreground transition-colors">
+            <Circle 
+              className={`h-2 w-2 ${
+                isNewDeploy 
+                  ? "fill-yellow-500 text-yellow-500 animate-pulse" 
+                  : "fill-green-500 text-green-500"
+              }`} 
+            />
+            <span className={isNewDeploy ? "text-yellow-600 dark:text-yellow-400 font-medium" : ""}>
+              {isNewDeploy ? "New Deploy!" : `v${version?.commit}`}
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="right" className="max-w-xs">
+          <div className="space-y-1">
+            <p><strong>Deployed:</strong> {timeAgo}</p>
+            <p><strong>Commit:</strong> {version?.commit}</p>
+            <p className="text-xs text-muted-foreground truncate max-w-[200px]">{version?.message}</p>
+            <p><strong>Uptime:</strong> {version?.uptime}</p>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function getTimeAgo(date: Date): string {
+  const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }

@@ -6,7 +6,21 @@ import { log } from "../logger";
 import { authRateLimiter } from "./rateLimiter";
 import { rateLimit } from "./rateLimiter";
 
+// Capture deploy time at server startup
+const DEPLOY_TIME = new Date().toISOString();
+const GIT_COMMIT = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) || 'local';
+const GIT_MESSAGE = process.env.RAILWAY_GIT_COMMIT_MESSAGE || 'Local development';
+
 export function registerAuthRoutes(app: Express) {
+  // Version/deploy status endpoint (public, no auth required)
+  app.get('/api/version', (_req, res) => {
+    res.json({
+      deployedAt: DEPLOY_TIME,
+      commit: GIT_COMMIT,
+      message: GIT_MESSAGE,
+      uptime: Math.floor(process.uptime()) + 's',
+    });
+  });
   // Auth routes
   app.get('/api/auth/user', rateLimit(authRateLimiter, (req) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
