@@ -460,7 +460,7 @@ export default function Landing() {
                 <Shield className="h-7 w-7 text-white" />
               </div>
               <h3 className="text-3xl font-bold text-white">
-                Your Wealth Deserves a Living System
+                Doesn't Your Wealth Deserve a Living System?
               </h3>
               <p className="text-slate-400 text-lg">
                 Stale models and dead portfolios cost families real money. We bring active management, defined rules, and 24/7 monitoring—so your wealth keeps working as hard as you did to build it.
