@@ -393,6 +393,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <DeployStatus />
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton data-testid="button-logout" onClick={handleLogout}>
@@ -401,7 +402,6 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        <DeployStatus />
       </SidebarFooter>
     </Sidebar>
   );
