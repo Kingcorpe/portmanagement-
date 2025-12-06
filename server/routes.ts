@@ -60,8 +60,8 @@ async function sendTradingAlertEmail(symbol: string, signal: string, price: stri
       return;
     }
     
-          // Try Replit Gmail integration (for Replit deployments only)
-          if (process.env.REPL_ID && (process.env.REPL_IDENTITY || process.env.WEB_REPL_RENEWAL)) {
+    // Try Gmail integration (works on Railway and Replit with GMAIL_USER/GMAIL_APP_PASSWORD)
+    if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
       const { sendEmail } = await import("./gmail");
       await sendEmail(alertEmail, `${signal} ${symbol} @ $${price}`, htmlBody);
       log.info("Alert email sent via Gmail", { symbol, signal, price });
