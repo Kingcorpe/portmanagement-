@@ -12,7 +12,28 @@ function getTransporter() {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_APP_PASSWORD,
     },
+    // Add timeouts to prevent hanging indefinitely
+    connectionTimeout: 10000, // 10 seconds to establish connection
+    greetingTimeout: 10000,   // 10 seconds for greeting
+    socketTimeout: 30000,     // 30 seconds for socket inactivity
   });
+}
+
+// Helper to wrap email sending with a timeout
+async function withTimeout<T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> {
+  let timeoutId: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(errorMessage)), ms);
+  });
+  
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
+    clearTimeout(timeoutId!);
+    return result;
+  } catch (error) {
+    clearTimeout(timeoutId!);
+    throw error;
+  }
 }
 
 export async function sendEmail(
@@ -22,12 +43,16 @@ export async function sendEmail(
 ) {
   const transporter = getTransporter();
 
-  const result = await transporter.sendMail({
-    from: process.env.GMAIL_USER,
-    to,
-    subject,
-    html: htmlBody,
-  });
+  const result = await withTimeout(
+    transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to,
+      subject,
+      html: htmlBody,
+    }),
+    45000, // 45 second total timeout
+    'Email sending timed out. Please check your email configuration.'
+  );
 
   return result;
 }
@@ -42,19 +67,23 @@ export async function sendEmailWithAttachment(
 ) {
   const transporter = getTransporter();
 
-  const result = await transporter.sendMail({
-    from: process.env.GMAIL_USER,
-    to,
-    subject,
-    html: body,
-    attachments: [
-      {
-        filename: attachmentName,
-        content: attachment,
-        contentType: mimeType,
-      },
-    ],
-  });
+  const result = await withTimeout(
+    transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to,
+      subject,
+      html: body,
+      attachments: [
+        {
+          filename: attachmentName,
+          content: attachment,
+          contentType: mimeType,
+        },
+      ],
+    }),
+    45000, // 45 second total timeout
+    'Email sending timed out. Please check your email configuration.'
+  );
 
   return result;
 }
