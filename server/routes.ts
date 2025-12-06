@@ -5649,6 +5649,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { registerProtectedPositionsRoutes } = await import("./routes/protected-positions");
   registerProtectedPositionsRoutes(app);
 
+  // Recovery Positions routes (positions underwater/at a loss)
+  const { registerRecoveryPositionsRoutes } = await import("./routes/recovery-positions");
+  registerRecoveryPositionsRoutes(app);
+
   // REFACTORING: KPI routes extracted to routes/kpi.ts
   const { registerKpiRoutes } = await import("./routes/kpi");
   registerKpiRoutes(app);

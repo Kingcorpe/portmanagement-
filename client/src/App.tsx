@@ -63,6 +63,7 @@ import KpiDashboard from "@/pages/kpi-dashboard";
 import MarketDashboard from "@/pages/market-dashboard";
 import TradingJournal from "@/pages/trading-journal";
 import ProtectionDashboard from "@/pages/protection-dashboard";
+import RecoveryDashboard from "@/pages/recovery-dashboard";
 import Admin from "@/pages/admin";
 import Prospects from "@/pages/prospects";
 import ProspectIntake from "@/pages/prospect-intake";
@@ -103,6 +104,7 @@ function AuthenticatedRoutes() {
           <Route path="/market" component={MarketDashboard} />
           <Route path="/trading-journal" component={TradingJournal} />
           <Route path="/protection" component={ProtectionDashboard} />
+          <Route path="/recovery" component={RecoveryDashboard} />
           <Route path="/admin" component={Admin} />
           <Route path="/prospects" component={Prospects} />
           <Route path="/dividends" component={DividendDashboard} />

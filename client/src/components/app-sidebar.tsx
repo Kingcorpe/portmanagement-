@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, Link as LinkIcon, Settings, Trophy, User, Globe, Activity, BookMarked, UserPlus, Coins, ArrowUpDown, Map, Circle } from "lucide-react";
+import { LayoutDashboard, Users, Bell, LogOut, Briefcase, BookOpen, FileText, Target, ChevronRight, ListTodo, BarChart3, Search, ShieldCheck, TrendingUp, TrendingDown, Link as LinkIcon, Settings, Trophy, User, Globe, Activity, BookMarked, UserPlus, Coins, ArrowUpDown, Map, Circle } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -97,6 +97,11 @@ const investmentDivisionItems = [
     title: "Protection Dashboard",
     url: "/protection",
     icon: ShieldCheck,
+  },
+  {
+    title: "Recovery Dashboard",
+    url: "/recovery",
+    icon: TrendingDown,
   },
   {
     title: "Households",
