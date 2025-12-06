@@ -51,24 +51,25 @@ export function registerAuthRoutes(app: Express) {
       health.auth = { status: 'warning', message: 'Not configured' };
     }
 
-    // Check Market Data API (Alpha Vantage or similar)
+    // Check Market Data API (Yahoo Finance - no API key required)
     const marketStart = Date.now();
     try {
-      if (process.env.ALPHA_VANTAGE_API_KEY) {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
-        const response = await fetch(
-          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=AAPL&apikey=${process.env.ALPHA_VANTAGE_API_KEY}`,
-          { signal: controller.signal }
-        );
-        clearTimeout(timeout);
-        if (response.ok) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const response = await fetch(
+        'https://query1.finance.yahoo.com/v8/finance/chart/AAPL?interval=1d&range=1d',
+        { signal: controller.signal }
+      );
+      clearTimeout(timeout);
+      if (response.ok) {
+        const data = await response.json();
+        if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
           health.marketData = { status: 'ok', latency: Date.now() - marketStart };
         } else {
-          health.marketData = { status: 'warning', message: 'API returned error' };
+          health.marketData = { status: 'warning', message: 'No price data returned' };
         }
       } else {
-        health.marketData = { status: 'warning', message: 'API key not configured' };
+        health.marketData = { status: 'warning', message: `API returned ${response.status}` };
       }
     } catch (error: any) {
       health.marketData = { 
