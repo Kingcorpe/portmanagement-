@@ -8,6 +8,7 @@ import express, {
 } from "express";
 
 import { registerRoutes } from "./routes";
+import { startHealthMonitor } from "./healthMonitor";
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -115,6 +116,11 @@ export default async function runApp(
     console.log("[APP] Running setup...");
     await setup(app, server);
     console.log("[APP] Setup complete");
+
+    // Start the health monitor for automated monitoring, alerts, and auto-recovery
+    console.log("[APP] Starting health monitor...");
+    startHealthMonitor();
+    console.log("[APP] Health monitor started");
 
     // ALWAYS serve the app on the port specified in the environment variable PORT
     // Other ports are firewalled. Default to 5000 if not specified.

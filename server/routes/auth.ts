@@ -5,8 +5,7 @@ import { storage } from "../storage";
 import { log } from "../logger";
 import { authRateLimiter } from "./rateLimiter";
 import { rateLimit } from "./rateLimiter";
-import { db } from "../db";
-import { sql } from "drizzle-orm";
+import { getHealthState, acknowledgeAlert } from "../healthMonitor";
 
 // Capture deploy time at server startup
 const DEPLOY_TIME = new Date().toISOString();
@@ -24,107 +23,52 @@ export function registerAuthRoutes(app: Express) {
     });
   });
 
-  // Health check endpoint - checks all critical services
-  app.get('/api/health', async (_req, res) => {
-    const health: Record<string, { status: 'ok' | 'error' | 'warning'; message?: string; latency?: number }> = {};
-
-    // Check Database
-    const dbStart = Date.now();
-    try {
-      await db.execute(sql`SELECT 1`);
-      health.database = { status: 'ok', latency: Date.now() - dbStart };
-    } catch (error: any) {
-      health.database = { status: 'error', message: error.message || 'Connection failed' };
-    }
-
-    // Check Email (Gmail) configuration
-    if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
-      health.email = { status: 'ok', message: 'Configured' };
-    } else {
-      health.email = { status: 'warning', message: 'Not configured' };
-    }
-
-    // Check Auth (Clerk) configuration
-    if (process.env.CLERK_SECRET_KEY && process.env.VITE_CLERK_PUBLISHABLE_KEY) {
-      health.auth = { status: 'ok', message: 'Configured' };
-    } else {
-      health.auth = { status: 'warning', message: 'Not configured' };
-    }
-
-    // Check Market Data API - Marketstack (primary), Twelve Data (alt), Yahoo (fallback)
-    const marketStart = Date.now();
-    const marketstackKey = process.env.MARKETSTACK_API_KEY;
-    const twelveDataKey = process.env.TWELVE_DATA_API_KEY;
+  // Health check endpoint - uses the health monitor for live data
+  app.get('/api/health', (_req, res) => {
+    const state = getHealthState();
     
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-      
-      if (marketstackKey) {
-        // Check Marketstack (primary paid API)
-        const response = await fetch(
-          `https://api.marketstack.com/v1/eod/latest?access_key=${marketstackKey}&symbols=AAPL`,
-          { signal: controller.signal }
-        );
-        clearTimeout(timeout);
-        if (response.ok) {
-          const data = await response.json();
-          if (data?.data?.[0]?.close) {
-            health.marketData = { status: 'ok', message: 'Marketstack', latency: Date.now() - marketStart };
-          } else if (data?.error) {
-            health.marketData = { status: 'warning', message: `Marketstack: ${data.error.message || 'Error'}` };
-          } else {
-            health.marketData = { status: 'warning', message: 'Marketstack: No data' };
-          }
-        } else {
-          health.marketData = { status: 'error', message: `Marketstack: HTTP ${response.status}` };
-        }
-      } else if (twelveDataKey) {
-        // Check Twelve Data (alternate paid API)
-        const response = await fetch(
-          `https://api.twelvedata.com/price?symbol=AAPL&apikey=${twelveDataKey}`,
-          { signal: controller.signal }
-        );
-        clearTimeout(timeout);
-        if (response.ok) {
-          const data = await response.json();
-          if (data?.price) {
-            health.marketData = { status: 'ok', message: 'Twelve Data', latency: Date.now() - marketStart };
-          } else {
-            health.marketData = { status: 'warning', message: 'Twelve Data: No price' };
-          }
-        } else {
-          health.marketData = { status: 'error', message: `Twelve Data: HTTP ${response.status}` };
-        }
-      } else {
-        // Fallback to Yahoo Finance (free, no API key)
-        clearTimeout(timeout);
-        const yahooController = new AbortController();
-        const yahooTimeout = setTimeout(() => yahooController.abort(), 5000);
-        const response = await fetch(
-          'https://query1.finance.yahoo.com/v8/finance/chart/AAPL?interval=1d&range=1d',
-          { signal: yahooController.signal }
-        );
-        clearTimeout(yahooTimeout);
-        if (response.ok) {
-          health.marketData = { status: 'warning', message: 'Yahoo (no paid API configured)', latency: Date.now() - marketStart };
-        } else {
-          health.marketData = { status: 'error', message: 'Yahoo: Failed' };
-        }
-      }
-    } catch (error: any) {
-      health.marketData = { 
-        status: 'error', 
-        message: error.name === 'AbortError' ? 'Timeout' : (error.message || 'Failed')
+    // Transform to simpler format for frontend
+    const services: Record<string, { status: string; message?: string; latency?: number }> = {};
+    for (const [key, value] of Object.entries(state.services)) {
+      services[key] = {
+        status: value.status,
+        message: value.message,
+        latency: value.latency,
       };
     }
-
-    // Overall status
-    const hasError = Object.values(health).some(h => h.status === 'error');
-    const hasWarning = Object.values(health).some(h => h.status === 'warning');
+    
+    const hasError = Object.values(state.services).some(h => h.status === 'error');
+    const hasWarning = Object.values(state.services).some(h => h.status === 'warning');
     const overall = hasError ? 'error' : hasWarning ? 'warning' : 'ok';
+    
+    res.json({ 
+      overall, 
+      services, 
+      activeAlerts: state.activeAlerts,
+      timestamp: new Date().toISOString() 
+    });
+  });
 
-    res.json({ overall, services: health, timestamp: new Date().toISOString() });
+  // Get active alerts endpoint
+  app.get('/api/health/alerts', (_req, res) => {
+    const state = getHealthState();
+    res.json({
+      alerts: state.activeAlerts,
+      count: state.activeAlerts.length,
+      hasErrors: state.activeAlerts.some(a => a.severity === 'error'),
+      hasWarnings: state.activeAlerts.some(a => a.severity === 'warning'),
+    });
+  });
+
+  // Acknowledge an alert
+  app.post('/api/health/alerts/:alertId/acknowledge', isAuthenticated, (req, res) => {
+    const { alertId } = req.params;
+    const success = acknowledgeAlert(alertId);
+    if (success) {
+      res.json({ success: true, message: 'Alert acknowledged' });
+    } else {
+      res.status(404).json({ success: false, message: 'Alert not found' });
+    }
   });
   // Auth routes
   app.get('/api/auth/user', rateLimit(authRateLimiter, (req) => {
