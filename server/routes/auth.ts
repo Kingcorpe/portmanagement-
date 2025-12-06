@@ -51,25 +51,66 @@ export function registerAuthRoutes(app: Express) {
       health.auth = { status: 'warning', message: 'Not configured' };
     }
 
-    // Check Market Data API (Yahoo Finance - no API key required)
+    // Check Market Data API - Marketstack (primary), Twelve Data (alt), Yahoo (fallback)
     const marketStart = Date.now();
+    const marketstackKey = process.env.MARKETSTACK_API_KEY;
+    const twelveDataKey = process.env.TWELVE_DATA_API_KEY;
+    
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch(
-        'https://query1.finance.yahoo.com/v8/finance/chart/AAPL?interval=1d&range=1d',
-        { signal: controller.signal }
-      );
-      clearTimeout(timeout);
-      if (response.ok) {
-        const data = await response.json();
-        if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
-          health.marketData = { status: 'ok', latency: Date.now() - marketStart };
+      
+      if (marketstackKey) {
+        // Check Marketstack (primary paid API)
+        const response = await fetch(
+          `https://api.marketstack.com/v1/eod/latest?access_key=${marketstackKey}&symbols=AAPL`,
+          { signal: controller.signal }
+        );
+        clearTimeout(timeout);
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.data?.[0]?.close) {
+            health.marketData = { status: 'ok', message: 'Marketstack', latency: Date.now() - marketStart };
+          } else if (data?.error) {
+            health.marketData = { status: 'warning', message: `Marketstack: ${data.error.message || 'Error'}` };
+          } else {
+            health.marketData = { status: 'warning', message: 'Marketstack: No data' };
+          }
         } else {
-          health.marketData = { status: 'warning', message: 'No price data returned' };
+          health.marketData = { status: 'error', message: `Marketstack: HTTP ${response.status}` };
+        }
+      } else if (twelveDataKey) {
+        // Check Twelve Data (alternate paid API)
+        const response = await fetch(
+          `https://api.twelvedata.com/price?symbol=AAPL&apikey=${twelveDataKey}`,
+          { signal: controller.signal }
+        );
+        clearTimeout(timeout);
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.price) {
+            health.marketData = { status: 'ok', message: 'Twelve Data', latency: Date.now() - marketStart };
+          } else {
+            health.marketData = { status: 'warning', message: 'Twelve Data: No price' };
+          }
+        } else {
+          health.marketData = { status: 'error', message: `Twelve Data: HTTP ${response.status}` };
         }
       } else {
-        health.marketData = { status: 'warning', message: `API returned ${response.status}` };
+        // Fallback to Yahoo Finance (free, no API key)
+        clearTimeout(timeout);
+        const yahooController = new AbortController();
+        const yahooTimeout = setTimeout(() => yahooController.abort(), 5000);
+        const response = await fetch(
+          'https://query1.finance.yahoo.com/v8/finance/chart/AAPL?interval=1d&range=1d',
+          { signal: yahooController.signal }
+        );
+        clearTimeout(yahooTimeout);
+        if (response.ok) {
+          health.marketData = { status: 'warning', message: 'Yahoo (no paid API configured)', latency: Date.now() - marketStart };
+        } else {
+          health.marketData = { status: 'error', message: 'Yahoo: Failed' };
+        }
       }
     } catch (error: any) {
       health.marketData = { 
