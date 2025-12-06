@@ -75,6 +75,8 @@ import {
   type RiskValidationResult,
 } from "@shared/riskConfig";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { DcpSummaryCard } from "@/components/dcp-summary-card";
+import { ProtectionActionsPanel } from "@/components/protection-actions-panel";
 
 type PositionFormData = z.infer<typeof insertPositionSchema>;
 type AllocationFormData = z.infer<typeof insertAccountTargetAllocationSchema>;
@@ -2478,6 +2480,26 @@ export default function AccountDetails() {
           </div>
         </CardContent>
       </Card>
+
+      {/* DCP Summary Card - Shows protection & DCP status at a glance */}
+      {accountType && accountId && (
+        <DcpSummaryCard
+          accountType={accountType as "individual" | "corporate" | "joint"}
+          accountId={accountId}
+          positions={positions}
+          isAuthenticated={isAuthenticated}
+        />
+      )}
+
+      {/* Protection Actions Panel - Protected positions with DCP quick-create */}
+      {accountType && accountId && (
+        <ProtectionActionsPanel
+          accountType={accountType as "individual" | "corporate" | "joint"}
+          accountId={accountId}
+          positions={positions}
+          isAuthenticated={isAuthenticated}
+        />
+      )}
 
       {/* Unified Holdings & Portfolio Comparison Section */}
       <Collapsible open={isHoldingsExpanded} onOpenChange={setIsHoldingsExpanded}>

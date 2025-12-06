@@ -1,0 +1,101 @@
+DCA vs LUMP SUM INTERACTIVE CALCULATOR - QQC.TO
+========================================
+
+STEP 1: ENTER YOUR PARAMETERS
+========================================
+Parameter,Your Value,Notes
+Starting Price (CAD),42.27,Current QQC.TO price as of Dec 2025
+Total Amount to Invest,12000,How much you want to invest total
+Monthly Investment,1000,For DCA: divide total by # months
+Investment Period (months),12,How long to invest
+Expected Annual Volatility %,20,QQC.TO typically 15-25%
+Expected Annual Return %,10,Conservative estimate for covered call ETF
+
+========================================
+STEP 2: YOUR DCA TRACKING LOG
+========================================
+"Instructions: Fill in the 'Actual Price' and 'Shares Bought' columns as you make each purchase"
+
+Month,Target Date,Planned Investment,Actual Price,Target Shares,Actual Shares Bought,Cumulative Shares,Cumulative Investment,Current Value,Gain/Loss
+1,2025-01-15,1000,,=C12/D12,,,=G12,=G12*D12,=I12-H12
+2,2025-02-15,1000,,=C13/D13,,=F13+G12,=H12+C13,=G13*D13,=I13-H13
+3,2025-03-15,1000,,=C14/D14,,=F14+G13,=H13+C14,=G14*D14,=I14-H14
+4,2025-04-15,1000,,=C15/D15,,=F15+G14,=H14+C15,=G15*D15,=I15-H15
+5,2025-05-15,1000,,=C16/D16,,=F16+G15,=H15+C16,=G16*D16,=I16-H16
+6,2025-06-15,1000,,=C17/D17,,=F17+G16,=H16+C17,=G17*D17,=I17-H17
+7,2025-07-15,1000,,=C18/D18,,=F18+G17,=H17+C18,=G18*D18,=I18-H18
+8,2025-08-15,1000,,=C19/D19,,=F19+G18,=H18+C19,=G19*D19,=I19-H19
+9,2025-09-15,1000,,=C20/D20,,=F20+G19,=H19+C20,=G20*D20,=I20-H20
+10,2025-10-15,1000,,=C21/D21,,=F21+G20,=H20+C21,=G21*D21,=I21-H21
+11,2025-11-15,1000,,=C22/D22,,=F22+G21,=H21+C22,=G22*D22,=I22-H22
+12,2025-12-15,1000,,=C23/D23,,=F23+G22,=H22+C23,=G23*D23,=I23-H23
+
+========================================
+STEP 3: COMPARISON SUMMARY
+========================================
+
+YOUR DCA RESULTS
+Metric,Formula,Result
+Total Invested,=SUM(C12:C23),
+Total Shares,=G23,
+Average Cost/Share,=H23/G23,
+Current Value,=I23,
+Total Return $,=J23,
+Total Return %,=(I23-H23)/H23*100,
+
+IF YOU HAD DONE LUMP SUM (at starting price)
+Metric,Formula,Result
+Total Invested,=B5,
+Shares Purchased,=B5/B4,
+Current Value,"=D35*[current price]",
+Total Return $,=D36-D34,
+Total Return %,=(D36-D34)/D34*100,
+
+WHICH STRATEGY WON?,=IF(C30>D38,"DCA by $"&(C30-D38),"Lump Sum by $"&(D38-C30)),
+
+========================================
+STEP 4: SCENARIO ANALYSIS
+========================================
+"What if the price moves differently? Enter different end prices to see outcomes"
+
+Scenario,End Price,DCA Final Value,Lump Sum Final Value,Winner
+Bull (+30%),=B4*1.3,=G23*E45,=D35*E45,=IF(F45>G45,"DCA","Lump Sum")
+Moderate (+10%),=B4*1.1,=G23*E46,=D35*E46,=IF(F46>G46,"DCA","Lump Sum")
+Flat (0%),=B4,=G23*E47,=D35*E47,=IF(F47>G47,"DCA","Lump Sum")
+Bear (-10%),=B4*0.9,=G23*E48,=D35*E48,=IF(F48>G48,"DCA","Lump Sum")
+Crash (-30%),=B4*0.7,=G23*E49,=D35*E49,=IF(F49>G49,"DCA","Lump Sum")
+
+========================================
+HISTORICAL CONTEXT: QQC.TO
+========================================
+Note,Value
+Asset Type,NASDAQ 100 Covered Call ETF
+Exchange,Toronto Stock Exchange (TSX)
+Currency,CAD
+Recent 1-Year Return,~18.70%
+Dividend Frequency,Monthly
+Approx Yield,8-10% annually from options premium
+Management Fee,~0.60%
+Strategy,"Covered calls reduce upside but generate income, lower volatility than QQQ"
+
+========================================
+DCA CHECKLIST FOR QQC.TO
+========================================
+Task,Status,Date Completed
+Set up automatic monthly transfers,,
+Choose trading account (TFSA/RRSP/Non-Reg),,
+Set calendar reminders for buy dates,,
+Create price alert for unusual moves,,
+Track distributions received,,
+Review performance quarterly,,
+
+========================================
+NOTES & TIPS
+========================================
+"1. QQC.TO pays monthly distributions - reinvest these for compound growth"
+"2. Consider TFSA or RRSP to shelter distributions from tax"
+"3. Best DCA buy days are often mid-month (avoid settlement issues)"
+"4. During crashes, consider accelerating DCA (buying extra)"
+"5. Track your average cost basis for tax purposes"
+"6. The covered call strategy caps upside but adds income - consider in strategy"
+

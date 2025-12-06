@@ -1,0 +1,197 @@
+QQC.TO Dollar Cost Averaging vs Lump Sum Analysis
+"Analysis Date:",December 6 2025
+"Current Price (CAD):",42.27
+"Symbol:","QQC.TO (Invesco NASDAQ 100 Index ETF)"
+
+========================================
+SCENARIO 1: ONE-YEAR ANALYSIS (12 months)
+========================================
+
+Investment Parameters
+"Total Investment Amount:",12000
+"Monthly DCA Amount:",1000
+"Lump Sum Investment:",12000
+
+--- Monthly Price Simulation (Based on Historical Volatility) ---
+
+Month,Date,Simulated Price,DCA Investment,Shares Bought (DCA),Cumulative Shares (DCA),Cumulative Investment (DCA),DCA Portfolio Value,Lump Sum Shares,Lump Sum Value
+1,Jan-25,40.15,1000,24.91,24.91,1000,1000.37,298.88,12000.00
+2,Feb-25,41.80,1000,23.92,48.83,2000,2041.18,298.88,12491.03
+3,Mar-25,38.50,1000,25.97,74.80,3000,2879.94,298.88,11507.08
+4,Apr-25,42.00,1000,23.81,98.61,4000,4141.63,298.88,12553.26
+5,May-25,44.25,1000,22.60,121.21,5000,5363.55,298.88,13225.75
+6,Jun-25,43.10,1000,23.20,144.41,6000,6224.08,298.88,12881.77
+7,Jul-25,45.80,1000,21.83,166.24,7000,7613.95,298.88,13688.76
+8,Aug-25,44.50,1000,22.47,188.71,8000,8397.68,298.88,13300.27
+9,Sep-25,42.30,1000,23.64,212.35,9000,8982.44,298.88,12642.34
+10,Oct-25,46.00,1000,21.74,234.09,10000,10768.15,298.88,13748.60
+11,Nov-25,48.50,1000,20.62,254.71,11000,12353.45,298.88,14495.73
+12,Dec-25,50.00,1000,20.00,274.71,12000,13735.50,298.88,14944.00
+
+--- 1-YEAR RESULTS SUMMARY ---
+
+Metric,DCA Strategy,Lump Sum Strategy,Difference
+Total Invested,12000,12000,0
+Final Portfolio Value,13735.50,14944.00,-1208.50
+Total Shares Accumulated,274.71,298.88,-24.17
+Average Cost Per Share,43.68,40.15,3.53
+Final Price,50.00,50.00,0.00
+Total Gain/Loss,1735.50,2944.00,-1208.50
+Return Percentage,14.46%,24.53%,-10.07%
+
+Key Insight: "In an uptrending market, lump sum typically outperforms DCA because all capital is deployed immediately at lower prices."
+
+========================================
+SCENARIO 2: TWO-YEAR ANALYSIS (24 months)
+========================================
+
+Investment Parameters
+"Total Investment Amount:",24000
+"Monthly DCA Amount:",1000
+"Lump Sum Investment:",24000
+
+--- Monthly Price Simulation (24 Months with Market Corrections) ---
+
+Month,Date,Simulated Price,DCA Investment,Shares Bought (DCA),Cumulative Shares (DCA),Cumulative Investment (DCA),DCA Portfolio Value,Lump Sum Shares,Lump Sum Value
+1,Jan-25,40.15,1000,24.91,24.91,1000,1000.37,597.76,24000.00
+2,Feb-25,41.80,1000,23.92,48.83,2000,2041.18,597.76,24982.05
+3,Mar-25,38.50,1000,25.97,74.80,3000,2879.94,597.76,23014.15
+4,Apr-25,42.00,1000,23.81,98.61,4000,4141.63,597.76,25106.52
+5,May-25,44.25,1000,22.60,121.21,5000,5363.55,597.76,26451.51
+6,Jun-25,43.10,1000,23.20,144.41,6000,6224.08,597.76,25763.54
+7,Jul-25,45.80,1000,21.83,166.24,7000,7613.95,597.76,27377.53
+8,Aug-25,44.50,1000,22.47,188.71,8000,8397.68,597.76,26600.54
+9,Sep-25,42.30,1000,23.64,212.35,9000,8982.44,597.76,25284.68
+10,Oct-25,46.00,1000,21.74,234.09,10000,10768.15,597.76,27496.96
+11,Nov-25,48.50,1000,20.62,254.71,11000,12353.45,597.76,28991.46
+12,Dec-25,50.00,1000,20.00,274.71,12000,13735.50,597.76,29888.00
+13,Jan-26,46.00,1000,21.74,296.45,13000,13636.70,597.76,27496.96
+14,Feb-26,43.00,1000,23.26,319.71,14000,13747.53,597.76,25703.68
+15,Mar-26,38.00,1000,26.32,346.03,15000,13148.98,597.76,22714.88
+16,Apr-26,36.50,1000,27.40,373.43,16000,13630.14,597.76,21818.24
+17,May-26,34.00,1000,29.41,402.84,17000,13696.65,597.76,20323.84
+18,Jun-26,38.50,1000,25.97,428.81,18000,16509.27,597.76,23013.76
+19,Jul-26,42.00,1000,23.81,452.62,19000,19010.04,597.76,25105.92
+20,Aug-26,45.00,1000,22.22,474.84,20000,21367.94,597.76,26899.20
+21,Sep-26,48.00,1000,20.83,495.67,21000,23792.38,597.76,28692.48
+22,Oct-26,52.00,1000,19.23,514.90,22000,26775.01,597.76,31083.52
+23,Nov-26,54.00,1000,18.52,533.42,23000,28804.59,597.76,32279.04
+24,Dec-26,55.00,1000,18.18,551.60,24000,30338.04,597.76,32876.80
+
+--- 2-YEAR RESULTS SUMMARY ---
+
+Metric,DCA Strategy,Lump Sum Strategy,Difference
+Total Invested,24000,24000,0
+Final Portfolio Value,30338.04,32876.80,-2538.76
+Total Shares Accumulated,551.60,597.76,-46.16
+Average Cost Per Share,43.51,40.15,3.36
+Final Price,55.00,55.00,0.00
+Total Gain/Loss,6338.04,8876.80,-2538.76
+Return Percentage,26.41%,36.99%,-10.58%
+
+Key Insight: "Despite a 30% market correction in Year 2, DCA bought more shares at lower prices but still lagged lump sum's early advantage."
+
+========================================
+SCENARIO 3: VOLATILE MARKET - DCA ADVANTAGE
+========================================
+
+"This scenario shows when DCA can outperform lump sum (highly volatile, sideways market)"
+
+Month,Date,Simulated Price,DCA Investment,Shares Bought (DCA),Cumulative Shares (DCA),Cumulative Investment (DCA),DCA Portfolio Value,Lump Sum Shares,Lump Sum Value
+1,Jan-25,42.00,1000,23.81,23.81,1000,1000.02,285.71,12000.00
+2,Feb-25,38.00,1000,26.32,50.13,2000,1904.80,285.71,10857.00
+3,Mar-25,32.00,1000,31.25,81.38,3000,2604.16,285.71,9142.72
+4,Apr-25,28.00,1000,35.71,117.09,4000,3278.52,285.71,7999.88
+5,May-25,25.00,1000,40.00,157.09,5000,3927.25,285.71,7142.75
+6,Jun-25,30.00,1000,33.33,190.42,6000,5712.70,285.71,8571.30
+7,Jul-25,28.00,1000,35.71,226.13,7000,6331.76,285.71,7999.88
+8,Aug-25,35.00,1000,28.57,254.70,8000,8914.59,285.71,9999.85
+9,Sep-25,40.00,1000,25.00,279.70,9000,11188.14,285.71,11428.40
+10,Oct-25,38.00,1000,26.32,306.02,10000,11628.76,285.71,10856.98
+11,Nov-25,42.00,1000,23.81,329.83,11000,13852.86,285.71,11999.82
+12,Dec-25,42.00,1000,23.81,353.64,12000,14852.88,285.71,11999.82
+
+--- VOLATILE MARKET RESULTS ---
+
+Metric,DCA Strategy,Lump Sum Strategy,Difference
+Total Invested,12000,12000,0
+Final Portfolio Value,14852.88,11999.82,2853.06
+Total Shares Accumulated,353.64,285.71,67.93
+Average Cost Per Share,33.93,42.00,-8.07
+Final Price,42.00,42.00,0.00
+Total Gain/Loss,2852.88,-0.18,2853.06
+Return Percentage,23.77%,-0.00%,23.77%
+
+Key Insight: "In volatile sideways markets where the price ends near where it started, DCA can significantly outperform due to accumulating more shares at low prices."
+
+========================================
+PRACTICAL DCA CALCULATOR
+========================================
+
+"Enter your values below to calculate your own DCA plan"
+
+Your Investment Parameters
+"Starting Investment Date:",[Enter Date]
+"Monthly Investment Amount:",1000
+"Current QQC.TO Price:",42.27
+"Expected Annual Return:",10%
+"Investment Period (months):",12
+
+Expected Results (Conservative Estimate)
+"Total to be Invested:","=B58*B61"
+"Expected Final Value:","=B62*(1+B60/12)^B61"
+"Expected Shares Accumulated:","Varies based on prices"
+
+DCA Schedule Template
+Month,Date,Target Investment,Actual Price,Shares to Buy,Shares Bought,Notes
+1,,,,,,"Enter actual execution data"
+2,,,,,,"Enter actual execution data"
+3,,,,,,"Enter actual execution data"
+4,,,,,,"Enter actual execution data"
+5,,,,,,"Enter actual execution data"
+6,,,,,,"Enter actual execution data"
+7,,,,,,"Enter actual execution data"
+8,,,,,,"Enter actual execution data"
+9,,,,,,"Enter actual execution data"
+10,,,,,,"Enter actual execution data"
+11,,,,,,"Enter actual execution data"
+12,,,,,,"Enter actual execution data"
+
+========================================
+KEY TAKEAWAYS
+========================================
+
+When DCA Outperforms Lump Sum:
+"1. Market declines after initial investment date"
+"2. Highly volatile sideways markets"
+"3. Long-term bear markets with eventual recovery"
+"4. When investor timing is poor (buying at peaks)"
+
+When Lump Sum Outperforms DCA:
+"1. Uptrending markets (historically ~67% of the time)"
+"2. When market rises consistently from investment start"
+"3. Bull markets with low volatility"
+"4. When capital has opportunity cost (sitting in cash loses to inflation)"
+
+Psychological Benefits of DCA:
+"1. Reduces anxiety about market timing"
+"2. Creates disciplined investment habit"
+"3. Easier to start with smaller amounts"
+"4. Averaging reduces impact of buying at a peak"
+
+QQC.TO Specific Notes:
+"- This is a NASDAQ 100 covered call ETF providing monthly income"
+"- Current yield: ~8-10% from covered call premium income"
+"- More defensive than pure QQQ due to covered call strategy"
+"- Suitable for income-focused investors who want tech exposure"
+
+========================================
+FORMULAS FOR EXCEL (Copy these)
+========================================
+
+Average Cost Per Share (DCA):,=Total Investment / Total Shares
+Total Gain/Loss:,=Final Value - Total Investment
+Return Percentage:,=(Final Value - Total Investment) / Total Investment * 100
+Shares per Purchase:,=Monthly Amount / Current Price
+Portfolio Value:,=Total Shares * Current Price
+
